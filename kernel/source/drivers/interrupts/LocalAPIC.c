@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,14 +90,14 @@ BOOL InitializeLocalAPIC(void) {
     LPACPI_CONFIG AcpiConfig;
     U32 ApicBaseAddr;
 
-    DEBUG(TEXT("[LocalAPIC] Initializing Local APIC..."));
+    DEBUG(TEXT("Initializing Local APIC..."));
 
     // Clear configuration
     MemorySet(&g_LocalApicConfig, 0, sizeof(LOCAL_APIC_CONFIG));
 
     // Check if Local APIC is present via CPUID
     if (!IsLocalAPICPresent()) {
-        DEBUG(TEXT("[LocalAPIC] Local APIC not present on this processor"));
+        DEBUG(TEXT("Local APIC not present on this processor"));
         return FALSE;
     }
 
@@ -105,22 +105,22 @@ BOOL InitializeLocalAPIC(void) {
     AcpiConfig = GetACPIConfig();
     if (AcpiConfig && AcpiConfig->Valid && AcpiConfig->UseLocalApic) {
         ApicBaseAddr = AcpiConfig->LocalApicAddress;
-        DEBUG(TEXT("[LocalAPIC] Using ACPI-provided Local APIC address: 0x%08X"), ApicBaseAddr);
+        DEBUG(TEXT("Using ACPI-provided Local APIC address: 0x%08X"), ApicBaseAddr);
     } else {
         // Fall back to MSR
         ApicBaseAddr = GetLocalAPICBaseAddress();
-        DEBUG(TEXT("[LocalAPIC] Using MSR-provided Local APIC address: 0x%08X"), ApicBaseAddr);
+        DEBUG(TEXT("Using MSR-provided Local APIC address: 0x%08X"), ApicBaseAddr);
     }
 
     if (ApicBaseAddr == 0) {
-        DEBUG(TEXT("[LocalAPIC] Invalid Local APIC base address"));
+        DEBUG(TEXT("Invalid Local APIC base address"));
         return FALSE;
     }
 
     // Map the Local APIC registers using MapIOMemory
     g_LocalApicConfig.MappedAddress = MapIOMemory(ApicBaseAddr, PAGE_SIZE);
     if (g_LocalApicConfig.MappedAddress == 0) {
-        DEBUG(TEXT("[LocalAPIC] Failed to map Local APIC registers"));
+        DEBUG(TEXT("Failed to map Local APIC registers"));
         return FALSE;
     }
 
@@ -128,17 +128,17 @@ BOOL InitializeLocalAPIC(void) {
     g_LocalApicConfig.Present = TRUE;
 
     if (!EnableLocalAPIC()) {
-        ERROR(TEXT("[InitializeLocalAPIC] Failed to enable Local APIC"));
+        ERROR(TEXT("Failed to enable Local APIC"));
         UnMapIOMemory(g_LocalApicConfig.MappedAddress, PAGE_SIZE);
         return FALSE;
     }
 
     if (!SetSpuriousInterruptVector(0xFF)) {
-        ERROR(TEXT("[InitializeLocalAPIC] Failed to set spurious interrupt vector"));
+        ERROR(TEXT("Failed to set spurious interrupt vector"));
         UnMapIOMemory(g_LocalApicConfig.MappedAddress, PAGE_SIZE);
         return FALSE;
     }
-    DEBUG(TEXT("[InitializeLocalAPIC] Local APIC mapped and enabled"));
+    DEBUG(TEXT("Local APIC mapped and enabled"));
 
     // Read Local APIC information
     U32 VersionReg = ReadLocalAPICRegister(LOCAL_APIC_VERSION);
@@ -146,7 +146,7 @@ BOOL InitializeLocalAPIC(void) {
     g_LocalApicConfig.MaxLvtEntries = (U8)((VersionReg >> 16) & 0xFF) + 1;
     g_LocalApicConfig.ApicId = GetLocalAPICId();
 
-    DEBUG(TEXT("[LocalAPIC] Local APIC initialized: ID=%u, Version=0x%02X, MaxLVT=%u"),
+    DEBUG(TEXT("Local APIC initialized: ID=%u, Version=0x%02X, MaxLVT=%u"),
               g_LocalApicConfig.ApicId, g_LocalApicConfig.Version, g_LocalApicConfig.MaxLvtEntries);
 
     return TRUE;
@@ -198,7 +198,7 @@ BOOL EnableLocalAPIC(void) {
     WriteMSR64(IA32_APIC_BASE_MSR, ApicBaseLow, ApicBaseHigh);
 
     g_LocalApicConfig.Enabled = TRUE;
-    DEBUG(TEXT("[LocalAPIC] Local APIC enabled via MSR"));
+    DEBUG(TEXT("Local APIC enabled via MSR"));
     return TRUE;
 }
 
@@ -225,7 +225,7 @@ BOOL DisableLocalAPIC(void) {
     WriteMSR64(IA32_APIC_BASE_MSR, ApicBaseLow, ApicBaseHigh);
 
     g_LocalApicConfig.Enabled = FALSE;
-    DEBUG(TEXT("[LocalAPIC] Local APIC disabled via MSR"));
+    DEBUG(TEXT("Local APIC disabled via MSR"));
     return TRUE;
 }
 
@@ -362,7 +362,7 @@ BOOL SetSpuriousInterruptVector(U8 Vector) {
     }
 
     if (Vector < 0x20) {
-        DEBUG(TEXT("[LocalAPIC] Invalid spurious vector: 0x%02X (must be >= 0x20)"), Vector);
+        DEBUG(TEXT("Invalid spurious vector: 0x%02X (must be >= 0x20)"), Vector);
         return FALSE;
     }
 
@@ -371,7 +371,7 @@ BOOL SetSpuriousInterruptVector(U8 Vector) {
     WriteLocalAPICRegister(LOCAL_APIC_SPURIOUS_IV, SpuriousReg);
 
     g_LocalApicConfig.SpuriousVector = Vector;
-    DEBUG(TEXT("[LocalAPIC] Set spurious interrupt vector to 0x%02X"), Vector);
+    DEBUG(TEXT("Set spurious interrupt vector to 0x%02X"), Vector);
     return TRUE;
 }
 
@@ -402,7 +402,7 @@ BOOL ConfigureLVTEntry(U32 LvtRegister, U8 Vector, U32 DeliveryMode, BOOL Masked
     }
 
     WriteLocalAPICRegister(LvtRegister, LvtValue);
-    DEBUG(TEXT("[LocalAPIC] Configured LVT register 0x%03X: Vector=0x%02X, Mode=0x%03X, Masked=%s"),
+    DEBUG(TEXT("Configured LVT register 0x%03X: Vector=0x%02X, Mode=0x%03X, Masked=%s"),
               LvtRegister, Vector, DeliveryMode, Masked ? TEXT("Yes") : TEXT("No"));
     return TRUE;
 }

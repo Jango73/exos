@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ static void TaskInitializeStackConfig(void) {
         if (parsedValue >= TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT) {
             TaskMinimumTaskStackSize = parsedValue;
         } else {
-            WARNING(TEXT("[TaskInitializeStackConfig] MinimumTaskStackSize='%s' resolves to %u which is below minimum %u, using default"),
+            WARNING(TEXT("MinimumTaskStackSize='%s' resolves to %u which is below minimum %u, using default"),
                     configValue, parsedValue, TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT);
         }
     }
@@ -72,7 +72,7 @@ static void TaskInitializeStackConfig(void) {
         if (parsedValue >= TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT) {
             TaskMinimumSystemStackSize = parsedValue;
         } else {
-            WARNING(TEXT("[TaskInitializeStackConfig] MinimumSystemStackSize='%s' resolves to %u which is below minimum %u, using default"),
+            WARNING(TEXT("MinimumSystemStackSize='%s' resolves to %u which is below minimum %u, using default"),
                     configValue, parsedValue, TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT);
         }
     }
@@ -98,7 +98,7 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
                                                    ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
                                                    TEXT("TaskMessageBuffer"));
     if (MessageBufferBase == NULL) {
-        ERROR(TEXT("[TaskInitializeMessageBuffer] Could not allocate message buffer for task %p"), Task);
+        ERROR(TEXT("Could not allocate message buffer for task %p"), Task);
         return FALSE;
     }
 
@@ -170,14 +170,14 @@ LPTASK NewTask(void) {
     This = (LPTASK)CreateKernelObject(sizeof(TASK), KOID_TASK);
 
     if (This == NULL) {
-        ERROR(TEXT("[NewTask] Could not allocate memory for task"));
+        ERROR(TEXT("Could not allocate memory for task"));
 
         TRACED_EPILOGUE("NewTask");
         return NULL;
     }
 
     if (IsValidMemory((LINEAR)This) == FALSE) {
-        ERROR(TEXT("[NewTask] Allocated task is not a valid pointer"));
+        ERROR(TEXT("Allocated task is not a valid pointer"));
 
         TRACED_EPILOGUE("NewTask");
         return NULL;
@@ -261,7 +261,7 @@ void DeleteTask(LPTASK This) {
         // Remove task from scheduler queue before freeing task resources
 
         if (RemoveTaskFromQueue(This) == FALSE) {
-            DEBUG(TEXT("[DeleteTask] Task %p not present in scheduler queue"), This);
+            DEBUG(TEXT("Task %p not present in scheduler queue"), This);
         }
 
         //-------------------------------------
@@ -446,7 +446,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     Task = NewTask();
 
     if (Task == NULL) {
-        ERROR(TEXT("[KernelCreateTask] NewTask failed"));
+        ERROR(TEXT("NewTask failed"));
         goto Out;
     }
 
@@ -487,7 +487,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         DeleteTask(Task);
         Task = NULL;
 
-        ERROR(TEXT("[KernelCreateTask] Architecture-specific task setup failed"));
+        ERROR(TEXT("Architecture-specific task setup failed"));
         goto Out;
     }
 
@@ -496,7 +496,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         TaskRefreshModuleTls(Task) == FALSE) {
         DeleteTask(Task);
         Task = NULL;
-        ERROR(TEXT("[KernelCreateTask] Task setup failed"));
+        ERROR(TEXT("Task setup failed"));
         goto Out;
     }
 
@@ -543,7 +543,7 @@ BOOL KernelKillTask(LPTASK Task) {
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
 
         if (Task->Type == TASK_TYPE_KERNEL_MAIN) {
-            ERROR(TEXT("[KernelKillTask] Can't kill kernel task"));
+            ERROR(TEXT("Can't kill kernel task"));
             ConsolePanic(TEXT("Can't kill kernel task"));
             return FALSE;
         }
@@ -663,7 +663,7 @@ void DeleteDeadTasksAndProcesses(void) {
     LPTASK Task, NextTask;
     LPPROCESS Process, NextProcess;
 
-    // DEBUG(TEXT("[DeleteDeadTasksAndProcesses]"));
+    // DEBUG(TEXT(""));
 
     // Lock access to kernel data
     LockMutex(MUTEX_KERNEL, INFINITY);
@@ -703,7 +703,7 @@ void DeleteDeadTasksAndProcesses(void) {
                 PackageNamespaceUnbindCurrentProcessPackageView();
                 if (Process->PackageFileSystem != NULL) {
                     if (!PackageFSUnmount(Process->PackageFileSystem)) {
-                        WARNING(TEXT("[DeleteDeadTasksAndProcesses] PackageFS unmount failed process=%s fs=%p"),
+                        WARNING(TEXT("PackageFS unmount failed process=%s fs=%p"),
                             Process->FileName,
                             Process->PackageFileSystem);
                     }
@@ -778,7 +778,7 @@ void Sleep(U32 MilliSeconds) {
     U32 Flags;
     SaveFlags(&Flags);
     DisableInterrupts();
-    // DEBUG(TEXT("[Sleep] Enter : IF = %x"), Flags & 0x200);
+    // DEBUG(TEXT("Enter : IF = %x"), Flags & 0x200);
 
     // Lock the task mutex
     LockMutex(MUTEX_TASK, INFINITY);
@@ -810,14 +810,14 @@ void Sleep(U32 MilliSeconds) {
             DisableInterrupts();
         }
 
-        // DEBUG(TEXT("[Sleep] Exit %x (%s)"), Task, Task->Name);
+        // DEBUG(TEXT("Exit %x (%s)"), Task, Task->Name);
         return;
     }
 
     UnlockMutex(MUTEX_TASK);
     RestoreFlags(&Flags);
 
-    // DEBUG(TEXT("[Sleep] Exit"));
+    // DEBUG(TEXT("Exit"));
     return;
 }
 
@@ -897,7 +897,7 @@ BOOL IsTaskExecutionSuspended(LPTASK Task) {
  * @param Status New status value to set
  */
 void SetTaskStatus(LPTASK Task, U32 Status) {
-    FINE_DEBUG(TEXT("[SetTaskStatus] Enter"));
+    FINE_DEBUG(TEXT("Enter"));
 
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
         U32 OldStatus = Task->SchedulerState.Status;
@@ -913,13 +913,13 @@ void SetTaskStatus(LPTASK Task, U32 Status) {
             StoreObjectTerminationState(Task, Task->ExitCode);
         }
 
-        FINE_DEBUG(TEXT("[SetTaskStatus] Task %p (%s): %u -> %u"), Task, Task->Name, OldStatus, Status);
+        FINE_DEBUG(TEXT("Task %p (%s): %u -> %u"), Task, Task->Name, OldStatus, Status);
 
         UnfreezeScheduler();
         UnlockMutex(&(Task->Mutex));
     }
 
-    FINE_DEBUG(TEXT("[SetTaskStatus] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 }
 
 /************************************************************************/
@@ -937,7 +937,7 @@ void SetTaskStatusDirect(LPTASK Task, U32 Status) {
 
         Task->SchedulerState.Status = Status;
 
-        FINE_DEBUG(TEXT("[SetTaskStatusDirect] Task %p (%s): %u -> %u"), Task, Task->Name, OldStatus, Status);
+        FINE_DEBUG(TEXT("Task %p (%s): %u -> %u"), Task, Task->Name, OldStatus, Status);
     }
 }
 

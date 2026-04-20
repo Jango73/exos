@@ -484,7 +484,7 @@ BOOL GetExecutableImageInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     if (File == NULL) return FALSE;
     if (Metadata == NULL) return FALSE;
 
-    DEBUG(TEXT("[GetExecutableImageInfo_ELF] Enter"));
+    DEBUG(TEXT("Enter"));
 
     ELFInitializeFileOperation(File, &FileOperation);
 
@@ -496,11 +496,11 @@ BOOL GetExecutableImageInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
     if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_IMAGE, Metadata)) goto Out_Error;
 
-    DEBUG(TEXT("[GetExecutableImageInfo_ELF] Exit (success)"));
+    DEBUG(TEXT("Exit (success)"));
     return TRUE;
 
 Out_Error:
-    DEBUG(TEXT("[GetExecutableImageInfo_ELF] Exit (error)"));
+    DEBUG(TEXT("Exit (error)"));
     return FALSE;
 }
 
@@ -518,7 +518,7 @@ BOOL GetExecutableModuleInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     if (File == NULL) return FALSE;
     if (Metadata == NULL) return FALSE;
 
-    DEBUG(TEXT("[GetExecutableModuleInfo_ELF] Enter"));
+    DEBUG(TEXT("Enter"));
 
     ELFInitializeFileOperation(File, &FileOperation);
 
@@ -530,11 +530,11 @@ BOOL GetExecutableModuleInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
     if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_MODULE, Metadata)) goto Out_Error;
 
-    DEBUG(TEXT("[GetExecutableModuleInfo_ELF] Exit (success)"));
+    DEBUG(TEXT("Exit (success)"));
     return TRUE;
 
 Out_Error:
-    DEBUG(TEXT("[GetExecutableModuleInfo_ELF] Exit (error)"));
+    DEBUG(TEXT("Exit (error)"));
     return FALSE;
 }
 
@@ -548,15 +548,15 @@ BOOL GetExecutableInfo_ELF(LPFILE File, LPEXECUTABLE_INFO Info) {
     if (File == NULL) return FALSE;
     if (Info == NULL) return FALSE;
 
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (!GetExecutableImageInfo_ELF(File, &Metadata)) goto Out_Error;
     *Info = Metadata.Layout;
 
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Exit (success)"));
+    DEBUG(TEXT("Exit (success)"));
     return TRUE;
 
 Out_Error:
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Exit (error)"));
+    DEBUG(TEXT("Exit (error)"));
     return FALSE;
 }

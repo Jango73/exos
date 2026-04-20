@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -210,18 +210,18 @@ BOOL DeleteObject(HANDLE Object) {
                     Result = 1;
                     break;
                 default:
-                    WARNING(TEXT("[DeleteObject] Unsupported object type=%u object=%p"), KernelObject->TypeID, ObjectAddress);
+                    WARNING(TEXT("Unsupported object type=%u object=%p"), KernelObject->TypeID, ObjectAddress);
                     Result = 0;
                     break;
             }
         } else {
-            WARNING(TEXT("[DeleteObject] Invalid object pointer object=%p"), ObjectAddress);
+            WARNING(TEXT("Invalid object pointer object=%p"), ObjectAddress);
         }
 
         return Result != 0 ? TRUE : FALSE;
     }
 
-    WARNING(TEXT("[DeleteObject] Invalid object address object=%p"), ObjectAddress);
+    WARNING(TEXT("Invalid object address object=%p"), ObjectAddress);
     return FALSE;
 }
 
@@ -261,12 +261,12 @@ void ReleaseHandle(HANDLE Handle) {
     LINEAR Pointer = 0;
     UINT Status = HandleMapDetachPointer(GetHandleMap(), Handle, &Pointer);
     if (Status != HANDLE_MAP_OK && Status != HANDLE_MAP_ERROR_NOT_ATTACHED) {
-        WARNING(TEXT("[ReleaseHandle] Detach failed handle=%u status=%u"), Handle, Status);
+        WARNING(TEXT("Detach failed handle=%u status=%u"), Handle, Status);
     }
 
     Status = HandleMapReleaseHandle(GetHandleMap(), Handle);
     if (Status != HANDLE_MAP_OK) {
-        WARNING(TEXT("[ReleaseHandle] Release failed handle=%u status=%u"), Handle, Status);
+        WARNING(TEXT("Release failed handle=%u status=%u"), Handle, Status);
     }
 }
 
@@ -306,51 +306,6 @@ void InitializeQuantumTime(void) {
     }
 
     SetMaximumQuantum(GetMinimumQuantum() * 8);
-}
-
-/************************************************************************/
-
-/**
- * @brief Task that displays system time and mouse status.
- *
- * The parameter encodes console coordinates where the time is printed.
- * X is stored in the high 16 bits and Y in the low 16 bits.
- *
- * @param Param Encoded console position.
- * @return Always returns 0.
- */
-
-U32 ClockTestTask(LPVOID Param) {
-    TRACED_FUNCTION;
-
-    STR Text[64];
-    UINT EncodedParam = (UINT)Param;
-    U32 X = (U32)((EncodedParam & 0xFFFF0000) >> 16);
-    U32 Y = (U32)(EncodedParam & 0x0000FFFF);
-    U32 OldX = 0;
-    U32 OldY = 0;
-
-    UINT Time = 0;
-    UINT OldTime = 0;
-
-    FOREVER {
-        Time = DoSystemCall(SYSCALL_GetSystemTime, SYSCALL_PARAM(0));
-
-        if (Time - OldTime >= 1000) {
-            OldTime = Time;
-            MilliSecondsToHMS(Time, Text);
-            OldX = Console.CursorX;
-            OldY = Console.CursorY;
-            SetConsoleCursorPosition(X, Y);
-            ConsolePrint(Text);
-            SetConsoleCursorPosition(OldX, OldY);
-        }
-
-        DoSystemCall(SYSCALL_Sleep, SYSCALL_PARAM(500));
-    }
-
-    TRACED_EPILOGUE("ClockTestTask");
-    return 0;
 }
 
 /************************************************************************/
@@ -442,7 +397,7 @@ static void Welcome(void) {
     ConsolePrint(
         TEXT("\n"
         "EXOS - Extensible Operating System for %s computers\n"
-        "Version %u.%u.%u - Copyright (c) 1999-2025 Jango73\n"),
+        "Version %u.%u.%u - Copyright (c) 1999-2026 Jango73\n"),
         Text_Architecture,
         EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH
         );
@@ -472,7 +427,7 @@ LPVOID CreateKernelObject(UINT Size, U32 ObjectTypeID) {
     Object = (LPLISTNODE)KernelHeapAlloc(Size);
 
     if (Object == NULL) {
-        ERROR(TEXT("[CreateKernelObject] Failed to allocate memory for object type %d"), ObjectTypeID);
+        ERROR(TEXT("Failed to allocate memory for object type %d"), ObjectTypeID);
         return NULL;
     }
 
@@ -696,7 +651,7 @@ void StoreObjectTerminationState(LPVOID Object, UINT ExitCode) {
         return;
     }
 
-    WARNING(TEXT("[StoreObjectTerminationState] Invalid kernel object pointer %x"), Object);
+    WARNING(TEXT("Invalid kernel object pointer %x"), Object);
 }
 
 /************************************************************************/
@@ -804,8 +759,7 @@ UINT GetPhysicalMemoryUsed(void) {
 void LoadDriver(LPDRIVER Driver) {
     SAFE_USE(Driver) {
         if (Driver->TypeID != KOID_DRIVER) {
-            KernelLogText(
-                LOG_ERROR, TEXT("%s driver not valid (at address %X). ID = %X. Halting."), TEXT(Driver->Product), Driver, Driver->TypeID);
+            ERROR(TEXT("%s driver not valid (at address %X). ID = %X. Halting."), TEXT(Driver->Product), Driver, Driver->TypeID);
 
             // Wait forever
             DO_THE_SLEEPING_BEAUTY;
@@ -814,15 +768,15 @@ void LoadDriver(LPDRIVER Driver) {
         UINT Result = Driver->Command(DF_LOAD, 0);
 
         if (Result == DF_RETURN_SUCCESS && (Driver->Flags & DRIVER_FLAG_READY) != 0) {
-            TEST(TEXT("[LoadDriver] %s.Load : OK"), TEXT(Driver->Product));
+            TEST(TEXT("%s.Load : OK"), TEXT(Driver->Product));
         } else {
-            TEST(TEXT("[LoadDriver] %s.Load : KO"), TEXT(Driver->Product));
+            TEST(TEXT("%s.Load : KO"), TEXT(Driver->Product));
             if ((Driver->Flags & DRIVER_FLAG_CRITICAL)) {
                 ConsolePanic(TEXT("Critical driver %s failed to load"), TEXT(Driver->Product));
             } else if (Result == DF_RETURN_HARDWARE_ABSENT) {
-                WARNING(TEXT("[LoadDriver] %s driver not loaded: hardware absent"), TEXT(Driver->Product));
+                WARNING(TEXT("%s driver not loaded: hardware absent"), TEXT(Driver->Product));
             } else {
-                ERROR(TEXT("[LoadDriver] : Failed to load %s driver (code = %x)"), TEXT(Driver->Product), Result);
+                ERROR(TEXT("Failed to load %s driver (code = %x)"), TEXT(Driver->Product), Result);
             }
         }
     }
@@ -841,16 +795,16 @@ void LoadDriver(LPDRIVER Driver) {
 void UnloadDriver(LPDRIVER Driver) {
     SAFE_USE(Driver) {
         if (Driver->TypeID != KOID_DRIVER) {
-            WARNING(TEXT("[UnloadDriver] : %s driver not valid (at address %X). ID = %X."), TEXT(Driver->Product), Driver, Driver->TypeID);
+            WARNING(TEXT("%s driver not valid (at address %X). ID = %X."), TEXT(Driver->Product), Driver, Driver->TypeID);
             return;
         }
 
         UINT Result = Driver->Command(DF_UNLOAD, 0);
         if (Result == DF_RETURN_SUCCESS) {
-            TEST(TEXT("[UnloadDriver] %s.Unload : OK"), TEXT(Driver->Product));
+            TEST(TEXT("%s.Unload : OK"), TEXT(Driver->Product));
         } else {
-            TEST(TEXT("[UnloadDriver] %s.Unload : KO"), TEXT(Driver->Product));
-            WARNING(TEXT("[UnloadDriver] : Failed to unload %s driver (code = %x)"), TEXT(Driver->Product), Result);
+            TEST(TEXT("%s.Unload : KO"), TEXT(Driver->Product));
+            WARNING(TEXT("Failed to unload %s driver (code = %x)"), TEXT(Driver->Product), Result);
         }
     }
 }
@@ -858,28 +812,28 @@ void UnloadDriver(LPDRIVER Driver) {
 /************************************************************************/
 
 void LoadAllDrivers(void) {
-    DEBUG(TEXT("[LoadAllDrivers] Start"));
+    DEBUG(TEXT("Start"));
 
 
     InitializeDriverList();
-    DEBUG(TEXT("[LoadAllDrivers] Driver list initialized"));
+    DEBUG(TEXT("Driver list initialized"));
 
 
     LPLIST DriverList = GetStartupDriverList();
     if (DriverList == NULL || DriverList->First == NULL) {
-        DEBUG(TEXT("[LoadAllDrivers] No drivers to load"));
+        DEBUG(TEXT("No drivers to load"));
         return;
     }
 
     U32 DriverIndex = 0;
     for (LPLISTNODE Node = DriverList->First; Node; Node = Node->Next, DriverIndex++) {
         LPDRIVER Driver = ((LPSTARTUP_DRIVER_ENTRY)Node)->Driver;
-        SAFE_USE(Driver) { DEBUG(TEXT("[LoadAllDrivers] Driver[%u] loading %s @ %p"), DriverIndex, Driver->Product, Driver); }
+        SAFE_USE(Driver) { DEBUG(TEXT("Driver[%u] loading %s @ %p"), DriverIndex, Driver->Product, Driver); }
         LoadDriver(Driver);
-        SAFE_USE(Driver) { DEBUG(TEXT("[LoadAllDrivers] Driver[%u] load done flags=%x"), DriverIndex, Driver->Flags); }
+        SAFE_USE(Driver) { DEBUG(TEXT("Driver[%u] load done flags=%x"), DriverIndex, Driver->Flags); }
     }
 
-    DEBUG(TEXT("[LoadAllDrivers] Complete (%u drivers)"), DriverIndex);
+    DEBUG(TEXT("Complete (%u drivers)"), DriverIndex);
 }
 
 /************************************************************************/
@@ -962,7 +916,7 @@ void KernelIdle(void) {
 static void KillActiveUserlandProcesses(void) {
     LPLIST ProcessesToKill = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
     if (ProcessesToKill == NULL) {
-        WARNING(TEXT("[KillActiveUserlandProcesses] Unable to allocate kill list"));
+        WARNING(TEXT("Unable to allocate kill list"));
         return;
     }
 
@@ -1003,7 +957,7 @@ static void KillActiveUserlandProcesses(void) {
 static void KillActiveKernelTasks(void) {
     LPLIST TasksToKill = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
     if (TasksToKill == NULL) {
-        WARNING(TEXT("[KillActiveKernelTasks] Unable to allocate kill list"));
+        WARNING(TEXT("Unable to allocate kill list"));
         return;
     }
 
@@ -1026,7 +980,7 @@ static void KillActiveKernelTasks(void) {
     for (LPLISTNODE Node = TasksToKill->First; Node; Node = Node->Next) {
         LPTASK Task = (LPTASK)Node;
         SAFE_USE_VALID_ID(Task, KOID_TASK) {
-            DEBUG(TEXT("[KillActiveKernelTasks] Killing task %s"), Task->Name);
+            DEBUG(TEXT("Killing task %s"), Task->Name);
             KernelKillTask(Task);
         }
     }
@@ -1047,67 +1001,67 @@ static void KillActiveKernelTasks(void) {
 void InitializeKernel(void) {
     TASK_INFO TaskInfo;
 
-    DEBUG(TEXT("[InitializeKernel] Start"));
+    DEBUG(TEXT("Start"));
 
     GetCPUInformation(GetKernelCPUInfo());
-    DEBUG(TEXT("[InitializeKernel] CPU information captured"));
+    DEBUG(TEXT("CPU information captured"));
     BusyWaitSetFrequencyMHz(GetKernelCPUInfo()->BaseFrequencyMHz);
-    DEBUG(TEXT("[InitializeKernel] BusyWait profile base_mhz=%u loops_per_ms=%u"),
+    DEBUG(TEXT("BusyWait profile base_mhz=%u loops_per_ms=%u"),
           GetKernelCPUInfo()->BaseFrequencyMHz,
           BusyWaitGetLoopsPerMillisecond());
     PreInitializeKernel();
-    DEBUG(TEXT("[InitializeKernel] Architecture pre-initialization complete"));
+    DEBUG(TEXT("Architecture pre-initialization complete"));
     //-------------------------------------
     // Load all drivers
 
     LoadAllDrivers();
-    DEBUG(TEXT("[InitializeKernel] Drivers loaded"));
+    DEBUG(TEXT("Drivers loaded"));
 
     //-------------------------------------
     // Initialize stuff
 
     CacheInit(GetObjectTerminationCache(), CACHE_DEFAULT_CAPACITY);
-    DEBUG(TEXT("[InitializeKernel] Object cache initialized"));
+    DEBUG(TEXT("Object cache initialized"));
 
     HandleMapInit(GetHandleMap());
-    DEBUG(TEXT("[InitializeKernel] Handle map initialized"));
+    DEBUG(TEXT("Handle map initialized"));
 
     InitializeFocusState();
-    DEBUG(TEXT("[InitializeKernel] Focus state initialized"));
+    DEBUG(TEXT("Focus state initialized"));
 
     InitializeQuantumTime();
-    DEBUG(TEXT("[InitializeKernel] Quantum initialized"));
+    DEBUG(TEXT("Quantum initialized"));
 
     //-------------------------------------
     // Set configuration dependent stuff
 
     UseConfiguration();
-    DEBUG(TEXT("[InitializeKernel] Configuration applied"));
+    DEBUG(TEXT("Configuration applied"));
 
     //-------------------------------------
     // Run auto tests
 
     RunAllTests();
-    DEBUG(TEXT("[InitializeKernel] Tests completed"));
+    DEBUG(TEXT("Tests completed"));
 
     //-------------------------------------
     // Print the EXOS banner
 
     Welcome();
-    DEBUG(TEXT("[InitializeKernel] Banner printed"));
+    DEBUG(TEXT("Banner printed"));
 
     //-------------------------------------
     // Enable interrupts
 
     EnableInterrupts();
     MarkSystemTimeOperational();
-    DEBUG(TEXT("[InitializeKernel] Interrupts enabled"));
+    DEBUG(TEXT("Interrupts enabled"));
 
     // Load keyboard layout only after interrupts are active.
     // This avoids early boot fragility caused by filesystem access
     // during the pre-interrupt initialization phase.
     SelectKeyboard(GetKeyboardCode());
-    DEBUG(TEXT("[InitializeKernel] Keyboard layout applied"));
+    DEBUG(TEXT("Keyboard layout applied"));
 
     //-------------------------------------
 
@@ -1139,27 +1093,7 @@ void InitializeKernel(void) {
         StringCopy(TaskInfo.Name, TEXT("KernelMonitor"));
 
         KernelCreateTask(&KernelProcess, &TaskInfo);
-        DEBUG(TEXT("[InitializeKernel] KernelMonitor task created"));
-
-        //-------------------------------------
-        // Test tasks
-
-        /*
-        DEBUG(TEXT("[InitializeKernel] ========================================"));
-        KernelLogText(LOG_VERBOSE, TEXT("[InitializeKernel] Starting task"));
-
-        TaskInfo.Header.Size = sizeof(TASK_INFO);
-        TaskInfo.Header.Version = EXOS_ABI_VERSION;
-        TaskInfo.Header.Flags = 0;
-        TaskInfo.Func = ClockTestTask;
-        TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
-        TaskInfo.Priority = TASK_PRIORITY_LOWEST;
-        TaskInfo.Flags = 0;
-        StringCopy(TaskInfo.Name, TEXT("ClockTestTask"));
-
-        TaskInfo.Parameter = (LPVOID)(((Console.Width - 8) << 16) | 0);
-        KernelCreateTask(&KernelProcess, &TaskInfo);
-        */
+        DEBUG(TEXT("KernelMonitor task created"));
 
         //-------------------------------------
         // Shell task
@@ -1175,13 +1109,13 @@ void InitializeKernel(void) {
         StringCopy(TaskInfo.Name, TEXT("Shell"));
 
         KernelCreateTask(&KernelProcess, &TaskInfo);
-        DEBUG(TEXT("[InitializeKernel] Shell task created"));
+        DEBUG(TEXT("Shell task created"));
     }
 
     //--------------------------------------
     // Enter idle
 
-    DEBUG(TEXT("[InitializeKernel] Entering idle loop"));
+    DEBUG(TEXT("Entering idle loop"));
     KernelIdle();
 }
 

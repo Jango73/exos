@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ static void USBStorageLogScan(LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE 
     }
 
     WARNING(
-        TEXT("[USBStorageScan] Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"),
+        TEXT("Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"),
         (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)Interface->Number, (U32)Interface->InterfaceClass,
         (U32)Interface->InterfaceSubClass, (U32)Interface->InterfaceProtocol, (Reason != NULL) ? Reason : TEXT("?"),
         Suppressed);
@@ -142,7 +142,7 @@ static UINT USBStorageTryMountPending(LPUSB_MASS_STORAGE_DEVICE Device) {
     PreviousLast = (FileSystemList != NULL) ? FileSystemList->Last : NULL;
 
     if (!MountDiskPartitions((LPSTORAGE_UNIT)Device, NULL, 0)) {
-        WARNING(TEXT("[USBStorageTryMountPending] Partition mount failed"));
+        WARNING(TEXT("Partition mount failed"));
         return 0;
     }
 
@@ -368,7 +368,7 @@ static BOOL USBStorageStartDevice(
 
     LPUSB_MASS_STORAGE_DEVICE Device = USBStorageAllocateDevice();
     if (Device == NULL) {
-        ERROR(TEXT("[USBStorageStartDevice] Device allocation failed"));
+        ERROR(TEXT("Device allocation failed"));
         return FALSE;
     }
 
@@ -381,7 +381,7 @@ static BOOL USBStorageStartDevice(
     USBStorageAcquireReferences(Device);
 
     DEBUG(
-        TEXT("[USBStorageStartDevice] Begin Port=%u Addr=%u Slot=%x If=%u Class=%x/%x/%x Vid=%x Pid=%x BulkOut=%x "
+        TEXT("Begin Port=%u Addr=%u Slot=%x If=%u Class=%x/%x/%x Vid=%x Pid=%x BulkOut=%x "
              "Attr=%x MPS=%u BulkIn=%x Attr=%x MPS=%u"),
         (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)UsbDevice->SlotId, (U32)Interface->Number,
         (U32)Interface->InterfaceClass, (U32)Interface->InterfaceSubClass, (U32)Interface->InterfaceProtocol,
@@ -391,7 +391,7 @@ static BOOL USBStorageStartDevice(
 
     if (!XHCI_AddBulkEndpointPair(Controller, UsbDevice, BulkOutEndpoint, BulkInEndpoint)) {
         ERROR(
-            TEXT("[USBStorageStartDevice] Bulk endpoint pair setup failed Port=%u Addr=%u Slot=%x OutEp=%x MPS=%u "
+            TEXT("Bulk endpoint pair setup failed Port=%u Addr=%u Slot=%x OutEp=%x MPS=%u "
                  "InEp=%x MPS=%u"),
             (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)UsbDevice->SlotId, (U32)BulkOutEndpoint->Address,
             (U32)BulkOutEndpoint->MaxPacketSize, (U32)BulkInEndpoint->Address, (U32)BulkInEndpoint->MaxPacketSize);
@@ -401,39 +401,39 @@ static BOOL USBStorageStartDevice(
 
     if (!XHCI_AllocPage(
             TEXT("USBStorageInputOutput"), &Device->InputOutputBufferPhysical, &Device->InputOutputBufferLinear)) {
-        ERROR(TEXT("[USBStorageStartDevice] IO buffer allocation failed"));
+        ERROR(TEXT("IO buffer allocation failed"));
         USBStorageFreeDevice(Device);
         return FALSE;
     }
 
     if (!USBStorageInquiry(Device)) {
-        WARNING(TEXT("[USBStorageStartDevice] INQUIRY failed, attempting reset"));
+        WARNING(TEXT("INQUIRY failed, attempting reset"));
         if (!USBStorageResetRecovery(Device) || !USBStorageInquiry(Device)) {
-            ERROR(TEXT("[USBStorageStartDevice] INQUIRY failed"));
+            ERROR(TEXT("INQUIRY failed"));
             USBStorageFreeDevice(Device);
             return FALSE;
         }
     }
 
     if (!USBStorageReadCapacity(Device)) {
-        WARNING(TEXT("[USBStorageStartDevice] READ CAPACITY failed, attempting reset"));
+        WARNING(TEXT("READ CAPACITY failed, attempting reset"));
         (void)USBStorageRequestSense(Device);
         if (!USBStorageResetRecovery(Device) || !USBStorageReadCapacity(Device)) {
             (void)USBStorageRequestSense(Device);
-            ERROR(TEXT("[USBStorageStartDevice] READ CAPACITY failed"));
+            ERROR(TEXT("READ CAPACITY failed"));
             USBStorageFreeDevice(Device);
             return FALSE;
         }
     }
 
-    DEBUG(TEXT("[USBStorageStartDevice] Capacity blocks=%u block_size=%u"), Device->BlockCount, Device->BlockSize);
+    DEBUG(TEXT("Capacity blocks=%u block_size=%u"), Device->BlockCount, Device->BlockSize);
 
     Device->Ready = TRUE;
     Device->MountPending = TRUE;
 
     LPUSB_STORAGE_ENTRY Entry = (LPUSB_STORAGE_ENTRY)CreateKernelObject(sizeof(USB_STORAGE_ENTRY), KOID_USBSTORAGE);
     if (Entry == NULL) {
-        ERROR(TEXT("[USBStorageStartDevice] List entry allocation failed"));
+        ERROR(TEXT("List entry allocation failed"));
         USBStorageFreeDevice(Device);
         return FALSE;
     }
@@ -450,7 +450,7 @@ static BOOL USBStorageStartDevice(
 
     LPLIST UsbStorageList = GetUsbStorageList();
     if (UsbStorageList == NULL || ListAddItem(UsbStorageList, Entry) == FALSE) {
-        ERROR(TEXT("[USBStorageStartDevice] Unable to register USB storage list entry"));
+        ERROR(TEXT("Unable to register USB storage list entry"));
         ReleaseKernelObject(Entry);
         KernelHeapFree(Entry);
         USBStorageFreeDevice(Device);
@@ -459,20 +459,20 @@ static BOOL USBStorageStartDevice(
 
     LPLIST DiskList = GetDiskList();
     if (DiskList == NULL || ListAddItem(DiskList, Device) == FALSE) {
-        ERROR(TEXT("[USBStorageStartDevice] Unable to register disk entry"));
+        ERROR(TEXT("Unable to register disk entry"));
         USBStorageFreeDevice(Device);
         return FALSE;
     }
 
     if (FileSystemReady()) {
-        DEBUG(TEXT("[USBStorageStartDevice] Mounting disk partitions"));
+        DEBUG(TEXT("Mounting disk partitions"));
         (void)USBStorageTryMountPending(Device);
     } else {
-        DEBUG(TEXT("[USBStorageStartDevice] Deferred partition mount (filesystem not ready)"));
+        DEBUG(TEXT("Deferred partition mount (filesystem not ready)"));
     }
 
     DEBUG(
-        TEXT("[USBStorageStartDevice] USB disk addr=%x blocks=%u block_size=%u"), (U32)UsbDevice->Address,
+        TEXT("USB disk addr=%x blocks=%u block_size=%u"), (U32)UsbDevice->Address,
         Device->BlockCount, Device->BlockSize);
 
     return TRUE;

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -281,7 +281,7 @@ static void DesktopCursorSetPathState(LPDESKTOP Desktop, U32 Path, U32 Reason, U
 
     if (Path == DESKTOP_CURSOR_PATH_HARDWARE) {
     } else {
-        WARNING(TEXT("[DesktopCursorSetPathState] Cursor path=software reason=%s"),
+        WARNING(TEXT("Cursor path=software reason=%s"),
             DesktopCursorFallbackReasonToText(Reason));
     }
     UNUSED(DriverStatus);

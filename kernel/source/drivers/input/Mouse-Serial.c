@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -356,7 +356,7 @@ static BOOL InitializeMouse(void) {
     //-------------------------------------
     //
 
-    DEBUG(TEXT("[MouseInitialize] Mouse found on COM1: %c%c"), Sig1, Sig2);
+    DEBUG(TEXT("Mouse found on COM1: %c%c"), Sig1, Sig2);
 
     //-------------------------------------
     // Enable the mouse's IRQ

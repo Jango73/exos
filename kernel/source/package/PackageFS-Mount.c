@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ U32 PackageFSMountFromBuffer(LPCVOID PackageBytes,
                                                 &EffectiveOptions,
                                                 &FileSystem->Package);
     if (ValidationStatus != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[PackageFSMountFromBuffer] Package validation failed status=%u"), ValidationStatus);
+        ERROR(TEXT("Package validation failed status=%u"), ValidationStatus);
         KernelHeapFree(FileSystem->PackageBytes);
         ChunkCacheDeinit(&FileSystem->ChunkCache);
         ReleaseKernelObject(FileSystem);
@@ -111,7 +111,7 @@ U32 PackageFSMountFromBuffer(LPCVOID PackageBytes,
 
     Result = PackageFSBuildTree(FileSystem);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[PackageFSMountFromBuffer] Tree build failed status=%u"), Result);
+        ERROR(TEXT("Tree build failed status=%u"), Result);
         EpkReleaseValidatedPackage(&FileSystem->Package);
         KernelHeapFree(FileSystem->PackageBytes);
         ChunkCacheDeinit(&FileSystem->ChunkCache);
@@ -125,7 +125,7 @@ U32 PackageFSMountFromBuffer(LPCVOID PackageBytes,
 
     if (FileSystemReady()) {
         if (!SystemFSMountFileSystem(&FileSystem->Header)) {
-            WARNING(TEXT("[PackageFSMountFromBuffer] SystemFS mount failed for %s"), FileSystem->Header.Name);
+            WARNING(TEXT("SystemFS mount failed for %s"), FileSystem->Header.Name);
         }
     }
 
@@ -159,7 +159,7 @@ BOOL PackageFSUnmount(LPFILESYSTEM FileSystem) {
         LPFILE Open = (LPFILE)Node;
         if (Open->FileSystem == FileSystem) {
             UnlockMutex(MUTEX_FILESYSTEM);
-            WARNING(TEXT("[PackageFSUnmount] Cannot unmount %s while files are open"), FileSystem->Name);
+            WARNING(TEXT("Cannot unmount %s while files are open"), FileSystem->Name);
             return FALSE;
         }
     }

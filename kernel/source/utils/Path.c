@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -54,13 +54,13 @@ LPLIST DecomposePath(LPCSTR Path) {
     LPPATH_NODE Node = NULL;
 
     if (Path == NULL) {
-        ERROR(TEXT("[DecomposePath] Path is NULL"));
+        ERROR(TEXT("Path is NULL"));
         return NULL;
     }
 
     List = NewList(PathComponentDestructor, KernelHeapAlloc, KernelHeapFree);
     if (List == NULL) {
-        ERROR(TEXT("[DecomposePath] Failed to create list"));
+        ERROR(TEXT("Failed to create list"));
         return NULL;
     }
 
@@ -77,7 +77,7 @@ LPLIST DecomposePath(LPCSTR Path) {
                 break;
             } else {
                 if (ComponentIndex >= MAX_FILE_NAME - 1) {
-                    ERROR(TEXT("[DecomposePath] Component too long at index %u"), ComponentIndex);
+                    ERROR(TEXT("Component too long at index %u"), ComponentIndex);
                     goto Error;
                 }
                 Component[ComponentIndex++] = Path[PathIndex++];
@@ -86,7 +86,7 @@ LPLIST DecomposePath(LPCSTR Path) {
 
         Node = KernelHeapAlloc(sizeof(PATH_NODE));
         if (Node == NULL) {
-            ERROR(TEXT("[DecomposePath] Failed to allocate node"));
+            ERROR(TEXT("Failed to allocate node"));
             goto Error;
         }
         StringCopy(Node->Name, Component);
@@ -101,7 +101,7 @@ Error:
     SAFE_USE(List) {
         DeleteList(List);
     }
-    DEBUG(TEXT("[DecomposePath] Error occurred, returning NULL"));
+    DEBUG(TEXT("Error occurred, returning NULL"));
     return NULL;
 }
 
@@ -164,15 +164,15 @@ void BuildMatches(LPPATHCOMPLETION Context, LPCSTR Path) {
     StringCopy(Find.Name, Pattern);
 
     if (Context->FileSystem == NULL) {
-        DEBUG(TEXT("[BuildMatches] CORRUPTION: Context->FileSystem is NULL"));
+        DEBUG(TEXT("CORRUPTION: Context->FileSystem is NULL"));
         return;
     }
     if (Context->FileSystem->Driver == NULL) {
-        DEBUG(TEXT("[BuildMatches] CORRUPTION: Context->FileSystem->Driver is NULL"));
+        DEBUG(TEXT("CORRUPTION: Context->FileSystem->Driver is NULL"));
         return;
     }
     if (Context->FileSystem->Driver->Command == NULL) {
-        DEBUG(TEXT("[BuildMatches] CORRUPTION: Context->FileSystem->Driver->Command is NULL"));
+        DEBUG(TEXT("CORRUPTION: Context->FileSystem->Driver->Command is NULL"));
         return;
     }
 
@@ -194,7 +194,7 @@ void BuildMatches(LPPATHCOMPLETION Context, LPCSTR Path) {
         Context->FileSystem->Driver->Command != NULL) {
         Context->FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
     } else {
-        DEBUG(TEXT("[BuildMatches] CORRUPTION: Context->FileSystem corrupted during file operations"));
+        DEBUG(TEXT("CORRUPTION: Context->FileSystem corrupted during file operations"));
     }
 }
 
@@ -215,11 +215,11 @@ BOOL PathCompletionInit(LPPATHCOMPLETION Context, LPFILESYSTEM FileSystem) {
 
 BOOL PathCompletionInitA(LPPATHCOMPLETION Context, LPFILESYSTEM FileSystem, LPCALLOCATOR Allocator) {
     if (FileSystem == NULL) {
-        ERROR(TEXT("[PathCompletionInit] PathCompletionInit called with NULL FileSystem"));
+        ERROR(TEXT("PathCompletionInit called with NULL FileSystem"));
         return FALSE;
     }
     if (FileSystem->Driver == NULL) {
-        ERROR(TEXT("[PathCompletionInit] PathCompletionInit - FileSystem->Driver is NULL"));
+        ERROR(TEXT("PathCompletionInit - FileSystem->Driver is NULL"));
         return FALSE;
     }
 

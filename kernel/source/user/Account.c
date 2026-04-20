@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -233,36 +233,36 @@ static UINT UserAccountDriverCommands(UINT Function, UINT Parameter) {
  * @return Pointer to created user account or NULL on failure.
  */
 LPUSER_ACCOUNT CreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege) {
-    DEBUG(TEXT("[CreateAccount] Enter - UserName=%s"), UserName ? UserName : TEXT("NULL"));
+    DEBUG(TEXT("Enter - UserName=%s"), UserName ? UserName : TEXT("NULL"));
 
     if (UserName == NULL || Password == NULL) {
-        DEBUG(TEXT("[CreateAccount] NULL parameters - UserName=%p, Password=%p"), UserName, Password);
+        DEBUG(TEXT("NULL parameters - UserName=%p, Password=%p"), UserName, Password);
         return NULL;
     }
 
     U32 UserNameLen = StringLength(UserName);
     if (UserNameLen == 0 || UserNameLen >= 32) {
-        DEBUG(TEXT("[CreateAccount] Invalid username length: %d"), UserNameLen);
+        DEBUG(TEXT("Invalid username length: %d"), UserNameLen);
         return NULL;
     }
 
-    DEBUG(TEXT("[CreateAccount] Attempting to lock mutex"));
+    DEBUG(TEXT("Attempting to lock mutex"));
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
     // Check if user already exists
-    DEBUG(TEXT("[CreateAccount] Checking if user exists"));
+    DEBUG(TEXT("Checking if user exists"));
 
     if (FindAccount(UserName) != NULL) {
-        DEBUG(TEXT("[CreateAccount] User already exists"));
+        DEBUG(TEXT("User already exists"));
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
     }
 
     // Allocate new user account
-    DEBUG(TEXT("[CreateAccount] Allocating memory for new user"));
+    DEBUG(TEXT("Allocating memory for new user"));
     LPUSER_ACCOUNT NewUser = (LPUSER_ACCOUNT)KernelHeapAlloc(sizeof(USER_ACCOUNT));
     if (NewUser == NULL) {
-        DEBUG(TEXT("[CreateAccount] Memory allocation failed"));
+        DEBUG(TEXT("Memory allocation failed"));
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
     }
@@ -283,10 +283,10 @@ LPUSER_ACCOUNT CreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege) {
     InitializeUserAuthenticationPolicy(NewUser);
 
     // Add to list and database
-    DEBUG(TEXT("[CreateAccount] Adding to user list"));
+    DEBUG(TEXT("Adding to user list"));
     LPLIST AccountList = GetAccountList();
     if (AccountList == NULL || ListAddTail(AccountList, NewUser) == 0) {
-        DEBUG(TEXT("[CreateAccount] Failed to add to user list"));
+        DEBUG(TEXT("Failed to add to user list"));
         KernelHeapFree(NewUser);
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
@@ -295,10 +295,10 @@ LPUSER_ACCOUNT CreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege) {
     UnlockMutex(MUTEX_ACCOUNTS);
 
     if (!SaveUserDatabase()) {
-        ERROR(TEXT("[CreateAccount] Failed to save user database after creating user %s"), UserName);
+        ERROR(TEXT("Failed to save user database after creating user %s"), UserName);
     }
 
-    DEBUG(TEXT("[CreateAccount] User created successfully"));
+    DEBUG(TEXT("User created successfully"));
     VERBOSE(TEXT("Created user account: %s"), UserName);
     return NewUser;
 }
@@ -334,7 +334,7 @@ BOOL DeleteAccount(LPCSTR UserName) {
     UnlockMutex(MUTEX_ACCOUNTS);
 
     if (!SaveUserDatabase()) {
-        ERROR(TEXT("[DeleteAccount] Failed to save user database after deleting user %s"), UserName);
+        ERROR(TEXT("Failed to save user database after deleting user %s"), UserName);
     }
 
     VERBOSE(TEXT("Deleted user account: %s"), UserName);

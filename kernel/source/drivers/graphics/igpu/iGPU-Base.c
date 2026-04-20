@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -434,7 +434,7 @@ static void IntelGfxInitializeCapabilities(LPPCI_DEVICE Device) {
     IntelGfxProjectCapabilities(&IntelGfxState.IntelCapabilities, &IntelGfxState.Capabilities);
 
     DEBUG(
-        TEXT("[IntelGfxInitializeCapabilities] Gen=%u Dv=%u Pipes=%u Transcoders=%u Ports=%x FBC=%u PSR=%u "
+        TEXT("Gen=%u Dv=%u Pipes=%u Transcoders=%u Ports=%x FBC=%u PSR=%u "
              "AsyncFlip=%u Max=%ux%u"),
         IntelGfxState.IntelCapabilities.Generation, IntelGfxState.IntelCapabilities.DisplayVersion,
         IntelGfxState.IntelCapabilities.PipeCount, IntelGfxState.IntelCapabilities.TranscoderCount,
@@ -458,25 +458,25 @@ static UINT IntelGfxLoad(void) {
 
     Device = IntelGfxFindDisplayDevice();
     if (Device == NULL) {
-        WARNING(TEXT("[IntelGfxLoad] No Intel display PCI device found"));
+        WARNING(TEXT("No Intel display PCI device found"));
         return DF_RETURN_IGFX_NO_DISPLAY_DEVICE;
     }
 
     if (PCI_BAR_IS_IO(Device->Info.BAR[0])) {
-        ERROR(TEXT("[IntelGfxLoad] BAR0 is I/O, expected MMIO (bar0=%x)"), Device->Info.BAR[0]);
+        ERROR(TEXT("BAR0 is I/O, expected MMIO (bar0=%x)"), Device->Info.BAR[0]);
         return DF_RETURN_IGFX_INVALID_BAR0;
     }
 
     Bar0Base = PCI_GetBARBase(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, 0);
     Bar0Size = PCI_GetBARSize(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, 0);
     if (Bar0Base == 0 || Bar0Size == 0) {
-        ERROR(TEXT("[IntelGfxLoad] Invalid BAR0 base=%x size=%u"), Bar0Base, Bar0Size);
+        ERROR(TEXT("Invalid BAR0 base=%x size=%u"), Bar0Base, Bar0Size);
         return DF_RETURN_IGFX_INVALID_BAR0;
     }
 
     IntelGfxState.MmioBase = MapIOMemory((PHYSICAL)Bar0Base, Bar0Size);
     if (IntelGfxState.MmioBase == 0) {
-        ERROR(TEXT("[IntelGfxLoad] MapIOMemory failed for base=%p size=%u"), (LPVOID)(LINEAR)Bar0Base, Bar0Size);
+        ERROR(TEXT("MapIOMemory failed for base=%p size=%u"), (LPVOID)(LINEAR)Bar0Base, Bar0Size);
         return DF_RETURN_IGFX_MAP_MMIO_FAILED;
     }
 
@@ -497,14 +497,14 @@ static UINT IntelGfxLoad(void) {
 
     ProbeValue = *((volatile U32*)((U8*)(LINEAR)IntelGfxState.MmioBase + INTEL_MMIO_PROBE_REGISTER));
     DEBUG(
-        TEXT("[IntelGfxLoad] Device=%x:%x.%u DID=%x BAR0=%p size=%u probe=%x"), Device->Info.Bus, Device->Info.Dev,
+        TEXT("Device=%x:%x.%u DID=%x BAR0=%p size=%u probe=%x"), Device->Info.Bus, Device->Info.Dev,
         Device->Info.Func, Device->Info.DeviceID, (LPVOID)(LINEAR)Bar0Base, Bar0Size, ProbeValue);
 
     IntelGfxInitializeCapabilities(Device);
 
     TakeoverResult = IntelGfxTakeoverActiveMode();
     if (TakeoverResult != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[IntelGfxLoad] Active mode takeover failed (%u), cold modeset path only"), TakeoverResult);
+        WARNING(TEXT("Active mode takeover failed (%u), cold modeset path only"), TakeoverResult);
     }
 
     IntelGfxDriver.Flags |= DRIVER_FLAG_READY;

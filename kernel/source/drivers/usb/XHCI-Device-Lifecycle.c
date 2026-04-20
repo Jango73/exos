@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -146,7 +146,7 @@ static void XHCI_LogCommandTimeoutState(LPXHCI_DEVICE Device, U64 TrbPhysical, L
         }
     }
 
-    WARNING(TEXT("[XHCI_LogCommandTimeoutState] stage=%s TRB=%p CmdType=%x CmdSlot=%x SlotPort=%u SlotAddr=%x SlotPresent=%u CmdIdx=%x CmdEnq=%u CmdCycle=%u Cmd=%x:%x:%x:%x USBCMD=%x USBSTS=%x PCICMD=%x PCISTS=%x CRCR=%x:%x IMAN=%x ERDP=%x:%x CQ=%u Event=%x:%x:%x:%x Cy=%u/%u suppressed=%u"),
+    WARNING(TEXT("stage=%s TRB=%p CmdType=%x CmdSlot=%x SlotPort=%u SlotAddr=%x SlotPresent=%u CmdIdx=%x CmdEnq=%u CmdCycle=%u Cmd=%x:%x:%x:%x USBCMD=%x USBSTS=%x PCICMD=%x PCISTS=%x CRCR=%x:%x IMAN=%x ERDP=%x:%x CQ=%u Event=%x:%x:%x:%x Cy=%u/%u suppressed=%u"),
             (Stage != NULL) ? Stage : TEXT("?"),
             (LPVOID)(UINT)U64_Low32(TrbPhysical),
             CommandType,
@@ -587,7 +587,7 @@ BOOL XHCI_WaitForCommandCompletion(LPXHCI_DEVICE Device, U64 TrbPhysical, U8* Sl
         }
 
         if (ElapsedMilliseconds >= NextWarningAt) {
-            WARNING(TEXT("[XHCI_WaitForCommandCompletion] exceeded %u ms (TRB=%p)"),
+            WARNING(TEXT("exceeded %u ms (TRB=%p)"),
                     ElapsedMilliseconds,
                     (LPVOID)(UINT)U64_Low32(TrbPhysical));
             XHCI_LogCommandTimeoutState(Device, TrbPhysical, TEXT("Exceeded"));
@@ -601,7 +601,7 @@ BOOL XHCI_WaitForCommandCompletion(LPXHCI_DEVICE Device, U64 TrbPhysical, U8* Sl
     }
 
     UnlockMutex(&(Device->Mutex));
-    WARNING(TEXT("[XHCI_WaitForCommandCompletion] Timeout %u ms (TRB=%p)"), RequestedTimeout, (LPVOID)(UINT)U64_Low32(TrbPhysical));
+    WARNING(TEXT("Timeout %u ms (TRB=%p)"), RequestedTimeout, (LPVOID)(UINT)U64_Low32(TrbPhysical));
     XHCI_LogCommandTimeoutState(Device, TrbPhysical, TEXT("Timeout"));
     return FALSE;
 }
@@ -729,7 +729,7 @@ static BOOL XHCI_ResetEndpoint(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice
     }
 
     if (Completion != XHCI_COMPLETION_SUCCESS) {
-        WARNING(TEXT("[XHCI_ResetEndpoint] Slot=%x DCI=%x completion %x"),
+        WARNING(TEXT("Slot=%x DCI=%x completion %x"),
                 (U32)UsbDevice->SlotId,
                 (U32)Dci,
                 Completion);
@@ -830,7 +830,7 @@ BOOL XHCI_ResetTransferEndpoint(LPXHCI_DEVICE Device,
 
     EndpointState = XHCI_GetEndpointState(Device, UsbDevice, Endpoint->Dci);
 
-    DEBUG(TEXT("[XHCI_ResetTransferEndpoint] Begin Slot=%x DCI=%x Halted=%u CtxState=%x"),
+    DEBUG(TEXT("Begin Slot=%x DCI=%x Halted=%u CtxState=%x"),
           (U32)UsbDevice->SlotId,
           (U32)Endpoint->Dci,
           EndpointHalted ? 1 : 0,
@@ -855,7 +855,7 @@ BOOL XHCI_ResetTransferEndpoint(LPXHCI_DEVICE Device,
     }
 
     if (!RecoveryCommandOk) {
-        WARNING(TEXT("[XHCI_ResetTransferEndpoint] Pre-recovery command failed Slot=%x DCI=%x Halted=%u CtxState=%x StopCompletion=%x"),
+        WARNING(TEXT("Pre-recovery command failed Slot=%x DCI=%x Halted=%u CtxState=%x StopCompletion=%x"),
                 (U32)UsbDevice->SlotId,
                 (U32)Endpoint->Dci,
                 EndpointHalted ? 1 : 0,
@@ -871,7 +871,7 @@ BOOL XHCI_ResetTransferEndpoint(LPXHCI_DEVICE Device,
 
     if (!XHCI_SetTransferRingDequeuePointer(Device, UsbDevice, Endpoint, &ProgrammedDequeue, &SetCompletion)) {
         FinalEndpointState = XHCI_GetEndpointState(Device, UsbDevice, Endpoint->Dci);
-        WARNING(TEXT("[XHCI_ResetTransferEndpoint] SET_TR_DEQUEUE_POINTER failed Slot=%x DCI=%x Halted=%u InitialState=%x FinalState=%x StopCompletion=%x SetCompletion=%x Dequeue=%x:%x"),
+        WARNING(TEXT("SET_TR_DEQUEUE_POINTER failed Slot=%x DCI=%x Halted=%u InitialState=%x FinalState=%x StopCompletion=%x SetCompletion=%x Dequeue=%x:%x"),
                 (U32)UsbDevice->SlotId,
                 (U32)Endpoint->Dci,
                 EndpointHalted ? 1 : 0,
@@ -886,7 +886,7 @@ BOOL XHCI_ResetTransferEndpoint(LPXHCI_DEVICE Device,
 
     XHCI_ClearTransferCompletions(Device, UsbDevice->SlotId, Endpoint->Dci);
     FinalEndpointState = XHCI_GetEndpointState(Device, UsbDevice, Endpoint->Dci);
-    DEBUG(TEXT("[XHCI_ResetTransferEndpoint] End Slot=%x DCI=%x Halted=%u InitialState=%x FinalState=%x StopCompletion=%x SetCompletion=%x Dequeue=%x:%x"),
+    DEBUG(TEXT("End Slot=%x DCI=%x Halted=%u InitialState=%x FinalState=%x StopCompletion=%x SetCompletion=%x Dequeue=%x:%x"),
           (U32)UsbDevice->SlotId,
           (U32)Endpoint->Dci,
           EndpointHalted ? 1 : 0,
@@ -932,7 +932,7 @@ static BOOL XHCI_DisableSlot(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice) 
     }
 
     if (Completion != XHCI_COMPLETION_SUCCESS) {
-        WARNING(TEXT("[XHCI_DisableSlot] Slot=%x completion %x"),
+        WARNING(TEXT("Slot=%x completion %x"),
                 (U32)UsbDevice->SlotId,
                 Completion);
         return FALSE;

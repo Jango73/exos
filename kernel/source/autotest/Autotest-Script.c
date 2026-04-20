@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -281,7 +281,7 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -291,10 +291,10 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 3) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 1 failed: a = %d (expected 3)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: a = %d (expected 3)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -303,7 +303,7 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -313,10 +313,10 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 7) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 2 failed: b = %d (expected 7)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: b = %d (expected 7)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -325,7 +325,7 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -335,10 +335,10 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 20) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 3 failed: c = %d (expected 20)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 3 failed: c = %d (expected 20)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -347,7 +347,7 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -357,10 +357,10 @@ void TestScriptSimpleArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 5) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 4 failed: d = %d (expected 5)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 4 failed: d = %d (expected 5)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleArithmetic] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -384,7 +384,7 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -394,10 +394,10 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 14) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplexArithmetic] Test 1 failed: a = %d (expected 14)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: a = %d (expected 14)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -406,7 +406,7 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -416,10 +416,10 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 20) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplexArithmetic] Test 2 failed: b = %d (expected 20)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: b = %d (expected 20)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -428,7 +428,7 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -438,10 +438,10 @@ void TestScriptComplexArithmetic(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 25) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplexArithmetic] Test 3 failed: z = %d (expected 25)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 3 failed: z = %d (expected 25)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplexArithmetic] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -464,7 +464,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -474,10 +474,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 1 failed: a = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: a = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -486,7 +486,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -496,10 +496,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 2 failed: b = %d (expected 0)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: b = %d (expected 0)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -508,7 +508,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -518,10 +518,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 3 failed: c = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 3 failed: c = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -530,7 +530,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -540,10 +540,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 4 failed: d = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 4 failed: d = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -552,7 +552,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -562,10 +562,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 5 failed: e = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 5 failed: e = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 5 failed with error %d"), Error);
+        DEBUG(TEXT("Test 5 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -574,7 +574,7 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComparisons] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -584,10 +584,10 @@ void TestScriptComparisons(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComparisons] Test 6 failed: f = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 6 failed: f = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComparisons] Test 6 failed with error %d"), Error);
+        DEBUG(TEXT("Test 6 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -610,7 +610,7 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIfElse] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -620,10 +620,10 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 10) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIfElse] Test 1 failed: a = %d (expected 10)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: a = %d (expected 10)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIfElse] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -632,7 +632,7 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIfElse] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -642,10 +642,10 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 5) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIfElse] Test 2 failed: b = %d (expected 5)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: b = %d (expected 5)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIfElse] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -654,7 +654,7 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIfElse] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -664,10 +664,10 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 100) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIfElse] Test 3 failed: c = %d (expected 100)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 3 failed: c = %d (expected 100)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIfElse] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -676,7 +676,7 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIfElse] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -686,10 +686,10 @@ void TestScriptIfElse(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 200) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIfElse] Test 4 failed: d = %d (expected 200)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 4 failed: d = %d (expected 200)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIfElse] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -712,7 +712,7 @@ void TestScriptSimpleForLoop(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleForLoop] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -722,10 +722,10 @@ void TestScriptSimpleForLoop(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 45) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleForLoop] Test 1 failed: sum = %d (expected 45)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: sum = %d (expected 45)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleForLoop] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -734,7 +734,7 @@ void TestScriptSimpleForLoop(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptSimpleForLoop] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -744,10 +744,10 @@ void TestScriptSimpleForLoop(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 120) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptSimpleForLoop] Test 2 failed: product = %d (expected 120)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: product = %d (expected 120)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptSimpleForLoop] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -770,7 +770,7 @@ void TestScriptNestedForLoops(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptNestedForLoops] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -780,10 +780,10 @@ void TestScriptNestedForLoops(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 15) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptNestedForLoops] Test 1 failed: count = %d (expected 15)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: count = %d (expected 15)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptNestedForLoops] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -792,7 +792,7 @@ void TestScriptNestedForLoops(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptNestedForLoops] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -803,10 +803,10 @@ void TestScriptNestedForLoops(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 60) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptNestedForLoops] Test 2 failed: result = %d (expected 60)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: result = %d (expected 60)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptNestedForLoops] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -829,7 +829,7 @@ void TestScriptArrays(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptArrays] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -839,10 +839,10 @@ void TestScriptArrays(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 20) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptArrays] Test 1 failed: val = %d (expected 20)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: val = %d (expected 20)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptArrays] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -851,7 +851,7 @@ void TestScriptArrays(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptArrays] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -861,10 +861,10 @@ void TestScriptArrays(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 30) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptArrays] Test 2 failed: result = %d (expected 30)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: result = %d (expected 30)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptArrays] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -887,7 +887,7 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptStringOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -898,11 +898,11 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
             StringCompare(Var->Value.String, TEXT("foobar")) == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptStringOperators] Test 1 failed: value = %s (expected foobar)"),
+            DEBUG(TEXT("Test 1 failed: value = %s (expected foobar)"),
                   (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptStringOperators] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -911,7 +911,7 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptStringOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -922,11 +922,11 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
             StringCompare(Var->Value.String, TEXT("1bar")) == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptStringOperators] Test 2 failed: value = %s (expected 1bar)"),
+            DEBUG(TEXT("Test 2 failed: value = %s (expected 1bar)"),
                   (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptStringOperators] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -935,7 +935,7 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptStringOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -946,11 +946,11 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
             StringCompare(Var->Value.String, TEXT("3x3")) == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptStringOperators] Test 3 failed: value = %s (expected 3x3)"),
+            DEBUG(TEXT("Test 3 failed: value = %s (expected 3x3)"),
                   (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptStringOperators] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -959,7 +959,7 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptStringOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -970,11 +970,11 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
             StringCompare(Var->Value.String, TEXT("bar")) == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptStringOperators] Test 4 failed: value = %s (expected bar)"),
+            DEBUG(TEXT("Test 4 failed: value = %s (expected bar)"),
                   (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptStringOperators] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -983,7 +983,7 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptStringOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -994,11 +994,11 @@ void TestScriptStringOperators(TEST_RESULTS* Results) {
             StringCompare(Var->Value.String, TEXT("hello")) == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptStringOperators] Test 5 failed: value = %s (expected hello)"),
+            DEBUG(TEXT("Test 5 failed: value = %s (expected hello)"),
                   (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptStringOperators] Test 5 failed with error %d"), Error);
+        DEBUG(TEXT("Test 5 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1022,7 +1022,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT PropertyContext = ScriptCreateContext(NULL);
     if (PropertyContext == NULL) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to create context for property test"));
+        DEBUG(TEXT("Failed to create context for property test"));
         return;
     }
 
@@ -1034,7 +1034,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             &HostProperty,
             &TestHostValueDescriptor,
             NULL)) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to register hostValue property symbol"));
+        DEBUG(TEXT("Failed to register hostValue property symbol"));
     } else {
         SCRIPT_ERROR Error = ScriptExecute(PropertyContext, TEXT("result = hostValue;"));
         if (Error == SCRIPT_OK) {
@@ -1042,11 +1042,11 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 42) {
                 Results->TestsPassed++;
             } else {
-                DEBUG(TEXT("[TestScriptHostExposure] Property test failed: result = %d (expected 42)"),
+                DEBUG(TEXT("Property test failed: result = %d (expected 42)"),
                       Var ? Var->Value.Integer : -1);
             }
         } else {
-            DEBUG(TEXT("[TestScriptHostExposure] Property test failed with error %d"), Error);
+            DEBUG(TEXT("Property test failed with error %d"), Error);
         }
     }
 
@@ -1057,7 +1057,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT ArrayContext = ScriptCreateContext(NULL);
     if (ArrayContext == NULL) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to create context for array tests"));
+        DEBUG(TEXT("Failed to create context for array tests"));
         return;
     }
 
@@ -1072,7 +1072,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             &Array,
             &TestHostArrayDescriptor,
             NULL)) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to register hosts array symbol"));
+        DEBUG(TEXT("Failed to register hosts array symbol"));
     } else {
         SCRIPT_ERROR Error = ScriptExecute(ArrayContext, TEXT("value = hosts[1].value;"));
         if (Error == SCRIPT_OK) {
@@ -1080,11 +1080,11 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 200) {
                 Results->TestsPassed++;
             } else {
-                DEBUG(TEXT("[TestScriptHostExposure] Array value test failed: value = %d (expected 200)"),
+                DEBUG(TEXT("Array value test failed: value = %d (expected 200)"),
                       Var ? Var->Value.Integer : -1);
             }
         } else {
-            DEBUG(TEXT("[TestScriptHostExposure] Array value test failed with error %d"), Error);
+            DEBUG(TEXT("Array value test failed with error %d"), Error);
         }
 
         Error = ScriptExecute(ArrayContext, TEXT("name = hosts[2].name;"));
@@ -1094,11 +1094,11 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
                 StringCompare(Var->Value.String, TEXT("Gamma")) == 0) {
                 Results->TestsPassed++;
             } else {
-                DEBUG(TEXT("[TestScriptHostExposure] Array string test failed: name = %s (expected Gamma)"),
+                DEBUG(TEXT("Array string test failed: name = %s (expected Gamma)"),
                       (Var && Var->Type == SCRIPT_VAR_STRING && Var->Value.String) ? Var->Value.String : TEXT("(null)"));
             }
         } else {
-            DEBUG(TEXT("[TestScriptHostExposure] Array string test failed with error %d"), Error);
+            DEBUG(TEXT("Array string test failed with error %d"), Error);
         }
     }
 
@@ -1108,7 +1108,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT GuardContext = ScriptCreateContext(NULL);
     if (GuardContext == NULL) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to create context for guard test"));
+        DEBUG(TEXT("Failed to create context for guard test"));
         return;
     }
 
@@ -1120,7 +1120,7 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             &GuardProperty,
             &TestHostValueDescriptor,
             NULL)) {
-        DEBUG(TEXT("[TestScriptHostExposure] Failed to register hostValue for guard test"));
+        DEBUG(TEXT("Failed to register hostValue for guard test"));
     } else {
         SCRIPT_ERROR Error = ScriptExecute(GuardContext, TEXT("hostValue = 99;"));
         if (Error == SCRIPT_ERROR_SYNTAX) {
@@ -1128,10 +1128,10 @@ void TestScriptHostExposure(TEST_RESULTS* Results) {
             if (Var == NULL) {
                 Results->TestsPassed++;
             } else {
-                DEBUG(TEXT("[TestScriptHostExposure] Guard test failed: hostValue variable should not exist"));
+                DEBUG(TEXT("Guard test failed: hostValue variable should not exist"));
             }
         } else {
-            DEBUG(TEXT("[TestScriptHostExposure] Guard test failed with error %d (expected syntax error)"), Error);
+            DEBUG(TEXT("Guard test failed with error %d (expected syntax error)"), Error);
         }
     }
 
@@ -1156,7 +1156,7 @@ void TestScriptComplex(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplex] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1178,10 +1178,10 @@ void TestScriptComplex(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 34) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplex] Test 1 failed: result = %d (expected 34)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: result = %d (expected 34)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplex] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1190,7 +1190,7 @@ void TestScriptComplex(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplex] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1217,10 +1217,10 @@ void TestScriptComplex(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 11) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplex] Test 2 failed: total = %d (expected 11)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: total = %d (expected 11)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplex] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1229,7 +1229,7 @@ void TestScriptComplex(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptComplex] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1255,10 +1255,10 @@ void TestScriptComplex(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptComplex] Test 3 failed: isPrime = %d (expected 1)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 3 failed: isPrime = %d (expected 1)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptComplex] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1281,7 +1281,7 @@ void TestScriptLoopWithIf(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLoopWithIf] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1303,10 +1303,10 @@ void TestScriptLoopWithIf(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 5) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLoopWithIf] Test 1 failed: count = %d (expected 5)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 1 failed: count = %d (expected 5)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLoopWithIf] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1315,7 +1315,7 @@ void TestScriptLoopWithIf(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLoopWithIf] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1336,10 +1336,10 @@ void TestScriptLoopWithIf(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 40) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLoopWithIf] Test 2 failed: sum = %d (expected 40)"), Var ? Var->Value.Integer : -1);
+            DEBUG(TEXT("Test 2 failed: sum = %d (expected 40)"), Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLoopWithIf] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1361,7 +1361,7 @@ void TestScriptContinue(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptContinue] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1381,11 +1381,11 @@ void TestScriptContinue(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 13) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptContinue] Test 1 failed: sum = %d (expected 13)"),
+            DEBUG(TEXT("Test 1 failed: sum = %d (expected 13)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptContinue] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1393,7 +1393,7 @@ void TestScriptContinue(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptContinue] Failed to create second context"));
+        DEBUG(TEXT("Failed to create second context"));
         return;
     }
 
@@ -1416,11 +1416,11 @@ void TestScriptContinue(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 6) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptContinue] Test 2 failed: sum = %d (expected 6)"),
+            DEBUG(TEXT("Test 2 failed: sum = %d (expected 6)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptContinue] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1428,7 +1428,7 @@ void TestScriptContinue(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptContinue] Failed to create third context"));
+        DEBUG(TEXT("Failed to create third context"));
         return;
     }
 
@@ -1436,7 +1436,7 @@ void TestScriptContinue(TEST_RESULTS* Results) {
     if (Error == SCRIPT_ERROR_SYNTAX) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptContinue] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1461,7 +1461,7 @@ void TestScriptReturnValues(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptReturnValues] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1472,7 +1472,7 @@ void TestScriptReturnValues(TEST_RESULTS* Results) {
         ReturnValue.Integer == 123) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptReturnValues] Test 1 failed: error = %d has_return = %d type = %d value = %d"),
+        DEBUG(TEXT("Test 1 failed: error = %d has_return = %d type = %d value = %d"),
             Error,
             ScriptHasReturnValue(Context),
             ReturnType,
@@ -1484,7 +1484,7 @@ void TestScriptReturnValues(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptReturnValues] Failed to create second context"));
+        DEBUG(TEXT("Failed to create second context"));
         return;
     }
 
@@ -1492,7 +1492,7 @@ void TestScriptReturnValues(TEST_RESULTS* Results) {
     if (Error == SCRIPT_OK && ScriptHasReturnValue(Context) == FALSE) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptReturnValues] Test 2 failed: error = %d has_return = %d"),
+        DEBUG(TEXT("Test 2 failed: error = %d has_return = %d"),
             Error,
             ScriptHasReturnValue(Context));
     }
@@ -1515,7 +1515,7 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1525,11 +1525,11 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLogicalOperators] Test 1 failed: value = %d (expected 1)"),
+            DEBUG(TEXT("Test 1 failed: value = %d (expected 1)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1537,7 +1537,7 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create second context"));
+        DEBUG(TEXT("Failed to create second context"));
         return;
     }
 
@@ -1547,11 +1547,11 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLogicalOperators] Test 2 failed: value = %d (expected 1)"),
+            DEBUG(TEXT("Test 2 failed: value = %d (expected 1)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1559,7 +1559,7 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create third context"));
+        DEBUG(TEXT("Failed to create third context"));
         return;
     }
 
@@ -1569,11 +1569,11 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 0) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLogicalOperators] Test 3 failed: value = %d (expected 0)"),
+            DEBUG(TEXT("Test 3 failed: value = %d (expected 0)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1581,7 +1581,7 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create fourth context"));
+        DEBUG(TEXT("Failed to create fourth context"));
         return;
     }
 
@@ -1591,11 +1591,11 @@ void TestScriptLogicalOperators(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptLogicalOperators] Test 4 failed: value = %d (expected 1)"),
+            DEBUG(TEXT("Test 4 failed: value = %d (expected 1)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptLogicalOperators] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1616,7 +1616,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Results->TestsRun++;
     LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1626,10 +1626,10 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_FLOAT && Var->Value.Float == 3.75f) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIntegerSemantics] Test 1 failed: wrong float result"));
+            DEBUG(TEXT("Test 1 failed: wrong float result"));
         }
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 1 failed with error %d"), Error);
+        DEBUG(TEXT("Test 1 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1637,7 +1637,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1647,11 +1647,11 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 3) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIntegerSemantics] Test 2 failed: value = %d (expected 3)"),
+            DEBUG(TEXT("Test 2 failed: value = %d (expected 3)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 2 failed with error %d"), Error);
+        DEBUG(TEXT("Test 2 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1666,7 +1666,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Callbacks.UserData = &Capture;
     Context = ScriptCreateContext(&Callbacks);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create callback context"));
+        DEBUG(TEXT("Failed to create callback context"));
         return;
     }
 
@@ -1680,16 +1680,16 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
             STRINGS_EQUAL(Capture.Arguments[2], TEXT("8"))) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIntegerSemantics] Test 3 failed: status = %d (expected 123), argc = %u"),
+            DEBUG(TEXT("Test 3 failed: status = %d (expected 123), argc = %u"),
                 Var ? Var->Value.Integer : -1,
                 Capture.ArgumentCount);
-            DEBUG(TEXT("[TestScriptIntegerSemantics] Test 3 args: [%s] [%s] [%s]"),
+            DEBUG(TEXT("Test 3 args: [%s] [%s] [%s]"),
                 Capture.Arguments[0],
                 Capture.Arguments[1],
                 Capture.Arguments[2]);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 3 failed with error %d"), Error);
+        DEBUG(TEXT("Test 3 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1699,7 +1699,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Callbacks.CallFunction = TestScriptCallFunction;
     Context = ScriptCreateContext(&Callbacks);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create zero-argument callback context"));
+        DEBUG(TEXT("Failed to create zero-argument callback context"));
         return;
     }
 
@@ -1709,11 +1709,11 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
         if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 123) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptIntegerSemantics] Test 4 failed: status = %d (expected 123)"),
+            DEBUG(TEXT("Test 4 failed: status = %d (expected 123)"),
                 Var ? Var->Value.Integer : -1);
         }
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 4 failed with error %d"), Error);
+        DEBUG(TEXT("Test 4 failed with error %d"), Error);
     }
 
     ScriptDestroyContext(Context);
@@ -1723,7 +1723,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Callbacks.CallFunction = TestScriptCallFunction;
     Context = ScriptCreateContext(&Callbacks);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create unknown-function callback context"));
+        DEBUG(TEXT("Failed to create unknown-function callback context"));
         return;
     }
 
@@ -1732,7 +1732,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
         StringCompare(ScriptGetErrorMessage(Context), TEXT("Unknown function: unknown_function")) == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 5 failed: error = %d message = %s"),
+        DEBUG(TEXT("Test 5 failed: error = %d message = %s"),
             Error,
             ScriptGetErrorMessage(Context));
     }
@@ -1744,7 +1744,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
     Callbacks.CallFunction = TestScriptCallFunction;
     Context = ScriptCreateContext(&Callbacks);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Failed to create function-failure callback context"));
+        DEBUG(TEXT("Failed to create function-failure callback context"));
         return;
     }
 
@@ -1754,7 +1754,7 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
         StringCompare(ScriptGetErrorMessage(Context), TEXT("native_failure rejected the call")) == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptIntegerSemantics] Test 6 failed: error = %d message = %s"),
+        DEBUG(TEXT("Test 6 failed: error = %d message = %s"),
             Error,
             ScriptGetErrorMessage(Context));
     }
@@ -1780,7 +1780,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context"));
+        DEBUG(TEXT("Failed to create context"));
         return;
     }
 
@@ -1793,14 +1793,14 @@ void TestScriptObjects(TEST_RESULTS* Results) {
         Variable->Value.Object->PropertyCount == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 1 failed: error=%d type=%d"), Error, Variable ? Variable->Type : -1);
+        DEBUG(TEXT("Test 1 failed: error=%d type=%d"), Error, Variable ? Variable->Type : -1);
     }
     ScriptDestroyContext(Context);
 
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for property write"));
+        DEBUG(TEXT("Failed to create context for property write"));
         return;
     }
 
@@ -1815,7 +1815,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
         STRINGS_EQUAL(PropertyValue.Value.String, TEXT("alice"))) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 2 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 2 failed: error=%d"), Error);
     }
     ScriptValueRelease(&PropertyValue);
     ScriptDestroyContext(Context);
@@ -1823,7 +1823,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for overwrite"));
+        DEBUG(TEXT("Failed to create context for overwrite"));
         return;
     }
 
@@ -1838,7 +1838,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
         STRINGS_EQUAL(PropertyValue.Value.String, TEXT("bob"))) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 3 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 3 failed: error=%d"), Error);
     }
     ScriptValueRelease(&PropertyValue);
     ScriptDestroyContext(Context);
@@ -1846,7 +1846,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for nested object"));
+        DEBUG(TEXT("Failed to create context for nested object"));
         return;
     }
 
@@ -1866,11 +1866,11 @@ void TestScriptObjects(TEST_RESULTS* Results) {
             STRINGS_EQUAL(ThemeValue.Value.String, TEXT("light"))) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptObjects] Test 4 failed: nested theme lookup"));
+            DEBUG(TEXT("Test 4 failed: nested theme lookup"));
         }
         ScriptValueRelease(&ThemeValue);
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 4 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 4 failed: error=%d"), Error);
     }
     ScriptValueRelease(&PropertyValue);
     ScriptDestroyContext(Context);
@@ -1878,7 +1878,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for mixed types"));
+        DEBUG(TEXT("Failed to create context for mixed types"));
         return;
     }
 
@@ -1902,20 +1902,20 @@ void TestScriptObjects(TEST_RESULTS* Results) {
             RatioValue.Value.Float == 1.5f) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptObjects] Test 5 failed: mixed type checks"));
+            DEBUG(TEXT("Test 5 failed: mixed type checks"));
         }
         ScriptValueRelease(&NameValue);
         ScriptValueRelease(&CountValue);
         ScriptValueRelease(&RatioValue);
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 5 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 5 failed: error=%d"), Error);
     }
     ScriptDestroyContext(Context);
 
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for missing property"));
+        DEBUG(TEXT("Failed to create context for missing property"));
         return;
     }
 
@@ -1923,14 +1923,14 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     if (Error == SCRIPT_ERROR_UNDEFINED_VAR) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 6 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 6 failed: error=%d"), Error);
     }
     ScriptDestroyContext(Context);
 
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for invalid intermediate"));
+        DEBUG(TEXT("Failed to create context for invalid intermediate"));
         return;
     }
 
@@ -1938,14 +1938,14 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     if (Error == SCRIPT_ERROR_TYPE_MISMATCH) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 7 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 7 failed: error=%d"), Error);
     }
     ScriptDestroyContext(Context);
 
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for reference semantics"));
+        DEBUG(TEXT("Failed to create context for reference semantics"));
         return;
     }
 
@@ -1963,11 +1963,11 @@ void TestScriptObjects(TEST_RESULTS* Results) {
             STRINGS_EQUAL(SharedValue.Value.String, TEXT("shared"))) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestScriptObjects] Test 8 failed: shared property lookup"));
+            DEBUG(TEXT("Test 8 failed: shared property lookup"));
         }
         ScriptValueRelease(&SharedValue);
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 8 failed: error=%d refcount=%u"),
+        DEBUG(TEXT("Test 8 failed: error=%d refcount=%u"),
             Error,
             (Variable != NULL && Variable->Value.Object != NULL) ? Variable->Value.Object->RefCount : 0);
     }
@@ -1976,7 +1976,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
     Results->TestsRun++;
     Context = ScriptCreateContext(NULL);
     if (Context == NULL) {
-        DEBUG(TEXT("[TestScriptObjects] Failed to create context for destruction"));
+        DEBUG(TEXT("Failed to create context for destruction"));
         return;
     }
 
@@ -1986,7 +1986,7 @@ void TestScriptObjects(TEST_RESULTS* Results) {
         Context = NULL;
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestScriptObjects] Test 9 failed: error=%d"), Error);
+        DEBUG(TEXT("Test 9 failed: error=%d"), Error);
     }
 
     if (Context != NULL) {

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ LPSCRIPT_CONTEXT ScriptCreateContextA(LPSCRIPT_CALLBACKS Callbacks, LPCALLOCATOR
 
     Context = (LPSCRIPT_CONTEXT)AllocatorAlloc(Allocator, sizeof(SCRIPT_CONTEXT));
     if (Context == NULL) {
-        DEBUG(TEXT("[ScriptCreateContext] Failed to allocate context"));
+        DEBUG(TEXT("Failed to allocate context"));
         return NULL;
     }
 
@@ -117,7 +117,7 @@ LPSCRIPT_CONTEXT ScriptCreateContextA(LPSCRIPT_CALLBACKS Callbacks, LPCALLOCATOR
     Context->Allocator = *Allocator;
 
     if (!ScriptInitHostRegistry(Context, &Context->HostRegistry)) {
-        DEBUG(TEXT("[ScriptCreateContext] Failed to initialize host registry"));
+        DEBUG(TEXT("Failed to initialize host registry"));
         ScriptDestroyContext(Context);
         return NULL;
     }
@@ -125,7 +125,7 @@ LPSCRIPT_CONTEXT ScriptCreateContextA(LPSCRIPT_CALLBACKS Callbacks, LPCALLOCATOR
     // Initialize global scope
     Context->GlobalScope = ScriptCreateScope(Context, NULL);
     if (Context->GlobalScope == NULL) {
-        DEBUG(TEXT("[ScriptCreateContext] Failed to create global scope"));
+        DEBUG(TEXT("Failed to create global scope"));
         ScriptDestroyContext(Context);
         return NULL;
     }
@@ -170,7 +170,7 @@ void ScriptDestroyContext(LPSCRIPT_CONTEXT Context) {
  */
 SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
     if (Context == NULL || Script == NULL) {
-        DEBUG(TEXT("[ScriptExecute] NULL parameters"));
+        DEBUG(TEXT("NULL parameters"));
         return SCRIPT_ERROR_SYNTAX;
     }
 
@@ -378,7 +378,7 @@ BOOL ScriptGetReturnValue(LPSCRIPT_CONTEXT Context, SCRIPT_VAR_TYPE* Type, SCRIP
 LPAST_NODE ScriptCreateASTNode(LPSCRIPT_CONTEXT Context, AST_NODE_TYPE Type) {
     LPAST_NODE Node = (LPAST_NODE)ScriptAlloc(Context, sizeof(AST_NODE));
     if (Node == NULL) {
-        ERROR(TEXT("[ScriptCreateASTNode] Failed to allocate AST node"));
+        ERROR(TEXT("Failed to allocate AST node"));
         return NULL;
     }
 
@@ -828,7 +828,7 @@ SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
             }
 
             if (LoopCount >= MAX_ITERATIONS) {
-                ERROR(TEXT("[ScriptExecuteAST] Loop exceeded maximum iterations"));
+                ERROR(TEXT("Loop exceeded maximum iterations"));
             }
 
             return SCRIPT_OK;

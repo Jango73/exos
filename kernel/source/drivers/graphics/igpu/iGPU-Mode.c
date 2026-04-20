@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,12 +113,12 @@ static BOOL IntelGfxWriteVerifyRegister32(U32 RegisterOffset, U32 Value, U32 Mas
     }
 
     if (!IntelGfxReadMmio32(RegisterOffset, &ReadBack)) {
-        ERROR(TEXT("[IntelGfxWriteVerifyRegister32] Readback failed reg=%x"), RegisterOffset);
+        ERROR(TEXT("Readback failed reg=%x"), RegisterOffset);
         return FALSE;
     }
 
     if ((ReadBack & Mask) != (Value & Mask)) {
-        ERROR(TEXT("[IntelGfxWriteVerifyRegister32] Verify failed reg=%x write=%x read=%x mask=%x"),
+        ERROR(TEXT("Verify failed reg=%x write=%x read=%x mask=%x"),
             RegisterOffset,
             Value,
             ReadBack,
@@ -182,7 +182,7 @@ static UINT IntelGfxPrepareScanoutMemory(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     RequiredSize = Program->PlaneStride * Program->Height;
     if (RequiredSize == 0) {
-        ERROR(TEXT("[IntelGfxPrepareScanoutMemory] Invalid scanout size stride=%u height=%u"),
+        ERROR(TEXT("Invalid scanout size stride=%u height=%u"),
             Program->PlaneStride,
             Program->Height);
         return DF_RETURN_UNEXPECTED;
@@ -190,14 +190,14 @@ static UINT IntelGfxPrepareScanoutMemory(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Bar2Raw = IntelGfxState.Device->Info.BAR[2];
     if (PCI_BAR_IS_IO(Bar2Raw)) {
-        ERROR(TEXT("[IntelGfxPrepareScanoutMemory] BAR2 is I/O (bar2=%x)"), Bar2Raw);
+        ERROR(TEXT("BAR2 is I/O (bar2=%x)"), Bar2Raw);
         return DF_RETURN_UNEXPECTED;
     }
 
     Bar2Base = PCI_GetBARBase(IntelGfxState.Device->Info.Bus, IntelGfxState.Device->Info.Dev, IntelGfxState.Device->Info.Func, 2);
     Bar2Size = PCI_GetBARSize(IntelGfxState.Device->Info.Bus, IntelGfxState.Device->Info.Dev, IntelGfxState.Device->Info.Func, 2);
     if (Bar2Base == 0 || Bar2Size == 0) {
-        ERROR(TEXT("[IntelGfxPrepareScanoutMemory] Invalid BAR2 base=%x size=%u"), Bar2Base, Bar2Size);
+        ERROR(TEXT("Invalid BAR2 base=%x size=%u"), Bar2Base, Bar2Size);
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -211,7 +211,7 @@ static UINT IntelGfxPrepareScanoutMemory(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     SurfaceOffset = IntelGfxAlignUp(SurfaceOffset, SurfaceAlignment);
     if (SurfaceOffset >= Bar2Size || RequiredSize > (Bar2Size - SurfaceOffset)) {
-        ERROR(TEXT("[IntelGfxPrepareScanoutMemory] Surface window invalid offset=%x size=%u required=%u"),
+        ERROR(TEXT("Surface window invalid offset=%x size=%u required=%u"),
             SurfaceOffset,
             Bar2Size,
             RequiredSize);
@@ -222,7 +222,7 @@ static UINT IntelGfxPrepareScanoutMemory(LPINTEL_GFX_MODE_PROGRAM Program) {
     SurfacePhysical = (PHYSICAL)(Bar2Base + Program->PlaneSurface);
     SurfaceLinear = MapIOMemory(SurfacePhysical, RequiredSize);
     if (SurfaceLinear == 0) {
-        ERROR(TEXT("[IntelGfxPrepareScanoutMemory] MapIOMemory failed base=%p size=%u"),
+        ERROR(TEXT("MapIOMemory failed base=%p size=%u"),
             (LPVOID)(LINEAR)SurfacePhysical,
             RequiredSize);
         return DF_RETURN_UNEXPECTED;
@@ -234,7 +234,7 @@ static UINT IntelGfxPrepareScanoutMemory(LPINTEL_GFX_MODE_PROGRAM Program) {
 #endif
     UnMapIOMemory(SurfaceLinear, RequiredSize);
 
-    DEBUG(TEXT("[IntelGfxPrepareScanoutMemory] Scanout prepared offset=%x size=%u"), Program->PlaneSurface, RequiredSize);
+    DEBUG(TEXT("Scanout prepared offset=%x size=%u"), Program->PlaneSurface, RequiredSize);
     return DF_RETURN_SUCCESS;
 }
 
@@ -257,12 +257,12 @@ static UINT IntelGfxDisableCompressionBlocks(LPINTEL_GFX_MODE_PROGRAM Program) {
     }
 
     if (Family->CompressionControlRegister == 0 || Family->CompressionControlEnableMask == 0) {
-        WARNING(TEXT("[IntelGfxDisableCompressionBlocks] Compression disable metadata missing for family=%s"), Family->Name);
+        WARNING(TEXT("Compression disable metadata missing for family=%s"), Family->Name);
         return DF_RETURN_SUCCESS;
     }
 
     if (!IntelGfxReadRegister32Safe(Family->CompressionControlRegister, &CurrentValue)) {
-        WARNING(TEXT("[IntelGfxDisableCompressionBlocks] Compression register unavailable reg=%x"),
+        WARNING(TEXT("Compression register unavailable reg=%x"),
             Family->CompressionControlRegister);
         return DF_RETURN_SUCCESS;
     }
@@ -272,7 +272,7 @@ static UINT IntelGfxDisableCompressionBlocks(LPINTEL_GFX_MODE_PROGRAM Program) {
             Family->CompressionControlRegister,
             NewValue,
             Family->CompressionControlEnableMask)) {
-        ERROR(TEXT("[IntelGfxDisableCompressionBlocks] Compression disable failed reg=%x"),
+        ERROR(TEXT("Compression disable failed reg=%x"),
             Family->CompressionControlRegister);
         return DF_RETURN_UNEXPECTED;
     }
@@ -412,7 +412,7 @@ static BOOL IntelGfxReadActiveScanoutState(void) {
         IntelGfxState.ActiveTranscoderIndex = Index;
         IntelGfxState.HasActiveMode = TRUE;
 
-        DEBUG(TEXT("[IntelGfxReadActiveScanoutState] Pipe=%u Width=%u Height=%u Bpp=%u Stride=%u Surface=%x Port=%x"),
+        DEBUG(TEXT("Pipe=%u Width=%u Height=%u Bpp=%u Stride=%u Surface=%x Port=%x"),
             Index,
             Width,
             Height,
@@ -495,7 +495,7 @@ static BOOL IntelGfxWaitPipeState(U32 PipeIndex, BOOL EnabledExpected) {
     if (PipeIndex < sizeof(IntelPipeConfRegisters) / sizeof(IntelPipeConfRegisters[0])) {
         U32 PipeConf = 0;
         if (IntelGfxReadMmio32(IntelPipeConfRegisters[PipeIndex], &PipeConf)) {
-            WARNING(TEXT("[IntelGfxWaitPipeState] Timeout pipe=%u expected=%u conf=%x loops=%u"),
+            WARNING(TEXT("Timeout pipe=%u expected=%u conf=%x loops=%u"),
                 PipeIndex,
                 EnabledExpected ? 1 : 0,
                 PipeConf,
@@ -536,11 +536,11 @@ static void IntelGfxDumpPipeRegisters(U32 PipeIndex, LPCSTR PrefixTag) {
         !IntelGfxReadMmio32(IntelPipeVSyncRegisters[PipeIndex], &PipeVSync) ||
         !IntelGfxReadMmio32(IntelPlaneStrideRegisters[PipeIndex], &PlaneStride) ||
         !IntelGfxReadMmio32(IntelPlaneSurfaceRegisters[PipeIndex], &PlaneSurface)) {
-        WARNING(TEXT("[IntelGfxDumpPipeRegisters] %s pipe=%u dump failed"), PrefixTag, PipeIndex);
+        WARNING(TEXT("%s pipe=%u dump failed"), PrefixTag, PipeIndex);
         return;
     }
 
-    WARNING(TEXT("[IntelGfxDumpPipeRegisters] %s pipe=%u conf=%x ctl=%x src=%x stride=%x surf=%x"),
+    WARNING(TEXT("%s pipe=%u conf=%x ctl=%x src=%x stride=%x surf=%x"),
         PrefixTag,
         PipeIndex,
         PipeConf,
@@ -548,7 +548,7 @@ static void IntelGfxDumpPipeRegisters(U32 PipeIndex, LPCSTR PrefixTag) {
         PipeSource,
         PlaneStride,
         PlaneSurface);
-    WARNING(TEXT("[IntelGfxDumpPipeRegisters] %s pipe=%u htotal=%x hblank=%x hsync=%x vtotal=%x vblank=%x vsync=%x"),
+    WARNING(TEXT("%s pipe=%u htotal=%x hblank=%x hsync=%x vtotal=%x vblank=%x vsync=%x"),
         PrefixTag,
         PipeIndex,
         PipeHTotal,
@@ -616,12 +616,12 @@ static UINT IntelGfxDisablePipe(U32 PipeIndex) {
     (void)IntelGfxReadMmio32(IntelPipeConfRegisters[PipeIndex], &PipeConf);
 
     if (!IntelGfxWaitPipeState(PipeIndex, FALSE)) {
-        ERROR(TEXT("[IntelGfxDisablePipe] Pipe=%u disable timeout"), PipeIndex);
+        ERROR(TEXT("Pipe=%u disable timeout"), PipeIndex);
         return DF_RETURN_UNEXPECTED;
     }
 
     if (!IntelGfxVerifyPipeEnabledState(PipeIndex, FALSE, FALSE)) {
-        ERROR(TEXT("[IntelGfxDisablePipe] Pipe=%u disable verification failed"), PipeIndex);
+        ERROR(TEXT("Pipe=%u disable verification failed"), PipeIndex);
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -653,7 +653,7 @@ static UINT IntelGfxProgramTranscoderRoute(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     RegisterOffset = IntelTranscoderDdiRegisters[Program->TranscoderIndex];
     if (!IntelGfxReadRegister32Safe(RegisterOffset, &TranscoderControl)) {
-        WARNING(TEXT("[IntelGfxProgramTranscoderRoute] Transcoder register unavailable (transcoder=%u)"), Program->TranscoderIndex);
+        WARNING(TEXT("Transcoder register unavailable (transcoder=%u)"), Program->TranscoderIndex);
         return DF_RETURN_SUCCESS;
     }
 
@@ -662,7 +662,7 @@ static UINT IntelGfxProgramTranscoderRoute(LPINTEL_GFX_MODE_PROGRAM Program) {
     TranscoderControl |= INTEL_TRANS_DDI_FUNC_ENABLE;
 
     if (!IntelGfxWriteVerifyRegister32(RegisterOffset, TranscoderControl, INTEL_TRANS_DDI_FUNC_PORT_MASK | INTEL_TRANS_DDI_FUNC_ENABLE)) {
-        ERROR(TEXT("[IntelGfxProgramTranscoderRoute] Transcoder route write failed (transcoder=%u port=%x)"),
+        ERROR(TEXT("Transcoder route write failed (transcoder=%u port=%x)"),
             Program->TranscoderIndex,
             Program->OutputPortMask);
         return DF_RETURN_UNEXPECTED;
@@ -689,7 +689,7 @@ static UINT IntelGfxProgramClockSource(LPINTEL_GFX_MODE_PROGRAM Program) {
     }
 
     if (!IntelGfxReadRegister32Safe(INTEL_REG_DPLL_CTRL1, &ClockControl)) {
-        WARNING(TEXT("[IntelGfxProgramClockSource] DPLL control register unavailable"));
+        WARNING(TEXT("DPLL control register unavailable"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -698,7 +698,7 @@ static UINT IntelGfxProgramClockSource(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     // Conservative multi-family path: preserve active DPLL source selection.
     if (!IntelGfxWriteVerifyRegister32(Program->ClockControlRegister, Program->ClockControlValue, MAX_U32)) {
-        ERROR(TEXT("[IntelGfxProgramClockSource] DPLL programming failed"));
+        ERROR(TEXT("DPLL programming failed"));
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -729,14 +729,14 @@ static UINT IntelGfxConfigureConnectorLink(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Program->LinkControlRegister = IntelDdiBufferControlRegisters[PortIndex];
     if (!IntelGfxReadRegister32Safe(Program->LinkControlRegister, &LinkControl)) {
-        ERROR(TEXT("[IntelGfxConfigureConnectorLink] DDI link register unavailable for port=%x"), Program->OutputPortMask);
+        ERROR(TEXT("DDI link register unavailable for port=%x"), Program->OutputPortMask);
         return DF_RETURN_UNEXPECTED;
     }
 
     LinkControl |= INTEL_DDI_BUF_CTL_ENABLE;
 
     if (!IntelGfxWriteVerifyRegister32(Program->LinkControlRegister, LinkControl, INTEL_DDI_BUF_CTL_ENABLE)) {
-        ERROR(TEXT("[IntelGfxConfigureConnectorLink] Link enable failed for port=%x"), Program->OutputPortMask);
+        ERROR(TEXT("Link enable failed for port=%x"), Program->OutputPortMask);
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -767,7 +767,7 @@ static UINT IntelGfxProgramPanelStability(LPINTEL_GFX_MODE_PROGRAM Program) {
         Program->PanelPowerValue = Value | INTEL_PANEL_POWER_TARGET_ON;
 
         if (!IntelGfxWriteVerifyRegister32(Program->PanelPowerRegister, Program->PanelPowerValue, INTEL_PANEL_POWER_TARGET_ON)) {
-            ERROR(TEXT("[IntelGfxProgramPanelStability] Panel power target programming failed"));
+            ERROR(TEXT("Panel power target programming failed"));
             return DF_RETURN_UNEXPECTED;
         }
     }
@@ -777,7 +777,7 @@ static UINT IntelGfxProgramPanelStability(LPINTEL_GFX_MODE_PROGRAM Program) {
         Program->BacklightValue = Value | INTEL_BACKLIGHT_PWM_ENABLE;
 
         if (!IntelGfxWriteVerifyRegister32(Program->BacklightRegister, Program->BacklightValue, INTEL_BACKLIGHT_PWM_ENABLE)) {
-            ERROR(TEXT("[IntelGfxProgramPanelStability] Backlight programming failed"));
+            ERROR(TEXT("Backlight programming failed"));
             return DF_RETURN_UNEXPECTED;
         }
     }
@@ -815,28 +815,28 @@ static UINT IntelGfxEnablePipe(LPINTEL_GFX_MODE_PROGRAM Program) {
         !IntelGfxWriteVerifyRegister32(IntelPipeVSyncRegisters[PipeIndex], Program->PipeVSync, MAX_U32) ||
         !IntelGfxWriteVerifyRegister32(IntelPipeSourceRegisters[PipeIndex], Program->PipeSource, MAX_U32) ||
         !IntelGfxWriteVerifyRegister32(IntelPlaneSurfaceRegisters[PipeIndex], Program->PlaneSurface, INTEL_SURFACE_ALIGN_MASK)) {
-        ERROR(TEXT("[IntelGfxEnablePipe] Timing or plane programming failed pipe=%u"), PipeIndex);
+        ERROR(TEXT("Timing or plane programming failed pipe=%u"), PipeIndex);
         IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-program"));
         return DF_RETURN_UNEXPECTED;
     }
 
     EncodedStride = IntelGfxEncodeProgramStride(Program->PlaneStride);
     if (EncodedStride == 0) {
-        ERROR(TEXT("[IntelGfxEnablePipe] Invalid encoded stride pipe=%u strideBytes=%u"), PipeIndex, Program->PlaneStride);
+        ERROR(TEXT("Invalid encoded stride pipe=%u strideBytes=%u"), PipeIndex, Program->PlaneStride);
         return DF_RETURN_UNEXPECTED;
     }
-    DEBUG(TEXT("[IntelGfxEnablePipe] Stride encode pipe=%u bytes=%u encoded=%x"), PipeIndex, Program->PlaneStride, EncodedStride);
+    DEBUG(TEXT("Stride encode pipe=%u bytes=%u encoded=%x"), PipeIndex, Program->PlaneStride, EncodedStride);
 
     if (!IntelGfxWriteVerifyRegister32(IntelPlaneStrideRegisters[PipeIndex], EncodedStride, Family->StrideWriteMask)) {
         if (IntelGfxState.HasActiveMode == FALSE) {
             if (!IntelGfxReadMmio32(IntelPlaneStrideRegisters[PipeIndex], &ProgrammedStride)) {
-                ERROR(TEXT("[IntelGfxEnablePipe] Cold stride fallback read failed pipe=%u"), PipeIndex);
+                ERROR(TEXT("Cold stride fallback read failed pipe=%u"), PipeIndex);
                 IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-stride-fallback-read"));
                 return DF_RETURN_UNEXPECTED;
             }
 
             ProgrammedStride = IntelGfxResolveStrideFromReadback(ProgrammedStride, Program->Width, Program->BitsPerPixel);
-            WARNING(TEXT("[IntelGfxEnablePipe] Cold stride fallback pipe=%u requested=%x programmed=%x"),
+            WARNING(TEXT("Cold stride fallback pipe=%u requested=%x programmed=%x"),
                 PipeIndex,
                 Program->PlaneStride,
                 ProgrammedStride);
@@ -847,7 +847,7 @@ static UINT IntelGfxEnablePipe(LPINTEL_GFX_MODE_PROGRAM Program) {
 
             Program->PlaneStride = ProgrammedStride;
         } else {
-            ERROR(TEXT("[IntelGfxEnablePipe] Stride programming failed pipe=%u"), PipeIndex);
+            ERROR(TEXT("Stride programming failed pipe=%u"), PipeIndex);
             IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-stride"));
             return DF_RETURN_UNEXPECTED;
         }
@@ -855,7 +855,7 @@ static UINT IntelGfxEnablePipe(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     PipeConf = Program->PipeConf | INTEL_PIPE_CONF_ENABLE;
     if (!IntelGfxWriteVerifyRegister32(IntelPipeConfRegisters[PipeIndex], PipeConf, INTEL_PIPE_CONF_ENABLE)) {
-        ERROR(TEXT("[IntelGfxEnablePipe] PipeConf enable write failed pipe=%u value=%x"), PipeIndex, PipeConf);
+        ERROR(TEXT("PipeConf enable write failed pipe=%u value=%x"), PipeIndex, PipeConf);
         IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-pipeconf"));
         return DF_RETURN_UNEXPECTED;
     }
@@ -867,19 +867,19 @@ static UINT IntelGfxEnablePipe(LPINTEL_GFX_MODE_PROGRAM Program) {
             IntelPlaneControlRegisters[PipeIndex],
             PlaneControl,
             INTEL_PLANE_CTL_ENABLE | INTEL_PLANE_CTL_FORMAT_MASK | INTEL_PLANE_CTL_TILING_MASK)) {
-        ERROR(TEXT("[IntelGfxEnablePipe] Plane enable write failed pipe=%u value=%x"), PipeIndex, PlaneControl);
+        ERROR(TEXT("Plane enable write failed pipe=%u value=%x"), PipeIndex, PlaneControl);
         IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-planectl"));
         return DF_RETURN_UNEXPECTED;
     }
 
     if (!IntelGfxWaitPipeState(PipeIndex, TRUE)) {
-        ERROR(TEXT("[IntelGfxEnablePipe] Pipe=%u enable timeout"), PipeIndex);
+        ERROR(TEXT("Pipe=%u enable timeout"), PipeIndex);
         IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-timeout"));
         return DF_RETURN_UNEXPECTED;
     }
 
     if (!IntelGfxVerifyPipeEnabledState(PipeIndex, TRUE, TRUE)) {
-        ERROR(TEXT("[IntelGfxEnablePipe] Pipe=%u enable verification failed"), PipeIndex);
+        ERROR(TEXT("Pipe=%u enable verification failed"), PipeIndex);
         IntelGfxDumpPipeRegisters(PipeIndex, TEXT("EnablePipe-verify"));
         return DF_RETURN_UNEXPECTED;
     }
@@ -920,7 +920,7 @@ static UINT IntelGfxSelectPipeOutputRouting(LPINTEL_GFX_MODE_PROGRAM Program) {
         Program->TranscoderIndex = IntelGfxState.IntelCapabilities.TranscoderCount ? (IntelGfxState.IntelCapabilities.TranscoderCount - 1) : 0;
     }
 
-    DEBUG(TEXT("[IntelGfxSelectPipeOutputRouting] Pipe=%u OutputPort=%x OutputType=%u Transcoder=%u"),
+    DEBUG(TEXT("Pipe=%u OutputPort=%x OutputType=%u Transcoder=%u"),
         Program->PipeIndex,
         Program->OutputPortMask,
         Program->OutputType,
@@ -1117,7 +1117,7 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
     *ProgramOut = (INTEL_GFX_MODE_PROGRAM){0};
 
     if (Family == NULL) {
-        ERROR(TEXT("[IntelGfxBuildModeProgram] Unsupported display family (displayVersion=%u)"),
+        ERROR(TEXT("Unsupported display family (displayVersion=%u)"),
             IntelGfxState.IntelCapabilities.DisplayVersion);
         return DF_RETURN_IGFX_UNSUPPORTED_FAMILY;
     }
@@ -1132,7 +1132,7 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
     }
 
     if (RequestedWidth > IntelGfxState.Capabilities.MaxWidth || RequestedHeight > IntelGfxState.Capabilities.MaxHeight) {
-        WARNING(TEXT("[IntelGfxBuildModeProgram] Requested mode outside capabilities (%ux%u max=%ux%u)"),
+        WARNING(TEXT("Requested mode outside capabilities (%ux%u max=%ux%u)"),
             RequestedWidth,
             RequestedHeight,
             IntelGfxState.Capabilities.MaxWidth,
@@ -1141,12 +1141,12 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
     }
 
     if (RequestedBitsPerPixel != 32) {
-        WARNING(TEXT("[IntelGfxBuildModeProgram] Unsupported pixel format bpp=%u"), RequestedBitsPerPixel);
+        WARNING(TEXT("Unsupported pixel format bpp=%u"), RequestedBitsPerPixel);
         return DF_GFX_ERROR_MODEUNAVAIL;
     }
 
     if (HasActiveMode != FALSE && (RequestedWidth != IntelGfxState.ActiveWidth || RequestedHeight != IntelGfxState.ActiveHeight)) {
-        WARNING(TEXT("[IntelGfxBuildModeProgram] Conservative path supports active mode only (%ux%u requested=%ux%u)"),
+        WARNING(TEXT("Conservative path supports active mode only (%ux%u requested=%ux%u)"),
             IntelGfxState.ActiveWidth,
             IntelGfxState.ActiveHeight,
             RequestedWidth,
@@ -1156,7 +1156,7 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
 
     if (HasActiveMode != FALSE) {
         if (!IntelGfxReadModeProgram(IntelGfxState.ActivePipeIndex, ProgramOut)) {
-            ERROR(TEXT("[IntelGfxBuildModeProgram] Failed to read active pipe programming"));
+            ERROR(TEXT("Failed to read active pipe programming"));
             return DF_RETURN_UNEXPECTED;
         }
     } else {
@@ -1181,7 +1181,7 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
         }
 
         if (Family->SupportsColdModeset == FALSE) {
-            ERROR(TEXT("[IntelGfxBuildModeProgram] Family %s does not support cold modeset"), Family->Name);
+            ERROR(TEXT("Family %s does not support cold modeset"), Family->Name);
             return DF_RETURN_IGFX_UNSUPPORTED_FAMILY;
         }
 
@@ -1210,7 +1210,7 @@ static UINT IntelGfxBuildModeProgram(LPGRAPHICS_MODE_INFO Info, LPINTEL_GFX_MODE
         ProgramOut->PipeVBlank = ((VerticalTotal - 1) << 16) | (VerticalBlankStart - 1);
         ProgramOut->PipeVSync = ((VerticalSyncEnd - 1) << 16) | (VerticalSyncStart - 1);
 
-        DEBUG(TEXT("[IntelGfxBuildModeProgram] Cold modeset bootstrap prepared (%ux%u pipe=%u port=%x)"),
+        DEBUG(TEXT("Cold modeset bootstrap prepared (%ux%u pipe=%u port=%x)"),
             RequestedWidth,
             RequestedHeight,
             ProgramOut->PipeIndex,
@@ -1247,7 +1247,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
     }
 
     if (Family == NULL) {
-        ERROR(TEXT("[IntelGfxProgramMode] Unsupported display family (displayVersion=%u)"),
+        ERROR(TEXT("Unsupported display family (displayVersion=%u)"),
             IntelGfxState.IntelCapabilities.DisplayVersion);
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_VALIDATE;
         IntelGfxState.LastModesetFailureCode = DF_RETURN_IGFX_UNSUPPORTED_FAMILY;
@@ -1255,7 +1255,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
     }
 
     if (IntelGfxState.HasActiveMode == FALSE && Family->SupportsColdModeset == FALSE) {
-        ERROR(TEXT("[IntelGfxProgramMode] Family %s does not support cold modeset"), Family->Name);
+        ERROR(TEXT("Family %s does not support cold modeset"), Family->Name);
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_VALIDATE;
         IntelGfxState.LastModesetFailureCode = DF_RETURN_IGFX_UNSUPPORTED_FAMILY;
         return DF_RETURN_IGFX_UNSUPPORTED_FAMILY;
@@ -1264,20 +1264,20 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
     Result = IntelGfxCaptureModeSnapshot(Program->PipeIndex, &Snapshot);
     if (Result != DF_RETURN_SUCCESS) {
         if (IntelGfxState.HasActiveMode != FALSE) {
-            ERROR(TEXT("[IntelGfxProgramMode] Snapshot capture failed"));
+            ERROR(TEXT("Snapshot capture failed"));
             IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_VALIDATE;
             IntelGfxState.LastModesetFailureCode = Result;
             return Result;
         }
 
-        WARNING(TEXT("[IntelGfxProgramMode] Snapshot capture unavailable, continuing without rollback baseline"));
+        WARNING(TEXT("Snapshot capture unavailable, continuing without rollback baseline"));
     } else {
         HasSnapshot = TRUE;
     }
 
     Result = IntelGfxSelectPipeOutputRouting(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Routing policy failed"));
+        ERROR(TEXT("Routing policy failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_ROUTE;
         IntelGfxState.LastModesetFailureCode = Result;
         return Result;
@@ -1285,7 +1285,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxDisablePipe(Program->PipeIndex);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage disable failed"));
+        ERROR(TEXT("Stage disable failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_DISABLE;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1294,7 +1294,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxProgramTranscoderRoute(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage transcoder routing failed"));
+        ERROR(TEXT("Stage transcoder routing failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_ROUTE;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1303,7 +1303,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxProgramClockSource(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage clock programming failed"));
+        ERROR(TEXT("Stage clock programming failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_CLOCK;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1312,7 +1312,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxConfigureConnectorLink(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage link configuration failed"));
+        ERROR(TEXT("Stage link configuration failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_LINK;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1321,7 +1321,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxPrepareScanoutMemory(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage scanout memory preparation failed"));
+        ERROR(TEXT("Stage scanout memory preparation failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_SCANOUT;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1330,7 +1330,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxDisableCompressionBlocks(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage compression disable failed"));
+        ERROR(TEXT("Stage compression disable failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_COMPRESSION;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1339,7 +1339,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxEnablePipe(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage pipe enable failed"));
+        ERROR(TEXT("Stage pipe enable failed"));
         IntelGfxDumpPipeRegisters(Program->PipeIndex, TEXT("ProgramMode-enable-failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_ENABLE;
         IntelGfxState.LastModesetFailureCode = Result;
@@ -1349,7 +1349,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxProgramPanelStability(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage panel stabilization failed"));
+        ERROR(TEXT("Stage panel stabilization failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_PANEL;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1358,7 +1358,7 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxVerifyProgramMode(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage verify failed"));
+        ERROR(TEXT("Stage verify failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_VERIFY;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
@@ -1366,13 +1366,13 @@ static UINT IntelGfxProgramMode(LPINTEL_GFX_MODE_PROGRAM Program) {
 
     Result = IntelGfxCommitProgramMode(Program);
     if (Result != DF_RETURN_SUCCESS) {
-        ERROR(TEXT("[IntelGfxProgramMode] Stage commit failed"));
+        ERROR(TEXT("Stage commit failed"));
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_COMMIT;
         IntelGfxState.LastModesetFailureCode = Result;
         goto rollback;
     }
 
-    DEBUG(TEXT("[IntelGfxProgramMode] Pipe=%u Mode=%ux%u bpp=%u refresh=%u Port=%x Transcoder=%u Stages=%x"),
+    DEBUG(TEXT("Pipe=%u Mode=%ux%u bpp=%u refresh=%u Port=%x Transcoder=%u Stages=%x"),
         Program->PipeIndex,
         Program->Width,
         Program->Height,
@@ -1391,10 +1391,10 @@ rollback:
         IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_ROLLBACK;
         UINT RollbackResult = IntelGfxRestoreModeSnapshot(&Snapshot);
         if (RollbackResult != DF_RETURN_SUCCESS) {
-            ERROR(TEXT("[IntelGfxProgramMode] Rollback failed stageMask=%x result=%u"), CompletedStages, RollbackResult);
+            ERROR(TEXT("Rollback failed stageMask=%x result=%u"), CompletedStages, RollbackResult);
             IntelGfxState.LastModesetFailureCode = RollbackResult;
         } else {
-            WARNING(TEXT("[IntelGfxProgramMode] Rollback completed stageMask=%x"), CompletedStages);
+            WARNING(TEXT("Rollback completed stageMask=%x"), CompletedStages);
         }
     }
     IntelGfxDumpPipeRegisters(Program->PipeIndex, TEXT("ProgramMode-after-rollback"));
@@ -1415,32 +1415,32 @@ static BOOL IntelGfxMapActiveFrameBuffer(void) {
 
     Bar2Raw = IntelGfxState.Device->Info.BAR[2];
     if (PCI_BAR_IS_IO(Bar2Raw)) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] BAR2 is I/O (bar2=%x)"), Bar2Raw);
+        ERROR(TEXT("BAR2 is I/O (bar2=%x)"), Bar2Raw);
         return FALSE;
     }
 
     Bar2Base = PCI_GetBARBase(IntelGfxState.Device->Info.Bus, IntelGfxState.Device->Info.Dev, IntelGfxState.Device->Info.Func, 2);
     Bar2Size = PCI_GetBARSize(IntelGfxState.Device->Info.Bus, IntelGfxState.Device->Info.Dev, IntelGfxState.Device->Info.Func, 2);
     if (Bar2Base == 0 || Bar2Size == 0) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] Invalid BAR2 base=%x size=%u"), Bar2Base, Bar2Size);
+        ERROR(TEXT("Invalid BAR2 base=%x size=%u"), Bar2Base, Bar2Size);
         return FALSE;
     }
 
     IntelGfxState.FrameBufferSize = IntelGfxState.ActiveStride * IntelGfxState.ActiveHeight;
     if (IntelGfxState.FrameBufferSize == 0) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] Invalid frame buffer size"));
+        ERROR(TEXT("Invalid frame buffer size"));
         return FALSE;
     }
 
     if (IntelGfxState.ActiveSurfaceOffset >= Bar2Size) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] Surface offset out of BAR2 range (offset=%x size=%u)"),
+        ERROR(TEXT("Surface offset out of BAR2 range (offset=%x size=%u)"),
             IntelGfxState.ActiveSurfaceOffset,
             Bar2Size);
         return FALSE;
     }
 
     if (IntelGfxState.FrameBufferSize > (Bar2Size - IntelGfxState.ActiveSurfaceOffset)) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] Frame buffer exceeds BAR2 window (size=%u available=%u)"),
+        ERROR(TEXT("Frame buffer exceeds BAR2 window (size=%u available=%u)"),
             IntelGfxState.FrameBufferSize,
             Bar2Size - IntelGfxState.ActiveSurfaceOffset);
         return FALSE;
@@ -1449,13 +1449,13 @@ static BOOL IntelGfxMapActiveFrameBuffer(void) {
     IntelGfxState.FrameBufferPhysical = (PHYSICAL)(Bar2Base + IntelGfxState.ActiveSurfaceOffset);
     IntelGfxState.FrameBufferLinear = MapIOMemory(IntelGfxState.FrameBufferPhysical, IntelGfxState.FrameBufferSize);
     if (IntelGfxState.FrameBufferLinear == 0) {
-        ERROR(TEXT("[IntelGfxMapActiveFrameBuffer] MapIOMemory failed for base=%p size=%u"),
+        ERROR(TEXT("MapIOMemory failed for base=%p size=%u"),
             (LPVOID)(LINEAR)IntelGfxState.FrameBufferPhysical,
             IntelGfxState.FrameBufferSize);
         return FALSE;
     }
 
-    DEBUG(TEXT("[IntelGfxMapActiveFrameBuffer] FrameBuffer=%p size=%u stride=%u"),
+    DEBUG(TEXT("FrameBuffer=%p size=%u stride=%u"),
         (LPVOID)(LINEAR)IntelGfxState.FrameBufferPhysical,
         IntelGfxState.FrameBufferSize,
         IntelGfxState.ActiveStride);
@@ -1499,7 +1499,7 @@ static BOOL IntelGfxBuildTakeoverContext(void) {
 
 UINT IntelGfxTakeoverActiveMode(void) {
     if (!IntelGfxReadActiveScanoutState()) {
-        ERROR(TEXT("[IntelGfxTakeoverActiveMode] No active Intel scanout state found"));
+        ERROR(TEXT("No active Intel scanout state found"));
         IntelGfxState.HasActiveMode = FALSE;
         return DF_RETURN_IGFX_NO_ACTIVE_SCANOUT;
     }
@@ -1578,7 +1578,7 @@ UINT IntelGfxSetMode(LPGRAPHICS_MODE_INFO Info) {
         }
 
         IntelGfxState.HasActiveMode = TRUE;
-        WARNING(TEXT("[IntelGfxSetMode] Takeover refresh unavailable, context rebuilt from programmed cold mode"));
+        WARNING(TEXT("Takeover refresh unavailable, context rebuilt from programmed cold mode"));
     }
 
     IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_NONE;

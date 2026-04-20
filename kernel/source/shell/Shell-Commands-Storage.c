@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ U32 CMD_sysinfo(LPSHELLCONTEXT Context) {
     ConsolePrint(TEXT("Number of tasks           : %d\n"), Info.NumTasks);
     ConsolePrint(TEXT("Keyboard layout           : %s\n"), Info.KeyboardLayout);
 
-    TEST(TEXT("[CMD_sysinfo] sys_info : OK"));
+    TEST(TEXT("sys_info : OK"));
     return DF_RETURN_SUCCESS;
 }
 
@@ -123,9 +123,9 @@ U32 CMD_type(LPSHELLCONTEXT Context) {
     }
 
     if (Success) {
-        TEST(TEXT("[CMD_type] type %s : OK"), FileName);
+        TEST(TEXT("type %s : OK"), FileName);
     } else {
-        TEST(TEXT("[CMD_type] type : KO"));
+        TEST(TEXT("type : KO"));
     }
 
     return DF_RETURN_SUCCESS;
@@ -156,12 +156,12 @@ U32 CMD_copy(LPSHELLCONTEXT Context) {
     }
 
     Success = (TotalCopied == FileSize);
-    DEBUG(TEXT("[CMD_copy] TotalCopied=%u FileSize=%u"), TotalCopied, FileSize);
+    DEBUG(TEXT("TotalCopied=%u FileSize=%u"), TotalCopied, FileSize);
 
     if (Success) {
-        TEST(TEXT("[CMD_copy] copy %s %s : OK"), SrcName, DstName);
+        TEST(TEXT("copy %s %s : OK"), SrcName, DstName);
     } else {
-        TEST(TEXT("[CMD_copy] copy %s %s : KO"), SrcName, DstName);
+        TEST(TEXT("copy %s %s : KO"), SrcName, DstName);
     }
 
     return DF_RETURN_SUCCESS;

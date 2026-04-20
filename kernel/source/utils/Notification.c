@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ LPNOTIFICATION_CONTEXT Notification_CreateContext(void) {
             KernelHeapFree(Context);
             return NULL;
         }
-        DEBUG(TEXT("[Notification_CreateContext] Created context at %p"), (LPVOID)Context);
+        DEBUG(TEXT("Created context at %p"), (LPVOID)Context);
     }
     return Context;
 }
@@ -57,7 +57,7 @@ LPNOTIFICATION_CONTEXT Notification_CreateContext(void) {
 void Notification_DestroyContext(LPNOTIFICATION_CONTEXT Context) {
     if (!Context) return;
 
-    DEBUG(TEXT("[Notification_DestroyContext] Destroying context at %p"), (LPVOID)Context);
+    DEBUG(TEXT("Destroying context at %p"), (LPVOID)Context);
 
     if (Context->NotificationList) {
         DeleteList(Context->NotificationList);
@@ -80,13 +80,13 @@ U32 Notification_Register(LPNOTIFICATION_CONTEXT Context, U32 EventID, NOTIFICAT
     LPNOTIFICATION_ENTRY Entry;
 
     if (!Context || !Callback) {
-        DEBUG(TEXT("[Notification_Register] Invalid parameters: Context=%p Callback=%p"), Context, Callback);
+        DEBUG(TEXT("Invalid parameters: Context=%p Callback=%p"), Context, Callback);
         return 0;
     }
 
     Entry = (LPNOTIFICATION_ENTRY)KernelHeapAlloc(sizeof(NOTIFICATION_ENTRY));
     if (!Entry) {
-        DEBUG(TEXT("[Notification_Register] Failed to allocate entry"));
+        DEBUG(TEXT("Failed to allocate entry"));
         return 0;
     }
 
@@ -100,12 +100,12 @@ U32 Notification_Register(LPNOTIFICATION_CONTEXT Context, U32 EventID, NOTIFICAT
     Entry->UserData = UserData;
 
     if (!ListAddTail(Context->NotificationList, Entry)) {
-        DEBUG(TEXT("[Notification_Register] Failed to add entry to list"));
+        DEBUG(TEXT("Failed to add entry to list"));
         KernelHeapFree(Entry);
         return 0;
     }
 
-    DEBUG(TEXT("[Notification_Register] Registered callback %p for event %x"), (LPVOID)Callback, EventID);
+    DEBUG(TEXT("Registered callback %p for event %x"), (LPVOID)Callback, EventID);
     return 1;
 }
 
@@ -124,7 +124,7 @@ U32 Notification_Unregister(LPNOTIFICATION_CONTEXT Context, U32 EventID, NOTIFIC
     U32 Index, Size;
 
     if (!Context || !Callback) {
-        DEBUG(TEXT("[Notification_Unregister] Invalid parameters"));
+        DEBUG(TEXT("Invalid parameters"));
         return 0;
     }
 
@@ -133,12 +133,12 @@ U32 Notification_Unregister(LPNOTIFICATION_CONTEXT Context, U32 EventID, NOTIFIC
         Current = (LPNOTIFICATION_ENTRY)ListGetItem(Context->NotificationList, Index);
         if (Current && Current->EventID == EventID && Current->Callback == Callback && Current->UserData == UserData) {
             ListErase(Context->NotificationList, Current);
-            DEBUG(TEXT("[Notification_Unregister] Unregistered callback %p for event %x"), (LPVOID)Callback, EventID);
+            DEBUG(TEXT("Unregistered callback %p for event %x"), (LPVOID)Callback, EventID);
             return 1;
         }
     }
 
-    DEBUG(TEXT("[Notification_Unregister] Callback %p for event %x not found"), (LPVOID)Callback, EventID);
+    DEBUG(TEXT("Callback %p for event %x not found"), (LPVOID)Callback, EventID);
     return 0;
 }
 
@@ -158,7 +158,7 @@ void Notification_Send(LPNOTIFICATION_CONTEXT Context, U32 EventID, LPVOID Data,
     U32 Index, Size;
 
     if (!Context) {
-        DEBUG(TEXT("[Notification_Send] Invalid context"));
+        DEBUG(TEXT("Invalid context"));
         return;
     }
 
@@ -166,19 +166,19 @@ void Notification_Send(LPNOTIFICATION_CONTEXT Context, U32 EventID, LPVOID Data,
     NotificationData.Data = Data;
     NotificationData.DataSize = DataSize;
 
-    DEBUG(TEXT("[Notification_Send] Sending event %x with %lu bytes data"), EventID, DataSize);
+    DEBUG(TEXT("Sending event %x with %lu bytes data"), EventID, DataSize);
 
     Size = ListGetSize(Context->NotificationList);
     for (Index = 0; Index < Size; Index++) {
         Current = (LPNOTIFICATION_ENTRY)ListGetItem(Context->NotificationList, Index);
         if (Current && Current->EventID == EventID) {
-            DEBUG(TEXT("[Notification_Send] Calling callback %p for event %x"), (LPVOID)Current->Callback, EventID);
+            DEBUG(TEXT("Calling callback %p for event %x"), (LPVOID)Current->Callback, EventID);
             Current->Callback(&NotificationData, Current->UserData);
             CallbackCount++;
         }
     }
 
-    DEBUG(TEXT("[Notification_Send] Event %x sent to %u callbacks"), EventID, CallbackCount);
+    DEBUG(TEXT("Event %x sent to %u callbacks"), EventID, CallbackCount);
 }
 
 /************************************************************************/

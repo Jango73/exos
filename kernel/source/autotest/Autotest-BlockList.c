@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ void TestBlockList(TEST_RESULTS* Results) {
         if (Init && Reserve && Pointer != 0 && FreeOk && CapacityOk) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestBlockList] Basic path failed (init=%u reserve=%u pointer=%p free=%u capacity=%u/%u)"),
+            ERROR(TEXT("Basic path failed (init=%u reserve=%u pointer=%p free=%u capacity=%u/%u)"),
                   Init,
                   Reserve,
                   Pointer,
@@ -141,7 +141,7 @@ void TestBlockList(TEST_RESULTS* Results) {
         if (Init && AllocationOk && ShrinkOk && UniqueOk && FinalStateOk && SlabsAfterGrow >= 2) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestBlockList] Growth/shrink failed (init=%u alloc=%u shrink=%u unique=%u slabs=%u final=%u/%u/%u)"),
+            ERROR(TEXT("Growth/shrink failed (init=%u alloc=%u shrink=%u unique=%u slabs=%u final=%u/%u/%u)"),
                   Init,
                   AllocationOk,
                   ShrinkOk,
@@ -173,7 +173,7 @@ void TestBlockList(TEST_RESULTS* Results) {
         if (Init && Pointer != 0 && FirstFree && !SecondFree) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestBlockList] Double free detection failed (init=%u ptr=%p first=%u second=%u)"),
+            ERROR(TEXT("Double free detection failed (init=%u ptr=%p first=%u second=%u)"),
                   Init,
                   Pointer,
                   FirstFree,

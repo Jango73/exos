@@ -127,7 +127,7 @@ void InitShellContext(LPSHELLCONTEXT This) {
             SHELL_RESERVED_HEAP_MAXIMUM_SIZE,
             ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
             TEXT("ShellHeap"))) {
-        WARNING(TEXT("[InitShellContext] Reserved shell heap unavailable, using process heap"));
+        WARNING(TEXT("Reserved shell heap unavailable, using process heap"));
         AllocatorInitProcess(&This->Allocator, GetCurrentProcess());
     } else {
         ReservedHeapInitAllocator(&This->ReservedHeap, &This->Allocator);
@@ -164,7 +164,7 @@ void InitShellContext(LPSHELLCONTEXT This) {
     This->ScriptContext = ScriptCreateContextA(&Callbacks, &This->Allocator);
 
     if (!ExposeRegisterDefaultScriptHostObjects(This->ScriptContext)) {
-        WARNING(TEXT("[InitShellContext] Failed to register default script host objects"));
+        WARNING(TEXT("Failed to register default script host objects"));
     }
 
 }
@@ -662,7 +662,7 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
                 Reason = TEXT("path not found");
             }
             ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
-            WARNING(TEXT("[ListDirectory] Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"),
+            WARNING(TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"),
                 DiskName,
                 Reason,
                 Base,
@@ -820,7 +820,7 @@ U32 CMD_keyboard(LPSHELLCONTEXT Context) {
     if (HasOption(Context, TEXT("l"), TEXT("layout"))) {
         SelectKeyboard(Context->Command);
         ConsolePrint(TEXT("Keyboard layout set to %s\n"), GetKeyboardCode());
-        TEST(TEXT("[CMD_keyboard] keyboard : OK"));
+        TEST(TEXT("keyboard : OK"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -903,7 +903,7 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
 
     if (FileSystem == NULL || FileSystem->Driver == NULL) {
         ConsolePrint(TEXT("No file system mounted !\n"));
-        TEST(TEXT("[CMD_dir] dir : KO (No file system mounted)"));
+        TEST(TEXT("dir : KO (No file system mounted)"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -919,7 +919,7 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
         ConsolePrint(TEXT("Command interrupted\n"));
     }
 
-    TEST(TEXT("[CMD_dir] dir : OK"));
+    TEST(TEXT("dir : OK"));
 
     return DF_RETURN_SUCCESS;
 }
@@ -939,9 +939,9 @@ U32 CMD_md(LPSHELLCONTEXT Context) {
     FolderName[0] = STR_NULL;
 
     if (MakeFolder(Context, FolderName)) {
-        TEST(TEXT("[CMD_md] md %s : OK"), FolderName);
+        TEST(TEXT("md %s : OK"), FolderName);
     } else {
-        TEST(TEXT("[CMD_md] md %s : KO"), FolderName);
+        TEST(TEXT("md %s : KO"), FolderName);
     }
 
     return DF_RETURN_SUCCESS;

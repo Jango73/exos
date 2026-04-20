@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
 
     FileSystem = (LPEXT2FILESYSTEM)Info->FileSystem;
     if (FileSystem == NULL) {
-        ERROR(TEXT("[OpenFile] EXT2 missing filesystem"));
+        ERROR(TEXT("EXT2 missing filesystem"));
         return NULL;
     }
 
@@ -138,14 +138,14 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
         }
 
         if (LoadDirectoryInode(FileSystem, DirectoryPath, &DirectoryInode, &DirectoryIndex) == FALSE) {
-            WARNING(TEXT("[OpenFile] EXT2 load folder inode failed path=%s"), DirectoryPath);
+            WARNING(TEXT("EXT2 load folder inode failed path=%s"), DirectoryPath);
             UnlockMutex(&(FileSystem->FilesMutex));
             return NULL;
         }
 
         File = NewEXT2File(FileSystem);
         if (File == NULL) {
-            ERROR(TEXT("[OpenFile] EXT2 allocation failed for file handle"));
+            ERROR(TEXT("EXT2 allocation failed for file handle"));
             UnlockMutex(&(FileSystem->FilesMutex));
             return NULL;
         }
@@ -173,19 +173,19 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
                 UnlockMutex(&(FileSystem->FilesMutex));
 
                 if (CreateNode(Info, FALSE) != DF_RETURN_SUCCESS) {
-                    WARNING(TEXT("[OpenFile] EXT2 create failed name=%s"), Info->Name);
+                    WARNING(TEXT("EXT2 create failed name=%s"), Info->Name);
                     return NULL;
                 }
 
                 LockMutex(&(FileSystem->FilesMutex), INFINITY);
 
                 if (ResolvePath(FileSystem, Info->Name, &Inode, &InodeIndex) == FALSE) {
-                    WARNING(TEXT("[OpenFile] EXT2 resolve after create failed name=%s"), Info->Name);
+                    WARNING(TEXT("EXT2 resolve after create failed name=%s"), Info->Name);
                     UnlockMutex(&(FileSystem->FilesMutex));
                     return NULL;
                 }
             } else {
-                WARNING(TEXT("[OpenFile] EXT2 resolve failed name=%s"), Info->Name);
+                WARNING(TEXT("EXT2 resolve failed name=%s"), Info->Name);
                 UnlockMutex(&(FileSystem->FilesMutex));
                 return NULL;
             }
@@ -193,7 +193,7 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
 
         File = NewEXT2File(FileSystem);
         if (File == NULL) {
-            ERROR(TEXT("[OpenFile] EXT2 allocation failed for file handle"));
+            ERROR(TEXT("EXT2 allocation failed for file handle"));
             UnlockMutex(&(FileSystem->FilesMutex));
             return NULL;
         }

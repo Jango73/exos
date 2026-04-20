@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ static BOOL DHCP_ApplyStaticFallback(LPDHCP_CONTEXT Context) {
         Gateway_Be = NetCtx->StaticConfig.Gateway_Be;
 
         if (LocalIPv4_Be == 0 || Netmask_Be == 0) {
-            ERROR(TEXT("[DHCP_ApplyStaticFallback] No static configuration available for fallback"));
+            ERROR(TEXT("No static configuration available for fallback"));
             return FALSE;
         }
 
@@ -134,7 +134,7 @@ static BOOL DHCP_ApplyStaticFallback(LPDHCP_CONTEXT Context) {
         return TRUE;
     }
 
-    ERROR(TEXT("[DHCP_ApplyStaticFallback] Network context unavailable for fallback"));
+    ERROR(TEXT("Network context unavailable for fallback"));
     return FALSE;
 }
 
@@ -243,14 +243,14 @@ static int DHCP_ParseOptions(LPDHCP_CONTEXT Context, const U8* Options, U32 Opti
             }
 
             if (Index >= OptionsLength) {
-                ERROR(TEXT("[DHCP_ParseOptions] Truncated option"));
+                ERROR(TEXT("Truncated option"));
                 return 0;
             }
 
             Length = Options[Index++];
 
             if (Index + Length > OptionsLength) {
-                ERROR(TEXT("[DHCP_ParseOptions] Option length exceeds buffer"));
+                ERROR(TEXT("Option length exceeds buffer"));
                 return 0;
             }
 
@@ -454,12 +454,12 @@ static BOOL DHCP_SendRequest(LPDEVICE Device, U32 TargetState) {
         }
 
         if (HasClientIP == FALSE && RequestedIP_Be == 0) {
-            ERROR(TEXT("[DHCP_SendRequest] No IP available for REQUEST (state %u)"), TargetState);
+            ERROR(TEXT("No IP available for REQUEST (state %u)"), TargetState);
             return FALSE;
         }
 
         if (ServerID_Be == 0 && TargetState != DHCP_STATE_REBINDING) {
-            ERROR(TEXT("[DHCP_SendRequest] Missing server identifier for REQUEST"));
+            ERROR(TEXT("Missing server identifier for REQUEST"));
             return FALSE;
         }
 
@@ -615,7 +615,7 @@ static void DHCP_ApplyAck(LPDHCP_CONTEXT Context, LPDHCP_MESSAGE Message) {
     }
 
     if (AssignedIP_Be == 0) {
-        ERROR(TEXT("[DHCP_ApplyAck] ACK missing assigned IP"));
+        ERROR(TEXT("ACK missing assigned IP"));
         return;
     }
 
@@ -700,7 +700,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
         SAFE_USE_2(Context, Payload) {
             // Minimum DHCP packet size: fixed fields up to MagicCookie
             if (PayloadLength < DHCP_FIXED_FIELDS_SIZE) {
-                ERROR(TEXT("[DHCP_OnUDPPacket] Packet too small: %u bytes"), PayloadLength);
+                ERROR(TEXT("Packet too small: %u bytes"), PayloadLength);
                 return;
             }
 
@@ -708,7 +708,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
 
             // Validate magic cookie
             if (Ntohl(Message->MagicCookie) != DHCP_MAGIC_COOKIE) {
-                ERROR(TEXT("[DHCP_OnUDPPacket] Invalid magic cookie: %x"), Ntohl(Message->MagicCookie));
+                ERROR(TEXT("Invalid magic cookie: %x"), Ntohl(Message->MagicCookie));
                 return;
             }
 
@@ -721,13 +721,13 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
             // Parse options (actual options length = total payload - fixed fields)
             U32 OptionsLength = PayloadLength - DHCP_FIXED_FIELDS_SIZE;
             if (!DHCP_ParseOptions(Context, Message->Options, OptionsLength, &MessageType)) {
-                ERROR(TEXT("[DHCP_OnUDPPacket] Failed to parse options"));
+                ERROR(TEXT("Failed to parse options"));
                 return;
             }
 
 
             if (MessageType == DHCP_DECLINE) {
-                WARNING(TEXT("[DHCP_OnUDPPacket] Received DECLINE, restarting DHCP"));
+                WARNING(TEXT("Received DECLINE, restarting DHCP"));
                 Context->State = DHCP_STATE_INIT;
                 DHCP_ClearNetworkReady(Context);
                 DHCP_Start(g_DHCPDevice);
@@ -742,7 +742,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
                     if (MessageType == DHCP_OFFER) {
                         Context->OfferedIP_Be = Message->YIAddr;
                         if (Context->OfferedIP_Be == 0) {
-                            ERROR(TEXT("[DHCP_OnUDPPacket] OFFER missing IP address"));
+                            ERROR(TEXT("OFFER missing IP address"));
                             break;
                         }
 
@@ -755,7 +755,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
                         }
 
                         if (Context->ServerID_Be == 0) {
-                            ERROR(TEXT("[DHCP_OnUDPPacket] OFFER missing server identifier"));
+                            ERROR(TEXT("OFFER missing server identifier"));
                             break;
                         }
 
@@ -775,7 +775,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
                         UNUSED(AckHostOrder);
                         DHCP_ApplyAck(Context, Message);
                     } else if (MessageType == DHCP_NAK) {
-                        ERROR(TEXT("[DHCP_OnUDPPacket] Received NAK, restarting DHCP"));
+                        ERROR(TEXT("Received NAK, restarting DHCP"));
                         Context->State = DHCP_STATE_INIT;
                         DHCP_ClearNetworkReady(Context);
                         DHCP_Start(g_DHCPDevice);
@@ -816,7 +816,7 @@ static void DHCP_HandleRequestTimeout(LPDEVICE Device, LPDHCP_CONTEXT Context) {
 
     if (Context->RetryCount >= DHCP_MAX_RETRIES) {
         if (Context->State == DHCP_STATE_RENEWING || Context->State == DHCP_STATE_REBINDING) {
-            WARNING(TEXT("[DHCP_HandleRequestTimeout] Lease retry limit reached, restarting DHCP"));
+            WARNING(TEXT("Lease retry limit reached, restarting DHCP"));
             DHCP_ClearNetworkReady(Context);
             DHCP_Start(Device);
         } else {
@@ -825,13 +825,13 @@ static void DHCP_HandleRequestTimeout(LPDEVICE Device, LPDHCP_CONTEXT Context) {
                 Context->State = DHCP_STATE_FAILED;
             } else {
                 Context->State = DHCP_STATE_FAILED;
-                WARNING(TEXT("[DHCP_HandleRequestTimeout] DHCP failed and no fallback available"));
+                WARNING(TEXT("DHCP failed and no fallback available"));
             }
         }
         return;
     }
 
-    WARNING(TEXT("[DHCP_HandleRequestTimeout] Timeout in state %u after %u ms (backoff %u ms), retry %u/%u"),
+    WARNING(TEXT("Timeout in state %u after %u ms (backoff %u ms), retry %u/%u"),
             Context->State,
             ElapsedMillis,
             TimeoutMillis,
@@ -865,7 +865,7 @@ void DHCP_Initialize(LPDEVICE Device) {
 
     Context = (LPDHCP_CONTEXT)KernelHeapAlloc(sizeof(DHCP_CONTEXT));
     if (Context == NULL) {
-        ERROR(TEXT("[DHCP_Initialize] Failed to allocate DHCP context"));
+        ERROR(TEXT("Failed to allocate DHCP context"));
         return;
     }
 
@@ -885,7 +885,7 @@ void DHCP_Initialize(LPDEVICE Device) {
             if (((LPPCI_DEVICE)Device)->Driver->Command(DF_NT_GETINFO, (UINT)(LPVOID)&GetInfo) == DF_RETURN_SUCCESS) {
                 MemoryCopy(Context->LocalMacAddress, Info.MAC, 6);
             } else {
-                ERROR(TEXT("[DHCP_Initialize] DF_NT_GETINFO failed"));
+                ERROR(TEXT("DF_NT_GETINFO failed"));
                 KernelHeapFree(Context);
                 return;
             }
@@ -988,7 +988,7 @@ void DHCP_Tick(LPDEVICE Device) {
                 ElapsedSeconds = ElapsedMillis / 1000;
 
                 if (Context->LeaseTime != 0 && ElapsedSeconds >= Context->LeaseTime) {
-                    WARNING(TEXT("[DHCP_Tick] Lease expired, restarting DHCP"));
+                    WARNING(TEXT("Lease expired, restarting DHCP"));
                     DHCP_ClearNetworkReady(Context);
                     DHCP_Start(Device);
                 } else if (Context->RebindTime != 0 && ElapsedSeconds >= Context->RebindTime) {
@@ -1004,7 +1004,7 @@ void DHCP_Tick(LPDEVICE Device) {
                 ElapsedSeconds = ElapsedMillis / 1000;
 
                 if (Context->LeaseTime != 0 && ElapsedSeconds >= Context->LeaseTime) {
-                    WARNING(TEXT("[DHCP_Tick] Lease expired during renewal, restarting DHCP"));
+                    WARNING(TEXT("Lease expired during renewal, restarting DHCP"));
                     DHCP_ClearNetworkReady(Context);
                     DHCP_Start(Device);
                 } else if (Context->RebindTime != 0 && ElapsedSeconds >= Context->RebindTime) {
@@ -1018,7 +1018,7 @@ void DHCP_Tick(LPDEVICE Device) {
                 ElapsedSeconds = ElapsedMillis / 1000;
 
                 if (Context->LeaseTime != 0 && ElapsedSeconds >= Context->LeaseTime) {
-                    WARNING(TEXT("[DHCP_Tick] Lease expired during rebinding, restarting DHCP"));
+                    WARNING(TEXT("Lease expired during rebinding, restarting DHCP"));
                     DHCP_ClearNetworkReady(Context);
                     DHCP_Start(Device);
                 }

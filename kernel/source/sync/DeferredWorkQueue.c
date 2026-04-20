@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ BOOL DeferredWorkQueueInitialize(LPDEFERRED_WORK_QUEUE Queue, LPDEFERRED_WORK_QU
 
     Queue->DeferredEvent = CreateKernelEvent();
     if (Queue->DeferredEvent == NULL) {
-        ERROR(TEXT("[DeferredWorkQueueInitialize] Failed to create event for %s"), Queue->Name);
+        ERROR(TEXT("Failed to create event for %s"), Queue->Name);
         return FALSE;
     }
 
@@ -203,14 +203,14 @@ BOOL DeferredWorkQueueInitialize(LPDEFERRED_WORK_QUEUE Queue, LPDEFERRED_WORK_QU
     StringCopy(TaskInfo.Name, Config->Name);
 
     if (KernelCreateTask(&KernelProcess, &TaskInfo) == NULL) {
-        ERROR(TEXT("[DeferredWorkQueueInitialize] Failed to create dispatcher for %s"), Queue->Name);
+        ERROR(TEXT("Failed to create dispatcher for %s"), Queue->Name);
         DeleteKernelEvent(Queue->DeferredEvent);
         Queue->DeferredEvent = NULL;
         return FALSE;
     }
 
     Queue->DispatcherStarted = TRUE;
-    DEBUG(TEXT("[DeferredWorkQueueInitialize] Dispatcher %s started event=%p"), Queue->Name, Queue->DeferredEvent);
+    DEBUG(TEXT("Dispatcher %s started event=%p"), Queue->Name, Queue->DeferredEvent);
     return TRUE;
 }
 
@@ -269,7 +269,7 @@ U32 DeferredWorkQueueRegister(LPDEFERRED_WORK_QUEUE Queue, const DEFERRED_WORK_R
             RestoreFlags(&Flags);
 
             DEBUG(
-                TEXT("[DeferredWorkQueueRegister] Queue=%s slot=%u name=%s"), Queue->Name, Index,
+                TEXT("Queue=%s slot=%u name=%s"), Queue->Name, Index,
                 Queue->WorkItems[Index].Name);
             return Index;
         }
@@ -277,7 +277,7 @@ U32 DeferredWorkQueueRegister(LPDEFERRED_WORK_QUEUE Queue, const DEFERRED_WORK_R
         RestoreFlags(&Flags);
     }
 
-    ERROR(TEXT("[DeferredWorkQueueRegister] No free slots in %s"), Queue->Name);
+    ERROR(TEXT("No free slots in %s"), Queue->Name);
     return DEFERRED_WORK_INVALID_SLOT;
 }
 
@@ -347,7 +347,7 @@ void DeferredWorkQueueUnregister(LPDEFERRED_WORK_QUEUE Queue, U32 SlotID) {
 
     RestoreFlags(&Flags);
 
-    DEBUG(TEXT("[DeferredWorkQueueUnregister] Queue=%s slot=%u"), Queue->Name, SlotID);
+    DEBUG(TEXT("Queue=%s slot=%u"), Queue->Name, SlotID);
 }
 
 /************************************************************************/

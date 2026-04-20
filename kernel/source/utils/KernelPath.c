@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ BOOL KernelPathResolve(LPCSTR Name, LPCSTR DefaultPath, LPSTR OutPath, UINT OutP
     }
 
     if (IsValidKernelPath(DefaultPath, OutPathSize) == FALSE) {
-        ERROR(TEXT("[KernelPathResolve] Invalid default path for key=%s path=%s"), Name, DefaultPath);
+        ERROR(TEXT("Invalid default path for key=%s path=%s"), Name, DefaultPath);
         OutPath[0] = STR_NULL;
         return FALSE;
     }
@@ -90,7 +90,7 @@ BOOL KernelPathResolve(LPCSTR Name, LPCSTR DefaultPath, LPSTR OutPath, UINT OutP
             return TRUE;
         }
 
-        WARNING(TEXT("[KernelPathResolve] Invalid configured path for key=%s path=%s, using default"),
+        WARNING(TEXT("Invalid configured path for key=%s path=%s, using default"),
             Name,
             ConfiguredPath);
     }
@@ -147,14 +147,14 @@ BOOL KernelPathBuildFile(
 
     if (OutPath[StringLength(OutPath) - 1] != PATH_SEP) {
         if (StringLength(OutPath) + 1 >= OutPathSize) {
-            WARNING(TEXT("[KernelPathBuildFile] Path too long while appending separator to folder=%s"), FolderPath);
+            WARNING(TEXT("Path too long while appending separator to folder=%s"), FolderPath);
             return FALSE;
         }
         StringConcat(OutPath, TEXT("/"));
     }
 
     if (StringLength(OutPath) + LeafLength + ExtensionLength >= OutPathSize) {
-        WARNING(TEXT("[KernelPathBuildFile] Path too long for folder=%s leaf=%s ext=%s"),
+        WARNING(TEXT("Path too long for folder=%s leaf=%s ext=%s"),
             FolderPath,
             LeafName,
             Extension != NULL ? Extension : TEXT(""));

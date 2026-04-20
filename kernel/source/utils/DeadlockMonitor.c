@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -163,7 +163,7 @@ static void DeadlockMonitorLogOrderViolation(LPTASK Task, U32 HeldClass, LPMUTEX
 
     MutexName = Mutex->DebugName != NULL ? Mutex->DebugName : TEXT("UnnamedMutex");
 
-    WARNING(TEXT("[DeadlockMonitorLogOrderViolation] Lock order inversion task=%p (%s) held_class=%u new_class=%u mutex=%p name=%s suppressed=%u"),
+    WARNING(TEXT("Lock order inversion task=%p (%s) held_class=%u new_class=%u mutex=%p name=%s suppressed=%u"),
             Task,
             Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
             HeldClass,
@@ -222,7 +222,7 @@ static void DeadlockMonitorPushHeldClass(LPTASK Task, LPMUTEX Mutex) {
     }
 
     if (Task->HeldMutexClassDepth >= TASK_MUTEX_CLASS_STACK_MAX_DEPTH) {
-        WARNING(TEXT("[DeadlockMonitorPushHeldClass] Held class stack overflow task=%p (%s) mutex=%p class=%u"),
+        WARNING(TEXT("Held class stack overflow task=%p (%s) mutex=%p class=%u"),
                 Task,
                 Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
                 Mutex,
@@ -256,7 +256,7 @@ static void DeadlockMonitorPopHeldClass(LPTASK Task, LPMUTEX Mutex) {
     }
 
     if (Task->HeldMutexClassDepth == 0) {
-        WARNING(TEXT("[DeadlockMonitorPopHeldClass] Empty held class stack task=%p (%s) mutex=%p class=%u"),
+        WARNING(TEXT("Empty held class stack task=%p (%s) mutex=%p class=%u"),
                 Task,
                 Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
                 Mutex,
@@ -266,7 +266,7 @@ static void DeadlockMonitorPopHeldClass(LPTASK Task, LPMUTEX Mutex) {
 
     ExpectedClass = Task->HeldMutexClasses[Task->HeldMutexClassDepth - 1];
     if (ExpectedClass != Mutex->DebugClass) {
-        WARNING(TEXT("[DeadlockMonitorPopHeldClass] Held class mismatch task=%p (%s) mutex=%p expected=%u actual=%u"),
+        WARNING(TEXT("Held class mismatch task=%p (%s) mutex=%p expected=%u actual=%u"),
                 Task,
                 Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
                 Mutex,
@@ -313,7 +313,7 @@ static void DeadlockMonitorLogCycle(LPTASK WaiterTask, LPMUTEX Mutex) {
         }
     }
 
-    ERROR(TEXT("[DeadlockMonitorLogCycle] Mutex deadlock detected waiter=%p (%s) mutex=%p owner=%p (%s) suppressed=%u"),
+    ERROR(TEXT("Mutex deadlock detected waiter=%p (%s) mutex=%p owner=%p (%s) suppressed=%u"),
           WaiterTask,
           WaiterTask->Name[0] != STR_NULL ? WaiterTask->Name : TEXT("Unnamed"),
           Mutex,
@@ -327,7 +327,7 @@ static void DeadlockMonitorLogCycle(LPTASK WaiterTask, LPMUTEX Mutex) {
     for (Depth = 0; Depth < DEADLOCK_MONITOR_MAX_CHAIN_DEPTH; Depth++) {
         OwnerTask = DeadlockMonitorGetValidTask(CurrentMutex->Task);
         if (OwnerTask == NULL) {
-            DEBUG(TEXT("[DeadlockMonitorLogCycle] Chain[%u] task=%p (%s) waits for mutex=%p with no valid owner"),
+            DEBUG(TEXT("Chain[%u] task=%p (%s) waits for mutex=%p with no valid owner"),
                   Depth,
                   CurrentTask,
                   CurrentTask->Name[0] != STR_NULL ? CurrentTask->Name : TEXT("Unnamed"),
@@ -335,7 +335,7 @@ static void DeadlockMonitorLogCycle(LPTASK WaiterTask, LPMUTEX Mutex) {
             return;
         }
 
-        DEBUG(TEXT("[DeadlockMonitorLogCycle] Chain[%u] task=%p (%s) waits for mutex=%p owned by task=%p (%s)"),
+        DEBUG(TEXT("Chain[%u] task=%p (%s) waits for mutex=%p owned by task=%p (%s)"),
               Depth,
               CurrentTask,
               CurrentTask->Name[0] != STR_NULL ? CurrentTask->Name : TEXT("Unnamed"),
@@ -350,7 +350,7 @@ static void DeadlockMonitorLogCycle(LPTASK WaiterTask, LPMUTEX Mutex) {
         CurrentTask = OwnerTask;
         CurrentMutex = DeadlockMonitorGetValidMutex(CurrentTask->WaitingMutex);
         if (CurrentMutex == NULL) {
-            DEBUG(TEXT("[DeadlockMonitorLogCycle] Chain[%u] task=%p (%s) has no waited mutex"),
+            DEBUG(TEXT("Chain[%u] task=%p (%s) has no waited mutex"),
                   Depth + 1,
                   CurrentTask,
                   CurrentTask->Name[0] != STR_NULL ? CurrentTask->Name : TEXT("Unnamed"));
@@ -358,7 +358,7 @@ static void DeadlockMonitorLogCycle(LPTASK WaiterTask, LPMUTEX Mutex) {
         }
     }
 
-    DEBUG(TEXT("[DeadlockMonitorLogCycle] Chain truncated at depth=%u"), DEADLOCK_MONITOR_MAX_CHAIN_DEPTH);
+    DEBUG(TEXT("Chain truncated at depth=%u"), DEADLOCK_MONITOR_MAX_CHAIN_DEPTH);
 
 #if DEBUG_OUTPUT == 1
     ConsolePanic(TEXT("Mutex deadlock detected"));

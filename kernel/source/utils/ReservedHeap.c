@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ BOOL ReservedHeapInit(
 
     HeapBase = ProcessArenaAllocateSystem(Process, InitialSize, RegionFlags, Heap->Tag);
     if (HeapBase == 0) {
-        ERROR(TEXT("[ReservedHeapInit] Failed to allocate region for %s"), Heap->Tag);
+        ERROR(TEXT("Failed to allocate region for %s"), Heap->Tag);
         return FALSE;
     }
 
@@ -106,7 +106,7 @@ void ReservedHeapDeinit(LPRESERVED_HEAP Heap) {
     }
 
     if (!FreeRegion(Heap->HeapBase, Heap->HeapSize)) {
-        WARNING(TEXT("[ReservedHeapDeinit] FreeRegion failed for %s at %p size=%u"), Heap->Tag, Heap->HeapBase, Heap->HeapSize);
+        WARNING(TEXT("FreeRegion failed for %s at %p size=%u"), Heap->Tag, Heap->HeapBase, Heap->HeapSize);
     }
 
     Heap->HeapBase = 0;

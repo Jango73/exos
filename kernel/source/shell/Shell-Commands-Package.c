@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ static void ShellPrintScriptReturnValue(SCRIPT_VAR_TYPE ReturnType, SCRIPT_VAR_V
     }
 
     ConsolePrint(TEXT("%s\n"), ReturnText);
-    TEST(TEXT("[CMD_script] %s"), ReturnText);
+    TEST(TEXT("%s"), ReturnText);
 }
 
 /***************************************************************************/
@@ -469,20 +469,20 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     if (Context == NULL || STRING_EMPTY(PackageNameOrPath)) {
         ConsolePrint(TEXT("Usage: package list <package-name|path.epk>\n"));
-        TEST(TEXT("[CMD_package] package list : KO"));
+        TEST(TEXT("package list : KO"));
         return DF_RETURN_SUCCESS;
     }
 
     if (!ShellResolvePackageFilePath(Context, PackageNameOrPath, QualifiedPackage)) {
         ConsolePrint(TEXT("Invalid package target: %s\n"), PackageNameOrPath);
-        TEST(TEXT("[CMD_package] package list %s : KO"), PackageNameOrPath);
+        TEST(TEXT("package list %s : KO"), PackageNameOrPath);
         return DF_RETURN_SUCCESS;
     }
 
     PackageBytes = (U8*)FileReadAll(QualifiedPackage, &PackageSize);
     if (PackageBytes == NULL || PackageSize == 0) {
         ConsolePrint(TEXT("Cannot read package file: %s\n"), QualifiedPackage);
-        TEST(TEXT("[CMD_package] package list %s : KO"), QualifiedPackage);
+        TEST(TEXT("package list %s : KO"), QualifiedPackage);
         return DF_RETURN_SUCCESS;
     }
 
@@ -491,7 +491,7 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
         ConsolePrint(TEXT("Package manifest error: %s (%u)\n"),
             PackageManifestStatusToString(Status),
             Status);
-        TEST(TEXT("[CMD_package] package list %s : KO"), QualifiedPackage);
+        TEST(TEXT("package list %s : KO"), QualifiedPackage);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
     }
@@ -500,7 +500,7 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
     Status = PackageFSMountFromBuffer(PackageBytes, PackageSize, MountName, NULL, &PackageFileSystem);
     if (Status != DF_RETURN_SUCCESS || PackageFileSystem == NULL) {
         ConsolePrint(TEXT("Package mount failed: %u\n"), Status);
-        TEST(TEXT("[CMD_package] package list %s : KO"), QualifiedPackage);
+        TEST(TEXT("package list %s : KO"), QualifiedPackage);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -508,7 +508,7 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     if (!PackageNamespaceBindCurrentProcessPackageView(PackageFileSystem, Manifest.Name)) {
         ConsolePrint(TEXT("Package namespace bind failed\n"));
-        TEST(TEXT("[CMD_package] package list %s : KO"), QualifiedPackage);
+        TEST(TEXT("package list %s : KO"), QualifiedPackage);
         PackageFSUnmount(PackageFileSystem);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
@@ -553,9 +553,9 @@ Exit:
     PackageManifestRelease(&Manifest);
     KernelHeapFree(PackageBytes);
     if (Success) {
-        TEST(TEXT("[CMD_package] package list %s : OK"), QualifiedPackage);
+        TEST(TEXT("package list %s : OK"), QualifiedPackage);
     } else {
-        TEST(TEXT("[CMD_package] package list %s : KO"), QualifiedPackage);
+        TEST(TEXT("package list %s : KO"), QualifiedPackage);
     }
     return DF_RETURN_SUCCESS;
 }
@@ -579,20 +579,20 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     if (Context == NULL || STRING_EMPTY(PackageNameOrPath)) {
         ConsolePrint(TEXT("Usage: package add <package-name|path.epk>\n"));
-        TEST(TEXT("[CMD_package] package add : KO"));
+        TEST(TEXT("package add : KO"));
         return DF_RETURN_SUCCESS;
     }
 
     if (!ShellResolvePackageFilePath(Context, PackageNameOrPath, SourcePackagePath)) {
         ConsolePrint(TEXT("Invalid package target: %s\n"), PackageNameOrPath);
-        TEST(TEXT("[CMD_package] package add %s : KO"), PackageNameOrPath);
+        TEST(TEXT("package add %s : KO"), PackageNameOrPath);
         return DF_RETURN_SUCCESS;
     }
 
     PackageBytes = (U8*)FileReadAll(SourcePackagePath, &PackageSize);
     if (PackageBytes == NULL || PackageSize == 0) {
         ConsolePrint(TEXT("Cannot read package file: %s\n"), SourcePackagePath);
-        TEST(TEXT("[CMD_package] package add %s : KO"), SourcePackagePath);
+        TEST(TEXT("package add %s : KO"), SourcePackagePath);
         return DF_RETURN_SUCCESS;
     }
 
@@ -601,7 +601,7 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
         ConsolePrint(TEXT("Package manifest error: %s (%u)\n"),
             PackageManifestStatusToString(Status),
             Status);
-        TEST(TEXT("[CMD_package] package add %s : KO"), SourcePackagePath);
+        TEST(TEXT("package add %s : KO"), SourcePackagePath);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
     }
@@ -614,7 +614,7 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
             DestinationPackagePath,
             MAX_PATH_NAME)) {
         ConsolePrint(TEXT("Destination path build failed for package %s\n"), Manifest.Name);
-        TEST(TEXT("[CMD_package] package add %s : KO"), SourcePackagePath);
+        TEST(TEXT("package add %s : KO"), SourcePackagePath);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -622,7 +622,7 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     if (StringCompare(SourcePackagePath, DestinationPackagePath) == 0) {
         ConsolePrint(TEXT("Package already installed: %s\n"), DestinationPackagePath);
-        TEST(TEXT("[CMD_package] package add %s : OK"), DestinationPackagePath);
+        TEST(TEXT("package add %s : OK"), DestinationPackagePath);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -630,7 +630,7 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     if (FileWriteAll(DestinationPackagePath, PackageBytes, PackageSize) != PackageSize) {
         ConsolePrint(TEXT("Package add failed while writing: %s\n"), DestinationPackagePath);
-        TEST(TEXT("[CMD_package] package add %s : KO"), SourcePackagePath);
+        TEST(TEXT("package add %s : KO"), SourcePackagePath);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -642,9 +642,9 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
     PackageManifestRelease(&Manifest);
     KernelHeapFree(PackageBytes);
     if (Success) {
-        TEST(TEXT("[CMD_package] package add %s : OK"), DestinationPackagePath);
+        TEST(TEXT("package add %s : OK"), DestinationPackagePath);
     } else {
-        TEST(TEXT("[CMD_package] package add %s : KO"), SourcePackagePath);
+        TEST(TEXT("package add %s : KO"), SourcePackagePath);
     }
     return DF_RETURN_SUCCESS;
 }

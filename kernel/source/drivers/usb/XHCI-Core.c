@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -237,7 +237,7 @@ void XHCI_LogHseTransitionIfNeeded(LPXHCI_DEVICE Device, LPCSTR Source) {
     PciCommand = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_COMMAND);
     PciStatus = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_STATUS);
 
-    WARNING(TEXT("[XHCI_LogHseTransition] source=%s PrevUSBSTS=%x USBCMD=%x USBSTS=%x CONFIG=%x PCICMD=%x PCISTS=%x Scratch=%u DCBAA0=%x:%x CRCR=%x:%x DCBAAP=%x:%x ERSTBA=%x:%x ERDP=%x:%x IMAN=%x IMOD=%x ERSTSZ=%x"),
+    WARNING(TEXT("source=%s PrevUSBSTS=%x USBCMD=%x USBSTS=%x CONFIG=%x PCICMD=%x PCISTS=%x Scratch=%u DCBAA0=%x:%x CRCR=%x:%x DCBAAP=%x:%x ERSTBA=%x:%x ERDP=%x:%x IMAN=%x IMOD=%x ERSTSZ=%x"),
             (Source != NULL) ? Source : TEXT("?"),
             Previous,
             Usbcmd,
@@ -626,7 +626,7 @@ BOOL XHCI_WaitForRegister(LINEAR Base, U32 Offset, U32 Mask, U32 Value, U32 Time
         }
 
         if (ElapsedMilliseconds >= NextWarningAt) {
-            WARNING(TEXT("[XHCI_WaitForRegister] %s exceeded %u ms (base=%p off=%x mask=%x value=%x)"),
+            WARNING(TEXT("%s exceeded %u ms (base=%p off=%x mask=%x value=%x)"),
                     (Name != NULL) ? Name : TEXT("?"),
                     ElapsedMilliseconds,
                     (LPVOID)Base,

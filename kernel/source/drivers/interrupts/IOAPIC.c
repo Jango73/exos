@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ BOOL InitializeIOAPIC(void)
     // Get ACPI configuration
     pACPIConfig = GetACPIConfig();
     if (pACPIConfig == NULL || !pACPIConfig->Valid) {
-        WARNING(TEXT("[InitializeIOAPIC] ACPI not available, cannot initialize I/O APIC"));
+        WARNING(TEXT("ACPI not available, cannot initialize I/O APIC"));
         return FALSE;
     }
 
@@ -667,7 +667,7 @@ void SetDefaultIOAPICConfiguration(void)
             ConfigureIOAPICInterrupt(IRQ, Vector, IOAPIC_REDTBL_DELMOD_FIXED,
                                      TriggerMode, Polarity, DestCPU);
         } else {
-            ERROR(TEXT("[SetDefaultIOAPICConfiguration] Failed to map IRQ %u"), IRQ);
+            ERROR(TEXT("Failed to map IRQ %u"), IRQ);
         }
     }
 

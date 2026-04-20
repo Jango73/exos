@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
     }
 
     if (!IntelGfxWaitPipeEnabled(PipeIndex, TRUE)) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Pipe enable state did not settle (pipe=%u)"), PipeIndex);
+        ERROR(TEXT("Pipe enable state did not settle (pipe=%u)"), PipeIndex);
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -95,22 +95,22 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
         !IntelGfxReadMmio32(IntelPlaneControlRegisters[PipeIndex], &PlaneControl) ||
         !IntelGfxReadMmio32(IntelPlaneStrideRegisters[PipeIndex], &PlaneStride) ||
         !IntelGfxReadMmio32(IntelPlaneSurfaceRegisters[PipeIndex], &PlaneSurface)) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Register readback failed (pipe=%u)"), PipeIndex);
+        ERROR(TEXT("Register readback failed (pipe=%u)"), PipeIndex);
         return DF_RETURN_UNEXPECTED;
     }
 
     if ((PipeConf & INTEL_PIPE_CONF_ENABLE) == 0) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Pipe disabled after enable (pipe=%u conf=%x)"), PipeIndex, PipeConf);
+        ERROR(TEXT("Pipe disabled after enable (pipe=%u conf=%x)"), PipeIndex, PipeConf);
         return DF_RETURN_UNEXPECTED;
     }
 
     if ((PlaneControl & INTEL_PLANE_CTL_ENABLE) == 0) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Plane disabled after enable (pipe=%u ctl=%x)"), PipeIndex, PlaneControl);
+        ERROR(TEXT("Plane disabled after enable (pipe=%u ctl=%x)"), PipeIndex, PlaneControl);
         return DF_RETURN_UNEXPECTED;
     }
 
     if (PipeSource != Program->PipeSource) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Pipe source mismatch pipe=%u expected=%x actual=%x"),
+        ERROR(TEXT("Pipe source mismatch pipe=%u expected=%x actual=%x"),
             PipeIndex,
             Program->PipeSource,
             PipeSource);
@@ -119,7 +119,7 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
 
     DecodedPlaneStride = IntelGfxResolveStrideFromReadback(PlaneStride, Program->Width, Program->BitsPerPixel);
     if (DecodedPlaneStride != Program->PlaneStride) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Plane stride mismatch pipe=%u expected=%x actual=%x raw=%x"),
+        ERROR(TEXT("Plane stride mismatch pipe=%u expected=%x actual=%x raw=%x"),
             PipeIndex,
             Program->PlaneStride,
             DecodedPlaneStride,
@@ -128,7 +128,7 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
     }
 
     if ((PlaneSurface & INTEL_SURFACE_ALIGN_MASK) != (Program->PlaneSurface & INTEL_SURFACE_ALIGN_MASK)) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Plane surface mismatch pipe=%u expected=%x actual=%x"),
+        ERROR(TEXT("Plane surface mismatch pipe=%u expected=%x actual=%x"),
             PipeIndex,
             Program->PlaneSurface,
             PlaneSurface);
@@ -138,7 +138,7 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
     ExpectedPlaneControl = IntelGfxBuildPlaneControl(Program->PlaneControl) | INTEL_PLANE_CTL_ENABLE;
     if ((PlaneControl & (INTEL_PLANE_CTL_FORMAT_MASK | INTEL_PLANE_CTL_TILING_MASK)) !=
         (ExpectedPlaneControl & (INTEL_PLANE_CTL_FORMAT_MASK | INTEL_PLANE_CTL_TILING_MASK))) {
-        ERROR(TEXT("[IntelGfxVerifyProgramMode] Plane format/tiling mismatch pipe=%u expected=%x actual=%x"),
+        ERROR(TEXT("Plane format/tiling mismatch pipe=%u expected=%x actual=%x"),
             PipeIndex,
             ExpectedPlaneControl,
             PlaneControl);
@@ -149,7 +149,7 @@ UINT IntelGfxVerifyProgramMode(const INTEL_GFX_MODE_PROGRAM* Program) {
         Family->CompressionControlEnableMask != 0) {
         if (IntelGfxReadMmio32(Family->CompressionControlRegister, &CompressionValue)) {
             if ((CompressionValue & Family->CompressionControlEnableMask) != 0) {
-                ERROR(TEXT("[IntelGfxVerifyProgramMode] Compression still enabled reg=%x value=%x mask=%x"),
+                ERROR(TEXT("Compression still enabled reg=%x value=%x mask=%x"),
                     Family->CompressionControlRegister,
                     CompressionValue,
                     Family->CompressionControlEnableMask);

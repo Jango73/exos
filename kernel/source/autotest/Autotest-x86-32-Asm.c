@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -98,12 +98,12 @@ void TestX86_32Disassembler(TEST_RESULTS* Results) {
         if (LengthOK && AssemblyOK) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestX86_32Disassembler] Test %d FAILED: %s"), i, Test->Description);
+            DEBUG(TEXT("Test %d FAILED: %s"), i, Test->Description);
             if (!LengthOK) {
-                DEBUG(TEXT("[TestX86_32Disassembler]   Length mismatch: expected %d, got %d"), Test->Length, Length);
+                DEBUG(TEXT("Length mismatch: expected %d, got %d"), Test->Length, Length);
             }
             if (!AssemblyOK) {
-                DEBUG(TEXT("[TestX86_32Disassembler]   Assembly mismatch: expected '%s', got '%s'"), Test->ExpectedAsm, ResultBuffer);
+                DEBUG(TEXT("Assembly mismatch: expected '%s', got '%s'"), Test->ExpectedAsm, ResultBuffer);
             }
         }
     }

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -356,7 +356,7 @@ static void HandleScanCode(U32 ScanCode) {
     KEY_USAGE Usage = 0;
     BOOL Pressed = FALSE;
 
-    FINE_DEBUG(TEXT("[HandleScanCode] Enter"));
+    FINE_DEBUG(TEXT("Enter"));
 
     if (ScanCode == 0) {
         PreviousCode = 0;
@@ -410,7 +410,7 @@ static void HandleScanCode(U32 ScanCode) {
                 HandleKeyboardUsage(Usage, FALSE);
             }
 
-            FINE_DEBUG(TEXT("[HandleScanCode] Exit"));
+            FINE_DEBUG(TEXT("Exit"));
             return;
         }
 
@@ -456,7 +456,7 @@ static void HandleScanCode(U32 ScanCode) {
         }
     }
 
-    FINE_DEBUG(TEXT("[HandleScanCode] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/
@@ -466,10 +466,10 @@ void KeyboardHandler(void) {
     static U32 DATA_SECTION Busy = 0;
     U32 Status, Code;
 
-    FINE_DEBUG(TEXT("[KeyboardHandler] Enter"));
+    FINE_DEBUG(TEXT("Enter"));
 
     if (Busy) {
-        FINE_DEBUG(TEXT("[KeyboardHandler] Busy, exiting"));
+        FINE_DEBUG(TEXT("Busy, exiting"));
 
         return;
     }
@@ -480,7 +480,7 @@ void KeyboardHandler(void) {
 
     do {
         if (Status & KSR_OUT_ERROR) {
-            ERROR(TEXT("[KeyboardHandler] Keyboard error detected, breaking"));
+            ERROR(TEXT("Keyboard error detected, breaking"));
             break;
         }
 
@@ -495,7 +495,7 @@ void KeyboardHandler(void) {
 
     Busy = 0;
 
-    FINE_DEBUG(TEXT("[KeyboardHandler] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/

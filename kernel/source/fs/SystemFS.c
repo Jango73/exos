@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -540,7 +540,7 @@ static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR Sou
     if (STRINGS_EQUAL_NO_CASE(FileSystem, ActiveLabel)) {
         FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
         if (GlobalInfo == NULL || StringEmpty(GlobalInfo->ActivePartitionName)) {
-            ERROR(TEXT("[MountConfiguredFileSystem] Active filesystem not set"));
+            ERROR(TEXT("Active filesystem not set"));
             return;
         }
         EffectiveFileSystem = GlobalInfo->ActivePartitionName;
@@ -562,7 +562,7 @@ static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR Sou
 
                 TestFile = (LPFILE)FS->Driver->Command(DF_FS_OPENFILE, (UINT)&Info);
                 if (TestFile == NULL) {
-                    ERROR(TEXT("[MountConfiguredFileSystem] Source path '%s' does not exist in filesystem '%s'"), SourcePath, FileSystem);
+                    ERROR(TEXT("Source path '%s' does not exist in filesystem '%s'"), SourcePath, FileSystem);
                     return;
                 }
                 FS->Driver->Command(DF_FS_CLOSEFILE, (UINT)TestFile);
@@ -581,7 +581,7 @@ static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR Sou
     }
 
     if (!FileSystemFound) {
-        ERROR(TEXT("[MountConfiguredFileSystem] FileSystem '%s' not found"), EffectiveFileSystem);
+        ERROR(TEXT("FileSystem '%s' not found"), EffectiveFileSystem);
     }
 }
 
@@ -632,7 +632,7 @@ BOOL SystemFSMountFileSystem(LPFILESYSTEM FileSystem) {
     Result = GetSystemFS()->Driver->Command(DF_FS_MOUNTOBJECT, (UINT)&Control);
 
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[SystemFSMountFileSystem] Mount failed for %s (result=%x)"), Volume.Name, Result);
+        WARNING(TEXT("Mount failed for %s (result=%x)"), Volume.Name, Result);
     }
 
     return Result == DF_RETURN_SUCCESS;
@@ -685,7 +685,7 @@ BOOL SystemFSUnmountFileSystem(LPFILESYSTEM FileSystem) {
     Result = GetSystemFS()->Driver->Command(DF_FS_UNMOUNTOBJECT, (UINT)&Control);
 
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[SystemFSUnmountFileSystem] Unmount failed for %s (result=%x)"), Volume.Name, Result);
+        WARNING(TEXT("Unmount failed for %s (result=%x)"), Volume.Name, Result);
     }
 
     return Result == DF_RETURN_SUCCESS;
@@ -733,7 +733,7 @@ BOOL MountSystemFS(void) {
         FS = (LPFILESYSTEM)Node;
         if (FS == &SystemFS->Header) continue;
         if (!SystemFSMountFileSystem(FS)) {
-            WARNING(TEXT("[MountSystemFS] Unable to mount FileSystem %s"), FS->Name);
+            WARNING(TEXT("Unable to mount FileSystem %s"), FS->Name);
         }
     }
 
@@ -778,14 +778,14 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
     }
 
     if (!ResolvePath(Path, &Node, Remaining)) {
-        WARNING(TEXT("[OpenFile] ResolvePath failed path=%s"), Path);
+        WARNING(TEXT("ResolvePath failed path=%s"), Path);
         return NULL;
     }
 
 
     if (Remaining[0] != STR_NULL) {
         if (Node->Mounted == NULL) {
-            WARNING(TEXT("[OpenFile] No mount for path=%s remaining=%s"), Path, Remaining);
+            WARNING(TEXT("No mount for path=%s remaining=%s"), Path, Remaining);
             return NULL;
         }
 
@@ -799,7 +799,7 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
 
         Mounted = (LPFILE)Node->Mounted->Driver->Command(DF_FS_OPENFILE, (UINT)&Local);
         if (Mounted == NULL) {
-            WARNING(TEXT("[OpenFile] Mounted open failed path=%s local=%s wildcard=%u"),
+            WARNING(TEXT("Mounted open failed path=%s local=%s wildcard=%u"),
                 Path,
                 Local.Name,
                 Wildcard ? 1 : 0);
@@ -824,7 +824,7 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
             }
             Mounted = (LPFILE)Node->Mounted->Driver->Command(DF_FS_OPENFILE, (UINT)&Local);
             if (Mounted == NULL) {
-                WARNING(TEXT("[OpenFile] Mounted wildcard open failed path=%s local=%s"),
+                WARNING(TEXT("Mounted wildcard open failed path=%s local=%s"),
                     Path,
                     Local.Name);
             }
@@ -832,13 +832,13 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
         } else {
             LPSYSTEMFSFILE Child = (Node->Children) ? (LPSYSTEMFSFILE)Node->Children->First : NULL;
             if (Child == NULL) {
-                WARNING(TEXT("[OpenFile] No children for wildcard path=%s"), Path);
+                WARNING(TEXT("No children for wildcard path=%s"), Path);
                 return NULL;
             }
 
             LPSYSFSFILE File = (LPSYSFSFILE)KernelHeapAlloc(sizeof(SYSFSFILE));
             if (File == NULL) {
-                ERROR(TEXT("[OpenFile] Allocation failed for SYSFSFILE"));
+                ERROR(TEXT("Allocation failed for SYSFSFILE"));
                 return NULL;
             }
 
@@ -867,7 +867,7 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
         }
         Mounted = (LPFILE)Node->Mounted->Driver->Command(DF_FS_OPENFILE, (UINT)&Local);
         if (Mounted == NULL) {
-            WARNING(TEXT("[OpenFile] Mounted direct open failed path=%s local=%s"),
+            WARNING(TEXT("Mounted direct open failed path=%s local=%s"),
                 Path,
                 Local.Name[0] != STR_NULL ? Local.Name : TEXT("<empty>"));
         }
@@ -877,7 +877,7 @@ static LPSYSFSFILE OpenFile(LPFILE_INFO Find) {
     {
         LPSYSFSFILE File = (LPSYSFSFILE)KernelHeapAlloc(sizeof(SYSFSFILE));
         if (File == NULL) {
-            ERROR(TEXT("[OpenFile] Allocation failed for SYSFSFILE"));
+            ERROR(TEXT("Allocation failed for SYSFSFILE"));
             return NULL;
         }
 

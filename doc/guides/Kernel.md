@@ -26,9 +26,9 @@
   - [Driver architecture](#driver-architecture)
   - [Input device stack](#input-device-stack)
   - [USB host and class stack](#usb-host-and-class-stack)
-  - [Console paths](#console-paths)
-  - [Graphics paths](#graphics-paths)
-  - [Early boot console path](#early-boot-console-path)
+  - [Console](#console)
+  - [Graphics](#graphics)
+  - [Early boot console](#early-boot-console)
   - [ACPI services](#acpi-services)
   - [Disk interfaces](#disk-interfaces)
 - [Storage and Filesystems](#storage-and-filesystems)
@@ -642,8 +642,6 @@ Message retrieval:
 
 Interactive editing of shell command lines is implemented in `kernel/source/utils/CommandLineEditor.c`. The module processes keyboard input via the classic buffered path (`PeekChar`/`GetKeyCode`), maintains an in-memory history, refreshes the console display, and relies on callbacks to retrieve completion suggestions. The shell owns an input state structure that embeds the editor instance and provides shell-specific callbacks for completion and idle processing so the component remains agnostic of higher level shell logic. While reading input, the editor adjusts for console scrolling so the display does not re-trigger scrolling on each key press, console paging prompts are suspended until the line is submitted, and successful key interactions update session activity timestamps.
 
-Keyboard input keeps two distinct paths for compatibility. The PS/2 pipeline uses scan code -> KEYTRANS tables, while a separate HID path uses usage page `0x07` indexed `KEY_LAYOUT_HID` layouts. The HID layout file format is UTF-8 text with an `EKM1` header and directives: `code`, `levels`, `map`, `dead`, and `compose`. The kernel includes an embedded en-US layout (`KEY_LAYOUT_FALLBACK_CODE`) used when HID layout loading fails. The HID layout loader parses EKM1 files with a tolerant UTF-8 decoder, logs replacement counts, and rejects malformed directives or out-of-range entries. USB HID keyboard support lives in `kernel/source/drivers/input/Keyboard-USB.c`; keyboard reports are processed in boot protocol on the primary keyboard interface, and consumer/media usages (usage page `0x0C`) are decoded from an optional secondary HID consumer interface into the common key event path with keydown/keyup transitions. HID report descriptor decoding is implemented by the reusable helper `utils/HIDReport` (`kernel/include/utils/HIDReport.h`, `kernel/source/utils/HIDReport.c`). Keyboard initialization is mediated by `kernel/source/drivers/input/Keyboard-Selector.c`, which probes for a USB HID keyboard after PCI/xHCI enumeration and otherwise selects PS/2 detection, ensuring only one keyboard driver is active at a time.
-
 All reusable helpers -such as the command line editor, adaptive delay, string containers, byte-size formatting helpers (`utils/SizeFormat`), CRC/SHA-256 utilities, compression utilities, chunk cache utilities, detached signature utilities, notifications, path helpers, TOML parsing, UUID support, regex, hysteresis control, cooldown timing, rate limiting, DMA buffer allocation (`utils/DMABuffer`), and network checksum helpers— live under `kernel/source/utils` with their public headers in `kernel/include/utils`. Architecture-compat 64-bit helpers shared by the whole kernel (`U64_MUL_U32`, `U64_DIV_U32`) are exposed from `kernel/include/Base.h` and keep arithmetic behavior identical on x86-32 and x86-64. SHA-256 is exposed through `utils/Crypt` and bridged to the vendored BearSSL hash implementation under `third/bearssl`. Compression is exposed through `utils/Compression` and bridged to the vendored miniz backend under `third/miniz`. Detached signature verification is exposed through `utils/Signature` with a backend-swappable API surface, and Ed25519 verification is wired to vendored Monocypher sources under `third/monocypher`. This keeps generic infrastructure separated from core subsystems and makes it easier to share common code across the kernel.
 
 
@@ -853,7 +851,7 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
 
 ### Driver architecture
 
-Hardware-facing components are grouped under `kernel/source/drivers` with public headers in `kernel/include/drivers`. This area contains keyboard, serial mouse, interrupt controller (I/O APIC), PCI bus, network (`E1000`, `RTL8139`, `RTL8139CPlus`, `RTL8169` family), storage (`ATA`, `SATA`, `NVMe`), graphics (`VGA`, `VESA`, mode tables), and file system backends (`FAT16`, `FAT32`, `EXFS`).
+Hardware-facing components are grouped under `kernel/source/drivers` with public headers in `kernel/include/drivers`. This area contains keyboard, serial mouse, interrupt controller (I/O APIC), PCI bus, network (`E1000`, `RTL8139`, `RTL8139CPlus`, `RTL8169` family), storage (`ATA`, `SATA`, `NVMe`), graphics (`iGPU`, `VGA`, `VESA`, mode tables), and file system backends (`FAT16`, `FAT32`, `ext2`).
 
 Kernel-side registration follows a deterministic list-driven flow in `KernelData.c`: `InitializeDriverList()` populates `StartupDrivers` (load order) and `Drivers` (all known descriptors), then `LoadAllDrivers()` walks `StartupDrivers` in order.
 PCI-backed class drivers such as `e1000`, `rtl8139`, `rtl8169`, `ahci`, `nvme`, and `xhci` are also inserted in the global known-driver list (`Drivers`) for shell and diagnostics visibility, while their effective load/attach lifecycle remains driven by PCI enumeration.
@@ -870,7 +868,6 @@ The NVMe driver initializes admin queues first, then I/O queues, configures comp
 Mouse input is centralized in `kernel/source/MouseCommon.c`, which buffers deltas/buttons, dispatches events, and selects the active mouse driver. USB HID mouse support (`kernel/source/drivers/Mouse-USB.c`) takes priority over the serial mouse when a compatible USB device is present. The USB mouse driver mirrors the USB keyboard execution model: device discovery stays in deferred polling, while report processing follows xHCI interrupts in normal mode and falls back to deferred polling only when the global polling configuration is enabled.
 
 Keyboard selection is handled by the keyboard selector driver, keeping one active keyboard path at a time while sharing the same higher-level input/message routing model.
-
 
 ### USB host and class stack
 
@@ -936,8 +933,7 @@ SCSI command helpers cover `INQUIRY`, `TEST UNIT READY`, `REQUEST SENSE`, `READ 
 
 Disk I/O goes through one shared validation and chunking path. `DF_DISK_READ` and `DF_DISK_WRITE` validate geometry, readiness, access flags, buffer size, and present-state, then split transfers into page-sized `READ(10)` or `WRITE(10)` requests. On removal, the driver detaches mounted and unused filesystems associated with the storage unit, unregisters the list entry, releases USB references and I/O buffers, and broadcasts `ETM_USB_MASS_STORAGE_MOUNTED` or `ETM_USB_MASS_STORAGE_UNMOUNTED` to process message queues.
 
-
-### Console paths
+### Console
 
 #### Overview
 
@@ -986,21 +982,11 @@ The default font is the in-tree ASCII 8x16 EXOS font and can be replaced through
 
 Userland text rendering uses the same higher-level text path. `SYSCALL_DrawText` / `SYSCALL_MeasureText` and the runtime wrappers `DrawText` / `MeasureText` expose text drawing and measurement to userland. `Font = 0` selects the default kernel font.
 
-
-### Graphics paths
+### Graphics
 
 #### Backend contract
 
 `kernel/include/GFX.h` defines the backend-facing graphics command contract used by selectors, desktop code, shell tools, and console text dispatch.
-
-Core drawing commands are:
-
-- `SETMODE`
-- `GETMODEINFO`
-- `SETPIXEL`
-- `GETPIXEL`
-- `LINE`
-- `RECTANGLE`
 
 The same contract also defines optional backend operations for modern display handling:
 
@@ -1026,7 +1012,7 @@ Shell graphics switching crosses the user/kernel boundary through `SYSCALL_SetGr
 
 Generic driver diagnostics use `DF_DEBUG_INFO` with `DRIVER_DEBUG_INFO.Text`, a multi-line buffer sized with `MAX_STRING_BUFFER`. Graphics backends use that interface to expose backend alias and current resolution, and the graphics selector forwards the query to the active backend. Mouse drivers expose the selected manufacturer and product through the same pattern, and the mouse selector forwards that data as well.
 
-#### VESA and VGA paths
+#### VESA and VGA
 
 The VESA driver requests VBE modes in linear frame buffer mode (`INT 10h 4F02h`, bit 14), validates linear frame buffer capability, and maps `PhysBasePtr` through `MapIOMemory`. Console rendering writes directly to mapped VRAM. Desktop composition can instead draw into a desktop-owned shadow buffer and use `DF_GFX_PRESENT` to copy one dirty rectangle to the mapped scanout.
 
@@ -1063,7 +1049,7 @@ The modeset core resolves explicit `INTEL_DISPLAY_FAMILY_OPS` descriptors from d
 
 VBlank synchronization is implemented in `kernel/source/drivers/graphics/igpu/iGPU-Interrupt.c`. `DF_GFX_WAITVBLANK` performs bounded waits with `HasOperationTimedOut()` and rate-limited timeout diagnostics. Presentation serialization uses `PresentMutex`, and frame pacing tracks `PresentFrameSequence` and `VBlankFrameSequence` with optional `PIPESTAT` vblank handling and scanline polling fallback.
 
-#### Desktop, cursor, and overlay path
+#### Desktop, cursor, and overlay
 
 Mouse pointer operations are part of the same graphics backend contract, and cursor ownership is managed by kernel desktop code. The desktop selects either a hardware cursor path or a software overlay path depending on cursor-plane support and available cursor commands.
 
@@ -1079,13 +1065,11 @@ Shared geometry and damage tracking are centralized:
 
 Occlusion, clipping, bounded screen damage, and window composition use one shared implementation path across desktop subsystems. Software cursor overlay rendering stays outside the desktop shadow buffer and is emitted on the final scanout context after window present, so the cursor path remains compatible with hardware-cursor backends and does not become part of the desktop composition buffer.
 
-
-### Early boot console path
+### Early boot console
 
 `kernel/source/console/Console-EarlyBoot.c` provides a minimal framebuffer text path independent from normal console initialization. It writes glyphs through physical framebuffer mappings and is used for early boot and memory-initialization checkpoints.
 
 Bootloader text mode handoff preserves one logical cursor position through the multiboot `config_table` field using one EXOS-owned configuration block. When the first regular console backend activates, it imports that bootloader cell position once, clamps it to the active console geometry, and then continues with the standard console-owned cursor state for later frontend and backend transitions.
-
 
 ### ACPI services
 
@@ -1106,7 +1090,6 @@ Advanced power-management and reset paths live in `kernel/source/ACPI.c`. The mo
 #### Kernel wrappers
 
 Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell commands, clear userland processes, then kernel tasks, and perform reverse-order driver unload before handing control to the ACPI routines. This shutdown ordering reduces the amount of subsystem state left pending when the machine powers off or reboots.
-
 
 ### Disk interfaces
 
@@ -1141,7 +1124,6 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 
 **AHCI interrupt policy**: the SATA driver registers the controller with the shared `DeviceInterruptRegister` infrastructure and installs dedicated top and bottom halves so IRQ 11 traffic can be routed through a private slot when the hardware gets its own vector (MSI/MSI-X or a non-shared INTx line). Commands complete synchronously, therefore all AHCI per-port interrupt masks (`PORT.ie`) and the global `GHC.IE` bit are cleared in shipping builds so the shared IRQ 11 line stays quiet for the `E1000` NIC.
 Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISKINFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
-
 
 ## Storage and Filesystems
 
@@ -1789,23 +1771,8 @@ Supported stored return categories are string, integer, float, and native E0 obj
 
 #### Host object exposure model
 
-The shell registers host symbols with `ScriptRegisterHostSymbol()` during context initialization. Registered roots include:
-
-- `process`
-- `task`
-- `driver`
-- `graphics`
-- `clock`
-- `storage`
-- `file_system`
-- `memory_map`
-- `pci_bus`
-- `pci_device`
-- `usb`
-- `network`
-- `keyboard`
-- `mouse`
-- `account`
+The shell registers host symbols with `ScriptRegisterHostSymbol()` during context initialization.
+The authoritative root list and exposed field matrix are documented in [Exposed objects in shell](#exposed-objects-in-shell).
 
 Each symbol is associated with a `SCRIPT_HOST_DESCRIPTOR` implemented under `kernel/source/expose/*`. Descriptor callbacks (`GetProperty`, `GetElement`) provide typed access to fields and arrays.
 
@@ -2382,7 +2349,6 @@ Desktop and windowing code follow this same kernel-wide rule. Typical examples:
 - graphics-context clip/origin mutation stays on graphics-context helpers
   instead of direct caller-side `GC->Mutex` access.
 
-
 ## Tooling and References
 
 ### System Data View
@@ -2413,7 +2379,8 @@ The implementation lives in `kernel/source/SystemDataView.c`. It provides a comp
 #### Log pipeline and format
 
 Kernel logging funnels through `KernelLogText` and uses typed log classes.
-All logs follow the `[FunctionName]` prefix rule and can emit structured results such as `TEST > [CMD_sysinfo] sys_info : OK`.
+The `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, and `TEST` macros inject `__func__` into the log path.
+The log formatter emits the function tag centrally and can emit structured results such as `TEST > [CMD_sysinfo] sys_info : OK`.
 Serial output is sanitized to printable ASCII (plus tab/newline) before being written to the log.
 When `DEBUG_SPLIT` is `1`, kernel logs are mirrored to a dedicated right-side console region while standard console output stays on the left.
 `LOG_ERROR` entries stay in the kernel log path and are not mirrored to the main console, so diagnostics do not interfere with interactive console output.
@@ -2427,7 +2394,7 @@ Available log classes are `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, and `TEST`.
 #### Tag filtering
 
 `KernelLogSetTagFilter()` provides optional tag-based filtering.
-The filter value accepts separators (comma, semicolon, pipe, or space), and each token matches the first bracket tag in a log line (for example `MountDiskPartitionsGpt` or `[MountDiskPartitionsGpt]`).
+The filter value accepts separators (comma, semicolon, pipe, or space), and each token matches the function tag supplied by the log macro (for example `MountDiskPartitionsGpt` or `[MountDiskPartitionsGpt]`).
 When filtering is active, only matching tagged lines are emitted.
 The default startup filter is initialized for NVMe/GPT diagnostics.
 Builds can override this value with `--kernel-log-tag-filter <value>` in `scripts/linux/build/build.sh`; passing an empty value compiles an empty default filter.
@@ -2450,7 +2417,6 @@ The UI component does not access desktop internals or log storage internals dire
 
 `ThresholdLatch` provides one-shot logging when an elapsed-time threshold is crossed during long operations.
 
-
 ### Automated debug validation script
 
 The repository provides `scripts/linux/test/smoke-test-global.sh` to run an automated debug validation flow:
@@ -2463,7 +2429,6 @@ The repository provides `scripts/linux/test/smoke-test-global.sh` to run an auto
 
 The script supports selecting one target with `--only x86-32`, `--only x86-64`, or `--only x86-64-uefi`.  
 Kernel logs are consumed from per-target files (`log/kernel-x86-32-mbr-debug.log`, `log/kernel-x86-64-mbr-debug.log`, `log/kernel-x86-64-uefi-debug.log` and release equivalents with `-release`).
-
 
 ### Build output layout
 
@@ -2508,36 +2473,11 @@ Command form:
 
 ### Keyboard Layout Format (EKM1)
 
-The EKM1 layout file describes a USB HID keyboard map using usage page 0x07. Files are UTF-8 text with a required 4-byte header "EKM1". Lines are tokenized on whitespace and comments start with `#`. Tokens are case-sensitive and directive order matters only for `levels`, which must appear before any `map` entry. The loader rejects malformed entries.
+The EKM1 keyboard layout format specification is maintained in a dedicated document:
 
-Directives:
-- `code <layout_code>`: required, unique layout identifier string (example: `code en-US`).
-- `levels <count>`: optional, decimal level count, range 1 to 4. Defaults to 1 when omitted.
-- `map <usage_hex> <level_dec> <vk_hex> <ascii_hex> <unicode_hex>`: maps a HID usage to a keycode for a given level.
-  - `usage_hex` range: 0x04 to 0xE7 (HID usage page 0x07).
-  - `level_dec` range: 0 to levels-1.
-  - `vk_hex` range: 0x00 to 0xFF.
-  - `ascii_hex` range: 0x00 to 0xFF.
-  - `unicode_hex` range: 0x0000 to 0xFFFF.
-  - Each usage and level pair may appear only once.
-- `dead <dead_unicode_hex> <base_unicode_hex> <result_unicode_hex>`: defines a dead key combination. Maximum 128 entries.
-- `compose <first_unicode_hex> <second_unicode_hex> <result_unicode_hex>`: defines a compose sequence. Maximum 256 entries.
+- `doc/guides/binary-formats/keyboard-layout-ekm1.md`
 
-Recommended layout levels:
-- Level 0: base.
-- Level 1: shift.
-- Level 2: AltGr.
-- Level 3: control.
-
-Example:
-```
-EKM1
-# US QWERTY layout (en-US)
-code en-US
-levels 2
-map 0x04 0 0x30 0x61 0x0061
-map 0x04 1 0x30 0x41 0x0041
-```
+Use that file as the single source of truth for directives, constraints, and examples.
 
 ### Process control hotkeys
 
@@ -2601,7 +2541,6 @@ Key = "control+shift+f1"
 Action = "switch_to_console"
 ```
 
-
 ### QEMU network graph
 
 ```
@@ -2619,7 +2558,6 @@ Action = "switch_to_console"
 | (L3/L4)        |               | (Translate IP)    |             | (L3/L4)        |
 +----------------+               +-------------------+             +----------------+
 ```
-
 
 ### Links
 

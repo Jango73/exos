@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -749,7 +749,7 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
         timeout--;
     }
     if (timeout == 0) {
-        ERROR(TEXT("[AHCICommand] Port ready timeout tfd=%x"), Port->tfd);
+        ERROR(TEXT("Port ready timeout tfd=%x"), Port->tfd);
         if (BounceRaw != NULL) BufferPoolRelease(&AHCIPort->BounceBufferPool, BounceRaw);
         return DF_RETURN_TIMEOUT;
     }
@@ -785,7 +785,7 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
     // Set up PRDT entry
     PHYSICAL bufferPhys = MapLinearToPhysical((LINEAR)EffectiveBuffer);
     if (bufferPhys == 0) {
-        ERROR(TEXT("[AHCICommand] MapLinearToPhysical failed buffer=%p"), EffectiveBuffer);
+        ERROR(TEXT("MapLinearToPhysical failed buffer=%p"), EffectiveBuffer);
         if (BounceRaw != NULL) BufferPoolRelease(&AHCIPort->BounceBufferPool, BounceRaw);
         return DF_RETURN_HARDWARE;
     }
@@ -805,7 +805,7 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
     timeout = 1000000;
     while ((Port->ci & 1) && timeout > 0) {
         if (Port->is & AHCI_PORT_IS_TFES) {
-            ERROR(TEXT("[AHCICommand] Task file error ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
+            ERROR(TEXT("Task file error ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
             if (BounceRaw != NULL) BufferPoolRelease(&AHCIPort->BounceBufferPool, BounceRaw);
             return DF_RETURN_HARDWARE;
         }
@@ -813,14 +813,14 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
     }
 
     if (timeout == 0) {
-        ERROR(TEXT("[AHCICommand] Completion timeout ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
+        ERROR(TEXT("Completion timeout ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
         if (BounceRaw != NULL) BufferPoolRelease(&AHCIPort->BounceBufferPool, BounceRaw);
         return DF_RETURN_TIMEOUT;
     }
 
     // Check for errors
     if (Port->is & AHCI_PORT_IS_TFES) {
-        ERROR(TEXT("[AHCICommand] Task file error after completion ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
+        ERROR(TEXT("Task file error after completion ci=%x is=%x tfd=%x"), Port->ci, Port->is, Port->tfd);
         if (BounceRaw != NULL) BufferPoolRelease(&AHCIPort->BounceBufferPool, BounceRaw);
         return DF_RETURN_HARDWARE;
     }
@@ -1037,7 +1037,7 @@ static BOOL AHCIRegisterInterrupts(void) {
 
     U8 LegacyIRQ = Device->Info.IRQLine;
     if (LegacyIRQ == 0xFFU) {
-        WARNING(TEXT("[AHCIRegisterInterrupts] Controller reports no legacy IRQ line"));
+        WARNING(TEXT("Controller reports no legacy IRQ line"));
         return FALSE;
     }
 
@@ -1061,7 +1061,7 @@ static BOOL AHCIRegisterInterrupts(void) {
             AHCIState.PendingPortsMask = 0;
             Registered = TRUE;
         } else {
-            WARNING(TEXT("[AHCIRegisterInterrupts] Failed to register interrupt slot for IRQ %u"), LegacyIRQ);
+            WARNING(TEXT("Failed to register interrupt slot for IRQ %u"), LegacyIRQ);
             AHCIState.InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         }
     }
@@ -1188,7 +1188,7 @@ static void AHCIInterruptBottomHalf(LPDEVICE Device, LPVOID Context) {
 
         SAFE_USE_VALID_ID((LPLISTNODE)Port, KOID_DISK) {
             if ((PortStatus & (1U << 30)) != 0U) {
-                WARNING(TEXT("[AHCIInterruptBottomHalf] Port %u reported task file error (status=%x)"),
+                WARNING(TEXT("Port %u reported task file error (status=%x)"),
                         PortIndex,
                         PortStatus);
             } else if (BottomHalfLogCount < 4U) {

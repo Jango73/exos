@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ static BOOL TestEncryptDecrypt(const char *TestName, const char *OriginalData, U
 
     // Check if data fits in static buffer
     if (PaddedSize > sizeof(InputBuffer)) {
-        DEBUG(TEXT("[TestBcrypt] Data too large for static buffer in test: %s"), TestName);
+        DEBUG(TEXT("Data too large for static buffer in test: %s"), TestName);
         return FALSE;
     }
 
@@ -111,7 +111,7 @@ static BOOL TestEncryptDecrypt(const char *TestName, const char *OriginalData, U
     // Test encryption
     EncryptedSize = BFEncrypt(&BufferPtr, (char *)Key, DataSize + MAXKEYBYTES, &Options);
     if (EncryptedSize == 0) {
-        DEBUG(TEXT("[TestBcrypt] Encryption failed for test: %s"), TestName);
+        DEBUG(TEXT("Encryption failed for test: %s"), TestName);
         Results->TestsRun++;
         return FALSE;
     }
@@ -119,7 +119,7 @@ static BOOL TestEncryptDecrypt(const char *TestName, const char *OriginalData, U
     // Test decryption
     DecryptedSize = BFDecrypt(&BufferPtr, (char *)Key, Key2, EncryptedSize, &Options);
     if (DecryptedSize == 0) {
-        DEBUG(TEXT("[TestBcrypt] Decryption failed for test: %s"), TestName);
+        DEBUG(TEXT("Decryption failed for test: %s"), TestName);
         Results->TestsRun++;
         return FALSE;
     }
@@ -131,8 +131,8 @@ static BOOL TestEncryptDecrypt(const char *TestName, const char *OriginalData, U
     } else if (DecryptedSize >= DataSize && MemoryCompare(BufferPtr, OriginalData, DataSize) == 0) {
         TestPassed = TRUE;
     } else {
-        DEBUG(TEXT("[TestBcrypt] Data verification failed for test: %s"), TestName);
-        DEBUG(TEXT("[TestBcrypt] Expected size: %u, Got size: %u"), DataSize, DecryptedSize);
+        DEBUG(TEXT("Data verification failed for test: %s"), TestName);
+        DEBUG(TEXT("Expected size: %u, Got size: %u"), DataSize, DecryptedSize);
     }
 
     Results->TestsRun++;

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -173,7 +173,7 @@ static BOOL NtfsReadNextPathComponent(
     WriteIndex = 0;
     while (Path[Index] != STR_NULL && Path[Index] != '/' && Path[Index] != '\\') {
         if (WriteIndex + 1 >= ComponentSize) {
-            WARNING(TEXT("[NtfsReadNextPathComponent] Path component too long"));
+            WARNING(TEXT("Path component too long"));
             return FALSE;
         }
 
@@ -299,7 +299,7 @@ static BOOL NtfsLookupChildByName(
 
     Entries = (LPNTFS_FOLDER_ENTRY_INFO)KernelHeapAlloc(NTFS_ENUMERATION_WINDOW_SIZE * sizeof(NTFS_FOLDER_ENTRY_INFO));
     if (Entries == NULL) {
-        ERROR(TEXT("[NtfsLookupChildByName] Unable to allocate folder entry window"));
+        ERROR(TEXT("Unable to allocate folder entry window"));
         return FALSE;
     }
 
@@ -317,7 +317,7 @@ static BOOL NtfsLookupChildByName(
                 Entries,
                 NTFS_ENUMERATION_WINDOW_SIZE,
                 &StoredEntries)) {
-            WARNING(TEXT("[NtfsLookupChildByName] Unable to enumerate parent=%u name=%s start=%u"),
+            WARNING(TEXT("Unable to enumerate parent=%u name=%s start=%u"),
                 ParentFolderIndex,
                 Name,
                 StartEntryIndex);
@@ -360,7 +360,7 @@ static BOOL NtfsLookupChildByName(
         UnlockMutex(&(FileSystem->Header.Mutex));
     }
     if (!Found) {
-        WARNING(TEXT("[NtfsLookupChildByName] Entry not found parent=%u name=%s entries=%u"),
+        WARNING(TEXT("Entry not found parent=%u name=%s entries=%u"),
             ParentFolderIndex,
             Name,
             StoredEntries);
@@ -413,12 +413,12 @@ BOOL NtfsResolvePathToIndex(
         BOOL ChildIsFolder;
 
         if (!CurrentIsFolder) {
-            WARNING(TEXT("[NtfsResolvePathToIndex] Path walks through non-folder node index=%u"), CurrentIndex);
+            WARNING(TEXT("Path walks through non-folder node index=%u"), CurrentIndex);
             return FALSE;
         }
 
         if (!NtfsLookupChildByName(NtfsFileSystem, CurrentIndex, Component, &ChildIndex, &ChildIsFolder)) {
-            WARNING(TEXT("[NtfsResolvePathToIndex] Component lookup failed component=%s parent=%u path=%s"),
+            WARNING(TEXT("Component lookup failed component=%s parent=%u path=%s"),
                 Component,
                 CurrentIndex,
                 Path);

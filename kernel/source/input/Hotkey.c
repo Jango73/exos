@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ static BOOL HotkeyActionToggleWindowPipelineTrace(LPPROCESS Process) {
     UNUSED(Process);
 
     SetWindowPipelineTraceEnabled(!GetWindowPipelineTraceEnabled());
-    DEBUG(TEXT("[HotkeyActionToggleWindowPipelineTrace] Window pipeline trace %s"),
+    DEBUG(TEXT("Window pipeline trace %s"),
         GetWindowPipelineTraceEnabled() ? TEXT("enabled") : TEXT("disabled"));
     return TRUE;
 }
@@ -246,7 +246,7 @@ static BOOL HotkeyHandleEntry(
 
     if (HotkeyParseExpression(KeyExpression, &Binding) == FALSE) {
         if (LogErrors) {
-            WARNING(TEXT("[HotkeyHandleKeyDown] Invalid key expression: %s"), KeyExpression);
+            WARNING(TEXT("Invalid key expression: %s"), KeyExpression);
         }
         return FALSE;
     }
@@ -258,7 +258,7 @@ static BOOL HotkeyHandleEntry(
     Handler = HotkeyResolveAction(ActionName);
     if (Handler == NULL) {
         if (LogErrors) {
-            WARNING(TEXT("[HotkeyHandleKeyDown] Unknown action: %s"), ActionName);
+            WARNING(TEXT("Unknown action: %s"), ActionName);
         }
         return FALSE;
     }

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -423,7 +423,7 @@ static void RegisterStartupDriver(LPDRIVER Driver) {
     }
 
     if (StartupDriverEntryCount >= ARRAY_COUNT(StartupDriverEntries)) {
-        WARNING(TEXT("[RegisterStartupDriver] Startup driver entry table full"));
+        WARNING(TEXT("Startup driver entry table full"));
         return;
     }
 

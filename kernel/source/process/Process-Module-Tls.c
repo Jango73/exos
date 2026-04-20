@@ -49,14 +49,14 @@ BOOL InitializeProcessModuleTls(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING B
     }
 
     if (Tls->TotalSize == 0 || Tls->TemplateSize > Tls->TotalSize) {
-        WARNING(TEXT("[InitializeProcessModuleTls] Invalid module TLS layout"));
+        WARNING(TEXT("Invalid module TLS layout"));
         return FALSE;
     }
 
     if (Tls->TemplateSize != 0) {
         TemplateBase = MapProcessModuleBindingAddress(Binding, Tls->TemplateAddress);
         if (TemplateBase == 0) {
-            WARNING(TEXT("[InitializeProcessModuleTls] Module TLS template is not mapped"));
+            WARNING(TEXT("Module TLS template is not mapped"));
             return FALSE;
         }
     }
@@ -67,7 +67,7 @@ BOOL InitializeProcessModuleTls(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING B
                                            Tls->TemplateSize,
                                            Tls->TotalSize,
                                            Tls->Alignment)) {
-        WARNING(TEXT("[InitializeProcessModuleTls] Module TLS expansion failed"));
+        WARNING(TEXT("Module TLS expansion failed"));
         return FALSE;
     }
 

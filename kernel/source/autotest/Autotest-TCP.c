@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     if (Checksum != 0) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestTCPChecksum] TCP checksum is zero for valid header"));
+        ERROR(TEXT("TCP checksum is zero for valid header"));
     }
 
     // Test 2: TCP header with small payload
@@ -75,7 +75,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     if (ChecksumWithPayload != 0 && ChecksumWithPayload != Checksum) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestTCPChecksum] TCP checksum with payload failed: %x vs %x"), ChecksumWithPayload, Checksum);
+        ERROR(TEXT("TCP checksum with payload failed: %x vs %x"), ChecksumWithPayload, Checksum);
     }
 
     // Test 3: Checksum validation (correct)
@@ -85,7 +85,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     if (ValidationResult == 1) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestTCPChecksum] Valid checksum validation failed"));
+        ERROR(TEXT("Valid checksum validation failed"));
     }
 
     // Test 4: Checksum validation (incorrect)
@@ -95,7 +95,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     if (ValidationResult == 0) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestTCPChecksum] Invalid checksum validation should have failed"));
+        ERROR(TEXT("Invalid checksum validation should have failed"));
     }
 
     // Test 5: Zero payload length
@@ -105,7 +105,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     if (ZeroPayloadChecksum != 0) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestTCPChecksum] Zero payload checksum is zero"));
+        ERROR(TEXT("Zero payload checksum is zero"));
     }
 }
 

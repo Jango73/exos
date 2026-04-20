@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ static void XHCI_LogEnableSlotTimeoutState(LPXHCI_DEVICE Device) {
         ExpectedCycle = Device->EventRingCycleState ? 1U : 0U;
     }
 
-    WARNING(TEXT("[XHCI_LogEnableSlotTimeoutState] USBCMD=%x USBSTS=%x PCICMD=%x PCISTS=%x CRCR=%x:%x IMAN=%x ERDP=%x:%x Slots=%u/%u CQ=%u Event=%x:%x:%x:%x Cy=%u/%u suppressed=%u"),
+    WARNING(TEXT("USBCMD=%x USBSTS=%x PCICMD=%x PCISTS=%x CRCR=%x:%x IMAN=%x ERDP=%x:%x Slots=%u/%u CQ=%u Event=%x:%x:%x:%x Cy=%u/%u suppressed=%u"),
             UsbCommand,
             UsbStatus,
             (U32)PciCommand,
@@ -412,7 +412,7 @@ static void XHCI_LogBulkEndpointContextState(LPXHCI_DEVICE Device,
         DeviceEpDword4 = DeviceEndpoint->Dword4;
     }
 
-    WARNING(TEXT("[XHCI_LogBulkEndpointContextState] Slot=%x DCI=%x EP=%x Attr=%x MPS=%u Completion=%u TimedOut=%u Add=%x Drop=%x InEntries=%u DevEntries=%u InEpState=%x DevEpState=%x->%x InEp=%x:%x:%x:%x DevEp=%x:%x:%x:%x"),
+    WARNING(TEXT("Slot=%x DCI=%x EP=%x Attr=%x MPS=%u Completion=%u TimedOut=%u Add=%x Drop=%x InEntries=%u DevEntries=%u InEpState=%x DevEpState=%x->%x InEp=%x:%x:%x:%x DevEp=%x:%x:%x:%x"),
             (U32)UsbDevice->SlotId,
             (U32)Endpoint->Dci,
             (U32)Endpoint->Address,
@@ -775,7 +775,7 @@ BOOL XHCI_EnableSlot(LPXHCI_DEVICE Device, U8* SlotIdOut, U32* CompletionOut) {
         if (CompletionOut != NULL) {
             *CompletionOut = Completion;
         }
-        ERROR(TEXT("[XHCI_EnableSlot] Completion code %u"), Completion);
+        ERROR(TEXT("Completion code %u"), Completion);
         return FALSE;
     }
 
@@ -818,7 +818,7 @@ BOOL XHCI_AddressDevice(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice) {
     }
 
     if (Completion != XHCI_COMPLETION_SUCCESS) {
-        ERROR(TEXT("[XHCI_AddressDevice] Completion code %u"), Completion);
+        ERROR(TEXT("Completion code %u"), Completion);
         return FALSE;
     }
 
@@ -854,7 +854,7 @@ BOOL XHCI_EvaluateContext(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice) {
     }
 
     if (Completion != XHCI_COMPLETION_SUCCESS) {
-        ERROR(TEXT("[XHCI_EvaluateContext] Completion code %u"), Completion);
+        ERROR(TEXT("Completion code %u"), Completion);
         return FALSE;
     }
 
@@ -899,7 +899,7 @@ static BOOL XHCI_ConfigureEndpoint(LPXHCI_DEVICE Device,
         if (TimedOutOut != NULL) {
             *TimedOutOut = TRUE;
         }
-        WARNING(TEXT("[XHCI_ConfigureEndpoint] Timeout Slot=%x USBCMD=%x USBSTS=%x"),
+        WARNING(TEXT("Timeout Slot=%x USBCMD=%x USBSTS=%x"),
                 (U32)UsbDevice->SlotId,
                 XHCI_Read32(Device->OpBase, XHCI_OP_USBCMD),
                 XHCI_Read32(Device->OpBase, XHCI_OP_USBSTS));
@@ -911,7 +911,7 @@ static BOOL XHCI_ConfigureEndpoint(LPXHCI_DEVICE Device,
     }
 
     if (Completion != XHCI_COMPLETION_SUCCESS) {
-        ERROR(TEXT("[XHCI_ConfigureEndpoint] Completion code %u Slot=%x"), Completion, (U32)UsbDevice->SlotId);
+        ERROR(TEXT("Completion code %u Slot=%x"), Completion, (U32)UsbDevice->SlotId);
         return FALSE;
     }
 
@@ -1071,7 +1071,7 @@ BOOL XHCI_AddBulkEndpoint(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPX
                                          ConfigureCompletion,
                                          ConfigureTimedOut,
                                          DeviceEndpointStateBefore);
-        WARNING(TEXT("[XHCI_AddBulkEndpoint] Configure failed Slot=%x DCI=%x EP=%x MPS=%u Completion=%u TimedOut=%u"),
+        WARNING(TEXT("Configure failed Slot=%x DCI=%x EP=%x MPS=%u Completion=%u TimedOut=%u"),
                 (U32)UsbDevice->SlotId,
                 (U32)Endpoint->Dci,
                 (U32)Endpoint->Address,
@@ -1114,7 +1114,7 @@ BOOL XHCI_AddBulkEndpointPair(LPXHCI_DEVICE Device,
     }
 
     if ((BulkOutEndpoint->Address & 0x80) != 0 || (BulkInEndpoint->Address & 0x80) == 0) {
-        WARNING(TEXT("[XHCI_AddBulkEndpointPair] Invalid endpoint directions Out=%x In=%x"),
+        WARNING(TEXT("Invalid endpoint directions Out=%x In=%x"),
                 (U32)BulkOutEndpoint->Address,
                 (U32)BulkInEndpoint->Address);
         return FALSE;
@@ -1122,7 +1122,7 @@ BOOL XHCI_AddBulkEndpointPair(LPXHCI_DEVICE Device,
 
     if ((BulkOutEndpoint->Attributes & 0x03) != USB_ENDPOINT_TYPE_BULK ||
         (BulkInEndpoint->Attributes & 0x03) != USB_ENDPOINT_TYPE_BULK) {
-        WARNING(TEXT("[XHCI_AddBulkEndpointPair] Invalid endpoint type OutAttr=%x InAttr=%x"),
+        WARNING(TEXT("Invalid endpoint type OutAttr=%x InAttr=%x"),
                 (U32)BulkOutEndpoint->Attributes,
                 (U32)BulkInEndpoint->Attributes);
         return FALSE;
@@ -1214,7 +1214,7 @@ BOOL XHCI_AddBulkEndpointPair(LPXHCI_DEVICE Device,
                                              DeviceInStateBefore);
         }
 
-        WARNING(TEXT("[XHCI_AddBulkEndpointPair] Configure failed Slot=%x OutDci=%x InDci=%x OutEp=%x InEp=%x Completion=%u TimedOut=%u NeedOut=%u NeedIn=%u"),
+        WARNING(TEXT("Configure failed Slot=%x OutDci=%x InDci=%x OutEp=%x InEp=%x Completion=%u TimedOut=%u NeedOut=%u NeedIn=%u"),
                 (U32)UsbDevice->SlotId,
                 (U32)BulkOutEndpoint->Dci,
                 (U32)BulkInEndpoint->Dci,
@@ -1398,6 +1398,6 @@ BOOL XHCI_ControlTransfer(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, con
         (void)XHCI_ControlTransfer(Device, UsbDevice, &ClearFeature, 0, NULL, 0, FALSE);
     }
 
-    ERROR(TEXT("[XHCI_ControlTransfer] Completion code %u"), Completion);
+    ERROR(TEXT("Completion code %u"), Completion);
     return FALSE;
 }

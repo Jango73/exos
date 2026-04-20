@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ BOOL NVMeAllocateQueueBuffer(LPNVME_QUEUE_BUFFER Queue, U32 QueueSize, UINT Queu
     UINT RawSize = (UINT)QueueSize + QueueAlignment;
     Queue->Raw = KernelHeapAlloc(RawSize);
     if (Queue->Raw == NULL) {
-        ERROR(TEXT("[NVMeAllocateQueueBuffer] KernelHeapAlloc failed for %s (raw_size=%u)"), QueueName, RawSize);
+        ERROR(TEXT("KernelHeapAlloc failed for %s (raw_size=%u)"), QueueName, RawSize);
         return FALSE;
     }
 
@@ -123,7 +123,7 @@ BOOL NVMeAllocateQueueBuffer(LPNVME_QUEUE_BUFFER Queue, U32 QueueSize, UINT Queu
 
     Queue->Physical = MapLinearToPhysical(Queue->Base);
     if (Queue->Physical == 0) {
-        ERROR(TEXT("[NVMeAllocateQueueBuffer] MapLinearToPhysical failed for %s base=%p"),
+        ERROR(TEXT("MapLinearToPhysical failed for %s base=%p"),
               QueueName,
               (LPVOID)Queue->Base);
         NVMeFreeQueueBuffer(Queue);
@@ -135,7 +135,7 @@ BOOL NVMeAllocateQueueBuffer(LPNVME_QUEUE_BUFFER Queue, U32 QueueSize, UINT Queu
         PHYSICAL Physical = MapLinearToPhysical(Linear);
         PHYSICAL Expected = Queue->Physical + (PHYSICAL)Offset;
         if (Physical != Expected) {
-            ERROR(TEXT("[NVMeAllocateQueueBuffer] Non contiguous %s (base_pa=%p offset=%u pa=%p expected=%p)"),
+            ERROR(TEXT("Non contiguous %s (base_pa=%p offset=%u pa=%p expected=%p)"),
                   QueueName,
                   (LPVOID)(LINEAR)Queue->Physical,
                   Offset,
@@ -297,7 +297,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     PHYSICAL Bar0Physical = 0;
     U32 Bar0Size = 0;
     if (!NVMeGetBar0Physical((LPPCI_DEVICE)Device, &Bar0Physical, &Bar0Size)) {
-        ERROR(TEXT("[NVMeAttach] Invalid BAR0"));
+        ERROR(TEXT("Invalid BAR0"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -305,7 +305,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     Device->MmioBase = MapIOMemory(Bar0Physical, Bar0Size);
     Device->MmioSize = Bar0Size;
     if (Device->MmioBase == 0) {
-        ERROR(TEXT("[NVMeAttach] MapIOMemory failed for %p size %u"),
+        ERROR(TEXT("MapIOMemory failed for %p size %u"),
               (LPVOID)(LINEAR)Bar0Physical,
               (U32)Bar0Size);
         KernelHeapFree(Device);
@@ -334,7 +334,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     UNUSED(AcqLow);
     UNUSED(AcqHigh);
 
-    DEBUG(TEXT("[NVMeAttach] BAR0=%p size=%u CAP=%x/%x VS=%x CC=%x CSTS=%x AQA=%x"),
+    DEBUG(TEXT("BAR0=%p size=%u CAP=%x/%x VS=%x CC=%x CSTS=%x AQA=%x"),
           (LPVOID)(LINEAR)Bar0Physical,
           (U32)Bar0Size,
           CapLow,
@@ -343,7 +343,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
           Cc,
           Csts,
           Aqa);
-    DEBUG(TEXT("[NVMeAttach] ASQ=%x/%x ACQ=%x/%x"),
+    DEBUG(TEXT("ASQ=%x/%x ACQ=%x/%x"),
           AsqLow,
           AsqHigh,
           AcqLow,
@@ -354,7 +354,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     PCI_EnableBusMaster(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, TRUE);
 
     if (!NVMeSetupAdminQueues(Device)) {
-        ERROR(TEXT("[NVMeAttach] Failed to allocate admin queues"));
+        ERROR(TEXT("Failed to allocate admin queues"));
         UnMapIOMemory(Device->MmioBase, Device->MmioSize);
         KernelHeapFree(Device);
         return NULL;
@@ -364,7 +364,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     if ((CcValue & NVME_CC_EN) != 0) {
         Regs[NVME_REG_CC / 4] = (CcValue & ~NVME_CC_EN);
         if (!NVMeWaitForReady(Device, FALSE)) {
-            ERROR(TEXT("[NVMeAttach] Controller did not stop"));
+            ERROR(TEXT("Controller did not stop"));
             NVMeFreeAdminQueues(Device);
             UnMapIOMemory(Device->MmioBase, Device->MmioSize);
             KernelHeapFree(Device);
@@ -401,45 +401,45 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     Regs[NVME_REG_CC / 4] = CcValue;
     Regs[NVME_REG_CC / 4] = (CcValue | NVME_CC_EN);
     if (!NVMeWaitForReady(Device, TRUE)) {
-        ERROR(TEXT("[NVMeAttach] Controller did not become ready"));
+        ERROR(TEXT("Controller did not become ready"));
         NVMeFreeAdminQueues(Device);
         UnMapIOMemory(Device->MmioBase, Device->MmioSize);
         KernelHeapFree(Device);
         return NULL;
     }
 
-    DEBUG(TEXT("[NVMeAttach] Admin queues ready ASQ=%p ACQ=%p AQA=%x"),
+    DEBUG(TEXT("Admin queues ready ASQ=%p ACQ=%p AQA=%x"),
           (LPVOID)(LINEAR)AsqPhys,
           (LPVOID)(LINEAR)AcqPhys,
           AqaValue);
 
     if (!NVMeIdentifyController(Device)) {
-        WARNING(TEXT("[NVMeAttach] Identify controller failed"));
+        WARNING(TEXT("Identify controller failed"));
     }
     if (!NVMeIdentifyNamespace(Device, 1, NULL, &Device->LogicalBlockSize)) {
-        WARNING(TEXT("[NVMeAttach] Identify namespace 1 failed"));
+        WARNING(TEXT("Identify namespace 1 failed"));
     }
     if (!NVMeSetNumberOfQueues(Device, 1)) {
-        WARNING(TEXT("[NVMeAttach] Set number of queues failed"));
+        WARNING(TEXT("Set number of queues failed"));
     }
 #if NVME_POLLING_ONLY
     Device->MsixEnabled = FALSE;
 #else
     if (!NVMeSetupInterrupts(Device)) {
-        WARNING(TEXT("[NVMeAttach] MSI-X setup failed"));
+        WARNING(TEXT("MSI-X setup failed"));
     }
 #endif
     if (!NVMeCreateIoQueues(Device)) {
-        WARNING(TEXT("[NVMeAttach] Create IO queues failed"));
+        WARNING(TEXT("Create IO queues failed"));
     } else {
         if (!NVMeSubmitIoNoop(Device)) {
-            WARNING(TEXT("[NVMeAttach] I/O NO-OP failed"));
+            WARNING(TEXT("I/O NO-OP failed"));
             NVMeFreeIoQueues(Device);
         } else {
             if (!NVMeReadTest(Device)) {
-                WARNING(TEXT("[NVMeAttach] Read test failed"));
+                WARNING(TEXT("Read test failed"));
             } else if (!NVMeRegisterNamespaces(Device)) {
-                WARNING(TEXT("[NVMeAttach] Namespace registration failed"));
+                WARNING(TEXT("Namespace registration failed"));
             }
         }
     }

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ static LPRADIX_TREE_NODE RadixTreeAllocateNode(LPRADIX_TREE Tree,
 
     LINEAR Address = BlockListAllocate(&Tree->NodeAllocator);
     if (Address == 0) {
-        ERROR(TEXT("[RadixTreeAllocateNode] Cannot allocate node (level=%u slot=%u)"), Level, SlotIndex);
+        ERROR(TEXT("Cannot allocate node (level=%u slot=%u)"), Level, SlotIndex);
         return NULL;
     }
 
@@ -223,7 +223,7 @@ LPRADIX_TREE RadixTreeCreate(void) {
     LPRADIX_TREE Tree = (LPRADIX_TREE)KernelHeapAlloc((UINT)sizeof(RADIX_TREE));
 
     if (Tree == NULL) {
-        ERROR(TEXT("[RadixTreeCreate] KernelHeapAlloc failed"));
+        ERROR(TEXT("KernelHeapAlloc failed"));
         return NULL;
     }
 
@@ -236,7 +236,7 @@ LPRADIX_TREE RadixTreeCreate(void) {
                                        RADIX_TREE_INITIAL_SLABS,
                                        0);
     if (!AllocatorInit) {
-        ERROR(TEXT("[RadixTreeCreate] BlockListInit failed"));
+        ERROR(TEXT("BlockListInit failed"));
         KernelHeapFree(Tree);
         return NULL;
     }
@@ -248,7 +248,7 @@ LPRADIX_TREE RadixTreeCreate(void) {
         return NULL;
     }
 
-    DEBUG(TEXT("[RadixTreeCreate] Tree=%p created"), Tree);
+    DEBUG(TEXT("Tree=%p created"), Tree);
 
     return Tree;
 }
@@ -279,7 +279,7 @@ void RadixTreeDestroy(LPRADIX_TREE Tree) {
     BlockListFinalize(&Tree->NodeAllocator);
     KernelHeapFree(Tree);
 
-    DEBUG(TEXT("[RadixTreeDestroy] Tree destroyed"));
+    DEBUG(TEXT("Tree destroyed"));
 }
 
 /************************************************************************/
@@ -294,7 +294,7 @@ void RadixTreeDestroy(LPRADIX_TREE Tree) {
  */
 BOOL RadixTreeInsert(LPRADIX_TREE Tree, UINT Handle, LINEAR Value) {
     if (Tree == NULL || Value == 0) {
-        ERROR(TEXT("[RadixTreeInsert] Invalid parameters (tree=%p handle=%u value=%p)"), Tree, Handle, Value);
+        ERROR(TEXT("Invalid parameters (tree=%p handle=%u value=%p)"), Tree, Handle, Value);
         return FALSE;
     }
 
@@ -308,7 +308,7 @@ BOOL RadixTreeInsert(LPRADIX_TREE Tree, UINT Handle, LINEAR Value) {
 
         if (Level == RADIX_TREE_MAX_LEVELS - 1) {
             if ((Node->ChildMask & (U16)Bit) != 0) {
-                WARNING(TEXT("[RadixTreeInsert] Leaf collision detected (handle=%u index=%u)"), Handle, Index);
+                WARNING(TEXT("Leaf collision detected (handle=%u index=%u)"), Handle, Index);
                 UnlockMutex(&Tree->Mutex);
                 return FALSE;
             }

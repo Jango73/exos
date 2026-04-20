@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ static void XHCI_LogProbeFailure(LPXHCI_USB_DEVICE UsbDevice, LPCSTR Step, U32 P
     Enabled = (PortStatus & XHCI_PORTSC_PED) ? 1 : 0;
     Reset = (PortStatus & XHCI_PORTSC_PR) ? 1 : 0;
 
-    WARNING(TEXT("[XHCI_LogProbeFailure] Port=%u Step=%s Err=%x Completion=%x Raw=%x CCS=%u PED=%u PR=%u PLS=%x Speed=%x Slot=%x Addr=%x Present=%u Hub=%u Vid=%x Pid=%x Class=%x/%x/%x MPS0=%u USBCMD=%x USBSTS=%x suppressed=%u"),
+    WARNING(TEXT("Port=%u Step=%s Err=%x Completion=%x Raw=%x CCS=%u PED=%u PR=%u PLS=%x Speed=%x Slot=%x Addr=%x Present=%u Hub=%u Vid=%x Pid=%x Class=%x/%x/%x MPS0=%u USBCMD=%x USBSTS=%x suppressed=%u"),
             (U32)UsbDevice->PortNumber,
             (Step != NULL) ? Step : TEXT("?"),
             (U32)UsbDevice->LastEnumError,
@@ -202,7 +202,7 @@ static void XHCI_BlacklistRootPort(LPXHCI_USB_DEVICE UsbDevice) {
 
     UsbDevice->LastEnumError = XHCI_ENUM_ERROR_BLACKLISTED;
     UsbDevice->LastEnumCompletion = 0;
-    WARNING(TEXT("[XHCI_ProbePort] Port %u blacklisted after repeated failures"),
+    WARNING(TEXT("Port %u blacklisted after repeated failures"),
             (U32)UsbDevice->PortNumber);
 }
 
@@ -348,7 +348,7 @@ static BOOL XHCI_FillDescriptorCallback(const U8* Descriptor, U8 Length, void* C
         LPXHCI_USB_INTERFACE Interface =
             (LPXHCI_USB_INTERFACE)CreateKernelObject(sizeof(XHCI_USB_INTERFACE), KOID_USBINTERFACE);
         if (Interface == NULL) {
-            ERROR(TEXT("[XHCI_FillDescriptorCallback] Interface allocation failed"));
+            ERROR(TEXT("Interface allocation failed"));
             return FALSE;
         }
         MemorySet((U8*)Interface + sizeof(LISTNODE), 0, sizeof(XHCI_USB_INTERFACE) - sizeof(LISTNODE));
@@ -384,7 +384,7 @@ static BOOL XHCI_FillDescriptorCallback(const U8* Descriptor, U8 Length, void* C
         LPXHCI_USB_ENDPOINT Endpoint =
             (LPXHCI_USB_ENDPOINT)CreateKernelObject(sizeof(XHCI_USB_ENDPOINT), KOID_USBENDPOINT);
         if (Endpoint == NULL) {
-            ERROR(TEXT("[XHCI_FillDescriptorCallback] Endpoint allocation failed"));
+            ERROR(TEXT("Endpoint allocation failed"));
             return FALSE;
         }
         MemorySet((U8*)Endpoint + sizeof(LISTNODE), 0, sizeof(XHCI_USB_ENDPOINT) - sizeof(LISTNODE));
@@ -536,7 +536,7 @@ static BOOL XHCI_ResetPort(LPXHCI_DEVICE Device, U32 PortIndex) {
                               0,
                               XHCI_PORT_RESET_TIMEOUT_MS,
                               TEXT("Port reset"))) {
-        ERROR(TEXT("[XHCI_ResetPort] Port %u reset timeout"), PortIndex + 1);
+        ERROR(TEXT("Port %u reset timeout"), PortIndex + 1);
         return FALSE;
     }
 
@@ -563,7 +563,7 @@ static BOOL XHCI_InitTransferRing(LPXHCI_USB_DEVICE UsbDevice) {
  */
 static BOOL XHCI_InitUsbDeviceState(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice) {
     if (XHCI_UsbTreeHasReferences(UsbDevice)) {
-        WARNING(TEXT("[XHCI_InitUsbDeviceState] Device still referenced, skipping reset"));
+        WARNING(TEXT("Device still referenced, skipping reset"));
         return FALSE;
     }
 
@@ -888,7 +888,7 @@ static BOOL XHCI_ProbePort(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U3
     XHCI_UpdateRootPortProbeState(UsbDevice, PortStatus);
 
     if (UsbDevice->DestroyPending && XHCI_UsbTreeHasReferences(UsbDevice)) {
-        WARNING(TEXT("[XHCI_ProbePort] Port %u still referenced, delaying re-enumeration"),
+        WARNING(TEXT("Port %u still referenced, delaying re-enumeration"),
                 PortIndex + 1);
         UsbDevice->LastEnumError = XHCI_ENUM_ERROR_BUSY;
         XHCI_LogProbeFailure(UsbDevice, TEXT("DestroyPending"), PortStatus);
@@ -944,7 +944,7 @@ static BOOL XHCI_ProbePort(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U3
     UsbDevice->SpeedId = (U8)SpeedId;
 
     if (UsbDevice->SpeedId == 0) {
-        WARNING(TEXT("[XHCI_ProbePort] Port %u invalid speed after reset"), PortIndex + 1);
+        WARNING(TEXT("Port %u invalid speed after reset"), PortIndex + 1);
         UsbDevice->LastEnumError = XHCI_ENUM_ERROR_INVALID_SPEED;
         if (XHCI_RecordRootPortProbeFailure(UsbDevice)) {
             XHCI_BlacklistRootPort(UsbDevice);
@@ -954,7 +954,7 @@ static BOOL XHCI_ProbePort(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U3
     }
 
     if (!XHCI_EnumerateDevice(Device, UsbDevice)) {
-        WARNING(TEXT("[XHCI_ProbePort] Port %u enumerate failed"), PortIndex + 1);
+        WARNING(TEXT("Port %u enumerate failed"), PortIndex + 1);
         if (XHCI_RecordRootPortProbeFailure(UsbDevice)) {
             XHCI_BlacklistRootPort(UsbDevice);
         }
@@ -966,7 +966,7 @@ static BOOL XHCI_ProbePort(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U3
 
     if (UsbDevice->IsHub) {
         if (!XHCI_InitHub(Device, UsbDevice)) {
-            WARNING(TEXT("[XHCI_ProbePort] Port %u hub init failed"), PortIndex + 1);
+            WARNING(TEXT("Port %u hub init failed"), PortIndex + 1);
             UsbDevice->LastEnumError = XHCI_ENUM_ERROR_HUB_INIT;
         }
     }

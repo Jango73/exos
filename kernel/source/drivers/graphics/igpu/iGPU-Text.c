@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ static void IntelGfxEnsureCursorDeferredRegistration(void) {
         DeferredWorkRegisterPollOnly(IntelGfxCursorDeferredPoll, NULL, TEXT("IntelGfxCursor"));
 
     if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) == FALSE) {
-        WARNING(TEXT("[IntelGfxEnsureCursorDeferredRegistration] DeferredWork registration failed"));
+        WARNING(TEXT("DeferredWork registration failed"));
     }
 }
 

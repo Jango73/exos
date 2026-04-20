@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ static void TestFileWriteAssert(BOOL Condition, LPTEST_RESULTS Results, LPCSTR L
     if (Condition) {
         Results->TestsPassed++;
     } else {
-        ERROR(TEXT("[TestFileWriteAllOrFail] Assertion failed: %s"), Label);
+        ERROR(TEXT("Assertion failed: %s"), Label);
     }
 }
 

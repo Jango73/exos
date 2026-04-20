@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) {
  */
 U64 ReadPageDirectoryEntryValue(const LPPAGE_DIRECTORY Directory, UINT Index) {
     if (Directory == NULL) {
-        ERROR(TEXT("[ReadPageDirectoryEntryValue] NULL directory pointer (Index=%u)"),
+        ERROR(TEXT("NULL directory pointer (Index=%u)"),
             Index);
         return 0;
     }
@@ -495,7 +495,7 @@ LINEAR AllocPageTable(LINEAR Base) {
     U64 Pml4EntryValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)Pml4, Pml4Index);
 
     if ((Pml4EntryValue & PAGE_FLAG_PRESENT) == 0) {
-        ERROR(TEXT("[AllocPageTable] Missing PML4 entry for base=%p"), Base);
+        ERROR(TEXT("Missing PML4 entry for base=%p"), Base);
         return NULL;
     }
 
@@ -508,14 +508,14 @@ LINEAR AllocPageTable(LINEAR Base) {
         DirectoryPhysical = AllocPhysicalPage();
 
         if (DirectoryPhysical == NULL) {
-            ERROR(TEXT("[AllocPageTable] Out of physical pages for directory"));
+            ERROR(TEXT("Out of physical pages for directory"));
             return NULL;
         }
 
         LPPAGE_DIRECTORY NewDirectory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage2(DirectoryPhysical);
         if (NewDirectory == NULL) {
             FreePhysicalPage(DirectoryPhysical);
-            ERROR(TEXT("[AllocPageTable] Failed to map new directory"));
+            ERROR(TEXT("Failed to map new directory"));
             return NULL;
         }
 
@@ -550,7 +550,7 @@ LINEAR AllocPageTable(LINEAR Base) {
     PMA_Table = AllocPhysicalPage();
 
     if (PMA_Table == NULL) {
-        ERROR(TEXT("[AllocPageTable] Out of physical pages"));
+        ERROR(TEXT("Out of physical pages"));
         return NULL;
     }
 
@@ -570,7 +570,7 @@ LINEAR AllocPageTable(LINEAR Base) {
     if (VMA_PT == NULL) {
         ClearPageDirectoryEntry(Directory, DirEntry);
         FreePhysicalPage(PMA_Table);
-        ERROR(TEXT("[AllocPageTable] Failed to map new page table"));
+        ERROR(TEXT("Failed to map new page table"));
         return NULL;
     }
 
@@ -735,12 +735,12 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     U64 Canonical = CanonicalizeLinearAddress(Address);
 
     if (Canonical != Address) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Non-canonical address %p"), (LPVOID)Address);
+        DEBUG(TEXT("Non-canonical address %p"), (LPVOID)Address);
         return FALSE;
     }
 
     if (Address < (U64)VMA_KERNEL) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Address %p below kernel VMA"), (LPVOID)Address);
+        DEBUG(TEXT("Address %p below kernel VMA"), (LPVOID)Address);
         return FALSE;
     }
 
@@ -750,7 +750,7 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     }
 
     if (KernelDirectoryPhysical == 0) {
-        DEBUG(TEXT("[ResolveKernelPageFault] No kernel directory available (Address=%p)"), (LPVOID)Address);
+        DEBUG(TEXT("No kernel directory available (Address=%p)"), (LPVOID)Address);
         return FALSE;
     }
 
@@ -766,14 +766,14 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
 
     LINEAR KernelPml4Linear = MapTemporaryPhysicalPage1(KernelDirectoryPhysical);
     if (KernelPml4Linear == 0) {
-        ERROR(TEXT("[ResolveKernelPageFault] Unable to map kernel PML4"));
+        ERROR(TEXT("Unable to map kernel PML4"));
         return FALSE;
     }
 
     LPPML4 KernelPml4 = (LPPML4)KernelPml4Linear;
     U64 KernelPml4Value = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)KernelPml4, Pml4Index);
     if ((KernelPml4Value & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Kernel PML4[%u] not present (Address=%p)"),
+        DEBUG(TEXT("Kernel PML4[%u] not present (Address=%p)"),
               Pml4Index,
               (LPVOID)Address);
         return FALSE;
@@ -793,14 +793,14 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     PHYSICAL KernelPdptPhysical = (PHYSICAL)(KernelPml4Value & PAGE_MASK);
     LINEAR KernelPdptLinear = MapTemporaryPhysicalPage2(KernelPdptPhysical);
     if (KernelPdptLinear == 0) {
-        ERROR(TEXT("[ResolveKernelPageFault] Unable to map kernel PDPT"));
+        ERROR(TEXT("Unable to map kernel PDPT"));
         return FALSE;
     }
 
     LPPDPT KernelPdpt = (LPPDPT)KernelPdptLinear;
     U64 KernelPdptValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)KernelPdpt, PdptIndex);
     if ((KernelPdptValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Kernel PDPT[%u] not present (Address=%p)"),
+        DEBUG(TEXT("Kernel PDPT[%u] not present (Address=%p)"),
               PdptIndex,
               (LPVOID)Address);
         return FALSE;
@@ -831,14 +831,14 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     KernelDirectoryPhysical = (PHYSICAL)(KernelPdptValue & PAGE_MASK);
     LINEAR KernelDirectoryLinear = MapTemporaryPhysicalPage3(KernelDirectoryPhysical);
     if (KernelDirectoryLinear == 0) {
-        ERROR(TEXT("[ResolveKernelPageFault] Unable to map kernel page directory"));
+        ERROR(TEXT("Unable to map kernel page directory"));
         return FALSE;
     }
 
     LPPAGE_DIRECTORY KernelDirectory = (LPPAGE_DIRECTORY)KernelDirectoryLinear;
     U64 KernelDirectoryValue = ReadPageDirectoryEntryValue(KernelDirectory, DirectoryIndex);
     if ((KernelDirectoryValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Kernel directory[%u] not present (Address=%p)"),
+        DEBUG(TEXT("Kernel directory[%u] not present (Address=%p)"),
               DirectoryIndex,
               (LPVOID)Address);
         return FALSE;
@@ -869,14 +869,14 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     PHYSICAL KernelTablePhysical = (PHYSICAL)(KernelDirectoryValue & PAGE_MASK);
     LINEAR KernelTableLinear = MapTemporaryPhysicalPage2(KernelTablePhysical);
     if (KernelTableLinear == 0) {
-        ERROR(TEXT("[ResolveKernelPageFault] Unable to map kernel page table"));
+        ERROR(TEXT("Unable to map kernel page table"));
         return FALSE;
     }
 
     LPPAGE_TABLE KernelTable = (LPPAGE_TABLE)KernelTableLinear;
     U64 KernelTableValue = ReadPageTableEntryValue(KernelTable, TableIndex);
     if ((KernelTableValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("[ResolveKernelPageFault] Kernel PTE[%u] not present (Address=%p)"),
+        DEBUG(TEXT("Kernel PTE[%u] not present (Address=%p)"),
               TableIndex,
               (LPVOID)Address);
         return FALSE;
@@ -899,7 +899,7 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
         InvalidatePage((LINEAR)Address);
     }
 
-    DEBUG(TEXT("[ResolveKernelPageFault] Mirrored kernel 4KB mapping for %p"), (LPVOID)Address);
+    DEBUG(TEXT("Mirrored kernel 4KB mapping for %p"), (LPVOID)Address);
     return TRUE;
 }
 

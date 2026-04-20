@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ void AdaptiveDelay_Initialize(LPADAPTIVE_DELAY_STATE State) {
         State->IsActive = FALSE;
 
         /*
-        DEBUG(TEXT("[AdaptiveDelay_Initialize] Initialized with MinDelay=%u MaxDelay=%u MaxAttempts=%u"),
+        DEBUG(TEXT("Initialized with MinDelay=%u MaxDelay=%u MaxAttempts=%u"),
               State->MinDelay, State->MaxDelay, State->MaxAttempts);
               */
     }
@@ -62,7 +62,7 @@ void AdaptiveDelay_Initialize(LPADAPTIVE_DELAY_STATE State) {
 void AdaptiveDelay_Reset(LPADAPTIVE_DELAY_STATE State) {
     SAFE_USE(State) {
         /*
-        DEBUG(TEXT("[AdaptiveDelay_Reset] Resetting state (was attempt %u, delay %u)"),
+        DEBUG(TEXT("Resetting state (was attempt %u, delay %u)"),
               State->AttemptCount, State->CurrentDelay);
               */
 
@@ -82,7 +82,7 @@ void AdaptiveDelay_Reset(LPADAPTIVE_DELAY_STATE State) {
 U32 AdaptiveDelay_GetNextDelay(LPADAPTIVE_DELAY_STATE State) {
     SAFE_USE(State) {
         if (State->AttemptCount >= State->MaxAttempts) {
-            DEBUG(TEXT("[AdaptiveDelay_GetNextDelay] Max attempts (%u) reached"), State->MaxAttempts);
+            DEBUG(TEXT("Max attempts (%u) reached"), State->MaxAttempts);
             return 0;
         }
 
@@ -98,7 +98,7 @@ U32 AdaptiveDelay_GetNextDelay(LPADAPTIVE_DELAY_STATE State) {
         State->CurrentDelay = NextDelay;
 
         /*
-        DEBUG(TEXT("[AdaptiveDelay_GetNextDelay] Attempt %u/%u, returning delay %u ticks, next will be %u"),
+        DEBUG(TEXT("Attempt %u/%u, returning delay %u ticks, next will be %u"),
               State->AttemptCount, State->MaxAttempts, DelayToReturn, State->CurrentDelay);
               */
 
@@ -116,13 +116,13 @@ U32 AdaptiveDelay_GetNextDelay(LPADAPTIVE_DELAY_STATE State) {
  * @return TRUE if more attempts are allowed, FALSE otherwise.
  */
 BOOL AdaptiveDelay_ShouldContinue(LPADAPTIVE_DELAY_STATE State) {
-    DEBUG(TEXT("[AdaptiveDelay_ShouldContinue] State = %x"), State);
+    DEBUG(TEXT("State = %x"), State);
 
     SAFE_USE(State) {
         BOOL ShouldContinue = (State->AttemptCount < State->MaxAttempts);
 
         /*
-        DEBUG(TEXT("[AdaptiveDelay_ShouldContinue] Attempt %u/%u, continue=%s"),
+        DEBUG(TEXT("Attempt %u/%u, continue=%s"),
               State->AttemptCount, State->MaxAttempts, ShouldContinue ? "YES" : "NO");
               */
 
@@ -140,7 +140,7 @@ BOOL AdaptiveDelay_ShouldContinue(LPADAPTIVE_DELAY_STATE State) {
  */
 void AdaptiveDelay_OnSuccess(LPADAPTIVE_DELAY_STATE State) {
     SAFE_USE(State) {
-        // DEBUG(TEXT("[AdaptiveDelay_OnSuccess] Success after %u attempts, resetting"), State->AttemptCount);
+        // DEBUG(TEXT("Success after %u attempts, resetting"), State->AttemptCount);
         AdaptiveDelay_Reset(State);
     }
 }
@@ -154,7 +154,7 @@ void AdaptiveDelay_OnSuccess(LPADAPTIVE_DELAY_STATE State) {
 void AdaptiveDelay_OnFailure(LPADAPTIVE_DELAY_STATE State) {
     SAFE_USE(State) {
         /*
-        DEBUG(TEXT("[AdaptiveDelay_OnFailure] Failure on attempt %u, current delay=%u next delay=%u"),
+        DEBUG(TEXT("Failure on attempt %u, current delay=%u next delay=%u"),
               State->AttemptCount, State->CurrentDelay / State->BackoffFactor, State->CurrentDelay);
               */
 

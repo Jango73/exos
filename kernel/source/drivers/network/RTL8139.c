@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -213,7 +213,7 @@ static U32 RTL8139AllocateBuffers(LPRTL8139_DEVICE Device) {
 
     if (Device->RxBuffer.LinearBase == 0) {
         if (!DMABufferAllocate(&Device->RxBuffer, RTL8139_RX_BUFFER_SIZE, TRUE, TEXT("RTL8139RxBuffer"))) {
-            ERROR(TEXT("[RTL8139AllocateBuffers] RX buffer allocation failed"));
+            ERROR(TEXT("RX buffer allocation failed"));
             return DF_RETURN_NO_MEMORY;
         }
     }
@@ -224,7 +224,7 @@ static U32 RTL8139AllocateBuffers(LPRTL8139_DEVICE Device) {
                 RTL8139_TX_SLOT_COUNT * RTL8139_TX_BUFFER_SIZE,
                 TRUE,
                 TEXT("RTL8139TxBufferPool"))) {
-            ERROR(TEXT("[RTL8139AllocateBuffers] TX buffer allocation failed"));
+            ERROR(TEXT("TX buffer allocation failed"));
             DMABufferRelease(&Device->RxBuffer);
             return DF_RETURN_NO_MEMORY;
         }
@@ -324,7 +324,7 @@ static LPPCI_DEVICE RTL8139Attach(LPPCI_DEVICE PciDevice) {
         RTL8139_INTERRUPT_RELEVANT_MASK,
         RTL8139_INTERRUPT_ACKNOWLEDGE_AFTER_POLL_MASK);
     if (Device->DeviceInfo == NULL) {
-        ERROR(TEXT("[RTL8139Attach] Missing hardware description for %x:%x"),
+        ERROR(TEXT("Missing hardware description for %x:%x"),
               (UINT)Device->Info.VendorID,
               (UINT)Device->Info.DeviceID);
         ReleaseKernelObject(Device);
@@ -352,7 +352,7 @@ static LPPCI_DEVICE RTL8139Attach(LPPCI_DEVICE PciDevice) {
     }
 
     Device->ProductName = Device->DeviceInfo->ProductName;
-    DEBUG(TEXT("[RTL8139Attach] Attached %s controller %x:%x on %x:%x.%x"),
+    DEBUG(TEXT("Attached %s controller %x:%x on %x:%x.%x"),
           Device->DeviceInfo->ProductName,
           (UINT)Device->Info.VendorID,
           (UINT)Device->Info.DeviceID,
@@ -413,7 +413,7 @@ static U32 RTL8139InitializeController(LPRTL8139_DEVICE Device) {
         RTL8139_REG_TXCONFIG,
         RTL8139_TXCONFIG_IFG_NORMAL | RTL8139_TXCONFIG_DMA_1024);
     RTL8139ReadPermanentMac(Device);
-    DEBUG(TEXT("[RTL8139InitializeController] Controller reset complete revision=%x"),
+    DEBUG(TEXT("Controller reset complete revision=%x"),
           Device->HardwareRevision);
     return DF_RETURN_SUCCESS;
 }
@@ -547,7 +547,7 @@ static U32 RTL8139InitializeRegisterAccess(LPRTL8139_DEVICE Device) {
     Device->HardwareRevision = RealtekNetworkReadRegister32(
         (LPREALTEK_NETWORK_COMMON_DEVICE)Device,
         RTL8139_REG_TXCONFIG);
-    DEBUG(TEXT("[RTL8139InitializeRegisterAccess] Revision=%x access=%u bar=%u"),
+    DEBUG(TEXT("Revision=%x access=%u bar=%u"),
           Device->HardwareRevision,
           (UINT)Device->RegisterAccessMode,
           (UINT)Device->RegisterBarIndex);
@@ -592,7 +592,7 @@ static U32 RTL8139PollReceive(LPRTL8139_DEVICE Device) {
         ReceiveLength = Header->ReceiveLength;
 
         if ((ReceiveStatus & RTL8139_RX_STATUS_OK) == 0 || ReceiveLength < 4 || ReceiveLength > RTL8139_RX_BUFFER_SIZE) {
-            WARNING(TEXT("[RTL8139PollReceive] Dropping invalid RX packet status=%x length=%u"),
+            WARNING(TEXT("Dropping invalid RX packet status=%x length=%u"),
                     ReceiveStatus,
                     (UINT)ReceiveLength);
             Device->RxReadOffset = 0;

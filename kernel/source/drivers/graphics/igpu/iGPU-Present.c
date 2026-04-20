@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ static BOOL IntelGfxEnsureShadowFrameBufferSize(UINT RequiredSize) {
                                                             ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
                                                             TEXT("IntelGfxShadowFrameBuffer"));
         if (IntelGfxState.ShadowFrameBufferLinear == 0) {
-            ERROR(TEXT("[IntelGfxEnsureShadowFrameBufferSize] AllocRegion failed size=%u"), RequiredSize);
+            ERROR(TEXT("AllocRegion failed size=%u"), RequiredSize);
             return FALSE;
         }
 
@@ -490,7 +490,7 @@ UINT IntelGfxSetScanout(LPGFX_SCANOUT_INFO Info) {
     }
 
     if (Surface->Width != IntelGfxState.ActiveWidth || Surface->Height != IntelGfxState.ActiveHeight) {
-        WARNING(TEXT("[IntelGfxSetScanout] Surface dimensions mismatch (%ux%u expected=%ux%u)"),
+        WARNING(TEXT("Surface dimensions mismatch (%ux%u expected=%ux%u)"),
             Surface->Width,
             Surface->Height,
             IntelGfxState.ActiveWidth,

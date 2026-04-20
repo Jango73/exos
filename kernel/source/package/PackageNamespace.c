@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ static BOOL PackageNamespaceEnsurePathsLoaded(void) {
     if (PackageNamespacePaths.Loaded) return TRUE;
 
     if (!PackageNamespaceLoadPaths()) {
-        ERROR(TEXT("[PackageNamespaceEnsurePathsLoaded] KernelPath resolution failed"));
+        ERROR(TEXT("KernelPath resolution failed"));
         return FALSE;
     }
 
@@ -139,7 +139,7 @@ static BOOL PackageNamespaceEnsureFolder(LPCSTR Path) {
 
     Result = GetSystemFS()->Driver->Command(DF_FS_CREATEFOLDER, (UINT)&Info);
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[PackageNamespaceEnsureFolder] Create folder failed path=%s status=%u"),
+        WARNING(TEXT("Create folder failed path=%s status=%u"),
             Path,
             Result);
         return FALSE;
@@ -222,7 +222,7 @@ static BOOL PackageNamespaceMountPath(LPFILESYSTEM FileSystem, LPCSTR Path, LPCS
 
     Result = GetSystemFS()->Driver->Command(DF_FS_MOUNTOBJECT, (UINT)&Control);
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[PackageNamespaceMountPath] Mount failed path=%s status=%u"), Path, Result);
+        WARNING(TEXT("Mount failed path=%s status=%u"), Path, Result);
         return FALSE;
     }
 
@@ -249,7 +249,7 @@ static BOOL PackageNamespaceUnmountPath(LPCSTR Path) {
 
     Result = GetSystemFS()->Driver->Command(DF_FS_UNMOUNTOBJECT, (UINT)&Control);
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[PackageNamespaceUnmountPath] Unmount failed path=%s status=%u"), Path, Result);
+        WARNING(TEXT("Unmount failed path=%s status=%u"), Path, Result);
         return FALSE;
     }
 
@@ -321,12 +321,12 @@ BOOL PackageNamespaceInitialize(void) {
     CurrentUser = GetCurrentUser();
     if (CurrentUser != NULL) {
         if (!PackageNamespaceBindCurrentUserAlias(CurrentUser->UserName)) {
-            WARNING(TEXT("[PackageNamespaceInitialize] Cannot bind current-user alias for %s"),
+            WARNING(TEXT("Cannot bind current-user alias for %s"),
                 CurrentUser->UserName);
         }
     } else {
         if (!PackageNamespaceBindCurrentUserAlias(KERNEL_PATH_DEFAULT_ROOT_USER_NAME)) {
-            WARNING(TEXT("[PackageNamespaceInitialize] Cannot bind current-user alias for %s"),
+            WARNING(TEXT("Cannot bind current-user alias for %s"),
                 KERNEL_PATH_DEFAULT_ROOT_USER_NAME);
         }
     }
@@ -363,7 +363,7 @@ BOOL PackageNamespaceBindCurrentProcessPackageView(LPFILESYSTEM PackageFileSyste
 
     ActiveFileSystem = PackageNamespaceGetActiveFileSystem();
     if (ActiveFileSystem == NULL) {
-        WARNING(TEXT("[PackageNamespaceBindCurrentProcessPackageView] No active filesystem for user-data alias"));
+        WARNING(TEXT("No active filesystem for user-data alias"));
         return TRUE;
     }
 
@@ -373,13 +373,13 @@ BOOL PackageNamespaceBindCurrentProcessPackageView(LPFILESYSTEM PackageFileSyste
     PackageNamespaceBuildChildPath(UserDataSourcePath, KERNEL_PATH_LEAF_PRIVATE_USER_DATA, UserDataSourcePath);
 
     if (!PackageNamespaceEnsureFolderChain(UserDataSourcePath)) {
-        WARNING(TEXT("[PackageNamespaceBindCurrentProcessPackageView] Cannot ensure user-data path=%s"),
+        WARNING(TEXT("Cannot ensure user-data path=%s"),
             UserDataSourcePath);
         return TRUE;
     }
 
     if (!PackageNamespaceMountPath(ActiveFileSystem, PackageNamespacePaths.PrivateUserDataAlias, UserDataSourcePath)) {
-        WARNING(TEXT("[PackageNamespaceBindCurrentProcessPackageView] Cannot mount user-data alias=%s source=%s"),
+        WARNING(TEXT("Cannot mount user-data alias=%s source=%s"),
             PackageNamespacePaths.PrivateUserDataAlias,
             UserDataSourcePath);
     }

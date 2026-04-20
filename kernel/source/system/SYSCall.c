@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -311,7 +311,7 @@ UINT SysCall_GetProcessInfo(UINT Parameter) {
     LPPROCESS Caller = GetCurrentProcess();
     LPPROCESS CurrentProcess;
 
-    DEBUG(TEXT("[SysCall_GetProcessInfo] Enter, Parameter=%x"), Parameter);
+    DEBUG(TEXT("Enter, Parameter=%x"), Parameter);
 
     SAFE_USE_INPUT_POINTER(Info, PROCESS_INFO) {
         CurrentProcess = Info->Process ? (LPPROCESS)HandleToPointer(Info->Process) : GetCurrentProcess();
@@ -321,9 +321,9 @@ UINT SysCall_GetProcessInfo(UINT Parameter) {
                 return DF_RETURN_GENERIC;
             }
 
-            DEBUG(TEXT("[SysCall_GetProcessInfo] Info->CommandLine = %s"), Info->CommandLine);
-            DEBUG(TEXT("[SysCall_GetProcessInfo] CurrentProcess=%p"), CurrentProcess);
-            DEBUG(TEXT("[SysCall_GetProcessInfo] CurrentProcess->CommandLine = %s"), CurrentProcess->CommandLine);
+            DEBUG(TEXT("Info->CommandLine = %s"), Info->CommandLine);
+            DEBUG(TEXT("CurrentProcess=%p"), CurrentProcess);
+            DEBUG(TEXT("CurrentProcess->CommandLine = %s"), CurrentProcess->CommandLine);
 
             // Copy the command line and work folder within buffer limits
             StringCopyLimit(Info->CommandLine, CurrentProcess->CommandLine, MAX_PATH_NAME);
@@ -433,7 +433,7 @@ UINT SysCall_CreateTask(UINT Parameter) {
  * @return UINT Non-zero on success, zero on failure.
  */
 UINT SysCall_KillTask(UINT Parameter) {
-    DEBUG(TEXT("[SysCall_KillTask] Enter, Parameter=%x"), Parameter);
+    DEBUG(TEXT("Enter, Parameter=%x"), Parameter);
 
     LPPROCESS Caller = GetCurrentProcess();
     LINEAR TaskPointer = Parameter ? HandleToPointer(Parameter) : (LINEAR)GetCurrentTask();
@@ -465,7 +465,7 @@ UINT SysCall_KillTask(UINT Parameter) {
  * @return UINT Result of KernelKillTask().
  */
 UINT SysCall_Exit(UINT Parameter) {
-    DEBUG(TEXT("[SysCall_Exit] Enter, Parameter=%x"), Parameter);
+    DEBUG(TEXT("Enter, Parameter=%x"), Parameter);
 
     LPTASK Task = GetCurrentTask();
     UINT ReturnValue = 0;
@@ -475,7 +475,7 @@ UINT SysCall_Exit(UINT Parameter) {
         ReturnValue = KernelKillTask(Task);
     }
 
-    DEBUG(TEXT("[SysCall_Exit] Exit"));
+    DEBUG(TEXT("Exit"));
 
     return ReturnValue;
 }

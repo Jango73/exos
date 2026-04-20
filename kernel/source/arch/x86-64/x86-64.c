@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -327,7 +327,7 @@ static void InitLegacySegmentDescriptor(LPSEGMENT_DESCRIPTOR This, BOOL Executab
  * @param Table Pointer to the descriptor table buffer.
  */
 void InitializeGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table) {
-    DEBUG(TEXT("[InitializeGlobalDescriptorTable] Enter"));
+    DEBUG(TEXT("Enter"));
 
     MemorySet(Table, 0, GDT_SIZE);
 
@@ -338,7 +338,7 @@ void InitializeGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table) {
     InitLegacySegmentDescriptor(&Table[5], TRUE);
     InitLegacySegmentDescriptor(&Table[6], FALSE);
 
-    DEBUG(TEXT("[InitializeGlobalDescriptorTable] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/
@@ -361,7 +361,7 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     LINEAR RSP, RBP;
     U64 CR4;
 
-    DEBUG(TEXT("[SetupTask] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (Process->Privilege == CPU_PRIVILEGE_USER) {
         BaseVMA = VMA_USER;
@@ -389,8 +389,8 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
         Task->Arch.Ist1Stack.Base = 0;
     }
 
-    DEBUG(TEXT("[SetupTask] BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
-    DEBUG(TEXT("[SetupTask] Actually got StackBase=%p"), Task->Arch.Stack.Base);
+    DEBUG(TEXT("BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
+    DEBUG(TEXT("Actually got StackBase=%p"), Task->Arch.Stack.Base);
 
     if (Task->Arch.Stack.Base == NULL || Task->Arch.SystemStack.Base == NULL || Task->Arch.Ist1Stack.Base == NULL) {
         if (Task->Arch.Stack.Base != NULL) {
@@ -411,14 +411,14 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
             Task->Arch.Ist1Stack.Size = 0;
         }
 
-        ERROR(TEXT("[SetupTask] Stack or system stack allocation failed"));
+        ERROR(TEXT("Stack or system stack allocation failed"));
         return FALSE;
     }
 
-    DEBUG(TEXT("[SetupTask] Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
-    DEBUG(TEXT("[SetupTask] System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
+    DEBUG(TEXT("Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
+    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
         Task->Arch.SystemStack.Base);
-    DEBUG(TEXT("[SetupTask] IST1 stack (%u bytes) allocated at %p"), Task->Arch.Ist1Stack.Size,
+    DEBUG(TEXT("IST1 stack (%u bytes) allocated at %p"), Task->Arch.Ist1Stack.Size,
         Task->Arch.Ist1Stack.Base);
 
     MemorySet((LPVOID)(Task->Arch.Stack.Base), 0, Task->Arch.Stack.Size);
@@ -457,12 +457,12 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     SysStackTop = Task->Arch.SystemStack.Base + Task->Arch.SystemStack.Size;
 
     if (Process->Privilege == CPU_PRIVILEGE_KERNEL) {
-        DEBUG(TEXT("[SetupTask] Setting kernel privilege (ring 0)"));
+        DEBUG(TEXT("Setting kernel privilege (ring 0)"));
         Task->Arch.Context.Registers.RIP = (LINEAR)TaskRunner;
         Task->Arch.Context.Registers.RSP = StackTop - STACK_SAFETY_MARGIN;
         Task->Arch.Context.Registers.RBP = StackTop - STACK_SAFETY_MARGIN;
     } else {
-        DEBUG(TEXT("[SetupTask] Setting user privilege (ring 3)"));
+        DEBUG(TEXT("Setting user privilege (ring 3)"));
         Task->Arch.Context.Registers.RIP = VMA_TASK_RUNNER;
         Task->Arch.Context.Registers.RSP = SysStackTop - STACK_SAFETY_MARGIN;
         Task->Arch.Context.Registers.RBP = SysStackTop - STACK_SAFETY_MARGIN;
@@ -479,22 +479,22 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
         GetESP(RSP);
         UINT StackUsed = (BootStackTop - RSP) + 256;
 
-        DEBUG(TEXT("[SetupTask] BootStackTop = %p"), BootStackTop);
-        DEBUG(TEXT("[SetupTask] StackTop = %p"), StackTop);
-        DEBUG(TEXT("[SetupTask] StackUsed = %u"), StackUsed);
-        DEBUG(TEXT("[SetupTask] Switching to new stack..."));
+        DEBUG(TEXT("BootStackTop = %p"), BootStackTop);
+        DEBUG(TEXT("StackTop = %p"), StackTop);
+        DEBUG(TEXT("StackUsed = %u"), StackUsed);
+        DEBUG(TEXT("Switching to new stack..."));
 
         if (SwitchStack(StackTop, BootStackTop, StackUsed) == TRUE) {
             Task->Arch.Context.Registers.RSP = 0;
             GetEBP(RBP);
             Task->Arch.Context.Registers.RBP = RBP;
-            DEBUG(TEXT("[SetupTask] Main task stack switched successfully"));
+            DEBUG(TEXT("Main task stack switched successfully"));
         } else {
-            ERROR(TEXT("[SetupTask] Stack switch failed"));
+            ERROR(TEXT("Stack switch failed"));
         }
     }
 
-    DEBUG(TEXT("[SetupTask] Exit"));
+    DEBUG(TEXT("Exit"));
     return TRUE;
 }
 
@@ -507,14 +507,14 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
  */
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask) {
     SAFE_USE(NextTask) {
-        FINE_DEBUG(TEXT("[PrepareNextTaskSwitch] CurrentTask = %p (%s), NextTask = %p (%s)"),
+        FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
             CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
 
         LINEAR NextSysStackTop = NextTask->Arch.SystemStack.Base + NextTask->Arch.SystemStack.Size;
         LINEAR NextIst1StackTop = NextTask->Arch.Ist1Stack.Base + NextTask->Arch.Ist1Stack.Size;
 
-        FINE_DEBUG(TEXT("[PrepareNextTaskSwitch] NextSysStackTop = %p"), NextSysStackTop);
-        FINE_DEBUG(TEXT("[PrepareNextTaskSwitch] NextIst1StackTop = %p"), NextIst1StackTop);
+        FINE_DEBUG(TEXT("NextSysStackTop = %p"), NextSysStackTop);
+        FINE_DEBUG(TEXT("NextIst1StackTop = %p"), NextIst1StackTop);
 
         Kernel_x86_32.TSS->RSP0 = NextSysStackTop - STACK_SAFETY_MARGIN;
         Kernel_x86_32.TSS->IST1 = NextIst1StackTop - STACK_SAFETY_MARGIN;
@@ -597,7 +597,7 @@ void PreInitializeKernel(void) {
     KernelStartup.IRQMask_21_RM = 0;
     KernelStartup.IRQMask_A1_RM = 0;
 
-    DEBUG(TEXT("[PreInitializeKernel] CR0 : CR0_COPROCESSOR on and CR0_EMULATION off"));
+    DEBUG(TEXT("CR0 : CR0_COPROCESSOR on and CR0_EMULATION off"));
 
     __asm__ volatile("mov %%cr0, %0" : "=r"(Cr0));
     Cr0 |= (U64)(CR0_COPROCESSOR | CR0_NUMERIC_ERROR);
@@ -605,7 +605,7 @@ void PreInitializeKernel(void) {
     __asm__ volatile("mov %0, %%cr0" : : "r"(Cr0));
 
 
-    DEBUG(TEXT("[PreInitializeKernel] CR4 : CR4_OSFXSR and CR4_OSXMMEXCPT on"));
+    DEBUG(TEXT("CR4 : CR4_OSFXSR and CR4_OSXMMEXCPT on"));
 
     __asm__ volatile("mov %%cr4, %0" : "=r"(Cr4));
     Cr4 |= (U64)(CR4_OSFXSR | CR4_OSXMMEXCPT);
@@ -667,7 +667,7 @@ void DebugLogSyscallFrame(LINEAR SaveArea, UINT FunctionId) {
     UNUSED(FunctionId);
 
     if (SaveArea == (LINEAR)0) {
-        DEBUG(TEXT("[DebugLogSyscallFrame] SaveArea missing for Function=%u"), FunctionId);
+        DEBUG(TEXT("SaveArea missing for Function=%u"), FunctionId);
         return;
     }
 
@@ -679,7 +679,7 @@ void DebugLogSyscallFrame(LINEAR SaveArea, UINT FunctionId) {
     UNUSED(SavedRbxValue);
     UNUSED(ReturnAddress);
 
-    DEBUG(TEXT("[DebugLogSyscallFrame] Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"),
+    DEBUG(TEXT("Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"),
           FunctionId, (LPVOID)SaveArea, (LPVOID)StackPointer, (LPVOID)SavedRbxValue, (LPVOID)ReturnAddress);
 }
 

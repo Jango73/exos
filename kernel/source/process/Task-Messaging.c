@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -190,7 +190,7 @@ BOOL EnsureTaskMessageQueue(LPTASK Task, BOOL CreateIfMissing) {
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
         if (Task->MessageQueue.MessageBuffer.Entries == NULL ||
             Task->MessageQueue.MessageBuffer.Capacity == 0) {
-            ERROR(TEXT("[EnsureTaskMessageQueue] Task %p has no message buffer"), Task);
+            ERROR(TEXT("Task %p has no message buffer"), Task);
             return FALSE;
         }
 
@@ -216,7 +216,7 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
                                                                    ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
                                                                    TEXT("ProcessMessageBuffer"));
             if (MessageBufferBase == 0) {
-                ERROR(TEXT("[EnsureProcessMessageQueue] Failed to allocate queue for process %p"), Process);
+                ERROR(TEXT("Failed to allocate queue for process %p"), Process);
                 return FALSE;
             }
 
@@ -290,7 +290,7 @@ BOOL KernelPeekMessage(LPMESSAGE_INFO Message) {
 
     Task = GetCurrentTask();
     SAFE_USE_VALID_ID(Task, KOID_TASK) { TaskProcessPtr = Task->OwnerProcess; }
-    DEBUG(TEXT("[KernelPeekMessage] Task=%p Process=%p FocusedProcess=%p"), Task, TaskProcessPtr, GetFocusedProcess());
+    DEBUG(TEXT("Task=%p Process=%p FocusedProcess=%p"), Task, TaskProcessPtr, GetFocusedProcess());
 
     Process = TaskProcessPtr;
 
@@ -435,14 +435,14 @@ static BOOL AddTaskMessage(LPTASK Task, LPMESSAGE Message) {
     LockMutex(&(Task->MessageQueue.Mutex), INFINITY);
 
     if (MessageQueueBufferGetCount(&(Task->MessageQueue.MessageBuffer)) >= TASK_MESSAGE_QUEUE_MAX_MESSAGES) {
-        WARNING(TEXT("[AddTaskMessage] Queue full for task %p, dropping message %u"), Task, Message->Message);
+        WARNING(TEXT("Queue full for task %p, dropping message %u"), Task, Message->Message);
         UnlockMutex(&(Task->MessageQueue.Mutex));
         UnlockMutex(&(Task->Mutex));
         return FALSE;
     }
 
     if (MessageQueueBufferPush(&(Task->MessageQueue.MessageBuffer), Message) == FALSE) {
-        WARNING(TEXT("[AddTaskMessage] Could not enqueue message %u for task %p"), Message->Message, Task);
+        WARNING(TEXT("Could not enqueue message %u for task %p"), Message->Message, Task);
         UnlockMutex(&(Task->MessageQueue.Mutex));
         UnlockMutex(&(Task->Mutex));
         return FALSE;
@@ -478,14 +478,14 @@ static BOOL AddProcessMessage(LPPROCESS Process, LPMESSAGE Message) {
     LockMutex(&(Process->MessageQueue.Mutex), INFINITY);
 
     if (MessageQueueBufferGetCount(&(Process->MessageQueue.MessageBuffer)) >= TASK_MESSAGE_QUEUE_MAX_MESSAGES) {
-        WARNING(TEXT("[AddProcessMessage] Queue full for process %p, dropping message %u"), Process, Message->Message);
+        WARNING(TEXT("Queue full for process %p, dropping message %u"), Process, Message->Message);
         UnlockMutex(&(Process->MessageQueue.Mutex));
         UnlockMutex(&(Process->Mutex));
         return FALSE;
     }
 
     if (MessageQueueBufferPush(&(Process->MessageQueue.MessageBuffer), Message) == FALSE) {
-        WARNING(TEXT("[AddProcessMessage] Could not enqueue message %u for process %p"), Message->Message, Process);
+        WARNING(TEXT("Could not enqueue message %u for process %p"), Message->Message, Process);
         UnlockMutex(&(Process->MessageQueue.Mutex));
         UnlockMutex(&(Process->Mutex));
         return FALSE;

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -356,12 +356,12 @@ static U32 PackageManifestParseCommands(LPTOML Toml, LPPACKAGE_MANIFEST OutManif
         }
 
         if (!PackageManifestIsValidCommandName(CommandName)) {
-            ERROR(TEXT("[PackageManifestParseCommands] Invalid command name=%s"), CommandName);
+            ERROR(TEXT("Invalid command name=%s"), CommandName);
             return PACKAGE_MANIFEST_STATUS_INVALID_COMMAND_MAP;
         }
 
         if (!PackageManifestIsValidPackageRelativePath(Item->Value)) {
-            ERROR(TEXT("[PackageManifestParseCommands] Invalid command target name=%s target=%s"),
+            ERROR(TEXT("Invalid command target name=%s target=%s"),
                 CommandName,
                 Item->Value);
             return PACKAGE_MANIFEST_STATUS_INVALID_COMMAND_MAP;
@@ -369,7 +369,7 @@ static U32 PackageManifestParseCommands(LPTOML Toml, LPPACKAGE_MANIFEST OutManif
 
         for (ExistingIndex = 0; ExistingIndex < CommandIndex; ExistingIndex++) {
             if (StringCompare(OutManifest->Commands[ExistingIndex].Name, CommandName) == 0) {
-                ERROR(TEXT("[PackageManifestParseCommands] Duplicate command name=%s"), CommandName);
+                ERROR(TEXT("Duplicate command name=%s"), CommandName);
                 return PACKAGE_MANIFEST_STATUS_DUPLICATE_COMMAND_NAME;
             }
         }
@@ -449,7 +449,7 @@ U32 PackageManifestParseText(LPCSTR ManifestText, LPPACKAGE_MANIFEST OutManifest
     }
 
     if (!PackageManifestIsValidPackageRelativePath(Entry)) {
-        ERROR(TEXT("[PackageManifestParseText] Invalid entry path=%s"), Entry);
+        ERROR(TEXT("Invalid entry path=%s"), Entry);
         TomlFree(Toml);
         return PACKAGE_MANIFEST_STATUS_INVALID_ENTRY_PATH;
     }
@@ -548,30 +548,30 @@ U32 PackageManifestCheckCompatibility(const PACKAGE_MANIFEST* Manifest) {
     U32 CurrentMinor = EXOS_VERSION_MINOR;
 
     if (Manifest == NULL) {
-        ERROR(TEXT("[PackageManifestCheckCompatibility] Invalid argument"));
+        ERROR(TEXT("Invalid argument"));
         return PACKAGE_MANIFEST_STATUS_INVALID_ARGUMENT;
     }
 
     if (!PackageManifestIsSupportedManifestArch(Manifest->Arch)) {
-        ERROR(TEXT("[PackageManifestCheckCompatibility] Invalid arch value=%s"), Manifest->Arch);
+        ERROR(TEXT("Invalid arch value=%s"), Manifest->Arch);
         return PACKAGE_MANIFEST_STATUS_INVALID_ARCH;
     }
 
     CurrentArchitecture = PackageManifestGetCurrentArchitecture();
     if (StringCompare(Manifest->Arch, CurrentArchitecture) != 0) {
-        ERROR(TEXT("[PackageManifestCheckCompatibility] Incompatible arch required=%s current=%s"),
+        ERROR(TEXT("Incompatible arch required=%s current=%s"),
             Manifest->Arch,
             CurrentArchitecture);
         return PACKAGE_MANIFEST_STATUS_INCOMPATIBLE_ARCH;
     }
 
     if (!PackageManifestParseVersionMajorMinor(Manifest->KernelApi, &RequiredMajor, &RequiredMinor)) {
-        ERROR(TEXT("[PackageManifestCheckCompatibility] Invalid kernel_api value=%s"), Manifest->KernelApi);
+        ERROR(TEXT("Invalid kernel_api value=%s"), Manifest->KernelApi);
         return PACKAGE_MANIFEST_STATUS_INVALID_KERNEL_API;
     }
 
     if (RequiredMajor != CurrentMajor || RequiredMinor > CurrentMinor) {
-        ERROR(TEXT("[PackageManifestCheckCompatibility] Incompatible kernel_api required=%u.%u current=%u.%u"),
+        ERROR(TEXT("Incompatible kernel_api required=%u.%u current=%u.%u"),
             RequiredMajor,
             RequiredMinor,
             CurrentMajor,

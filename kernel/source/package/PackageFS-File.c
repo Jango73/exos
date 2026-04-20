@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -356,7 +356,7 @@ static U32 PackageFSReadUncompressedBlock(LPPACKAGEFSFILESYSTEM FileSystem,
     CompressedOffset = U64_Low32(Block->CompressedOffset);
     CompressedEnd = CompressedOffset + Block->CompressedSize;
     if (CompressedEnd < CompressedOffset || CompressedEnd > FileSystem->PackageSize) {
-        ERROR(TEXT("[PackageFSReadUncompressedBlock] Invalid block bounds index=%u"), BlockIndex);
+        ERROR(TEXT("Invalid block bounds index=%u"), BlockIndex);
         return DF_RETURN_GENERIC;
     }
 
@@ -364,7 +364,7 @@ static U32 PackageFSReadUncompressedBlock(LPPACKAGEFSFILESYSTEM FileSystem,
 
     if (Block->CompressionMethod == EPK_COMPRESSION_METHOD_NONE) {
         if (Block->CompressedSize != Block->UncompressedSize) {
-            ERROR(TEXT("[PackageFSReadUncompressedBlock] Raw block size mismatch index=%u"), BlockIndex);
+            ERROR(TEXT("Raw block size mismatch index=%u"), BlockIndex);
             return DF_RETURN_GENERIC;
         }
         MemoryCopy(Destination, Source, DestinationSize);
@@ -378,7 +378,7 @@ static U32 PackageFSReadUncompressedBlock(LPPACKAGEFSFILESYSTEM FileSystem,
                               COMPRESSION_FORMAT_ZLIB);
 
         if (InflateStatus != COMPRESSION_STATUS_OK || DecodedSize != DestinationSize) {
-            ERROR(TEXT("[PackageFSReadUncompressedBlock] Inflate failed index=%u status=%u decoded=%u expected=%u"),
+            ERROR(TEXT("Inflate failed index=%u status=%u decoded=%u expected=%u"),
                   BlockIndex,
                   InflateStatus,
                   DecodedSize,
@@ -386,7 +386,7 @@ static U32 PackageFSReadUncompressedBlock(LPPACKAGEFSFILESYSTEM FileSystem,
             return DF_RETURN_GENERIC;
         }
     } else {
-        ERROR(TEXT("[PackageFSReadUncompressedBlock] Unsupported compression method=%u index=%u"),
+        ERROR(TEXT("Unsupported compression method=%u index=%u"),
               Block->CompressionMethod,
               BlockIndex);
         return DF_RETURN_GENERIC;
@@ -394,7 +394,7 @@ static U32 PackageFSReadUncompressedBlock(LPPACKAGEFSFILESYSTEM FileSystem,
 
     SHA256(Destination, DestinationSize, Digest);
     if (MemoryCompare(Digest, Block->ChunkHash, EPK_HASH_SIZE) != 0) {
-        ERROR(TEXT("[PackageFSReadUncompressedBlock] Block hash mismatch index=%u"), BlockIndex);
+        ERROR(TEXT("Block hash mismatch index=%u"), BlockIndex);
         return DF_RETURN_GENERIC;
     }
 
@@ -460,7 +460,7 @@ static U32 PackageFSReadBlockBackedFile(LPPACKAGEFSFILE File,
         U32 LoadStatus;
 
         if (BlockEnd < BlockStart || BlockEnd > FileSize) {
-            ERROR(TEXT("[PackageFSReadBlockBackedFile] Invalid block coverage block=%u start=%u end=%u file=%u"),
+            ERROR(TEXT("Invalid block coverage block=%u start=%u end=%u file=%u"),
                   AbsoluteBlockIndex,
                   BlockStart,
                   BlockEnd,
@@ -492,7 +492,7 @@ static U32 PackageFSReadBlockBackedFile(LPPACKAGEFSFILE File,
             }
 
             if (!ChunkCacheStore(&FileSystem->ChunkCache, FileSystem, CacheKey, BlockBuffer, BlockSize)) {
-                WARNING(TEXT("[PackageFSReadBlockBackedFile] Chunk cache store failed block=%u"), AbsoluteBlockIndex);
+                WARNING(TEXT("Chunk cache store failed block=%u"), AbsoluteBlockIndex);
             }
         }
 

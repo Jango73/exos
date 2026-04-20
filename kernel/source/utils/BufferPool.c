@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ void BufferPoolRelease(LPBUFFER_POOL Pool, LPVOID Buffer) {
     UnlockMutex(&Pool->Mutex);
 
     if (!Released) {
-        ERROR(TEXT("[BufferPoolRelease] Failed to release buffer %p"), Buffer);
+        ERROR(TEXT("Failed to release buffer %p"), Buffer);
     }
 }
 

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ static BOOL GrowDescriptorSlab(void) {
     PHYSICAL Physical = AllocPhysicalPage();
 
     if (Physical == NULL) {
-        ERROR(TEXT("[EnsureDescriptorSlab] No physical page available"));
+        ERROR(TEXT("No physical page available"));
         return FALSE;
     }
 
@@ -63,7 +63,7 @@ static BOOL GrowDescriptorSlab(void) {
     G_RegionDescriptorBootstrap = FALSE;
 
     if (Linear == NULL) {
-        ERROR(TEXT("[EnsureDescriptorSlab] Failed to map descriptor slab"));
+        ERROR(TEXT("Failed to map descriptor slab"));
         FreePhysicalPage(Physical);
         return FALSE;
     }
@@ -338,7 +338,7 @@ BOOL RegisterRegionDescriptor(LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List,
     LPMEMORY_REGION_DESCRIPTOR Descriptor = AcquireRegionDescriptor();
 
     if (Descriptor == NULL) {
-        ERROR(TEXT("[RegisterRegionDescriptor] Descriptor pool exhausted (base=%p sizePages=%u)"),
+        ERROR(TEXT("Descriptor pool exhausted (base=%p sizePages=%u)"),
             (LPVOID)Base,
             NumPages);
         return FALSE;
@@ -396,7 +396,7 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
     while (RemainingBytes != 0) {
         LPMEMORY_REGION_DESCRIPTOR Descriptor = FindDescriptorCoveringAddress(List, Cursor);
         if (Descriptor == NULL) {
-            WARNING(TEXT("[UpdateDescriptorsForFree] Missing descriptor for base=%p size=%u"),
+            WARNING(TEXT("Missing descriptor for base=%p size=%u"),
                 (LPVOID)Cursor,
                 RemainingBytes);
             break;
@@ -454,7 +454,7 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
             LPMEMORY_REGION_DESCRIPTOR Right = AcquireRegionDescriptor();
 
             if (Right == NULL) {
-                ERROR(TEXT("[UpdateDescriptorsForFree] Unable to split descriptor at %p"),
+                ERROR(TEXT("Unable to split descriptor at %p"),
                     (LPVOID)FreeStart);
                 ConsolePanic(TEXT("Descriptor split allocation failed"));
             }
@@ -519,12 +519,12 @@ void InitializeRegionDescriptorTracking(void) {
 
 
     if (EnsureDescriptorSlab() == FALSE) {
-        ERROR(TEXT("[InitializeRegionDescriptorTracking] Initial slab allocation failed"));
+        ERROR(TEXT("Initial slab allocation failed"));
         return;
     }
     G_RegionDescriptorsEnabled = TRUE;
 
-    DEBUG(TEXT("[InitializeRegionDescriptorTracking] Enabled (free=%u total=%u)"),
+    DEBUG(TEXT("Enabled (free=%u total=%u)"),
         G_FreeRegionDescriptorCount,
         G_TotalRegionDescriptorCount);
 }

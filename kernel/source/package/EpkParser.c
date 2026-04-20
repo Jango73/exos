@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -665,12 +665,12 @@ U32 EpkValidatePackageBuffer(const void* PackageBytes,
     const U8* Bytes = (const U8*)PackageBytes;
 
     if (PackageBytes == NULL || OutPackage == NULL) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Invalid argument"));
+        ERROR(TEXT("Invalid argument"));
         return EPK_VALIDATION_INVALID_ARGUMENT;
     }
 
     if (PackageSize < EPK_HEADER_SIZE) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Package too small size=%u"), PackageSize);
+        ERROR(TEXT("Package too small size=%u"), PackageSize);
         return EPK_VALIDATION_INVALID_HEADER_SIZE;
     }
 
@@ -686,35 +686,35 @@ U32 EpkValidatePackageBuffer(const void* PackageBytes,
     MemoryCopy(&Header, Bytes, sizeof(EPK_HEADER));
 
     if (Header.Magic != EPK_MAGIC) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Invalid magic=%x"), Header.Magic);
+        ERROR(TEXT("Invalid magic=%x"), Header.Magic);
         return EPK_VALIDATION_INVALID_MAGIC;
     }
 
     if (Header.Version != EPK_VERSION_1_0) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Unsupported version=%x"), Header.Version);
+        ERROR(TEXT("Unsupported version=%x"), Header.Version);
         return EPK_VALIDATION_UNSUPPORTED_VERSION;
     }
 
     if ((Header.Flags & ~EPK_HEADER_FLAG_MASK_KNOWN) != 0) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Unsupported header flags=%x"), Header.Flags);
+        ERROR(TEXT("Unsupported header flags=%x"), Header.Flags);
         return EPK_VALIDATION_UNSUPPORTED_FLAGS;
     }
 
     if (Header.HeaderSize != EPK_HEADER_SIZE) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Invalid header size=%u"), Header.HeaderSize);
+        ERROR(TEXT("Invalid header size=%u"), Header.HeaderSize);
         return EPK_VALIDATION_INVALID_HEADER_SIZE;
     }
 
     static const U8 ZeroReserved[16] = {0};
 
     if (MemoryCompare(Header.Reserved, ZeroReserved, 16) != 0) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Reserved header bytes are not zero"));
+        ERROR(TEXT("Reserved header bytes are not zero"));
         return EPK_VALIDATION_INVALID_ENTRY_FORMAT;
     }
 
     Status = EpkValidateSections(&Header, &Sections, PackageSize);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Section validation failed status=%u"), Status);
+        ERROR(TEXT("Section validation failed status=%u"), Status);
         return Status;
     }
 
@@ -732,35 +732,35 @@ U32 EpkValidatePackageBuffer(const void* PackageBytes,
 
     Status = EpkParseToc(Bytes, &Sections, OutPackage);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] TOC parse failed status=%u"), Status);
+        ERROR(TEXT("TOC parse failed status=%u"), Status);
         EpkReleaseValidatedPackage(OutPackage);
         return Status;
     }
 
     Status = EpkParseBlockTable(Bytes, PackageSize, &Sections, OutPackage);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Block table parse failed status=%u"), Status);
+        ERROR(TEXT("Block table parse failed status=%u"), Status);
         EpkReleaseValidatedPackage(OutPackage);
         return Status;
     }
 
     Status = EpkValidateTocBlockRanges(OutPackage);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] TOC block range validation failed status=%u"), Status);
+        ERROR(TEXT("TOC block range validation failed status=%u"), Status);
         EpkReleaseValidatedPackage(OutPackage);
         return Status;
     }
 
     Status = EpkValidateTocInlineRanges(OutPackage);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] TOC inline range validation failed status=%u"), Status);
+        ERROR(TEXT("TOC inline range validation failed status=%u"), Status);
         EpkReleaseValidatedPackage(OutPackage);
         return Status;
     }
 
     Status = EpkValidateSecurity(OutPackage, &EffectiveOptions);
     if (Status != EPK_VALIDATION_OK) {
-        ERROR(TEXT("[EpkValidatePackageBuffer] Security validation failed status=%u"), Status);
+        ERROR(TEXT("Security validation failed status=%u"), Status);
         EpkReleaseValidatedPackage(OutPackage);
         return Status;
     }

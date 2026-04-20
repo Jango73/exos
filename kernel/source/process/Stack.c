@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -206,14 +206,14 @@ BOOL SwitchStack(LINEAR DestStackTop, LINEAR SourceStackTop, UINT Size) {
     GetESP(CurrentSP);
     GetEBP(CurrentBP);
 
-    DEBUG(TEXT("[SwitchStack] Current ESP=%p, EBP=%p at switch time"), CurrentSP, CurrentBP);
+    DEBUG(TEXT("Current ESP=%p, EBP=%p at switch time"), CurrentSP, CurrentBP);
 
     // Check if we're within the source stack range
     if (CurrentSP >= SourceStackStart && CurrentSP < SourceStackTop) {
         LINEAR NewSP = CurrentSP + Delta;
         LINEAR NewBP = CurrentBP + Delta;
 
-        DEBUG(TEXT("[SwitchStack] Switching SP %p -> %p, BP %p -> %p"), CurrentSP, NewSP, CurrentBP, NewBP);
+        DEBUG(TEXT("Switching SP %p -> %p, BP %p -> %p"), CurrentSP, NewSP, CurrentBP, NewBP);
 
         // Switch SP and BP
 #if defined(__EXOS_ARCH_X86_32__)
@@ -235,7 +235,7 @@ BOOL SwitchStack(LINEAR DestStackTop, LINEAR SourceStackTop, UINT Size) {
         return TRUE;
     }
 
-    DEBUG(TEXT("[SwitchStack] SP %p not in source stack range [%p-%p]"), CurrentSP, SourceStackStart,
+    DEBUG(TEXT("SP %p not in source stack range [%p-%p]"), CurrentSP, SourceStackStart,
         SourceStackTop);
 
     return FALSE;
@@ -287,8 +287,8 @@ BOOL CheckStack(void) {
         // We cannot reliably validate the current ESP since it might be on a different kernel stack
         // Instead, we just verify the task has a valid system stack allocated
         if (CurrentTask->Arch.SystemStack.Base == 0 || CurrentTask->Arch.SystemStack.Size == 0) {
-            ERROR(TEXT("[CheckStack] User task in kernel mode without system stack!"));
-            ERROR(TEXT("[CheckStack] Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
+            ERROR(TEXT("User task in kernel mode without system stack!"));
+            ERROR(TEXT("Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
             return FALSE;
         }
         // For userland tasks in kernel mode, skip ESP validation as the current ESP
@@ -302,32 +302,32 @@ BOOL CheckStack(void) {
     }
 
     if (CurrentESP < StackBase || CurrentESP > StackTop) {
-        ERROR(TEXT("[CheckStack] ESP OUTSIDE STACK BOUNDS!"));
-        ERROR(TEXT("[CheckStack] Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
-        ERROR(TEXT("[CheckStack] ESP: %x"), CurrentESP);
-        ERROR(TEXT("[CheckStack] StackBase: %x"), StackBase);
-        ERROR(TEXT("[CheckStack] StackTop: %x"), StackTop);
-        ERROR(TEXT("[CheckStack] InKernelMode: %u"), InKernelMode ? 1 : 0);
+        ERROR(TEXT("ESP OUTSIDE STACK BOUNDS!"));
+        ERROR(TEXT("Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
+        ERROR(TEXT("ESP: %x"), CurrentESP);
+        ERROR(TEXT("StackBase: %x"), StackBase);
+        ERROR(TEXT("StackTop: %x"), StackTop);
+        ERROR(TEXT("InKernelMode: %u"), InKernelMode ? 1 : 0);
 
         if (CurrentESP < StackBase) {
-            ERROR(TEXT("[CheckStack] ESP is %u bytes below stack base (severe underflow)"),
+            ERROR(TEXT("ESP is %u bytes below stack base (severe underflow)"),
                 StackBase - CurrentESP);
         } else {
-            ERROR(TEXT("[CheckStack] ESP is %u bytes above stack top (overflow)"), CurrentESP - StackTop);
+            ERROR(TEXT("ESP is %u bytes above stack top (overflow)"), CurrentESP - StackTop);
         }
 
         return FALSE;
     }
 
     if (CurrentESP <= (StackBase + STACK_SAFETY_MARGIN)) {
-        ERROR(TEXT("[CheckStack] STACK OVERFLOW DETECTED!"));
-        ERROR(TEXT("[CheckStack] Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
-        ERROR(TEXT("[CheckStack] Func: %x"), CurrentTask ? CurrentTask->Function : 0);
-        ERROR(TEXT("[CheckStack] ESP: %x"), CurrentESP);
-        ERROR(TEXT("[CheckStack] StackBase: %x"), StackBase);
-        ERROR(TEXT("[CheckStack] StackTop: %x"), StackTop);
-        ERROR(TEXT("[CheckStack] InKernelMode: %u"), InKernelMode ? 1 : 0);
-        ERROR(TEXT("[CheckStack] Safety margin violated by %u bytes"), (StackBase + STACK_SAFETY_MARGIN) - CurrentESP);
+        ERROR(TEXT("STACK OVERFLOW DETECTED!"));
+        ERROR(TEXT("Task: %x (%s @ %s)"), CurrentTask, CurrentTask->Name, CurrentTask->OwnerProcess->FileName);
+        ERROR(TEXT("Func: %x"), CurrentTask ? CurrentTask->Function : 0);
+        ERROR(TEXT("ESP: %x"), CurrentESP);
+        ERROR(TEXT("StackBase: %x"), StackBase);
+        ERROR(TEXT("StackTop: %x"), StackTop);
+        ERROR(TEXT("InKernelMode: %u"), InKernelMode ? 1 : 0);
+        ERROR(TEXT("Safety margin violated by %u bytes"), (StackBase + STACK_SAFETY_MARGIN) - CurrentESP);
         return FALSE;
     }
 
@@ -362,19 +362,19 @@ UINT GetCurrentStackFreeBytes(void) {
             LINEAR Top = Base + (LINEAR)ActiveStack->Size;
 
             if (CurrentSP < Base) {
-                ERROR(TEXT("[GetCurrentStackFreeBytes] SP %p below stack base %p"), CurrentSP, Base);
+                ERROR(TEXT("SP %p below stack base %p"), CurrentSP, Base);
             } else if (CurrentSP > Top) {
-                ERROR(TEXT("[GetCurrentStackFreeBytes] SP %p above stack top %p"), CurrentSP, Top);
+                ERROR(TEXT("SP %p above stack top %p"), CurrentSP, Top);
             } else {
                 RemainingBytes = (UINT)(CurrentSP - Base);
             }
         } else {
-            ERROR(TEXT("[GetCurrentStackFreeBytes] Unable to locate active stack for SP %p"), CurrentSP);
+            ERROR(TEXT("Unable to locate active stack for SP %p"), CurrentSP);
         }
     }
 
     if (!TaskValidated) {
-        ERROR(TEXT("[GetCurrentStackFreeBytes] SAFE_USE_VALID_ID failed for current task %p"), CurrentTask);
+        ERROR(TEXT("SAFE_USE_VALID_ID failed for current task %p"), CurrentTask);
         return 0;
     }
 
@@ -444,7 +444,7 @@ static UINT StackComputeLiveCopySize(LINEAR Base, LINEAR OldTop, UINT OldSize) {
     GetESP(CurrentSP);
 
     if (CurrentSP < Base || CurrentSP > OldTop) {
-        WARNING(TEXT("[StackComputeLiveCopySize] SP %p outside stack range [%p-%p], copying full stack"),
+        WARNING(TEXT("SP %p outside stack range [%p-%p], copying full stack"),
                 CurrentSP,
                 Base,
                 OldTop);
@@ -567,7 +567,7 @@ static BOOL StackRelocateAndGrow(LPSTACK ActiveStack, UINT DesiredSize, U32 Flag
 
     NewBase = AllocRegion(OldBase + PAGE_SIZE, 0, DesiredSize, Flags | ALLOC_PAGES_AT_OR_OVER, TEXT("StackGrowRelocate"));
     if (NewBase == 0) {
-        ERROR(TEXT("[StackRelocateAndGrow] AllocRegion failed oldBase=%p oldSize=%u newSize=%u"),
+        ERROR(TEXT("AllocRegion failed oldBase=%p oldSize=%u newSize=%u"),
               OldBase,
               OldSize,
               DesiredSize);
@@ -578,7 +578,7 @@ static BOOL StackRelocateAndGrow(LPSTACK ActiveStack, UINT DesiredSize, U32 Flag
     CopySize = StackComputeLiveCopySize(OldBase, OldTop, OldSize);
 
     if (SwitchStack(NewTop, OldTop, CopySize) == FALSE) {
-        ERROR(TEXT("[StackRelocateAndGrow] SwitchStack failed oldTop=%p newTop=%p size=%u"), OldTop, NewTop, CopySize);
+        ERROR(TEXT("SwitchStack failed oldTop=%p newTop=%p size=%u"), OldTop, NewTop, CopySize);
         FreeRegion(NewBase, DesiredSize);
         return FALSE;
     }
@@ -587,7 +587,7 @@ static BOOL StackRelocateAndGrow(LPSTACK ActiveStack, UINT DesiredSize, U32 Flag
     ActiveStack->Size = DesiredSize;
 
     if (FreeRegion(OldBase, OldSize) == FALSE) {
-        WARNING(TEXT("[StackRelocateAndGrow] FreeRegion failed for old stack base=%p size=%u"), OldBase, OldSize);
+        WARNING(TEXT("FreeRegion failed for old stack base=%p size=%u"), OldBase, OldSize);
     }
 
     return TRUE;
@@ -607,7 +607,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
 
     LPTASK CurrentTask = GetCurrentTask();
     if (CurrentTask == NULL) {
-        ERROR(TEXT("[GrowCurrentStack] No current task"));
+        ERROR(TEXT("No current task"));
         return FALSE;
     }
 
@@ -624,7 +624,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             LPSTACK ActiveStack = StackLocateActiveDescriptor(CurrentTask, CurrentSP);
 
             if (ActiveStack == NULL || ActiveStack->Base == 0 || ActiveStack->Size == 0) {
-                ERROR(TEXT("[GrowCurrentStack] Active stack not found for SP %p"), CurrentSP);
+                ERROR(TEXT("Active stack not found for SP %p"), CurrentSP);
                 break;
             }
 
@@ -633,7 +633,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             LINEAR OldTop = Base + (LINEAR)OldSize;
 
             if (CurrentSP < Base || CurrentSP > OldTop) {
-                ERROR(TEXT("[GrowCurrentStack] SP %p outside stack range [%p-%p]"), CurrentSP, Base, OldTop);
+                ERROR(TEXT("SP %p outside stack range [%p-%p]"), CurrentSP, Base, OldTop);
                 break;
             }
 
@@ -658,7 +658,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             MaximumSize = StackGetMaximumSize(CurrentTask, ActiveStack);
             if (DesiredSize > MaximumSize) {
                 if (OldSize >= MaximumSize) {
-                    ERROR(TEXT("[GrowCurrentStack] Maximum stack size reached base=%p size=%u max=%u"),
+                    ERROR(TEXT("Maximum stack size reached base=%p size=%u max=%u"),
                           Base,
                           OldSize,
                           MaximumSize);
@@ -668,7 +668,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
                 DesiredSize = (UINT)PAGE_ALIGN(MaximumSize);
             }
 
-            DEBUG(TEXT("[GrowCurrentStack] Base=%p Size=%u SP=%p Used=%u NewSize=%u"),
+            DEBUG(TEXT("Base=%p Size=%u SP=%p Used=%u NewSize=%u"),
                 Base,
                 OldSize,
                 CurrentSP,
@@ -677,13 +677,13 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             UNUSED(UsedBytes);
 
             if (ResizeRegion(Base, 0, OldSize, DesiredSize, Flags) == FALSE) {
-                WARNING(TEXT("[GrowCurrentStack] ResizeRegion failed for base=%p size=%u -> %u, trying relocation"),
+                WARNING(TEXT("ResizeRegion failed for base=%p size=%u -> %u, trying relocation"),
                         Base,
                         OldSize,
                         DesiredSize);
 
                 if (StackRelocateAndGrow(ActiveStack, DesiredSize, Flags) == FALSE) {
-                    ERROR(TEXT("[GrowCurrentStack] Relocation failed for base=%p size=%u -> %u"), Base, OldSize, DesiredSize);
+                    ERROR(TEXT("Relocation failed for base=%p size=%u -> %u"), Base, OldSize, DesiredSize);
                     break;
                 }
 
@@ -693,13 +693,13 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
                 NewTop = Base + (LINEAR)DesiredSize;
 
                 if (SwitchStack(NewTop, OldTop, CopySize) == FALSE) {
-                    ERROR(TEXT("[GrowCurrentStack] SwitchStack failed (DestTop=%p SourceTop=%p Size=%u)"),
+                    ERROR(TEXT("SwitchStack failed (DestTop=%p SourceTop=%p Size=%u)"),
                           NewTop,
                           OldTop,
                           CopySize);
 
                     if (ResizeRegion(Base, 0, DesiredSize, OldSize, Flags) == FALSE) {
-                        ERROR(TEXT("[GrowCurrentStack] Failed to roll back stack resize for base=%p"), Base);
+                        ERROR(TEXT("Failed to roll back stack resize for base=%p"), Base);
                     }
 
                     break;
@@ -714,7 +714,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
 
             StackUpdateTaskContextAfterMove(CurrentTask, ActiveStack, Base, OldTop, NewTop);
 
-            DEBUG(TEXT("[GrowCurrentStack] Resize complete: Size=%u Remaining=%u SP=%p"),
+            DEBUG(TEXT("Resize complete: Size=%u Remaining=%u SP=%p"),
                 ActiveStack->Size,
                 RemainingBytes,
                 UpdatedSP);
@@ -725,7 +725,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
     }
 
     if (!TaskValidated) {
-        ERROR(TEXT("[GrowCurrentStack] SAFE_USE_VALID_ID failed for current task %p"), CurrentTask);
+        ERROR(TEXT("SAFE_USE_VALID_ID failed for current task %p"), CurrentTask);
     }
 
     return Success;
@@ -756,7 +756,7 @@ BOOL EnsureCurrentStackSpace(UINT MinimumFreeBytes) {
     UINT Required = MinimumFreeBytes - Remaining;
     UINT Additional = Required + STACK_GROW_EXTRA_HEADROOM;
 
-    DEBUG(TEXT("[EnsureCurrentStackSpace] Remaining=%u Required=%u Additional=%u"),
+    DEBUG(TEXT("Remaining=%u Required=%u Additional=%u"),
         Remaining,
         MinimumFreeBytes,
         Additional);

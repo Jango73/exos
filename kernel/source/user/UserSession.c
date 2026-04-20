@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -167,7 +167,7 @@ BOOL InitializeSessionSystem(void) {
 
     UserSessionDeferredToken = DeferredWorkRegister(&Registration);
     if (DeferredWorkTokenIsValid(UserSessionDeferredToken) == FALSE) {
-        ERROR(TEXT("[InitializeSessionSystem] Failed to register deferred session timeout work"));
+        ERROR(TEXT("Failed to register deferred session timeout work"));
         DeleteList(SessionList);
         SetUserSessionList(NULL);
         return FALSE;
@@ -175,7 +175,7 @@ BOOL InitializeSessionSystem(void) {
 
     UserSessionSchedulerTickHandle = SchedulerRegisterTickCallback(UserSessionSchedulerTick, NULL);
     if (UserSessionSchedulerTickHandle == SCHEDULER_TICK_INVALID_HANDLE) {
-        ERROR(TEXT("[InitializeSessionSystem] Failed to register scheduler session timeout hook"));
+        ERROR(TEXT("Failed to register scheduler session timeout hook"));
         DeferredWorkUnregister(UserSessionDeferredToken);
         UserSessionDeferredToken =
             (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
@@ -330,7 +330,7 @@ void DestroyUserSession(LPUSER_SESSION Session) {
 
     U32 UserIdHigh = U64_High32(Session->UserID);
     U32 UserIdLow = U64_Low32(Session->UserID);
-    DEBUG(TEXT("[DestroyUserSession] Destroyed session for user ID: %08X%08X"), UserIdHigh, UserIdLow);
+    DEBUG(TEXT("Destroyed session for user ID: %08X%08X"), UserIdHigh, UserIdLow);
     UNUSED(UserIdHigh);
     UNUSED(UserIdLow);
 }
@@ -515,7 +515,7 @@ void TimeoutInactiveSessions(void) {
 
             U32 UserIdHigh = U64_High32(Session->UserID);
             U32 UserIdLow = U64_Low32(Session->UserID);
-            DEBUG(TEXT("[TimeoutInactiveSessions] Locking session for user ID: %08X%08X"), UserIdHigh, UserIdLow);
+            DEBUG(TEXT("Locking session for user ID: %08X%08X"), UserIdHigh, UserIdLow);
             UNUSED(UserIdHigh);
             UNUSED(UserIdLow);
 

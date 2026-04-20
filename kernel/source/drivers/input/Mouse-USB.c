@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -223,7 +223,7 @@ static BOOL USBMouseSetIdle(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U
  */
 static void USBMouseClearState(LPCSTR Reason) {
     DEBUG(
-        TEXT("[USBMouseClearState] reason=%s addr=%x slot=%x if=%u ep=%x pending=%u"),
+        TEXT("reason=%s addr=%x slot=%x if=%u ep=%x pending=%u"),
         (Reason != NULL) ? Reason : TEXT("unknown"),
         (USBMouseCustomData.State.UsbDevice != NULL) ? (U32)USBMouseCustomData.State.UsbDevice->Address : 0,
         (USBMouseCustomData.State.UsbDevice != NULL) ? (U32)USBMouseCustomData.State.UsbDevice->SlotId : 0,
@@ -309,7 +309,7 @@ static BOOL USBMouseFindDevice(
     }
 
     if (RateLimiterShouldTrigger(&USBMouseCustomData.State.DiscoveryLogLimiter, GetSystemTime(), &Suppressed)) {
-        DEBUG(TEXT("[USBMouseFindDevice] Scanning xHCI devices (suppressed=%u)"), Suppressed);
+        DEBUG(TEXT("Scanning xHCI devices (suppressed=%u)"), Suppressed);
     }
 
     LPLIST PciList = GetPCIDeviceList();
@@ -365,13 +365,13 @@ static BOOL USBMouseFindDevice(
                     LPXHCI_USB_ENDPOINT Endpoint = USBMouseFindInterruptInEndpoint(Interface);
                     if (Endpoint == NULL) {
                         WARNING(
-                            TEXT("[USBMouseFindDevice] HID mouse missing interrupt IN endpoint (addr=%x if=%u)"),
+                            TEXT("HID mouse missing interrupt IN endpoint (addr=%x if=%u)"),
                             (U32)UsbDevice->Address, (U32)Interface->Number);
                         continue;
                     }
 
                     DEBUG(
-                        TEXT("[USBMouseFindDevice] Candidate addr=%x slot=%x vid=%x pid=%x port=%u if=%u ep=%x mps=%u"),
+                        TEXT("Candidate addr=%x slot=%x vid=%x pid=%x port=%u if=%u ep=%x mps=%u"),
                         (U32)UsbDevice->Address, (U32)UsbDevice->SlotId, (U32)UsbDevice->DeviceDescriptor.VendorID,
                         (U32)UsbDevice->DeviceDescriptor.ProductID, (U32)UsbDevice->PortNumber, (U32)Interface->Number,
                         (U32)Endpoint->Address, (U32)Endpoint->MaxPacketSize);
@@ -399,7 +399,7 @@ static BOOL USBMouseFindDevice(
 static BOOL USBMouseSubmitReport(LPXHCI_DEVICE Device) {
     if (Device == NULL || USBMouseCustomData.State.Endpoint == NULL || USBMouseCustomData.State.ReportLinear == 0 ||
         USBMouseCustomData.State.ReportPhysical == 0) {
-        WARNING(TEXT("[USBMouseSubmitReport] Mouse state is invalid"));
+        WARNING(TEXT("Mouse state is invalid"));
         return FALSE;
     }
 
@@ -407,7 +407,7 @@ static BOOL USBMouseSubmitReport(LPXHCI_DEVICE Device) {
             Device, USBMouseCustomData.State.UsbDevice, USBMouseCustomData.State.Endpoint,
             USBMouseCustomData.State.ReportPhysical, (U32)USBMouseCustomData.State.ReportLength, FALSE,
             &USBMouseCustomData.State.ReportTrbPhysical)) {
-        WARNING(TEXT("[USBMouseSubmitReport] Transfer ring enqueue failed"));
+        WARNING(TEXT("Transfer ring enqueue failed"));
         return FALSE;
     }
 
@@ -460,7 +460,7 @@ static void USBMouseProcessReports(void) {
 
     if (!USBMouseCustomData.State.ReportPending) {
         if (!USBMouseSubmitReport(USBMouseCustomData.State.Controller)) {
-            WARNING(TEXT("[USBMouseProcessReports] Report submit failed"));
+            WARNING(TEXT("Report submit failed"));
             USBMouseCustomData.State.RetryDelay = USB_MOUSE_SUBMIT_RETRY_DELAY_POLLS;
         }
         return;
@@ -478,11 +478,11 @@ static void USBMouseProcessReports(void) {
     if (Completion == XHCI_COMPLETION_SUCCESS || Completion == XHCI_COMPLETION_SHORT_PACKET) {
         USBMouseHandleReport();
     } else {
-        WARNING(TEXT("[USBMouseProcessReports] Completion %x"), Completion);
+        WARNING(TEXT("Completion %x"), Completion);
     }
 
     if (!USBMouseSubmitReport(USBMouseCustomData.State.Controller)) {
-        WARNING(TEXT("[USBMouseProcessReports] Report re-submit failed"));
+        WARNING(TEXT("Report re-submit failed"));
         USBMouseCustomData.State.RetryDelay = USB_MOUSE_SUBMIT_RETRY_DELAY_POLLS;
     }
 }
@@ -500,29 +500,29 @@ static void USBMouseProcessReports(void) {
 static BOOL USBMouseStartDevice(
     LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE Interface, LPXHCI_USB_ENDPOINT Endpoint) {
     if (Device == NULL || UsbDevice == NULL || Interface == NULL || Endpoint == NULL) {
-        WARNING(TEXT("[USBMouseStartDevice] Input pointers are invalid"));
+        WARNING(TEXT("Input pointers are invalid"));
         return FALSE;
     }
 
     DEBUG(
-        TEXT("[USBMouseStartDevice] Begin addr=%x slot=%x vid=%x pid=%x if=%u ep=%x mps=%u"), (U32)UsbDevice->Address,
+        TEXT("Begin addr=%x slot=%x vid=%x pid=%x if=%u ep=%x mps=%u"), (U32)UsbDevice->Address,
         (U32)UsbDevice->SlotId, (U32)UsbDevice->DeviceDescriptor.VendorID, (U32)UsbDevice->DeviceDescriptor.ProductID,
         (U32)Interface->Number, (U32)Endpoint->Address, (U32)Endpoint->MaxPacketSize);
 
     if (!USBMouseSetBootProtocol(Device, UsbDevice, Interface->Number)) {
-        WARNING(TEXT("[USBMouseStartDevice] SET_PROTOCOL failed"));
+        WARNING(TEXT("SET_PROTOCOL failed"));
     }
     if (!USBMouseSetIdle(Device, UsbDevice, Interface->Number)) {
-        WARNING(TEXT("[USBMouseStartDevice] SET_IDLE failed"));
+        WARNING(TEXT("SET_IDLE failed"));
     }
 
     if (!XHCI_AddInterruptEndpoint(Device, UsbDevice, Endpoint)) {
-        ERROR(TEXT("[USBMouseStartDevice] Interrupt endpoint setup failed"));
+        ERROR(TEXT("Interrupt endpoint setup failed"));
         return FALSE;
     }
 
     if (Endpoint->MaxPacketSize == 0) {
-        ERROR(TEXT("[USBMouseStartDevice] Invalid report size"));
+        ERROR(TEXT("Invalid report size"));
         return FALSE;
     }
 
@@ -533,7 +533,7 @@ static BOOL USBMouseStartDevice(
 
     if (!XHCI_AllocPage(
             TEXT("USBMouseReport"), &USBMouseCustomData.State.ReportPhysical, &USBMouseCustomData.State.ReportLinear)) {
-        ERROR(TEXT("[USBMouseStartDevice] Report buffer alloc failed"));
+        ERROR(TEXT("Report buffer alloc failed"));
         return FALSE;
     }
 
@@ -552,7 +552,7 @@ static BOOL USBMouseStartDevice(
     USBMouseCustomData.State.ReferencesHeld = TRUE;
 
     DEBUG(
-        TEXT("[USBMouseStartDevice] Mouse addr=%x if=%u ep=%x"), UsbDevice->Address, (U32)Interface->Number,
+        TEXT("Mouse addr=%x if=%u ep=%x"), UsbDevice->Address, (U32)Interface->Number,
         (U32)Endpoint->Address);
 
     (void)USBMouseSubmitReport(Device);
@@ -579,7 +579,7 @@ static void USBMousePoll(LPVOID Context) {
 
     if (USBMouseCustomData.State.Controller != NULL && USBMouseCustomData.State.UsbDevice != NULL) {
         if (!USBMouseIsDevicePresent(USBMouseCustomData.State.Controller, USBMouseCustomData.State.UsbDevice)) {
-            DEBUG(TEXT("[USBMousePoll] Mouse disconnected"));
+            DEBUG(TEXT("Mouse disconnected"));
             USBMouseClearState(TEXT("disconnect"));
             USBMouseCustomData.State.RetryDelay = USB_MOUSE_DISCOVERY_RETRY_DELAY_POLLS;
         }
@@ -594,7 +594,7 @@ static void USBMousePoll(LPVOID Context) {
         if (USBMouseFindDevice(&Device, &UsbDevice, &Interface, &Endpoint)) {
             if (!USBMouseStartDevice(Device, UsbDevice, Interface, Endpoint)) {
                 WARNING(
-                    TEXT("[USBMousePoll] Mouse start failed addr=%x if=%u ep=%x"),
+                    TEXT("Mouse start failed addr=%x if=%u ep=%x"),
                     (UsbDevice != NULL) ? (U32)UsbDevice->Address : 0, (Interface != NULL) ? (U32)Interface->Number : 0,
                     (Endpoint != NULL) ? (U32)Endpoint->Address : 0);
                 USBMouseClearState(TEXT("start_failed"));

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,14 +49,14 @@ static BOOL TestSingleRegex(LPCSTR Pattern, LPCSTR Text, BOOL ExpectedMatch, BOO
     // Compile the regex pattern
     BOOL CompileOk = RegexCompile(Pattern, &Rx);
     if (!CompileOk) {
-        DEBUG(TEXT("[TestRegex] Regex compile failed: %s"), Pattern);
+        DEBUG(TEXT("Regex compile failed: %s"), Pattern);
         return FALSE;
     }
 
     // Test full match
     BOOL Match = RegexMatch(&Rx, Text);
     if (Match != ExpectedMatch) {
-        DEBUG(TEXT("[TestRegex] Match test failed: pattern=\"%s\", text=\"%s\", expected=%s, got=%s"), Pattern,
+        DEBUG(TEXT("Match test failed: pattern=\"%s\", text=\"%s\", expected=%s, got=%s"), Pattern,
             Text, ExpectedMatch ? TEXT("TRUE") : TEXT("FALSE"), Match ? TEXT("TRUE") : TEXT("FALSE"));
         TestPassed = FALSE;
     }
@@ -65,7 +65,7 @@ static BOOL TestSingleRegex(LPCSTR Pattern, LPCSTR Text, BOOL ExpectedMatch, BOO
     U32 Start = 0, End = 0;
     BOOL Search = RegexSearch(&Rx, Text, &Start, &End);
     if (Search != ExpectedSearch) {
-        DEBUG(TEXT("[TestRegex] Search test failed: pattern=\"%s\", text=\"%s\", expected=%s, got=%s"),
+        DEBUG(TEXT("Search test failed: pattern=\"%s\", text=\"%s\", expected=%s, got=%s"),
             Pattern, Text, ExpectedSearch ? TEXT("TRUE") : TEXT("FALSE"), Search ? TEXT("TRUE") : TEXT("FALSE"));
         TestPassed = FALSE;
     }

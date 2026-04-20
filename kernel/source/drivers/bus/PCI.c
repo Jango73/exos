@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -398,7 +398,7 @@ void PCI_RegisterDriver(LPPCI_DRIVER Driver) {
     if (Driver == NULL) return;
     if (PciDriverCount >= PCI_MAX_REGISTERED_DRIVERS) return;
     PciDriverTable[PciDriverCount++] = Driver;
-    DEBUG(TEXT("[PCI] Registered driver %s"), Driver->Product);
+    DEBUG(TEXT("Registered driver %s"), Driver->Product);
 }
 
 /***************************************************************************/
@@ -458,7 +458,7 @@ void PCI_ScanBus(void) {
     /* Use 32-bit counters to avoid wrap when PCI_MAX_* == 256 */
     U32 Bus, Device, Function;
 
-    DEBUG(TEXT("[PCI] Scanning bus"));
+    DEBUG(TEXT("Scanning bus"));
 
     for (Bus = 0; Bus < PCI_MAX_BUS; Bus++) {
         for (Device = 0; Device < PCI_MAX_DEV; Device++) {
@@ -479,7 +479,7 @@ void PCI_ScanBus(void) {
                 U32 DriverIndex;
 
                 PciFillFunctionInfo((U8)Bus, (U8)Device, (U8)Function, &PciInfo);
-                DEBUG(TEXT("[PCI] Found %x:%x.%u VID=%x DID=%x IRQ=%u"),
+                DEBUG(TEXT("Found %x:%x.%u VID=%x DID=%x IRQ=%u"),
                     (INT)Bus,
                     (INT)Device,
                     (INT)Function,
@@ -503,7 +503,7 @@ void PCI_ScanBus(void) {
 
                         if (PciInternalMatch(DriverMatch, &PciInfo)) {
                             if (PciDriver->Command) {
-                                DEBUG(TEXT("[PCI] %s matches %x:%x.%u"), PciDriver->Product, (INT)Bus,
+                                DEBUG(TEXT("%s matches %x:%x.%u"), PciDriver->Product, (INT)Bus,
                                     (INT)Device, (INT)Function);
 
                                 U32 Result = PciDriver->Command(DF_PROBE, (UINT)(LPVOID)&PciInfo);
@@ -515,9 +515,9 @@ void PCI_ScanBus(void) {
                                         LPPCI_DEVICE NewDev = PciDriver->Attach(&PciDevice);
 
                                         if (NewDev) {
-                                            DEBUG(TEXT("[PCI] Adding device %p (ID=%x) to list"), (LINEAR)NewDev, (INT)(NewDev->TypeID));
+                                            DEBUG(TEXT("Adding device %p (ID=%x) to list"), (LINEAR)NewDev, (INT)(NewDev->TypeID));
                                             ListAddItem(GetPCIDeviceList(), NewDev);
-                                            DEBUG(TEXT("[PCI] Attached %s to %x:%x.%u"), PciDriver->Product,
+                                            DEBUG(TEXT("Attached %s to %x:%x.%u"), PciDriver->Product,
                                                 (INT)Bus, (INT)Device, (INT)Function);
 
                                             goto NextFunction;
@@ -534,7 +534,7 @@ void PCI_ScanBus(void) {
         }
     }
 
-    DEBUG(TEXT("[PCI] Bus scan complete"));
+    DEBUG(TEXT("Bus scan complete"));
 }
 
 /***************************************************************************/
@@ -683,7 +683,7 @@ static UINT PCIDriverCommands(UINT Function, UINT Parameter) {
  * Currently forwards interrupts to AHCI when initialized.
  */
 void PCIHandler(void) {
-    DEBUG(TEXT("[PCIHandler] Enter"));
+    DEBUG(TEXT("Enter"));
 
     // For now, only handle AHCI interrupts if we have an AHCI device
     // TODO: Implement proper IRQ mapping for multiple PCI devices
@@ -694,7 +694,7 @@ void PCIHandler(void) {
         AHCIInterruptHandler();
     }
 
-    DEBUG(TEXT("[PCIHandler] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /************************************************************************/

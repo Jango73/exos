@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -311,9 +311,9 @@ void InitSegmentDescriptor(LPSEGMENT_DESCRIPTOR This, U32 Type) {
 /***************************************************************************/
 
 void InitializeGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table) {
-    DEBUG(TEXT("[InitializeGlobalDescriptorTable] Enter"));
+    DEBUG(TEXT("Enter"));
 
-    DEBUG(TEXT("[InitializeGlobalDescriptorTable] GDT address = %X"), (U32)Table);
+    DEBUG(TEXT("GDT address = %X"), (U32)Table);
 
     MemorySet(Table, 0, GDT_SIZE);
 
@@ -341,7 +341,7 @@ void InitializeGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table) {
     Table[6].Granularity = GDT_GRANULAR_1B;
     SetSegmentDescriptorLimit(&Table[6], N_1MB_M1);
 
-    DEBUG(TEXT("[InitializeGlobalDescriptorTable] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/
@@ -528,7 +528,7 @@ BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
         if (DescriptorIndex == 0) {
             DescriptorIndex = FindFreeUserTlsDescriptorIndex();
             if (DescriptorIndex == 0) {
-                ERROR(TEXT("[TaskSetUserTlsAnchor] No free user TLS descriptor task=%p"), Task);
+                ERROR(TEXT("No free user TLS descriptor task=%p"), Task);
                 return FALSE;
             }
         }
@@ -575,7 +575,7 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     LINEAR ESP, EBP;
     U32 CR4;
 
-    DEBUG(TEXT("[SetupTask] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (Process->Privilege == CPU_PRIVILEGE_USER) {
         BaseVMA = VMA_USER;
@@ -592,8 +592,8 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     Task->Arch.SystemStack.Base =
         AllocKernelRegion(0, Task->Arch.SystemStack.Size, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStack"));
 
-    DEBUG(TEXT("[SetupTask] BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
-    DEBUG(TEXT("[SetupTask] Actually got StackBase=%p"), Task->Arch.Stack.Base);
+    DEBUG(TEXT("BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
+    DEBUG(TEXT("Actually got StackBase=%p"), Task->Arch.Stack.Base);
 
     if (Task->Arch.Stack.Base == NULL || Task->Arch.SystemStack.Base == NULL) {
         if (Task->Arch.Stack.Base != NULL) {
@@ -608,12 +608,12 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
             Task->Arch.SystemStack.Size = 0;
         }
 
-        ERROR(TEXT("[SetupTask] Stack or system stack allocation failed"));
+        ERROR(TEXT("Stack or system stack allocation failed"));
         return FALSE;
     }
 
-    DEBUG(TEXT("[SetupTask] Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
-    DEBUG(TEXT("[SetupTask] System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
+    DEBUG(TEXT("Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
+    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
         Task->Arch.SystemStack.Base);
 
     MemorySet((LPVOID)(Task->Arch.Stack.Base), 0, Task->Arch.Stack.Size);
@@ -642,12 +642,12 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     SysStackTop = Task->Arch.SystemStack.Base + Task->Arch.SystemStack.Size;
 
     if (Process->Privilege == CPU_PRIVILEGE_KERNEL) {
-        DEBUG(TEXT("[SetupTask] Setting kernel privilege (ring 0)"));
+        DEBUG(TEXT("Setting kernel privilege (ring 0)"));
         Task->Arch.Context.Registers.EIP = (LINEAR)TaskRunner;
         Task->Arch.Context.Registers.ESP = StackTop - STACK_SAFETY_MARGIN;
         Task->Arch.Context.Registers.EBP = StackTop - STACK_SAFETY_MARGIN;
     } else {
-        DEBUG(TEXT("[SetupTask] Setting user privilege (ring 3)"));
+        DEBUG(TEXT("Setting user privilege (ring 3)"));
         Task->Arch.Context.Registers.EIP = VMA_TASK_RUNNER;
         Task->Arch.Context.Registers.ESP = SysStackTop - STACK_SAFETY_MARGIN;
         Task->Arch.Context.Registers.EBP = SysStackTop - STACK_SAFETY_MARGIN;
@@ -663,22 +663,22 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
         GetESP(ESP);
         UINT StackUsed = (BootStackTop - ESP) + 256;
 
-        DEBUG(TEXT("[SetupTask] BootStackTop = %p"), BootStackTop);
-        DEBUG(TEXT("[SetupTask] StackTop = %p"), StackTop);
-        DEBUG(TEXT("[SetupTask] StackUsed = %u"), StackUsed);
-        DEBUG(TEXT("[SetupTask] Switching to new stack..."));
+        DEBUG(TEXT("BootStackTop = %p"), BootStackTop);
+        DEBUG(TEXT("StackTop = %p"), StackTop);
+        DEBUG(TEXT("StackUsed = %u"), StackUsed);
+        DEBUG(TEXT("Switching to new stack..."));
 
         if (SwitchStack(StackTop, BootStackTop, StackUsed) == TRUE) {
             Task->Arch.Context.Registers.ESP = 0;
             GetEBP(EBP);
             Task->Arch.Context.Registers.EBP = EBP;
-            DEBUG(TEXT("[SetupTask] Main task stack switched successfully"));
+            DEBUG(TEXT("Main task stack switched successfully"));
         } else {
-            ERROR(TEXT("[SetupTask] Stack switch failed"));
+            ERROR(TEXT("Stack switch failed"));
         }
     }
 
-    DEBUG(TEXT("[SetupTask] Exit"));
+    DEBUG(TEXT("Exit"));
     return TRUE;
 }
 
@@ -723,7 +723,7 @@ static void InitializeFPUState(void) {
     U32 Cr0Value;
     U32 Cr4Value;
 
-    DEBUG(TEXT("[InitializeFPUState] Enter"));
+    DEBUG(TEXT("Enter"));
 
     __asm__ volatile("mov %%cr0, %0" : "=r"(Cr0Value));
     Cr0Value |= (CR0_COPROCESSOR | CR0_80387 | CR0_NUMERIC_ERROR);
@@ -737,7 +737,7 @@ static void InitializeFPUState(void) {
     __asm__ volatile("fninit");
     __asm__ volatile("fnclex");
 
-    DEBUG(TEXT("[InitializeFPUState] CR0=%x CR4=%x"), Cr0Value, Cr4Value);
+    DEBUG(TEXT("CR0=%x CR4=%x"), Cr0Value, Cr4Value);
 }
 
 /************************************************************************/

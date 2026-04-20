@@ -61,7 +61,6 @@ typedef struct tag_SYSCALL_ENTRY {
 // Functions in Kernel.c
 
 void InitializeQuantumTime(void);
-U32 ClockTestTask(LPVOID);
 UINT GetPhysicalMemoryUsed(void);
 void TestProcess(void);
 void InitializeKernel(void);

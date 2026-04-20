@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -139,7 +139,7 @@ static BOOL DesktopApplyDisplaySelection(LPDESKTOP Desktop, LPGRAPHICS_MODE_INFO
     }
 
     if (GraphicsSelectorForceBackendByName(Desktop->DisplaySelection.BackendAlias) == FALSE) {
-        WARNING(TEXT("[DesktopApplyDisplaySelection] Stored backend unavailable (%s)"),
+        WARNING(TEXT("Stored backend unavailable (%s)"),
             Desktop->DisplaySelection.BackendAlias);
         return FALSE;
     }
@@ -147,7 +147,7 @@ static BOOL DesktopApplyDisplaySelection(LPDESKTOP Desktop, LPGRAPHICS_MODE_INFO
     RequestedModeInfo = Desktop->DisplaySelection.ModeInfo;
     ModeSetResult = GetGraphicsDriver()->Command(DF_GFX_SETMODE, (UINT)&RequestedModeInfo);
     if (ModeSetResult != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[DesktopApplyDisplaySelection] Stored mode apply failed (%u)"), ModeSetResult);
+        WARNING(TEXT("Stored mode apply failed (%u)"), ModeSetResult);
         return FALSE;
     }
 
@@ -249,7 +249,7 @@ static BOOL DesktopEnsureGraphicsShadowBuffer(LPDESKTOP Desktop, LPGRAPHICSCONTE
             ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
             TEXT("DesktopGraphicsShadow"));
         if (Desktop->GraphicsShadowBufferLinear == 0) {
-            ERROR(TEXT("[DesktopEnsureGraphicsShadowBuffer] AllocRegion failed size=%u"), RequiredSize);
+            ERROR(TEXT("AllocRegion failed size=%u"), RequiredSize);
             return FALSE;
         }
 
@@ -527,7 +527,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
 
     This->Graphics = GetGraphicsDriver();
     if (This->Graphics == NULL || This->Graphics->Command == NULL) {
-        WARNING(TEXT("[KernelShowDesktop] Graphics driver unavailable"));
+        WARNING(TEXT("Graphics driver unavailable"));
         This->Mode = DESKTOP_MODE_CONSOLE;
         UnlockMutex(&(This->Mutex));
         UnlockMutex(MUTEX_KERNEL);
@@ -536,7 +536,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
 
     if (DesktopApplyDisplaySelection(This, &ModeInfo) != FALSE) {
         This->Graphics = GetGraphicsDriver();
-        DEBUG(TEXT("[KernelShowDesktop] Applied stored display selection backend=%s mode=%ux%ux%u"),
+        DEBUG(TEXT("Applied stored display selection backend=%s mode=%ux%ux%u"),
             GraphicsSelectorGetActiveBackendName(),
             ModeInfo.Width,
             ModeInfo.Height,
@@ -550,13 +550,13 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
             ModeSetResult = This->Graphics->Command(DF_GFX_SETMODE, (UINT)&RequestedModeInfo);
             if (ModeSetResult == DF_RETURN_SUCCESS) {
                 ModeInfo = RequestedModeInfo;
-                DEBUG(TEXT("[KernelShowDesktop] Selected mode applied backend=%s mode=%ux%ux%u"),
+                DEBUG(TEXT("Selected mode applied backend=%s mode=%ux%ux%u"),
                     GraphicsSelectorGetActiveBackendName(),
                     ModeInfo.Width,
                     ModeInfo.Height,
                     ModeInfo.BitsPerPixel);
             } else {
-                WARNING(TEXT("[KernelShowDesktop] DF_GFX_SETMODE selected mode failed (%u)"), ModeSetResult);
+                WARNING(TEXT("DF_GFX_SETMODE selected mode failed (%u)"), ModeSetResult);
             }
         }
 
@@ -565,11 +565,11 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
             DesktopInitializeGraphicsModeInfo(&RequestedModeInfo, INFINITY, 0, 0, 0);
             ModeSetResult = This->Graphics->Command(DF_GFX_SETMODE, (UINT)&RequestedModeInfo);
             if (ModeSetResult != DF_RETURN_SUCCESS) {
-                WARNING(TEXT("[KernelShowDesktop] DF_GFX_SETMODE legacy auto-select failed (%u)"), ModeSetResult);
+                WARNING(TEXT("DF_GFX_SETMODE legacy auto-select failed (%u)"), ModeSetResult);
             } else {
                 ModeInfo = RequestedModeInfo;
                 UsedLegacyAutoSelect = TRUE;
-                DEBUG(TEXT("[KernelShowDesktop] Legacy mode applied backend=%s mode=%ux%ux%u"),
+                DEBUG(TEXT("Legacy mode applied backend=%s mode=%ux%ux%u"),
                     GraphicsSelectorGetActiveBackendName(),
                     ModeInfo.Width,
                     ModeInfo.Height,
@@ -590,7 +590,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
 
     ModeReady = DesktopIsValidGraphicsModeInfo(&ModeInfo);
     if (ModeReady == FALSE) {
-        WARNING(TEXT("[KernelShowDesktop] No valid graphics mode available after selection"));
+        WARNING(TEXT("No valid graphics mode available after selection"));
         This->Mode = DESKTOP_MODE_CONSOLE;
         UnlockMutex(&(This->Mutex));
         UnlockMutex(MUTEX_KERNEL);
@@ -598,7 +598,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
     }
 
     if (DesktopEnsureGraphicsContextAvailable(This->Graphics) == FALSE) {
-        WARNING(TEXT("[KernelShowDesktop] Active graphics backend cannot provide a drawing context"));
+        WARNING(TEXT("Active graphics backend cannot provide a drawing context"));
         This->Mode = DESKTOP_MODE_CONSOLE;
         UnlockMutex(&(This->Mutex));
         UnlockMutex(MUTEX_KERNEL);
@@ -609,7 +609,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
     DriverContext = (LPGRAPHICSCONTEXT)(LPVOID)ContextPointer;
     if (!IS_VALID_KERNEL_POINTER((LPVOID)DriverContext) || DriverContext->TypeID != KOID_GRAPHICSCONTEXT ||
         DesktopEnsureGraphicsShadowBuffer(This, DriverContext) == FALSE) {
-        WARNING(TEXT("[KernelShowDesktop] Unable to prepare desktop shadow buffer"));
+        WARNING(TEXT("Unable to prepare desktop shadow buffer"));
         This->Mode = DESKTOP_MODE_CONSOLE;
         UnlockMutex(&(This->Mutex));
         UnlockMutex(MUTEX_KERNEL);
@@ -618,7 +618,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
 
     SelectedBackendDriver = GraphicsSelectorGetActiveBackendDriver();
     if (SelectedBackendDriver != NULL && StringLength(SelectedBackendDriver->Alias) != 0) {
-        DEBUG(TEXT("[KernelShowDesktop] Final backend=%s alias=%s mode=%ux%ux%u"),
+        DEBUG(TEXT("Final backend=%s alias=%s mode=%ux%ux%u"),
             SelectedBackendDriver->Product,
             SelectedBackendDriver->Alias,
             ModeInfo.Width,
@@ -631,7 +631,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
             This,
             (SelectedBackendDriver != NULL) ? SelectedBackendDriver : This->Graphics,
             &ModeInfo) == FALSE) {
-        WARNING(TEXT("[KernelShowDesktop] Unable to activate desktop display session"));
+        WARNING(TEXT("Unable to activate desktop display session"));
         This->Mode = DESKTOP_MODE_CONSOLE;
         UnlockMutex(&(This->Mutex));
         UnlockMutex(MUTEX_KERNEL);
@@ -651,7 +651,7 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
     SetActiveDesktop(This);
     DesktopCursorOnDesktopActivated(This);
     if (StartupDesktopComponentsInitialize(This) == FALSE) {
-        WARNING(TEXT("[KernelShowDesktop] Startup desktop components initialization failed"));
+        WARNING(TEXT("Startup desktop components initialization failed"));
     }
 
     //-------------------------------------

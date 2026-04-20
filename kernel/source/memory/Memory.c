@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ BOOL ReadPhysicalMemory(PHYSICAL PhysicalAddress, LPVOID Buffer, UINT Length) {
         PHYSICAL PagePhysical = (PhysicalAddress + Copied) & ~((PHYSICAL)(PAGE_SIZE - 1));
         LINEAR Mapping = MapTemporaryPhysicalPage1(PagePhysical);
         if (Mapping == 0) {
-            DEBUG(TEXT("[ReadPhysicalMemory] Failed to map physical %p"),
+            DEBUG(TEXT("Failed to map physical %p"),
                   (LPVOID)(LINEAR)(PhysicalAddress + Copied));
             return FALSE;
         }
@@ -412,12 +412,12 @@ void MarkUsedPhysicalMemory(void) {
     UpdateKernelMemoryMetricsFromMultibootMap();
 
     if (KernelStartup.PageCount == 0) {
-        DEBUG(TEXT("[MarkUsedPhysicalMemory] No physical memory detected"));
+        DEBUG(TEXT("No physical memory detected"));
         return;
     }
 
     if (BuddyIsReady() == FALSE) {
-        ERROR(TEXT("[MarkUsedPhysicalMemory] Buddy allocator not initialized"));
+        ERROR(TEXT("Buddy allocator not initialized"));
         return;
     }
 
@@ -462,7 +462,7 @@ void MarkUsedPhysicalMemory(void) {
         }
     }
 
-    DEBUG(TEXT("[MarkUsedPhysicalMemory] Memory size = %u"), KernelStartup.MemorySize);
+    DEBUG(TEXT("Memory size = %u"), KernelStartup.MemorySize);
 }
 
 /************************************************************************/
@@ -504,7 +504,7 @@ void FreePhysicalPage(PHYSICAL Page) {
     UINT PageIndex = 0;
 
     if ((Page & (PAGE_SIZE - 1)) != 0) {
-        ERROR(TEXT("[FreePhysicalPage] Physical address not page-aligned (%x)"), Page);
+        ERROR(TEXT("Physical address not page-aligned (%x)"), Page);
         return;
     }
 
@@ -515,19 +515,19 @@ void FreePhysicalPage(PHYSICAL Page) {
     }
 
     if (PageIndex == 0) {
-        ERROR(TEXT("[FreePhysicalPage] Attempt to free page 0"));
+        ERROR(TEXT("Attempt to free page 0"));
         return;
     }
 
     if (PageIndex >= KernelStartup.PageCount) {
-        ERROR(TEXT("[FreePhysicalPage] Page index out of range (%x)"), PageIndex);
+        ERROR(TEXT("Page index out of range (%x)"), PageIndex);
         return;
     }
 
     LockMutex(MUTEX_MEMORY, INFINITY);
     if (BuddyFreePage(Page) == FALSE) {
         UnlockMutex(MUTEX_MEMORY);
-        DEBUG(TEXT("[FreePhysicalPage] Page already free or invalid (PA=%x)"), Page);
+        DEBUG(TEXT("Page already free or invalid (PA=%x)"), Page);
         return;
     }
     UnlockMutex(MUTEX_MEMORY);

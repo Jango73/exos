@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@
 void Hysteresis_Initialize(LPHYSTERESIS This, U32 LowThreshold, U32 HighThreshold, U32 InitialValue) {
     SAFE_USE(This) {
         if (LowThreshold >= HighThreshold) {
-            ERROR(TEXT("[Hysteresis_Initialize] Invalid thresholds: Low=%u >= High=%u"), LowThreshold, HighThreshold);
+            ERROR(TEXT("Invalid thresholds: Low=%u >= High=%u"), LowThreshold, HighThreshold);
             return;
         }
 
@@ -61,7 +61,7 @@ void Hysteresis_Initialize(LPHYSTERESIS This, U32 LowThreshold, U32 HighThreshol
         This->TransitionPending = FALSE;
 
     } else {
-        ERROR(TEXT("[Hysteresis_Initialize] Object NULL"));
+        ERROR(TEXT("Object NULL"));
     }
 }
 
@@ -113,7 +113,7 @@ BOOL Hysteresis_Update(LPHYSTERESIS This, U32 NewValue) {
         return StateChanged;
     }
 
-    ERROR(TEXT("[Hysteresis_Update] Object NULL"));
+    ERROR(TEXT("Object NULL"));
     return FALSE;
 }
 
@@ -138,7 +138,7 @@ BOOL Hysteresis_GetState(LPHYSTERESIS This) {
         return This->State;
     }
 
-    ERROR(TEXT("[Hysteresis_GetState] Object NULL"));
+    ERROR(TEXT("Object NULL"));
     return FALSE;
 }
 
@@ -164,7 +164,7 @@ BOOL Hysteresis_IsTransitionPending(LPHYSTERESIS This) {
         return This->TransitionPending;
     }
 
-    ERROR(TEXT("[Hysteresis_IsTransitionPending] Object NULL"));
+    ERROR(TEXT("Object NULL"));
     return FALSE;
 }
 
@@ -190,7 +190,7 @@ void Hysteresis_ClearTransition(LPHYSTERESIS This) {
         return;
     }
 
-    ERROR(TEXT("[Hysteresis_ClearTransition] Object NULL"));
+    ERROR(TEXT("Object NULL"));
 }
 
 /************************************************************************/
@@ -214,7 +214,7 @@ U32 Hysteresis_GetValue(LPHYSTERESIS This) {
         return This->CurrentValue;
     }
 
-    ERROR(TEXT("[Hysteresis_GetValue] Object NULL"));
+    ERROR(TEXT("Object NULL"));
     return 0;
 }
 
@@ -243,5 +243,5 @@ void Hysteresis_Reset(LPHYSTERESIS This, U32 NewValue) {
         return;
     }
 
-    ERROR(TEXT("[Hysteresis_Reset] Object NULL"));
+    ERROR(TEXT("Object NULL"));
 }

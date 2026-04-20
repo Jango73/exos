@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -210,7 +210,7 @@ static BOOL RealtekNetworkConfigurePCICommand(
     } else if (AccessMode == REALTEK_REGISTER_ACCESS_MODE_MMIO) {
         Command |= PCI_CMD_MEM;
     } else {
-        ERROR(TEXT("[%s] Unsupported register access mode"), FunctionName);
+        ERROR(TEXT("Unsupported register access mode"));
         return FALSE;
     }
 
@@ -249,8 +249,7 @@ static BOOL RealtekNetworkFinalizeRegisterWindow(
 
     if (AccessMode == REALTEK_REGISTER_ACCESS_MODE_IO) {
         Device->RegisterPort = (U32)RegisterBase;
-        DEBUG(TEXT("[%s] Selected IO BAR%u base=%x size=%u cmd=%x"),
-              FunctionName,
+        DEBUG(TEXT("Selected IO BAR%u base=%x size=%u cmd=%x"),
               (UINT)BarIndex,
               (UINT)RegisterBase,
               RegisterSize,
@@ -260,8 +259,7 @@ static BOOL RealtekNetworkFinalizeRegisterWindow(
 
     Device->RegisterLinear = MapIOMemory(RegisterBase, RegisterSize);
     if (Device->RegisterLinear == 0) {
-        ERROR(TEXT("[%s] MapIOMemory failed base=%p size=%u"),
-              FunctionName,
+        ERROR(TEXT("MapIOMemory failed base=%p size=%u"),
               (LPVOID)(LINEAR)RegisterBase,
               RegisterSize);
         RealtekNetworkClearRegisterWindow(Device);
@@ -269,9 +267,8 @@ static BOOL RealtekNetworkFinalizeRegisterWindow(
     }
 
     Device->BARMapped[BarIndex] = (LPVOID)Device->RegisterLinear;
-    DEBUG(TEXT("[%s] Selected MMIO BAR%u base=%p size=%u linear=%p cmd=%x"),
-          FunctionName,
-          (UINT)BarIndex,
+    DEBUG(TEXT("Selected MMIO BAR%u base=%p size=%u linear=%p cmd=%x"),
+              (UINT)BarIndex,
           (LPVOID)(LINEAR)RegisterBase,
           RegisterSize,
           (LPVOID)Device->RegisterLinear,
@@ -361,7 +358,7 @@ LPPCI_DEVICE RealtekNetworkAttachCommon(UINT DeviceSize, LPPCI_DEVICE PciDevice,
 
     Device = (LPREALTEK_NETWORK_COMMON_DEVICE)CreateKernelObject(DeviceSize, KOID_PCIDEVICE);
     if (Device == NULL) {
-        ERROR(TEXT("[%s] Failed to allocate device object"), FunctionName);
+        ERROR(TEXT("Failed to allocate device object"));
         return NULL;
     }
 
@@ -415,19 +412,18 @@ U32 RealtekNetworkInitializeRegisterWindow(
     if (!RealtekNetworkSelectRegisterWindowForMode(Device, PreferredMode, FunctionName) &&
         (FallbackMode == REALTEK_REGISTER_ACCESS_MODE_NONE ||
          !RealtekNetworkSelectRegisterWindowForMode(Device, FallbackMode, FunctionName))) {
-        ERROR(TEXT("[%s] No usable register BAR found"), FunctionName);
+        ERROR(TEXT("No usable register BAR found"));
         return DF_RETURN_NOT_IMPLEMENTED;
     }
 
     ValidationValue = RealtekNetworkReadRegister32(Device, ValidationRegisterOffset);
     if (ValidationValue == MAX_U32) {
-        ERROR(TEXT("[%s] Register validation failed at %x"), FunctionName, (UINT)ValidationRegisterOffset);
+        ERROR(TEXT("Register validation failed at %x"), (UINT)ValidationRegisterOffset);
         return DF_RETURN_INPUT_OUTPUT;
     }
 
-    DEBUG(TEXT("[%s] Register validation value=%x at %x"),
-          FunctionName,
-          ValidationValue,
+    DEBUG(TEXT("Register validation value=%x at %x"),
+              ValidationValue,
           (UINT)ValidationRegisterOffset);
     return DF_RETURN_SUCCESS;
 }
@@ -472,7 +468,7 @@ U32 RealtekNetworkResetController(
         }
     }
 
-    ERROR(TEXT("[%s] Reset timed out"), FunctionName);
+    ERROR(TEXT("Reset timed out"));
     return DF_RETURN_UNEXPECTED;
 }
 
@@ -894,7 +890,7 @@ U32 RealtekNetworkOnEnableInterrupts(DEVICE_INTERRUPT_CONFIG* Config) {
         Device->InterruptArmed = FALSE;
         Config->VectorSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         Config->InterruptEnabled = FALSE;
-        WARNING(TEXT("[RealtekNetworkOnEnableInterrupts] Failed to register device interrupt"));
+        WARNING(TEXT("Failed to register device interrupt"));
         return DF_RETURN_UNEXPECTED;
     }
 

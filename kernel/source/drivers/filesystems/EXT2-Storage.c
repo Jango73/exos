@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -695,7 +695,7 @@ BOOL FindInodeInDirectory(
 
     BlockBuffer = (U8*)Ext2AcquireBlockBuffer(FileSystem);
     if (BlockBuffer == NULL) {
-        ERROR(TEXT("[FindInodeInDirectory] Allocation failed size=%u"), FileSystem->BlockSize);
+        ERROR(TEXT("Allocation failed size=%u"), FileSystem->BlockSize);
         return FALSE;
     }
 
@@ -703,13 +703,13 @@ BOOL FindInodeInDirectory(
         U32 BlockNumber;
 
         if (GetInodeBlockNumber(FileSystem, Directory, BlockIndex, &BlockNumber) == FALSE) {
-            WARNING(TEXT("[FindInodeInDirectory] GetInodeBlockNumber failed index=%u"), BlockIndex);
+            WARNING(TEXT("GetInodeBlockNumber failed index=%u"), BlockIndex);
             break;
         }
         if (BlockNumber == 0) continue;
 
         if (ReadBlock(FileSystem, BlockNumber, BlockBuffer) == FALSE) {
-            WARNING(TEXT("[FindInodeInDirectory] ReadBlock failed block=%u"), BlockNumber);
+            WARNING(TEXT("ReadBlock failed block=%u"), BlockNumber);
             break;
         }
 
@@ -770,7 +770,7 @@ BOOL ResolvePath(
     if (FileSystem == NULL || STRING_EMPTY(Path) || Inode == NULL || InodeIndex == NULL) return FALSE;
 
     if (ReadInode(FileSystem, EXT2_ROOT_INODE, &CurrentInode) == FALSE) {
-        WARNING(TEXT("[ResolvePath] ReadInode root failed"));
+        WARNING(TEXT("ReadInode root failed"));
         return FALSE;
     }
     CurrentIndex = EXT2_ROOT_INODE;
@@ -794,7 +794,7 @@ BOOL ResolvePath(
         }
 
         if (ComponentLength == 0 || ComponentLength >= MAX_FILE_NAME) {
-            WARNING(TEXT("[ResolvePath] Invalid component length=%u"), ComponentLength);
+            WARNING(TEXT("Invalid component length=%u"), ComponentLength);
             return FALSE;
         }
 
@@ -802,12 +802,12 @@ BOOL ResolvePath(
         MemoryCopy(Component, Path + Offset, ComponentLength);
 
         if (FindInodeInDirectory(FileSystem, &CurrentInode, Component, &CurrentIndex) == FALSE) {
-            WARNING(TEXT("[ResolvePath] Component not found component=%s"), Component);
+            WARNING(TEXT("Component not found component=%s"), Component);
             return FALSE;
         }
 
         if (ReadInode(FileSystem, CurrentIndex, &CurrentInode) == FALSE) {
-            WARNING(TEXT("[ResolvePath] ReadInode failed index=%u component=%s"), CurrentIndex, Component);
+            WARNING(TEXT("ReadInode failed index=%u component=%s"), CurrentIndex, Component);
             return FALSE;
         }
 

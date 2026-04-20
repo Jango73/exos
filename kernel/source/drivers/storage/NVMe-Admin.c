@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ BOOL NVMeSetupAdminQueues(LPNVME_DEVICE Device) {
  */
 BOOL NVMeSubmitAdminCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Command, NVME_COMPLETION* CompletionOut) {
     if (Device == NULL || Command == NULL || Device->AdminSq == NULL || Device->AdminCq == NULL) {
-        WARNING(TEXT("[NVMeSubmitAdminCommand] Invalid parameters"));
+        WARNING(TEXT("Invalid parameters"));
         return FALSE;
     }
 
@@ -128,7 +128,7 @@ BOOL NVMeSubmitAdminCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Command, N
 
     volatile U32* Doorbell = NVMeGetDoorbellBase(Device);
     if (Doorbell == NULL) {
-        WARNING(TEXT("[NVMeSubmitAdminCommand] Doorbell base is null"));
+        WARNING(TEXT("Doorbell base is null"));
         UnlockMutex(&(Device->Mutex));
         return FALSE;
     }
@@ -165,13 +165,13 @@ BOOL NVMeSubmitAdminCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Command, N
             Doorbell[DbStride] = (U32)Head;
 
             if (Completion.SubmissionQueueId != 0 && NVMeShouldEmitAdminWarning(&Device->AdminCompletionMismatchWarningCooldown)) {
-                WARNING(TEXT("[NVMeSubmitAdminCommand] Unexpected SQID %x (expected 0)"),
+                WARNING(TEXT("Unexpected SQID %x (expected 0)"),
                         (U32)Completion.SubmissionQueueId);
             }
 
             if (EntryCommandId != Command->CommandId) {
                 if (NVMeShouldEmitAdminWarning(&Device->AdminCompletionMismatchWarningCooldown)) {
-                    WARNING(TEXT("[NVMeSubmitAdminCommand] Completion command id %x (expected %x)"),
+                    WARNING(TEXT("Completion command id %x (expected %x)"),
                             (U32)EntryCommandId,
                             (U32)Command->CommandId);
                 }
@@ -184,7 +184,7 @@ BOOL NVMeSubmitAdminCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Command, N
 
             if (Completion.SubmissionQueueHead >= Device->AdminSqEntries &&
                 NVMeShouldEmitAdminWarning(&Device->AdminCompletionMismatchWarningCooldown)) {
-                WARNING(TEXT("[NVMeSubmitAdminCommand] Invalid SQ head=%x entries=%x"),
+                WARNING(TEXT("Invalid SQ head=%x entries=%x"),
                         (U32)Completion.SubmissionQueueHead,
                         (U32)Device->AdminSqEntries);
             }
@@ -196,7 +196,7 @@ BOOL NVMeSubmitAdminCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Command, N
     }
 
     if (NVMeShouldEmitAdminWarning(&Device->AdminCompletionTimeoutWarningCooldown)) {
-        WARNING(TEXT("[NVMeSubmitAdminCommand] Timeout opcode=%x command_id=%x head=%u tail=%u"),
+        WARNING(TEXT("Timeout opcode=%x command_id=%x head=%u tail=%u"),
                 (U32)Command->Opcode,
                 (U32)Command->CommandId,
                 Head,
@@ -307,7 +307,7 @@ BOOL NVMeIdentifyController(LPNVME_DEVICE Device) {
 
     U16 Status = (U16)(Completion.Status >> 1);
     if (Status != 0) {
-        WARNING(TEXT("[NVMeIdentifyController] Completion status %x"), (U32)Status);
+        WARNING(TEXT("Completion status %x"), (U32)Status);
         KernelHeapFree(Raw);
         return FALSE;
     }
@@ -334,7 +334,7 @@ BOOL NVMeIdentifyController(LPNVME_DEVICE Device) {
     NVMeTrimString(Model, 40);
     NVMeTrimString(Firmware, 8);
 
-    DEBUG(TEXT("[NVMeIdentifyController] Serial=%s Model=%s Firmware=%s"),
+    DEBUG(TEXT("Serial=%s Model=%s Firmware=%s"),
           Serial,
           Model,
           Firmware);
@@ -356,26 +356,26 @@ BOOL NVMeIdentifyController(LPNVME_DEVICE Device) {
  */
 BOOL NVMeIdentifyNamespace(LPNVME_DEVICE Device, U32 NamespaceId, U64* NumSectorsOut, U32* BytesPerSectorOut) {
     if (Device == NULL || NamespaceId == 0) {
-        WARNING(TEXT("[NVMeIdentifyNamespace] Invalid parameters NSID=%u"), NamespaceId);
+        WARNING(TEXT("Invalid parameters NSID=%u"), NamespaceId);
         return FALSE;
     }
 
     LPVOID Buffer = NULL;
     LPVOID Raw = NULL;
     if (!NVMeAllocateIdentifyBuffer(&Buffer, &Raw)) {
-        WARNING(TEXT("[NVMeIdentifyNamespace] Buffer allocation failed NSID=%u"), NamespaceId);
+        WARNING(TEXT("Buffer allocation failed NSID=%u"), NamespaceId);
         return FALSE;
     }
 
     PHYSICAL BufferPhys = MapLinearToPhysical((LINEAR)Buffer);
     if (BufferPhys == 0 || (BufferPhys & (N_4KB - 1)) != 0) {
 #ifdef __EXOS_64__
-        WARNING(TEXT("[NVMeIdentifyNamespace] Invalid identify buffer mapping NSID=%u phys=%x,%x"),
+        WARNING(TEXT("Invalid identify buffer mapping NSID=%u phys=%x,%x"),
                 NamespaceId,
                 (U32)U64_High32(BufferPhys),
                 (U32)U64_Low32(BufferPhys));
 #else
-        WARNING(TEXT("[NVMeIdentifyNamespace] Invalid identify buffer mapping NSID=%u phys=%x"),
+        WARNING(TEXT("Invalid identify buffer mapping NSID=%u phys=%x"),
                 NamespaceId,
                 (U32)BufferPhys);
 #endif
@@ -397,14 +397,14 @@ BOOL NVMeIdentifyNamespace(LPNVME_DEVICE Device, U32 NamespaceId, U64* NumSector
 
     NVME_COMPLETION Completion;
     if (!NVMeSubmitAdminCommand(Device, &Command, &Completion)) {
-        WARNING(TEXT("[NVMeIdentifyNamespace] Submit identify failed NSID=%u"), NamespaceId);
+        WARNING(TEXT("Submit identify failed NSID=%u"), NamespaceId);
         KernelHeapFree(Raw);
         return FALSE;
     }
 
     U16 Status = (U16)(Completion.Status >> 1);
     if (Status != 0) {
-        WARNING(TEXT("[NVMeIdentifyNamespace] Completion status %x"), (U32)Status);
+        WARNING(TEXT("Completion status %x"), (U32)Status);
         KernelHeapFree(Raw);
         return FALSE;
     }
@@ -444,14 +444,14 @@ BOOL NVMeIdentifyNamespace(LPNVME_DEVICE Device, U32 NamespaceId, U64* NumSector
                      ((U32)Data[131 + (FormatIndex * 4)] << 24);
     Lbads = (U8)((LbafDescriptor >> 16) & 0xFF);
     if (Lbads < 9 || Lbads > 16) {
-        WARNING(TEXT("[NVMeIdentifyNamespace] Unsupported LBADS=%u NSID=%u"), (U32)Lbads, (U32)NamespaceId);
+        WARNING(TEXT("Unsupported LBADS=%u NSID=%u"), (U32)Lbads, (U32)NamespaceId);
         KernelHeapFree(Raw);
         return FALSE;
     }
 
     BytesPerSector = (1 << Lbads);
 
-    DEBUG(TEXT("[NVMeIdentifyNamespace] NSID=%u NSZE=%x,%x LBADS=%u BPS=%u"),
+    DEBUG(TEXT("NSID=%u NSZE=%x,%x LBADS=%u BPS=%u"),
           (U32)NamespaceId,
           (U32)U64_High32(Nsze),
           (U32)U64_Low32(Nsze),
@@ -482,7 +482,7 @@ BOOL NVMeIdentifyNamespace(LPNVME_DEVICE Device, U32 NamespaceId, U64* NumSector
  */
 BOOL NVMeIdentifyNamespaceList(LPNVME_DEVICE Device, U32* NamespaceIds, UINT MaxIds, UINT* CountOut) {
     if (Device == NULL || NamespaceIds == NULL || CountOut == NULL || MaxIds == 0) {
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Invalid parameters"));
+        WARNING(TEXT("Invalid parameters"));
         return FALSE;
     }
 
@@ -491,18 +491,18 @@ BOOL NVMeIdentifyNamespaceList(LPNVME_DEVICE Device, U32* NamespaceIds, UINT Max
     LPVOID Buffer = NULL;
     LPVOID Raw = NULL;
     if (!NVMeAllocateIdentifyBuffer(&Buffer, &Raw)) {
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Buffer allocation failed"));
+        WARNING(TEXT("Buffer allocation failed"));
         return FALSE;
     }
 
     PHYSICAL BufferPhys = MapLinearToPhysical((LINEAR)Buffer);
     if (BufferPhys == 0 || (BufferPhys & (N_4KB - 1)) != 0) {
 #ifdef __EXOS_64__
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Invalid identify buffer mapping phys=%x,%x"),
+        WARNING(TEXT("Invalid identify buffer mapping phys=%x,%x"),
                 (U32)U64_High32(BufferPhys),
                 (U32)U64_Low32(BufferPhys));
 #else
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Invalid identify buffer mapping phys=%x"),
+        WARNING(TEXT("Invalid identify buffer mapping phys=%x"),
                 (U32)BufferPhys);
 #endif
         KernelHeapFree(Raw);
@@ -523,14 +523,14 @@ BOOL NVMeIdentifyNamespaceList(LPNVME_DEVICE Device, U32* NamespaceIds, UINT Max
 
     NVME_COMPLETION Completion;
     if (!NVMeSubmitAdminCommand(Device, &Command, &Completion)) {
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Submit identify list failed"));
+        WARNING(TEXT("Submit identify list failed"));
         KernelHeapFree(Raw);
         return FALSE;
     }
 
     U16 Status = (U16)(Completion.Status >> 1);
     if (Status != 0) {
-        WARNING(TEXT("[NVMeIdentifyNamespaceList] Completion status %x"), (U32)Status);
+        WARNING(TEXT("Completion status %x"), (U32)Status);
         KernelHeapFree(Raw);
         return FALSE;
     }
@@ -583,7 +583,7 @@ BOOL NVMeSetNumberOfQueues(LPNVME_DEVICE Device, U16 QueueCount) {
         U16 Sc = (U16)(Status & 0xFF);
         U16 Sct = (U16)((Status >> 8) & 0x7);
         U16 Dnr = (U16)((Status >> 14) & 0x1);
-        WARNING(TEXT("[NVMeSetNumberOfQueues] Status=%x SCT=%x SC=%x DNR=%x"),
+        WARNING(TEXT("Status=%x SCT=%x SC=%x DNR=%x"),
                 (U32)Status,
                 (U32)Sct,
                 (U32)Sc,
@@ -596,7 +596,7 @@ BOOL NVMeSetNumberOfQueues(LPNVME_DEVICE Device, U16 QueueCount) {
     U16 MaxCq = (U16)((Result >> 16) & 0xFFFF);
     UNUSED(MaxSq);
     UNUSED(MaxCq);
-    DEBUG(TEXT("[NVMeSetNumberOfQueues] MaxSQ=%x MaxCQ=%x"),
+    DEBUG(TEXT("MaxSQ=%x MaxCQ=%x"),
           (U32)MaxSq,
           (U32)MaxCq);
 

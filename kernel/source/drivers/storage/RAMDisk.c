@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -419,7 +419,7 @@ static U32 RAMDiskInitialize(void) {
     LPBOOT_PARTITION Partition;
     LPRAMDISK Disk;
 
-    DEBUG(TEXT("[RAMDiskInitialize] Enter"));
+    DEBUG(TEXT("Enter"));
 
     Disk = NewRAMDisk();
     if (Disk == NULL) return DF_RETURN_NO_MEMORY;
@@ -431,14 +431,14 @@ static U32 RAMDiskInitialize(void) {
         return DF_RETURN_NO_MEMORY;
     }
 
-    DEBUG(TEXT("[RAMDiskInitialize] Memory allocated at %x"), Disk->Base);
+    DEBUG(TEXT("Memory allocated at %x"), Disk->Base);
 
     //-------------------------------------
     // Purge the disk
 
     MemorySet((LPVOID)Disk->Base, 0, Disk->Size);
 
-    DEBUG(TEXT("[RAMDiskInitialize] Disk purged"));
+    DEBUG(TEXT("Disk purged"));
 
     /*
       //-------------------------------------
@@ -484,7 +484,7 @@ static U32 RAMDiskInitialize(void) {
     Partition->LBA = 2;
     Partition->Size = (Disk->Size - (Partition->LBA * SECTOR_SIZE)) / SECTOR_SIZE;
 
-    DEBUG(TEXT("[RAMDiskInitialize] Partition created"));
+    DEBUG(TEXT("Partition created"));
 
     //-------------------------------------
     // Create an EXFS partition
@@ -500,7 +500,7 @@ static U32 RAMDiskInitialize(void) {
 
     EXT2GetDriver()->Command(DF_FS_CREATEPARTITION, (UINT)&Create);
 
-    DEBUG(TEXT("[RAMDiskInitialize] Partition formated in EXT2"));
+    DEBUG(TEXT("Partition formated in EXT2"));
 
     //-------------------------------------
 

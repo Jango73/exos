@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ static BOOL ReadLineTokens(LPUTF8_CURSOR Cursor, STR Tokens[][EKM1_TOKEN_MAX], U
 
         if (InToken == FALSE) {
             if (Count >= EKM1_MAX_TOKENS) {
-                ERROR(TEXT("[ReadLineTokens] Too many tokens at line %u"), Cursor->Line);
+                ERROR(TEXT("Too many tokens at line %u"), Cursor->Line);
                 return FALSE;
             }
             InToken = TRUE;
@@ -150,7 +150,7 @@ static BOOL ReadLineTokens(LPUTF8_CURSOR Cursor, STR Tokens[][EKM1_TOKEN_MAX], U
         }
 
         if (Length + 1 >= EKM1_TOKEN_MAX) {
-            ERROR(TEXT("[ReadLineTokens] Token too long at line %u"), Cursor->Line);
+            ERROR(TEXT("Token too long at line %u"), Cursor->Line);
             return FALSE;
         }
 
@@ -266,23 +266,23 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
     BOOL LayoutHasLevels = FALSE;
     BOOL MapSeenAny = FALSE;
 
-    DEBUG(TEXT("[LoadKeyboardLayout] Path = %s"), Path);
+    DEBUG(TEXT("Path = %s"), Path);
 
     Buffer = (U8 *)FileReadAll(Path, &Size);
     if (Buffer == NULL) {
-        WARNING(TEXT("[LoadKeyboardLayout] Layout file not found"));
+        WARNING(TEXT("Layout file not found"));
         return NULL;
     }
 
     if (Size < EKM1_HEADER_SIZE) {
-        WARNING(TEXT("[LoadKeyboardLayout] Layout file too small"));
+        WARNING(TEXT("Layout file too small"));
         goto Out;
     }
 
     {
         const U8 Header[EKM1_HEADER_SIZE] = {'E', 'K', 'M', '1'};
         if (MemoryCompare(Buffer, Header, EKM1_HEADER_SIZE) != 0) {
-            WARNING(TEXT("[LoadKeyboardLayout] Invalid layout header"));
+            WARNING(TEXT("Invalid layout header"));
             goto Out;
         }
     }
@@ -333,18 +333,18 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             LPSTR CodeCopy = NULL;
 
             if (TokenCount != 2) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid code directive"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid code directive"), LineNumber);
                 goto Out_Error;
             }
 
             if (LayoutHasCode) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Duplicate code directive"), LineNumber);
+                ERROR(TEXT("Line %u: Duplicate code directive"), LineNumber);
                 goto Out_Error;
             }
 
             Length = StringLength(Tokens[1]);
             if (Length == 0 || Length >= EKM1_TOKEN_MAX) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid layout code"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid layout code"), LineNumber);
                 goto Out_Error;
             }
 
@@ -357,22 +357,22 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             U32 Levels = 0;
 
             if (TokenCount != 2) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid levels directive"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid levels directive"), LineNumber);
                 goto Out_Error;
             }
 
             if (MapSeenAny) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Levels must appear before map entries"), LineNumber);
+                ERROR(TEXT("Line %u: Levels must appear before map entries"), LineNumber);
                 goto Out_Error;
             }
 
             if (ParseDecToken(Tokens[1], &Levels) == FALSE) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid levels value"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid levels value"), LineNumber);
                 goto Out_Error;
             }
 
             if (Levels == 0 || Levels > KEY_LAYOUT_HID_MAX_LEVELS) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Levels out of range"), LineNumber);
+                ERROR(TEXT("Line %u: Levels out of range"), LineNumber);
                 goto Out_Error;
             }
 
@@ -387,7 +387,7 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             UINT Index = 0;
 
             if (TokenCount != 6) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid map directive"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid map directive"), LineNumber);
                 goto Out_Error;
             }
 
@@ -396,28 +396,28 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
                 ParseHexToken(Tokens[3], &VirtualKey) == FALSE ||
                 ParseHexToken(Tokens[4], &Ascii) == FALSE ||
                 ParseHexToken(Tokens[5], &Unicode) == FALSE) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid map values"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid map values"), LineNumber);
                 goto Out_Error;
             }
 
             if (Usage < KEY_USAGE_MIN || Usage > KEY_USAGE_MAX) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Usage out of range"), LineNumber);
+                ERROR(TEXT("Line %u: Usage out of range"), LineNumber);
                 goto Out_Error;
             }
 
             if (Level >= Layout->LevelCount) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Level out of range"), LineNumber);
+                ERROR(TEXT("Line %u: Level out of range"), LineNumber);
                 goto Out_Error;
             }
 
             if (VirtualKey > 0xFF || Ascii > 0xFF || Unicode > 0xFFFF) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Keycode out of range"), LineNumber);
+                ERROR(TEXT("Line %u: Keycode out of range"), LineNumber);
                 goto Out_Error;
             }
 
             Index = (UINT)((Usage * KEY_LAYOUT_HID_MAX_LEVELS) + Level);
             if (MapSeen[Index] != 0) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Duplicate map entry"), LineNumber);
+                ERROR(TEXT("Line %u: Duplicate map entry"), LineNumber);
                 goto Out_Error;
             }
 
@@ -432,19 +432,19 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             U32 Result = 0;
 
             if (TokenCount != 4) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid dead directive"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid dead directive"), LineNumber);
                 goto Out_Error;
             }
 
             if (ParseHexToken(Tokens[1], &DeadKey) == FALSE ||
                 ParseHexToken(Tokens[2], &BaseKey) == FALSE ||
                 ParseHexToken(Tokens[3], &Result) == FALSE) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid dead values"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid dead values"), LineNumber);
                 goto Out_Error;
             }
 
             if (Layout->DeadKeyCount >= KEY_LAYOUT_HID_MAX_DEAD_KEYS) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Dead key table full"), LineNumber);
+                ERROR(TEXT("Line %u: Dead key table full"), LineNumber);
                 goto Out_Error;
             }
 
@@ -458,19 +458,19 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             U32 Result = 0;
 
             if (TokenCount != 4) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid compose directive"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid compose directive"), LineNumber);
                 goto Out_Error;
             }
 
             if (ParseHexToken(Tokens[1], &FirstKey) == FALSE ||
                 ParseHexToken(Tokens[2], &SecondKey) == FALSE ||
                 ParseHexToken(Tokens[3], &Result) == FALSE) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Invalid compose values"), LineNumber);
+                ERROR(TEXT("Line %u: Invalid compose values"), LineNumber);
                 goto Out_Error;
             }
 
             if (Layout->ComposeCount >= KEY_LAYOUT_HID_MAX_COMPOSE) {
-                ERROR(TEXT("[LoadKeyboardLayout] Line %u: Compose table full"), LineNumber);
+                ERROR(TEXT("Line %u: Compose table full"), LineNumber);
                 goto Out_Error;
             }
 
@@ -479,7 +479,7 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
             ComposeEntries[Layout->ComposeCount].Result = Result;
             Layout->ComposeCount++;
         } else {
-            ERROR(TEXT("[LoadKeyboardLayout] Line %u: Unknown directive %s"), LineNumber, Tokens[0]);
+            ERROR(TEXT("Line %u: Unknown directive %s"), LineNumber, Tokens[0]);
             goto Out_Error;
         }
 
@@ -487,16 +487,16 @@ const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path) {
     }
 
     if (LayoutHasCode == FALSE) {
-        ERROR(TEXT("[LoadKeyboardLayout] Missing code directive"));
+        ERROR(TEXT("Missing code directive"));
         goto Out_Error;
     }
 
     if (LayoutHasLevels == FALSE) {
-        WARNING(TEXT("[LoadKeyboardLayout] Missing levels directive, using default"));
+        WARNING(TEXT("Missing levels directive, using default"));
     }
 
     if (Cursor.DecodeErrors != 0) {
-        WARNING(TEXT("[LoadKeyboardLayout] UTF-8 replacements: %u"), Cursor.DecodeErrors);
+        WARNING(TEXT("UTF-8 replacements: %u"), Cursor.DecodeErrors);
     }
 
     KernelHeapFree(Buffer);

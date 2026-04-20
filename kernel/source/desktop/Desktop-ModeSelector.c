@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@ BOOL DesktopSelectGraphicsMode(LPDRIVER GraphicsDriver, LPGRAPHICS_MODE_INFO Sel
     MaxModesToProbe = (ModeCount > 0) ? ModeCount : 1;
     HasSelectedMode = FALSE;
 
-    DEBUG(TEXT("[DesktopSelectGraphicsMode] Probe driver=%s raw_count=%u max_probe=%u"),
+    DEBUG(TEXT("Probe driver=%s raw_count=%u max_probe=%u"),
         GraphicsDriver->Product,
         RawModeCount,
         MaxModesToProbe);
@@ -128,14 +128,14 @@ BOOL DesktopSelectGraphicsMode(LPDRIVER GraphicsDriver, LPGRAPHICS_MODE_INFO Sel
         DesktopInitializeGraphicsModeInfo(&Candidate, Index, 0, 0, 0);
         QueryResult = GraphicsDriver->Command(DF_GFX_GETMODEINFO, (UINT)&Candidate);
         if (QueryResult != DF_RETURN_SUCCESS) {
-            DEBUG(TEXT("[DesktopSelectGraphicsMode] Mode index=%u query failed result=%u"),
+            DEBUG(TEXT("Mode index=%u query failed result=%u"),
                 Index,
                 QueryResult);
             continue;
         }
 
         if (DesktopIsValidGraphicsModeInfo(&Candidate) == FALSE) {
-            DEBUG(TEXT("[DesktopSelectGraphicsMode] Mode index=%u invalid width=%u height=%u bpp=%u"),
+            DEBUG(TEXT("Mode index=%u invalid width=%u height=%u bpp=%u"),
                 Index,
                 Candidate.Width,
                 Candidate.Height,
@@ -143,7 +143,7 @@ BOOL DesktopSelectGraphicsMode(LPDRIVER GraphicsDriver, LPGRAPHICS_MODE_INFO Sel
             continue;
         }
 
-        DEBUG(TEXT("[DesktopSelectGraphicsMode] Mode index=%u candidate=%ux%ux%u"),
+        DEBUG(TEXT("Mode index=%u candidate=%ux%ux%u"),
             Index,
             Candidate.Width,
             Candidate.Height,
@@ -152,7 +152,7 @@ BOOL DesktopSelectGraphicsMode(LPDRIVER GraphicsDriver, LPGRAPHICS_MODE_INFO Sel
         if (IsBetterDesktopModeCandidate(&Candidate, SelectedMode)) {
             *SelectedMode = Candidate;
             HasSelectedMode = TRUE;
-            DEBUG(TEXT("[DesktopSelectGraphicsMode] Mode index=%u selected=%ux%ux%u"),
+            DEBUG(TEXT("Mode index=%u selected=%ux%ux%u"),
                 Index,
                 SelectedMode->Width,
                 SelectedMode->Height,

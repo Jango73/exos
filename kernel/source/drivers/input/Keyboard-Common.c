@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ void KeyboardCommonInitialize(void) {
     }
 
     if (DeferredWorkTokenIsValid(Keyboard.RepeatToken) == FALSE) {
-        ERROR(TEXT("[KeyboardCommonInitialize] Repeat poll registration failed"));
+        ERROR(TEXT("Repeat poll registration failed"));
     }
 
     Keyboard.Initialized = TRUE;
@@ -120,7 +120,7 @@ void KeyboardCommonInitialize(void) {
 static void SendKeyCodeToBuffer(LPKEYCODE KeyCode) {
     U32 Index;
 
-    FINE_DEBUG(TEXT("[SendKeyCodeToBuffer] Enter"));
+    FINE_DEBUG(TEXT("Enter"));
 
     if (KeyCode->VirtualKey != 0 || KeyCode->ASCIICode != 0) {
         //-------------------------------------
@@ -134,7 +134,7 @@ static void SendKeyCodeToBuffer(LPKEYCODE KeyCode) {
         }
     }
 
-    FINE_DEBUG(TEXT("[SendKeyCodeToBuffer] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/
@@ -278,7 +278,7 @@ BOOL PeekChar(void) {
     U32 Result = FALSE;
     KEYCODE KeyCode = {0};
 
-    FINE_DEBUG(TEXT("[PeekChar] Enter"));
+    FINE_DEBUG(TEXT("Enter"));
 
     if (PeekKeyInMessageQueue(&KeyCode) == TRUE) {
         return TRUE;
@@ -291,7 +291,7 @@ BOOL PeekChar(void) {
 
     UnlockMutex(&(Keyboard.Mutex));
 
-    FINE_DEBUG(TEXT("[PeekChar] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 
     return Result;
 }

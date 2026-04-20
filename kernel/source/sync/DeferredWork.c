@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -218,7 +218,7 @@ BOOL InitializeDeferredWork(void) {
     }
 
     DEBUG(
-        TEXT("[InitializeDeferredWork] Queues initialized standard_delay=%u fast_delay=%u"), GetDeferredWorkPollDelay(),
+        TEXT("Queues initialized standard_delay=%u fast_delay=%u"), GetDeferredWorkPollDelay(),
         DEFERRED_WORK_FAST_DELAY_MS);
     return TRUE;
 }
@@ -419,7 +419,7 @@ static U32 DeferredWorkQueueDispatcherTask(LPVOID Param) {
 
         if (WaitResult != WAIT_OBJECT_0) {
             WARNING(
-                TEXT("[DeferredWorkQueueDispatcherTask] Queue=%s unexpected wait result %u"), Queue->Name, WaitResult);
+                TEXT("Queue=%s unexpected wait result %u"), Queue->Name, WaitResult);
             continue;
         }
 

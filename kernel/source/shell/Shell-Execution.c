@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ void ExecuteCommandLine(LPSHELLCONTEXT Context, LPCSTR CommandLine) {
             ConsolePrint(TEXT("Error: %s\n"), ScriptGetErrorMessage(Context->ScriptContext));
         }
     } else {
-        ERROR(TEXT("[ExecuteCommandLine] Null pointer\n"));
+        ERROR(TEXT("Null pointer\n"));
     }
 }
 

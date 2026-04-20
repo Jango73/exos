@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -240,7 +240,7 @@ static UINT CountFreePayloadBytes(LPHEAP_CONTROL_BLOCK ControlBlock) {
  */
 static void AddToFreeList(LPHEAP_CONTROL_BLOCK ControlBlock, LPHEAP_BLOCK_HEADER Block, UINT SizeClass) {
     if (IsBlockFree(Block)) {
-        ERROR(TEXT("[AddToFreeList] Block already marked free"));
+        ERROR(TEXT("Block already marked free"));
         return;
     }
 
@@ -367,7 +367,7 @@ void HeapConfigureGrowth(
  */
 static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) {
     if (ControlBlock == NULL) {
-        ERROR(TEXT("[TryExpandHeap] Heap control block is undefined"));
+        ERROR(TEXT("Heap control block is undefined"));
         return FALSE;
     }
 
@@ -394,12 +394,12 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
     }
 
     if (DesiredSize <= CurrentSize) {
-        ERROR(TEXT("[TryExpandHeap] Heap limit reached (Current=%x Limit=%x)"), CurrentSize, Limit);
+        ERROR(TEXT("Heap limit reached (Current=%x Limit=%x)"), CurrentSize, Limit);
         return FALSE;
     }
 
     if (ControlBlock->ResizeCallback == NULL) {
-        ERROR(TEXT("[TryExpandHeap] Heap resize callback is undefined"));
+        ERROR(TEXT("Heap resize callback is undefined"));
         return FALSE;
     }
 
@@ -409,7 +409,7 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
             CurrentSize,
             DesiredSize,
             ControlBlock->RegionFlags) == FALSE) {
-        ERROR(TEXT("[TryExpandHeap] ResizeRegion failed for heap at %x (from %x to %x)"), ControlBlock->HeapBase, CurrentSize,
+        ERROR(TEXT("ResizeRegion failed for heap at %x (from %x to %x)"), ControlBlock->HeapBase, CurrentSize,
             DesiredSize);
         return FALSE;
     }
@@ -419,7 +419,7 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
         ControlBlock->Owner->HeapSize = DesiredSize;
     }
 
-    DEBUG(TEXT("[TryExpandHeap] Expanded heap from %u to %u (required %u)"),
+    DEBUG(TEXT("Expanded heap from %u to %u (required %u)"),
           CurrentSize, DesiredSize, RequiredSize);
 
     return TRUE;
@@ -594,7 +594,7 @@ LPVOID HeapRealloc_HBHS(LPPROCESS Process, LINEAR HeapBase, UINT HeapSize, LPVOI
     // Get the block header
     LPHEAP_BLOCK_HEADER Block = (LPHEAP_BLOCK_HEADER)((LINEAR)Pointer - sizeof(HEAP_BLOCK_HEADER));
     if (Block->TypeID != KOID_HEAP) {
-        ERROR(TEXT("[HeapRealloc_HBHS] Invalid block header ID"));
+        ERROR(TEXT("Invalid block header ID"));
         return NULL;
     }
 
@@ -648,17 +648,17 @@ void HeapFree_HBHS(LINEAR HeapBase, UINT HeapSize, LPVOID Pointer) {
     // Get the block header
     Block = (LPHEAP_BLOCK_HEADER)((LINEAR)Pointer - sizeof(HEAP_BLOCK_HEADER));
     if (Block->TypeID != KOID_HEAP) {
-        ERROR(TEXT("[HeapFree_HBHS] Invalid block header ID"));
+        ERROR(TEXT("Invalid block header ID"));
         return;
     }
 
     if (IsBlockInHeap(ControlBlock, Block) == FALSE) {
-        ERROR(TEXT("[HeapFree_HBHS] Block outside heap bounds"));
+        ERROR(TEXT("Block outside heap bounds"));
         return;
     }
 
     if (IsBlockFree(Block)) {
-        ERROR(TEXT("[HeapFree_HBHS] Double free detected"));
+        ERROR(TEXT("Double free detected"));
         return;
     }
 
@@ -784,7 +784,7 @@ LPVOID HeapAlloc_P(LPPROCESS Process, UINT Size) {
     LPVOID Pointer = NULL;
 
     if (Process == NULL) {
-        ERROR(TEXT("[HeapAlloc_P] Process pointer is NULL"));
+        ERROR(TEXT("Process pointer is NULL"));
         return NULL;
     }
 
@@ -844,7 +844,7 @@ LPVOID KernelHeapAlloc(UINT Size) {
     LPVOID Pointer = HeapAlloc_P(&KernelProcess, Size);
 
     if (Pointer == NULL) {
-        ERROR(TEXT("[KernelHeapAlloc] Allocation failed"));
+        ERROR(TEXT("Allocation failed"));
     }
 
     return Pointer;

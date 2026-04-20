@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -132,25 +132,25 @@ static void EnableLocalApicVirtualWire(void) {
     LocalApicConfig = GetLocalAPICConfig();
     SAFE_USE(LocalApicConfig) {
         if (!LocalApicConfig->Present) {
-            WARNING(TEXT("[EnableLocalApicVirtualWire] Local APIC not present"));
+            WARNING(TEXT("Local APIC not present"));
             return;
         }
 
         if (!EnableLocalAPIC()) {
-            WARNING(TEXT("[EnableLocalApicVirtualWire] Failed to enable Local APIC"));
+            WARNING(TEXT("Failed to enable Local APIC"));
             return;
         }
 
         if (!SetSpuriousInterruptVector(IOAPIC_SPURIOUS_VECTOR)) {
-            WARNING(TEXT("[EnableLocalApicVirtualWire] Failed to set spurious vector"));
+            WARNING(TEXT("Failed to set spurious vector"));
         }
 
         if (!ConfigureLVTEntry(LOCAL_APIC_LVT_LINT0, 0x20, LOCAL_APIC_LVT_DELIVERY_EXTINT, FALSE)) {
-            WARNING(TEXT("[EnableLocalApicVirtualWire] Failed to configure LINT0 ExtINT"));
+            WARNING(TEXT("Failed to configure LINT0 ExtINT"));
             return;
         }
 
-        WARNING(TEXT("[EnableLocalApicVirtualWire] Local APIC virtual wire enabled"));
+        WARNING(TEXT("Local APIC virtual wire enabled"));
     }
 }
 
@@ -161,7 +161,7 @@ static void EnableLocalApicVirtualWire(void) {
  */
 static void SetupPicVirtualWireIfNeeded(void) {
     if (g_InterruptControllerConfig.IMCRPresent == FALSE) {
-        WARNING(TEXT("[SetupPicVirtualWireIfNeeded] IMCR not present, enabling Local APIC virtual wire"));
+        WARNING(TEXT("IMCR not present, enabling Local APIC virtual wire"));
         EnableLocalApicVirtualWire();
     }
 }
@@ -175,7 +175,7 @@ static void RoutePicToLocalApic(void) {
     U8 Value;
 
     if (g_InterruptControllerConfig.IMCRPresent == FALSE) {
-        WARNING(TEXT("[RoutePicToLocalApic] IMCR not present, using Local APIC virtual wire"));
+        WARNING(TEXT("IMCR not present, using Local APIC virtual wire"));
         EnableLocalApicVirtualWire();
         return;
     }
@@ -183,7 +183,7 @@ static void RoutePicToLocalApic(void) {
     OutPortByte(0x22, 0x70);
     Value = (U8)InPortByte(0x23);
     OutPortByte(0x23, (U8)(Value | 0x01));
-    WARNING(TEXT("[RoutePicToLocalApic] IMCR %x -> %x"), Value, (U8)(Value | 0x01));
+    WARNING(TEXT("IMCR %x -> %x"), Value, (U8)(Value | 0x01));
 }
 
 /************************************************************************/
@@ -195,7 +195,7 @@ static void RoutePicToPic(void) {
     U8 Value;
 
     if (g_InterruptControllerConfig.IMCRPresent == FALSE) {
-        WARNING(TEXT("[RoutePicToPic] IMCR not present, keeping default routing"));
+        WARNING(TEXT("IMCR not present, keeping default routing"));
         SetupPicVirtualWireIfNeeded();
         return;
     }
@@ -203,7 +203,7 @@ static void RoutePicToPic(void) {
     OutPortByte(0x22, 0x70);
     Value = (U8)InPortByte(0x23);
     OutPortByte(0x23, (U8)(Value & 0xFE));
-    WARNING(TEXT("[RoutePicToPic] IMCR %x -> %x"), Value, (U8)(Value & 0xFE));
+    WARNING(TEXT("IMCR %x -> %x"), Value, (U8)(Value & 0xFE));
 }
 
 /************************************************************************/
@@ -267,7 +267,7 @@ static void InitializePIC8259(void) {
 
     UNUSED(Mask1);
     UNUSED(Mask2);
-    DEBUG(TEXT("[InitializePIC8259] Remapped PIC (0x20/0x28), masks %x/%x"),
+    DEBUG(TEXT("Remapped PIC (0x20/0x28), masks %x/%x"),
           Mask1, Mask2);
 }
 
@@ -284,7 +284,7 @@ static void DisablePIC8259(void) {
     WritePICMask(1, 0xFF);
     WritePICMask(2, 0xFF);
 
-    DEBUG(TEXT("[DisablePIC8259] PIC 8259 controllers disabled"));
+    DEBUG(TEXT("PIC 8259 controllers disabled"));
 }
 
 /************************************************************************/
@@ -323,11 +323,11 @@ static void DetectInterruptControllers(void) {
         IOApicConfig = GetIOAPICConfig();
         if (IOApicConfig && IOApicConfig->Initialized && IOApicConfig->ControllerCount > 0) {
             g_InterruptControllerConfig.IOAPICPresent = TRUE;
-            DEBUG(TEXT("[DetectInterruptControllers] Detected I/O APIC with %u controllers"), IOApicConfig->ControllerCount);
+            DEBUG(TEXT("Detected I/O APIC with %u controllers"), IOApicConfig->ControllerCount);
         }
     }
 
-    DEBUG(TEXT("[DetectInterruptControllers] PIC=%s, IOAPIC=%s"),
+    DEBUG(TEXT("PIC=%s, IOAPIC=%s"),
           g_InterruptControllerConfig.PICPresent ? "YES" : "NO",
           g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
 }
@@ -348,9 +348,9 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
     DetectInterruptControllers();
     g_InterruptControllerConfig.IMCRPresent = DetectIMCRPresence();
     if (g_InterruptControllerConfig.IMCRPresent) {
-        DEBUG(TEXT("[InitializeInterruptController] IMCR present"));
+        DEBUG(TEXT("IMCR present"));
     } else {
-        WARNING(TEXT("[InitializeInterruptController] IMCR not present"));
+        WARNING(TEXT("IMCR not present"));
     }
 
     // Determine which controller to use
@@ -360,9 +360,9 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
                 g_InterruptControllerConfig.ActiveType = INTCTRL_TYPE_PIC;
                 InitializePIC8259();
                 RoutePicToPic();
-                DEBUG(TEXT("[InitializeInterruptController] Forced PIC 8259 mode"));
+                DEBUG(TEXT("Forced PIC 8259 mode"));
             } else {
-                ERROR(TEXT("[InitializeInterruptController]  PIC 8259 forced but not available"));
+                ERROR(TEXT("PIC 8259 forced but not available"));
                 return FALSE;
             }
             break;
@@ -370,11 +370,11 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
         case INTCTRL_MODE_FORCE_IOAPIC:
             if (g_InterruptControllerConfig.IOAPICPresent) {
                 if (!TransitionToIOAPICMode()) {
-                    ERROR(TEXT("[InitializeInterruptController]  Failed to transition to I/O APIC mode"));
+                    ERROR(TEXT("Failed to transition to I/O APIC mode"));
                     return FALSE;
                 }
             } else {
-                ERROR(TEXT("[InitializeInterruptController]  I/O APIC forced but not available"));
+                ERROR(TEXT("I/O APIC forced but not available"));
                 return FALSE;
             }
             break;
@@ -382,14 +382,14 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
         case INTCTRL_MODE_AUTO:
         default:
             // Prefer I/O APIC if available, otherwise use PIC
-            DEBUG(TEXT("[InitializeInterruptController] Auto mode - IOAPICPresent=%s"),
+            DEBUG(TEXT("Auto mode - IOAPICPresent=%s"),
                   g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
             if (g_InterruptControllerConfig.IOAPICPresent) {
-                DEBUG(TEXT("[InitializeInterruptController] Attempting transition to I/O APIC mode"));
+                DEBUG(TEXT("Attempting transition to I/O APIC mode"));
                 if (TransitionToIOAPICMode()) {
-                    DEBUG(TEXT("[InitializeInterruptController] Automatically selected I/O APIC mode"));
+                    DEBUG(TEXT("Automatically selected I/O APIC mode"));
                 } else {
-                    DEBUG(TEXT("[InitializeInterruptController] I/O APIC transition failed, falling back to PIC"));
+                    DEBUG(TEXT("I/O APIC transition failed, falling back to PIC"));
                     g_InterruptControllerConfig.ActiveType = INTCTRL_TYPE_PIC;
                     InitializePIC8259();
                     RoutePicToPic();
@@ -398,12 +398,12 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
                 g_InterruptControllerConfig.ActiveType = INTCTRL_TYPE_PIC;
                 InitializePIC8259();
                 RoutePicToPic();
-                DEBUG(TEXT("[InitializeInterruptController] Automatically selected PIC 8259 mode (no IOAPIC available)"));
+                DEBUG(TEXT("Automatically selected PIC 8259 mode (no IOAPIC available)"));
             }
             break;
     }
 
-    WARNING(TEXT("[InitializeInterruptController] Type=%s PIC=%s IOAPIC=%s"),
+    WARNING(TEXT("Type=%s PIC=%s IOAPIC=%s"),
         (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_PIC) ? "PIC" :
         (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_IOAPIC) ? "IOAPIC" : "NONE",
         g_InterruptControllerConfig.PICPresent ? "YES" : "NO",
@@ -426,7 +426,7 @@ void ShutdownInterruptController(void) {
     }
 
     MemorySet(&g_InterruptControllerConfig, 0, sizeof(INTERRUPT_CONTROLLER_CONFIG));
-    DEBUG(TEXT("[ShutdownInterruptController] Interrupt controller subsystem shutdown"));
+    DEBUG(TEXT("Interrupt controller subsystem shutdown"));
 }
 
 /************************************************************************/
@@ -493,7 +493,7 @@ BOOL EnableInterrupt(U8 IRQ) {
 
             if (ReadOk) {
             } else {
-                WARNING(TEXT("[EnableInterrupt] IRQ=%u GSI=%u IOAPIC entry read failed"),
+                WARNING(TEXT("IRQ=%u GSI=%u IOAPIC entry read failed"),
                     IRQ,
                     MappedIRQ);
             }
@@ -552,7 +552,7 @@ void UnmaskAllInterrupts(void) {
     if (IsIOAPICModeActive()) {
         // Restore I/O APIC redirection table to enabled state
         // This would need to be implemented based on saved state
-        DEBUG(TEXT("[UnmaskAllInterrupts] TODO: Implement I/O APIC unmask all"));
+        DEBUG(TEXT("TODO: Implement I/O APIC unmask all"));
     } else if (IsPICModeActive()) {
         WritePICMask(1, g_InterruptControllerConfig.PICBaseMask);
         WritePICMask(2, 0xFF); // Keep PIC2 masked unless needed
@@ -585,62 +585,62 @@ static BOOL TestIOAPICFunctionality(void) {
     U32 i;
     BOOL FoundFunctional = FALSE;
 
-    DEBUG(TEXT("[TestIOAPICFunctionality] Starting I/O APIC functionality test"));
+    DEBUG(TEXT("Starting I/O APIC functionality test"));
 
     // Get I/O APIC configuration
     IOApicConfig = GetIOAPICConfig();
     if (!IOApicConfig || !IOApicConfig->Initialized || IOApicConfig->ControllerCount == 0) {
-        DEBUG(TEXT("[TestIOAPICFunctionality] I/O APIC config invalid"));
+        DEBUG(TEXT("I/O APIC config invalid"));
         return FALSE;
     }
 
     // Test all I/O APIC controllers to find at least one functional
     for (i = 0; i < IOApicConfig->ControllerCount; i++) {
-        DEBUG(TEXT("[TestIOAPICFunctionality] Testing controller %u at mapped address %08X"),
+        DEBUG(TEXT("Testing controller %u at mapped address %08X"),
               i, IOApicConfig->Controllers[i].MappedAddress);
 
         // Read version register to test MMIO access
         VersionReg = ReadIOAPICRegister(i, IOAPIC_REG_VER);
-        DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Version register = %08X"), i, VersionReg);
+        DEBUG(TEXT("Controller %u: Version register = %08X"), i, VersionReg);
 
         // Check if version register returned invalid data (0x00000000 or 0xFFFFFFFF)
         if (VersionReg == 0x00000000 || VersionReg == 0xFFFFFFFF) {
-            DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Invalid version register - skipping"), i);
+            DEBUG(TEXT("Controller %u: Invalid version register - skipping"), i);
             continue;
         }
 
         // Extract maximum redirection entries
         MaxRedirEntries = (U8)((VersionReg >> 16) & 0xFF);
-        DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Max redirection entries = %u"), i, MaxRedirEntries);
+        DEBUG(TEXT("Controller %u: Max redirection entries = %u"), i, MaxRedirEntries);
 
         // Check if we have enough redirection entries for basic PC interrupts
         if (MaxRedirEntries < 15) {
-            DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Insufficient redirection entries (%u) - skipping"),
+            DEBUG(TEXT("Controller %u: Insufficient redirection entries (%u) - skipping"),
                   i, MaxRedirEntries);
             continue;
         }
 
         // Try to read ID register as another connectivity test
         U32 IdReg = ReadIOAPICRegister(i, IOAPIC_REG_ID);
-        DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: ID register = %08X"), i, IdReg);
+        DEBUG(TEXT("Controller %u: ID register = %08X"), i, IdReg);
 
         // Only reject if we get 0xFFFFFFFF (hardware not responding)
         // ID register can legitimately be 0x00000000 (ID = 0)
         if (IdReg == 0xFFFFFFFF) {
-            DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Hardware not responding - skipping"), i);
+            DEBUG(TEXT("Controller %u: Hardware not responding - skipping"), i);
             continue;
         }
 
         // This controller appears functional
-        DEBUG(TEXT("[TestIOAPICFunctionality] Controller %u: Functional and ready"), i);
+        DEBUG(TEXT("Controller %u: Functional and ready"), i);
         FoundFunctional = TRUE;
     }
 
     if (FoundFunctional) {
-        DEBUG(TEXT("[TestIOAPICFunctionality] At least one I/O APIC controller is functional"));
+        DEBUG(TEXT("At least one I/O APIC controller is functional"));
         return TRUE;
     } else {
-        DEBUG(TEXT("[TestIOAPICFunctionality] No functional I/O APIC controllers found"));
+        DEBUG(TEXT("No functional I/O APIC controllers found"));
         return FALSE;
     }
 }
@@ -649,7 +649,7 @@ static BOOL TestIOAPICFunctionality(void) {
 
 BOOL TransitionToIOAPICMode(void) {
     if (!g_InterruptControllerConfig.IOAPICPresent) {
-        DEBUG(TEXT("[TransitionToIOAPICMode] Cannot transition to I/O APIC mode: I/O APIC not present"));
+        DEBUG(TEXT("Cannot transition to I/O APIC mode: I/O APIC not present"));
         return FALSE;
     }
 
@@ -657,42 +657,42 @@ BOOL TransitionToIOAPICMode(void) {
 
     // Step 1: Set up IRQ mappings from ACPI
     if (!SetupIRQMappings()) {
-        WARNING(TEXT("[TransitionToIOAPICMode] Could not set up IRQ mappings from ACPI"));
+        WARNING(TEXT("Could not set up IRQ mappings from ACPI"));
     }
 
     // Step 2: Test IOAPIC functionality before shutting down PIC
-    DEBUG(TEXT("[TransitionToIOAPICMode] Testing I/O APIC functionality before transition"));
+    DEBUG(TEXT("Testing I/O APIC functionality before transition"));
     if (!TestIOAPICFunctionality()) {
-        ERROR(TEXT("[TransitionToIOAPICMode] I/O APIC functionality test failed - cannot transition"));
+        ERROR(TEXT("I/O APIC functionality test failed - cannot transition"));
         g_InterruptControllerConfig.TransitionActive = FALSE;
         return FALSE;
     }
 
     // Step 3: Enable Local APIC before routing interrupts through IOAPIC
     if (!EnableLocalAPIC()) {
-        ERROR(TEXT("[TransitionToIOAPICMode] Failed to enable Local APIC"));
+        ERROR(TEXT("Failed to enable Local APIC"));
         g_InterruptControllerConfig.TransitionActive = FALSE;
         return FALSE;
     }
 
     if (!SetSpuriousInterruptVector(IOAPIC_SPURIOUS_VECTOR)) {
-        ERROR(TEXT("[TransitionToIOAPICMode] Failed to set Local APIC spurious vector"));
+        ERROR(TEXT("Failed to set Local APIC spurious vector"));
         g_InterruptControllerConfig.TransitionActive = FALSE;
         return FALSE;
     }
 
-    DEBUG(TEXT("[TransitionToIOAPICMode] Local APIC enabled"));
+    DEBUG(TEXT("Local APIC enabled"));
     RoutePicToLocalApic();
 
     if (!ConfigureLVTEntry(LOCAL_APIC_LVT_LINT0, 0x20, LOCAL_APIC_LVT_DELIVERY_EXTINT, TRUE)) {
-        WARNING(TEXT("[TransitionToIOAPICMode] Failed to mask LINT0 after IOAPIC enable"));
+        WARNING(TEXT("Failed to mask LINT0 after IOAPIC enable"));
     } else {
-        DEBUG(TEXT("[TransitionToIOAPICMode] LINT0 masked for IOAPIC mode"));
+        DEBUG(TEXT("LINT0 masked for IOAPIC mode"));
     }
 
     // Step 4: Shutdown PIC 8259
     if (!ShutdownPIC8259()) {
-        ERROR(TEXT("[TransitionToIOAPICMode] Failed to shutdown PIC 8259"));
+        ERROR(TEXT("Failed to shutdown PIC 8259"));
         g_InterruptControllerConfig.TransitionActive = FALSE;
         return FALSE;
     }
@@ -704,7 +704,7 @@ BOOL TransitionToIOAPICMode(void) {
     g_InterruptControllerConfig.ActiveType = INTCTRL_TYPE_IOAPIC;
     g_InterruptControllerConfig.TransitionActive = FALSE;
 
-    DEBUG(TEXT("[TransitionToIOAPICMode] Successfully transitioned to I/O APIC mode"));
+    DEBUG(TEXT("Successfully transitioned to I/O APIC mode"));
     return TRUE;
 }
 
@@ -715,7 +715,7 @@ BOOL ShutdownPIC8259(void) {
         return TRUE; // Nothing to shutdown
     }
 
-    DEBUG(TEXT("[ShutdownPIC8259] Shutting down PIC 8259"));
+    DEBUG(TEXT("Shutting down PIC 8259"));
 
     // Disable all PIC interrupts
     DisablePIC8259();
@@ -728,7 +728,7 @@ BOOL ShutdownPIC8259(void) {
     InPortByte(0x80); // I/O delay
     InPortByte(0x80);
 
-    DEBUG(TEXT("[ShutdownPIC8259] PIC 8259 shutdown complete"));
+    DEBUG(TEXT("PIC 8259 shutdown complete"));
     return TRUE;
 }
 
@@ -745,12 +745,12 @@ BOOL SetupIRQMappings(void) {
     // Get ACPI configuration
     AcpiConfig = GetACPIConfig();
     if (!AcpiConfig || !AcpiConfig->Valid) {
-        DEBUG(TEXT("[SetupIRQMappings] No ACPI configuration available, using default IRQ mappings"));
+        DEBUG(TEXT("No ACPI configuration available, using default IRQ mappings"));
         return TRUE;
     }
 
     // Process interrupt source overrides from ACPI MADT
-    DEBUG(TEXT("[SetupIRQMappings] Processing %u interrupt source overrides from ACPI"), AcpiConfig->InterruptOverrideCount);
+    DEBUG(TEXT("Processing %u interrupt source overrides from ACPI"), AcpiConfig->InterruptOverrideCount);
 
     for (i = 0; i < AcpiConfig->InterruptOverrideCount; i++) {
         OverrideInfo = GetInterruptOverrideInfo(i);
@@ -825,7 +825,7 @@ BOOL ConfigureInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
 /************************************************************************/
 
 BOOL ConfigureDeviceInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
-    DEBUG(TEXT("[ConfigureDeviceInterrupt] Legacy IRQ %u -> vector %u on CPU %u"),
+    DEBUG(TEXT("Legacy IRQ %u -> vector %u on CPU %u"),
           IRQ,
           Vector,
           DestCPU);
@@ -836,14 +836,14 @@ BOOL ConfigureDeviceInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
 /************************************************************************/
 
 BOOL EnableDeviceInterrupt(U8 IRQ) {
-    DEBUG(TEXT("[EnableDeviceInterrupt] Enabling IRQ %u"), IRQ);
+    DEBUG(TEXT("Enabling IRQ %u"), IRQ);
     return EnableInterrupt(IRQ);
 }
 
 /************************************************************************/
 
 BOOL DisableDeviceInterrupt(U8 IRQ) {
-    DEBUG(TEXT("[DisableDeviceInterrupt] Disabling IRQ %u"), IRQ);
+    DEBUG(TEXT("Disabling IRQ %u"), IRQ);
     return DisableInterrupt(IRQ);
 }
 
@@ -854,7 +854,7 @@ void HandleInterruptSourceOverride(U8 LegacyIRQ, U32 GlobalIRQ, U8 TriggerMode, 
         return;
     }
 
-    DEBUG(TEXT("[HandleInterruptSourceOverride] IRQ override: Legacy IRQ %u -> Global IRQ %u, Trigger=%u, Polarity=%u"),
+    DEBUG(TEXT("IRQ override: Legacy IRQ %u -> Global IRQ %u, Trigger=%u, Polarity=%u"),
           LegacyIRQ, GlobalIRQ, TriggerMode, Polarity);
 
     g_InterruptControllerConfig.IRQMappings[LegacyIRQ].ActualPin = (U8)GlobalIRQ;
@@ -984,7 +984,7 @@ static UINT InterruptControllerDriverCommands(UINT Function, UINT Parameter) {
             INTERRUPT_CONTROLLER_MODE RequestedMode = INTCTRL_MODE_AUTO;
 #if FORCE_PIC == 1
             RequestedMode = INTCTRL_MODE_FORCE_PIC;
-            VERBOSE(TEXT("[InterruptController] Forcing PIC interrupt controller via build flag"));
+            VERBOSE(TEXT("Forcing PIC interrupt controller via build flag"));
 #endif
 
             if (InitializeInterruptController(RequestedMode)) {

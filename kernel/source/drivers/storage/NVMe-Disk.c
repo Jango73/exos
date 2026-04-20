@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -260,13 +260,13 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
 
         UINT Count = 0;
         if (!NVMeIdentifyNamespaceList(Device, NamespaceIds, MaxIds, &Count)) {
-            WARNING(TEXT("[NVMeRegisterNamespaces] Identify namespace list failed, fallback to NSID=1"));
+            WARNING(TEXT("Identify namespace list failed, fallback to NSID=1"));
             NamespaceIds[0] = 1;
             Count = 1;
         }
 
         if (Count == 0) {
-            WARNING(TEXT("[NVMeRegisterNamespaces] Namespace list is empty, fallback to NSID=1"));
+            WARNING(TEXT("Namespace list is empty, fallback to NSID=1"));
             NamespaceIds[0] = 1;
             Count = 1;
         }
@@ -277,18 +277,18 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
             U64 NumSectors = U64_0;
             U32 BytesPerSector = 0;
             if (!NVMeIdentifyNamespace(Device, NamespaceId, &NumSectors, &BytesPerSector)) {
-                WARNING(TEXT("[NVMeRegisterNamespaces] Identify namespace failed NSID=%u"), (U32)NamespaceId);
+                WARNING(TEXT("Identify namespace failed NSID=%u"), (U32)NamespaceId);
                 continue;
             }
 
             if (BytesPerSector == 0) {
-                WARNING(TEXT("[NVMeRegisterNamespaces] Invalid bytes per sector NSID=%u"), (U32)NamespaceId);
+                WARNING(TEXT("Invalid bytes per sector NSID=%u"), (U32)NamespaceId);
                 continue;
             }
 
             LPNVME_DISK Disk = NVMeCreateDisk(Device, NamespaceId, NumSectors, BytesPerSector);
             if (Disk == NULL) {
-                WARNING(TEXT("[NVMeRegisterNamespaces] Disk allocation failed NSID=%u"), (U32)NamespaceId);
+                WARNING(TEXT("Disk allocation failed NSID=%u"), (U32)NamespaceId);
                 continue;
             }
 
@@ -298,7 +298,7 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
 
             LPLIST DiskList = GetDiskList();
             if (DiskList == NULL || !ListAddItem(DiskList, Disk)) {
-                ERROR(TEXT("[NVMeRegisterNamespaces] Unable to register disk NSID=%u"), (U32)NamespaceId);
+                ERROR(TEXT("Unable to register disk NSID=%u"), (U32)NamespaceId);
                 ReleaseKernelObject(Disk);
                 continue;
             }
@@ -307,7 +307,7 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
 
             if (FileSystemReady()) {
                 if (!MountDiskPartitions((LPSTORAGE_UNIT)Disk, NULL, 0)) {
-                    WARNING(TEXT("[NVMeRegisterNamespaces] Partition mount failed NSID=%u"), (U32)NamespaceId);
+                    WARNING(TEXT("Partition mount failed NSID=%u"), (U32)NamespaceId);
                 }
             } else {
             }
@@ -392,7 +392,7 @@ static UINT NVMeDiskRead(LPIOCONTROL Control) {
                                              Disk->BytesPerSector,
                                              Out,
                                              ChunkBytes)) {
-                    WARNING(TEXT("[NVMeDiskRead] Read failed LBA=%x:%x sectors=%u"),
+                    WARNING(TEXT("Read failed LBA=%x:%x sectors=%u"),
                             (U32)U64_High32(Lba),
                             (U32)U64_Low32(Lba),
                             (U32)Chunk);
@@ -462,7 +462,7 @@ static UINT NVMeDiskWrite(LPIOCONTROL Control) {
                                               Disk->BytesPerSector,
                                               In,
                                               ChunkBytes)) {
-                    WARNING(TEXT("[NVMeDiskWrite] Write failed LBA=%x:%x sectors=%u"),
+                    WARNING(TEXT("Write failed LBA=%x:%x sectors=%u"),
                             (U32)U64_High32(Lba),
                             (U32)U64_Low32(Lba),
                             (U32)Chunk);

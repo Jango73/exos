@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ void InitializeKernelProcess(void) {
 
     TASK_INFO TaskInfo;
 
-    DEBUG(TEXT("[InitializeKernelProcess] Enter"));
+    DEBUG(TEXT("Enter"));
 
     InitMutex(&(KernelProcess.Mutex));
     InitMutex(&(KernelProcess.HeapMutex));
@@ -113,8 +113,8 @@ void InitializeKernelProcess(void) {
     KernelProcess.HeapSize = KERNEL_PROCESS_HEAP_SIZE;
     StringCopy(KernelProcess.WorkFolder, TEXT(ROOT));
 
-    DEBUG(TEXT("[InitializeKernelProcess] Memory : %u"), KernelStartup.MemorySize);
-    DEBUG(TEXT("[InitializeKernelProcess] Pages : %u"), KernelStartup.PageCount);
+    DEBUG(TEXT("Memory : %u"), KernelStartup.MemorySize);
+    DEBUG(TEXT("Pages : %u"), KernelStartup.PageCount);
 
     LINEAR HeapPreferredBase = GetKernelHeapPreferredBase(KernelProcess.HeapSize);
     LINEAR HeapBase = AllocRegion(HeapPreferredBase,
@@ -123,30 +123,30 @@ void InitializeKernelProcess(void) {
                                   ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
                                   TEXT("KernelHeap"));
 
-    DEBUG(TEXT("[InitializeKernelProcess] HeapPreferredBase : %p"), (LINEAR)HeapPreferredBase);
-    DEBUG(TEXT("[InitializeKernelProcess] HeapBase : %p"), (LINEAR)HeapBase);
+    DEBUG(TEXT("HeapPreferredBase : %p"), (LINEAR)HeapPreferredBase);
+    DEBUG(TEXT("HeapBase : %p"), (LINEAR)HeapBase);
 
     if (HeapBase == NULL) {
-        DEBUG(TEXT("[InitializeKernelProcess] Could not create kernel heap, halting."));
+        DEBUG(TEXT("Could not create kernel heap, halting."));
         DO_THE_SLEEPING_BEAUTY;
     }
 
     KernelProcess.HeapBase = (LINEAR)HeapBase;
     HeapInit(&KernelProcess, KernelProcess.HeapBase, KernelProcess.HeapSize);
     if (!InitializeProcessModuleBindings(&KernelProcess)) {
-        ERROR(TEXT("[InitializeKernelProcess] Could not initialize kernel process module bindings"));
+        ERROR(TEXT("Could not initialize kernel process module bindings"));
         DO_THE_SLEEPING_BEAUTY;
     }
 
     if (ProcessArenaInitializeKernel(&KernelProcess) == FALSE) {
-        ERROR(TEXT("[InitializeKernelProcess] Could not initialize kernel process arenas"));
+        ERROR(TEXT("Could not initialize kernel process arenas"));
         DO_THE_SLEEPING_BEAUTY;
     }
 
     MemorySet(&(KernelProcess.MessageQueue), 0, sizeof(MESSAGEQUEUE));
     InitMessageQueue(&(KernelProcess.MessageQueue));
     if (EnsureProcessMessageQueue(&KernelProcess, TRUE) == FALSE) {
-        ERROR(TEXT("[InitializeKernelProcess] Could not initialize kernel process message queue"));
+        ERROR(TEXT("Could not initialize kernel process message queue"));
         DO_THE_SLEEPING_BEAUTY;
     }
 
@@ -173,7 +173,7 @@ void InitializeKernelProcess(void) {
 
     KernelTask->Type = TASK_TYPE_KERNEL_MAIN;
 
-    DEBUG(TEXT("[InitializeKernelProcess] Exit"));
+    DEBUG(TEXT("Exit"));
 
     TRACED_EPILOGUE("InitializeKernelProcess");
 }
@@ -223,7 +223,7 @@ LPPROCESS NewProcess(void) {
 
     LPPROCESS This = NULL;
 
-    DEBUG(TEXT("[NewProcess] Enter"));
+    DEBUG(TEXT("Enter"));
 
     This = (LPPROCESS)CreateKernelObject(sizeof(PROCESS), KOID_PROCESS);
 
@@ -277,7 +277,7 @@ LPPROCESS NewProcess(void) {
 
     InitSecurity(&(This->Security));
 
-    DEBUG(TEXT("[NewProcess] Exit"));
+    DEBUG(TEXT("Exit"));
 
     TRACED_EPILOGUE("NewProcess");
     return This;
@@ -295,12 +295,12 @@ void DeleteProcessCommit(LPPROCESS This) {
 
     SAFE_USE_VALID_ID(This, KOID_PROCESS) {
         if (This == &KernelProcess) {
-            ERROR(TEXT("[DeleteProcessCommit] Cannot delete kernel process"));
+            ERROR(TEXT("Cannot delete kernel process"));
             TRACED_EPILOGUE("DeleteProcessCommit");
             return;
         }
 
-        DEBUG(TEXT("[DeleteProcessCommit] Deleting process %s (TaskCount=%u)"), This->FileName, This->TaskCount);
+        DEBUG(TEXT("Deleting process %s (TaskCount=%u)"), This->FileName, This->TaskCount);
 
         if (GetFocusedProcess() == This) {
             SetFocusedProcess(&KernelProcess);
@@ -311,13 +311,13 @@ void DeleteProcessCommit(LPPROCESS This) {
         // Free page directory if allocated
         // TODO : FREE ALL PD PAGES
         if (This->PageDirectory != 0) {
-            DEBUG(TEXT("[DeleteProcessCommit] Freeing page directory %p"), (LINEAR)This->PageDirectory);
+            DEBUG(TEXT("Freeing page directory %p"), (LINEAR)This->PageDirectory);
             FreePhysicalPage(This->PageDirectory);
         }
 
         // Free process heap if allocated
         if (This->HeapBase != 0 && This->HeapSize != 0) {
-            DEBUG(TEXT("[DeleteProcessCommit] Freeing process heap base=%p size=%x"), (LINEAR)This->HeapBase,
+            DEBUG(TEXT("Freeing process heap base=%p size=%x"), (LINEAR)This->HeapBase,
                 (UINT)This->HeapSize);
             FreeRegionForProcess(This, This->HeapBase, This->HeapSize);
         }
@@ -331,7 +331,7 @@ void DeleteProcessCommit(LPPROCESS This) {
 
         ReleaseKernelObject(This);
 
-        DEBUG(TEXT("[DeleteProcessCommit] Process deleted"));
+        DEBUG(TEXT("Process deleted"));
     }
 
     TRACED_EPILOGUE("DeleteProcessCommit");
@@ -344,12 +344,12 @@ void KillProcess(LPPROCESS This) {
 
     SAFE_USE_VALID_ID(This, KOID_PROCESS) {
         if (This == &KernelProcess) {
-            ERROR(TEXT("[KillProcess] Cannot delete kernel process"));
+            ERROR(TEXT("Cannot delete kernel process"));
             TRACED_EPILOGUE("KillProcess");
             return;
         }
 
-        DEBUG(TEXT("[KillProcess] Killing process %s and all its children"), This->FileName);
+        DEBUG(TEXT("Killing process %s and all its children"), This->FileName);
 
         // Lock the process list early and keep it locked throughout the entire operation
         LockMutex(MUTEX_PROCESS, INFINITY);
@@ -357,7 +357,7 @@ void KillProcess(LPPROCESS This) {
         // Create a temporary list to collect all child processes
         LPLIST ChildProcesses = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
         if (ChildProcesses == NULL) {
-            ERROR(TEXT("[KillProcess] Failed to create temporary list"));
+            ERROR(TEXT("Failed to create temporary list"));
             UnlockMutex(MUTEX_PROCESS);
             TRACED_EPILOGUE("KillProcess");
             return;
@@ -395,7 +395,7 @@ void KillProcess(LPPROCESS This) {
                                 ListAddItem(ChildProcesses, Current);
                                 ListAddItem(ProcessesToCheck, Current);
                                 FoundChildren = TRUE;
-                                DEBUG(TEXT("[KillProcess] Found child process %s"), Current->FileName);
+                                DEBUG(TEXT("Found child process %s"), Current->FileName);
                             }
                             break;
                         }
@@ -409,15 +409,15 @@ void KillProcess(LPPROCESS This) {
 
         // Process child processes according to parent's policy
         UINT ChildCount = ListGetSize(ChildProcesses);
-        DEBUG(TEXT("[KillProcess] Processing %u child processes"), ChildCount);
+        DEBUG(TEXT("Processing %u child processes"), ChildCount);
 
         if (This->Flags & PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH) {
-            DEBUG(TEXT("[KillProcess] Policy: KILL_CHILDREN_ON_DEATH - killing all children"));
+            DEBUG(TEXT("Policy: KILL_CHILDREN_ON_DEATH - killing all children"));
 
             for (UINT i = 0; i < ChildCount; i++) {
                 LPPROCESS ChildProcess = (LPPROCESS)ListGetItem(ChildProcesses, (U32)i);
                 SAFE_USE_VALID_ID(ChildProcess, KOID_PROCESS) {
-                    DEBUG(TEXT("[KillProcess] Killing tasks of child process %s"), ChildProcess->FileName);
+                    DEBUG(TEXT("Killing tasks of child process %s"), ChildProcess->FileName);
 
                     // Kill all tasks of this child process
                     LPTASK Task = (LPTASK)TaskList->First;
@@ -425,7 +425,7 @@ void KillProcess(LPPROCESS This) {
                         LPTASK NextTask = (LPTASK)Task->Next;
                         SAFE_USE_VALID_ID(Task, KOID_TASK) {
                             if (Task->OwnerProcess == ChildProcess) {
-                                DEBUG(TEXT("[KillProcess] Killing task %s"), Task->Name);
+                                DEBUG(TEXT("Killing task %s"), Task->Name);
                                 KernelKillTask(Task);
                             }
                         }
@@ -437,14 +437,14 @@ void KillProcess(LPPROCESS This) {
                 }
             }
         } else {
-            DEBUG(TEXT("[KillProcess] Policy: ORPHAN_CHILDREN - detaching children from parent"));
+            DEBUG(TEXT("Policy: ORPHAN_CHILDREN - detaching children from parent"));
 
             for (UINT i = 0; i < ChildCount; i++) {
                 LPPROCESS ChildProcess = (LPPROCESS)ListGetItem(ChildProcesses, (U32)i);
                 SAFE_USE_VALID_ID(ChildProcess, KOID_PROCESS) {
                     // Detach child from parent (make it orphan)
                     ChildProcess->OwnerProcess = NULL;
-                    DEBUG(TEXT("[KillProcess] Detached child process %s from parent"), ChildProcess->FileName);
+                    DEBUG(TEXT("Detached child process %s from parent"), ChildProcess->FileName);
                 }
             }
         }
@@ -453,14 +453,14 @@ void KillProcess(LPPROCESS This) {
         DeleteList(ChildProcesses);
 
         // Kill all tasks of the target process itself
-        DEBUG(TEXT("[KillProcess] Killing tasks of target process %s"), This->FileName);
+        DEBUG(TEXT("Killing tasks of target process %s"), This->FileName);
 
         LPTASK Task = (LPTASK)TaskList->First;
         while (Task != NULL) {
             LPTASK NextTask = (LPTASK)Task->Next;
             SAFE_USE_VALID_ID(Task, KOID_TASK) {
                 if (Task->OwnerProcess == This) {
-                    DEBUG(TEXT("[KillProcess] Killing task %s"), Task->Name);
+                    DEBUG(TEXT("Killing task %s"), Task->Name);
                     KernelKillTask(Task);
                 }
             }
@@ -473,7 +473,7 @@ void KillProcess(LPPROCESS This) {
         // Finally unlock the process mutex
         UnlockMutex(MUTEX_PROCESS);
 
-        DEBUG(TEXT("[KillProcess] Process and children marked for deletion"));
+        DEBUG(TEXT("Process and children marked for deletion"));
     }
 
     TRACED_EPILOGUE("KillProcess");
@@ -509,7 +509,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     UINT TotalSize = 0;
     BOOL Result = FALSE;
 
-    DEBUG(TEXT("[CreateProcess] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (Info == NULL) {
         TRACED_EPILOGUE("CreateProcess");
@@ -544,7 +544,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     //-------------------------------------
     // Open the executable file
 
-    DEBUG(TEXT("[CreateProcess] : Opening file %s"), FileName);
+    DEBUG(TEXT("Opening file %s"), FileName);
 
     FileOpenInfo.Header.Size = sizeof(FILE_OPEN_INFO);
     FileOpenInfo.Header.Version = EXOS_ABI_VERSION;
@@ -569,7 +569,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
         return FALSE;
     }
 
-    DEBUG(TEXT("[CreateProcess] : File size %u"), FileSize);
+    DEBUG(TEXT("File size %u"), FileSize);
 
     //-------------------------------------
     // Get executable information
@@ -594,7 +594,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     //-------------------------------------
     // Allocate a new process structure
 
-    DEBUG(TEXT("[CreateProcess] : Allocating process"));
+    DEBUG(TEXT("Allocating process"));
 
     Process = NewProcess();
     if (Process == NULL) goto Out;
@@ -667,7 +667,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     Process->PageDirectory = AllocUserPageDirectory();
 
     if (Process->PageDirectory == NULL) {
-        ERROR(TEXT("[CreateProcess] Failed to allocate page directory"));
+        ERROR(TEXT("Failed to allocate page directory"));
         UnfreezeScheduler();
         CloseFile(File);
         goto Out;
@@ -677,7 +677,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     // We can use the new page directory from now on
     // and switch back to the previous when done
 
-    DEBUG(TEXT("[CreateProcess] Switching page directory to new process : %p"), (LINEAR)Process->PageDirectory);
+    DEBUG(TEXT("Switching page directory to new process : %p"), (LINEAR)Process->PageDirectory);
 
     PageDirectory = GetCurrentProcess()->PageDirectory;
 
@@ -690,10 +690,10 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     //-------------------------------------
     // Allocate enough memory for the code, data and heap
 
-    DEBUG(TEXT("[CreateProcess] Allocating process space"));
+    DEBUG(TEXT("Allocating process space"));
 
     if (AllocRegionForProcess(Process, VMA_USER, 0, TotalSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ProcessSpace")) == NULL) {
-        ERROR(TEXT("[CreateProcess] Failed to allocate process space"));
+        ERROR(TEXT("Failed to allocate process space"));
         LoadPageDirectory(PageDirectory);
         UnfreezeScheduler();
         CloseFile(File);
@@ -715,7 +715,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     // Load executable image
     // For tests, image must be at VMA_KERNEL
 
-    DEBUG(TEXT("[CreateProcess] Loading executable"));
+    DEBUG(TEXT("Loading executable"));
 
     EXECUTABLE_LOAD LoadInfo;
     LoadInfo.File = File;
@@ -725,7 +725,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     LoadInfo.BssBase = (LINEAR)DataBase;
 
     if (LoadExecutable(&LoadInfo) == FALSE) {
-        DEBUG(TEXT("[CreateProcess] Load failed !"));
+        DEBUG(TEXT("Load failed !"));
 
         FreeRegionForProcess(Process, VMA_USER, TotalSize);
         LoadPageDirectory(PageDirectory);
@@ -746,7 +746,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     Process->MainExecutableDataBase = DataBase;
 
     if (ProcessArenaInitializeUser(Process, CodeBase, CodeSize + DataSize, HeapBase, HeapSize) == FALSE) {
-        ERROR(TEXT("[CreateProcess] Failed to initialize process address space arenas"));
+        ERROR(TEXT("Failed to initialize process address space arenas"));
         FreeRegionForProcess(Process, VMA_USER, TotalSize);
         LoadPageDirectory(PageDirectory);
         UnfreezeScheduler();
@@ -762,7 +762,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     //-------------------------------------
     // Create the initial task
 
-    DEBUG(TEXT("[CreateProcess] Creating initial task"));
+    DEBUG(TEXT("Creating initial task"));
 
     TaskInfo.Func =
         (TASKFUNC)(CodeBase + (ExecutableMetadata.Layout.EntryPoint - ExecutableMetadata.Layout.CodeBase));
@@ -776,7 +776,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     //-------------------------------------
     // Switch back to kernel page directory
 
-    DEBUG(TEXT("[CreateProcess] Switching back page directory to %p"), (LINEAR)PageDirectory);
+    DEBUG(TEXT("Switching back page directory to %p"), (LINEAR)PageDirectory);
 
     LoadPageDirectory(PageDirectory);
 
@@ -811,7 +811,7 @@ Out:
 
     UnlockMutex(MUTEX_KERNEL);
 
-    DEBUG(TEXT("[CreateProcess] Exit, Result = %d"), Result);
+    DEBUG(TEXT("Exit, Result = %d"), Result);
 
     TRACED_EPILOGUE("CreateProcess");
     return Result;
@@ -827,7 +827,7 @@ Out:
  * @return The process exit code on success, MAX_UINT on failure.
  */
 UINT Spawn(LPCSTR CommandLine, LPCSTR WorkFolder) {
-    DEBUG(TEXT("[Spawn] Launching : %s"), CommandLine);
+    DEBUG(TEXT("Launching : %s"), CommandLine);
 
     PROCESS_INFO ProcessInfo;
     WAIT_INFO WaitInfo;
@@ -870,15 +870,15 @@ UINT Spawn(LPCSTR CommandLine, LPCSTR WorkFolder) {
     Result = Wait(&WaitInfo);
 
     if (Result == WAIT_TIMEOUT) {
-        DEBUG(TEXT("[Spawn] Process wait timed out"));
+        DEBUG(TEXT("Process wait timed out"));
         return MAX_UINT;
     } else if (Result != WAIT_OBJECT_0) {
-        DEBUG(TEXT("[Spawn] Process wait failed: %u"), Result);
+        DEBUG(TEXT("Process wait failed: %u"), Result);
         return MAX_UINT;
     }
 
-    DEBUG(TEXT("[Spawn] Process completed successfully, exit code: %u"), WaitInfo.ExitCodes[0]);
-    TEST(TEXT("[Spawn] Executable finished normally : %s"), CommandLine);
+    DEBUG(TEXT("Process completed successfully, exit code: %u"), WaitInfo.ExitCodes[0]);
+    TEST(TEXT("Executable finished normally : %s"), CommandLine);
     return WaitInfo.ExitCodes[0];
 }
 
@@ -890,7 +890,7 @@ void SetProcessStatus(LPPROCESS This, U32 Status) {
     SAFE_USE_VALID_ID(This, KOID_PROCESS) {
         This->Status = Status;
 
-        DEBUG(TEXT("[SetProcessStatus] Marked process %s as %d"), This->FileName, Status);
+        DEBUG(TEXT("Marked process %s as %d"), This->FileName, Status);
 
         if (Status == PROCESS_STATUS_DEAD) {
             // Store termination state in cache before process is destroyed

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -128,15 +128,15 @@ static void XHCI_LogInitReadback(
     PciStatus = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_STATUS);
 
     DEBUG(
-        TEXT("[XHCI_LogInitReadback] step=%s prog-dcbaap=%x:%x rd-dcbaap=%x:%x prog-crcr=%x:%x rd-crcr=%x:%x"), Step,
+        TEXT("step=%s prog-dcbaap=%x:%x rd-dcbaap=%x:%x prog-crcr=%x:%x rd-crcr=%x:%x"), Step,
         U64_High32(ProgrammedDcbaap), U64_Low32(ProgrammedDcbaap), DcbaapHigh, DcbaapLow, U64_High32(ProgrammedCrcr),
         U64_Low32(ProgrammedCrcr), CrcrHigh, CrcrLow);
     DEBUG(
-        TEXT("[XHCI_LogInitReadback] step=%s prog-erstba=%x:%x rd-erstba=%x:%x prog-erdp=%x:%x rd-erdp=%x:%x"), Step,
+        TEXT("step=%s prog-erstba=%x:%x rd-erstba=%x:%x prog-erdp=%x:%x rd-erdp=%x:%x"), Step,
         U64_High32(ProgrammedErstba), U64_Low32(ProgrammedErstba), ErstbaHigh, ErstbaLow, U64_High32(ProgrammedErdp),
         U64_Low32(ProgrammedErdp), ErdpHigh, ErdpLow);
     DEBUG(
-        TEXT("[XHCI_LogInitReadback] step=%s usbcmd=%x usbsts=%x config=%x iman=%x imod=%x erstsz=%x dcbaa0=%x:%x "
+        TEXT("step=%s usbcmd=%x usbsts=%x config=%x iman=%x imod=%x erstsz=%x dcbaa0=%x:%x "
              "pci-cmd=%x pci-sts=%x"),
         Step, Usbcmd, Usbsts, Config, Iman, Imod, Erstsz, DcbaaEntry0High, DcbaaEntry0Low, PciCommand, PciStatus);
 }
@@ -258,7 +258,7 @@ static BOOL XHCI_RegisterInterrupts(LPXHCI_DEVICE Device) {
     }
 
     if (Device->Info.IRQLine == 0xFFU) {
-        WARNING(TEXT("[XHCI_RegisterInterrupts] Controller reports no legacy IRQ line"));
+        WARNING(TEXT("Controller reports no legacy IRQ line"));
     }
 
     DEVICE_INTERRUPT_REGISTRATION Registration = {
@@ -273,7 +273,7 @@ static BOOL XHCI_RegisterInterrupts(LPXHCI_DEVICE Device) {
     };
 
     if (!DeviceInterruptRegister(&Registration, &Device->InterruptSlot)) {
-        WARNING(TEXT("[XHCI_RegisterInterrupts] Failed to register interrupt slot for IRQ %u"), Device->Info.IRQLine);
+        WARNING(TEXT("Failed to register interrupt slot for IRQ %u"), Device->Info.IRQLine);
         Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         return FALSE;
     }
@@ -373,20 +373,20 @@ static BOOL XHCI_InitScratchpadBuffers(LPXHCI_DEVICE Device) {
     }
 
     if (Device->MaxScratchpadBuffers > (PAGE_SIZE / sizeof(U64))) {
-        ERROR(TEXT("[XHCI_InitScratchpadBuffers] Unsupported scratchpad count %u"), (U32)Device->MaxScratchpadBuffers);
+        ERROR(TEXT("Unsupported scratchpad count %u"), (U32)Device->MaxScratchpadBuffers);
         return FALSE;
     }
 
     Device->ScratchpadPages = (PHYSICAL*)KernelHeapAlloc(sizeof(PHYSICAL) * (UINT)Device->MaxScratchpadBuffers);
     if (Device->ScratchpadPages == NULL) {
-        ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad list allocation failed"));
+        ERROR(TEXT("Scratchpad list allocation failed"));
         return FALSE;
     }
     MemorySet(Device->ScratchpadPages, 0, sizeof(PHYSICAL) * (UINT)Device->MaxScratchpadBuffers);
 
     if (!XHCI_AllocPage(
             TEXT("XHCI_ScratchpadArray"), &Device->ScratchpadArrayPhysical, &Device->ScratchpadArrayLinear)) {
-        ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad array allocation failed"));
+        ERROR(TEXT("Scratchpad array allocation failed"));
         XHCI_FreeScratchpadBuffers(Device);
         return FALSE;
     }
@@ -397,7 +397,7 @@ static BOOL XHCI_InitScratchpadBuffers(LPXHCI_DEVICE Device) {
     for (Index = 0; Index < Device->MaxScratchpadBuffers; Index++) {
         PHYSICAL ScratchpadPhysical = AllocPhysicalPage();
         if (ScratchpadPhysical == 0) {
-            ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad page allocation failed at %u"), (U32)Index);
+            ERROR(TEXT("Scratchpad page allocation failed at %u"), (U32)Index);
             XHCI_FreeScratchpadBuffers(Device);
             return FALSE;
         }
@@ -533,7 +533,7 @@ static void XHCI_PowerPort(LPXHCI_DEVICE Device, U32 PortIndex) {
  */
 static BOOL XHCI_InitCommandRing(LPXHCI_DEVICE Device) {
     if (!XHCI_AllocPage(TEXT("XHCI_CommandRing"), &Device->CommandRingPhysical, &Device->CommandRingLinear)) {
-        ERROR(TEXT("[XHCI_InitCommandRing] Command ring allocation failed"));
+        ERROR(TEXT("Command ring allocation failed"));
         return FALSE;
     }
 
@@ -561,12 +561,12 @@ static BOOL XHCI_InitCommandRing(LPXHCI_DEVICE Device) {
  */
 static BOOL XHCI_InitEventRing(LPXHCI_DEVICE Device) {
     if (!XHCI_AllocPage(TEXT("XHCI_EventRing"), &Device->EventRingPhysical, &Device->EventRingLinear)) {
-        ERROR(TEXT("[XHCI_InitEventRing] Event ring allocation failed"));
+        ERROR(TEXT("Event ring allocation failed"));
         return FALSE;
     }
 
     if (!XHCI_AllocPage(TEXT("XHCI_EventRingTable"), &Device->EventRingTablePhysical, &Device->EventRingTableLinear)) {
-        ERROR(TEXT("[XHCI_InitEventRing] ERST allocation failed"));
+        ERROR(TEXT("ERST allocation failed"));
         return FALSE;
     }
 
@@ -611,7 +611,7 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
             Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_HCH, XHCI_USBSTS_HCH, XHCI_CONTROLLER_HALT_TIMEOUT_MS,
             TEXT("Controller halt"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-HaltTimeout"));
-        ERROR(TEXT("[XHCI_ResetAndStart] Halt timeout"));
+        ERROR(TEXT("Halt timeout"));
         return FALSE;
     }
 
@@ -623,7 +623,7 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
             Device->OpBase, XHCI_OP_USBCMD, XHCI_USBCMD_HCRST, 0, XHCI_CONTROLLER_RESET_TIMEOUT_MS,
             TEXT("Controller reset"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-ResetTimeout"));
-        ERROR(TEXT("[XHCI_ResetAndStart] Reset bit timeout"));
+        ERROR(TEXT("Reset bit timeout"));
         return FALSE;
     }
 
@@ -631,12 +631,12 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
             Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_CNR, 0, XHCI_CONTROLLER_RESET_TIMEOUT_MS,
             TEXT("Controller ready"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-ReadyTimeout"));
-        ERROR(TEXT("[XHCI_ResetAndStart] Controller not ready"));
+        ERROR(TEXT("Controller not ready"));
         return FALSE;
     }
 
     if (!XHCI_AllocPage(TEXT("XHCI_DCBAA"), &Device->DcbaaPhysical, &Device->DcbaaLinear)) {
-        ERROR(TEXT("[XHCI_ResetAndStart] DCBAA allocation failed"));
+        ERROR(TEXT("DCBAA allocation failed"));
         return FALSE;
     }
 
@@ -677,7 +677,7 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
             Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_HCH, 0, XHCI_CONTROLLER_RUN_TIMEOUT_MS,
             TEXT("Controller run"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-RunTimeout"));
-        ERROR(TEXT("[XHCI_ResetAndStart] Run timeout"));
+        ERROR(TEXT("Run timeout"));
         return FALSE;
     }
 
@@ -724,7 +724,7 @@ static BOOL XHCI_InitController(LPXHCI_DEVICE Device) {
     Device->RuntimeBase = Device->MmioBase + (RtOff & 0xFFFFFFE0);
 
     if ((Device->HccParams1 & XHCI_HCCPARAMS1_AC64) == 0) {
-        WARNING(TEXT("[XHCI_InitController] 64-bit addressing not supported"));
+        WARNING(TEXT("64-bit addressing not supported"));
     }
 
     if (!XHCI_ResetAndStart(Device)) {
@@ -833,13 +833,13 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
         U64 Bar64 = U64_Make(Bar1Raw, Bar0Base);
         MmioPhysical = (PHYSICAL)Bar64;
         if (U64_EQUAL(Bar64, U64_0)) {
-            ERROR(TEXT("[XHCI_Attach] Invalid BAR0"));
+            ERROR(TEXT("Invalid BAR0"));
             KernelHeapFree(Device);
             return NULL;
         }
 #else
         if (Bar1Raw != 0u) {
-            ERROR(TEXT("[XHCI_Attach] 64-bit BAR above 4GB not supported (BAR1=%x)"), Bar1Raw);
+            ERROR(TEXT("64-bit BAR above 4GB not supported (BAR1=%x)"), Bar1Raw);
             KernelHeapFree(Device);
             return NULL;
         }
@@ -847,7 +847,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
     }
 
     if (Bar0Size == 0) {
-        ERROR(TEXT("[XHCI_Attach] Invalid BAR0"));
+        ERROR(TEXT("Invalid BAR0"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -856,7 +856,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
     Device->MmioSize = Bar0Size;
 
     if (Device->MmioBase == 0) {
-        ERROR(TEXT("[XHCI_Attach] MapIOMemory failed"));
+        ERROR(TEXT("MapIOMemory failed"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -864,7 +864,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
     PCI_EnableBusMaster(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, TRUE);
 
     if (!XHCI_InitController(Device)) {
-        ERROR(TEXT("[XHCI_Attach] Controller init failed"));
+        ERROR(TEXT("Controller init failed"));
         XHCI_FreeResources(Device);
         KernelHeapFree(Device);
         return NULL;
@@ -874,7 +874,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
         U32 PortCount = Device->MaxPorts;
         Device->UsbDevices = (LPXHCI_USB_DEVICE*)KernelHeapAlloc(sizeof(LPXHCI_USB_DEVICE) * PortCount);
         if (Device->UsbDevices == NULL) {
-            ERROR(TEXT("[XHCI_Attach] USB device state allocation failed"));
+            ERROR(TEXT("USB device state allocation failed"));
             XHCI_FreeResources(Device);
             KernelHeapFree(Device);
             return NULL;
@@ -884,7 +884,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
             LPXHCI_USB_DEVICE UsbDevice =
                 (LPXHCI_USB_DEVICE)CreateKernelObject(sizeof(XHCI_USB_DEVICE), KOID_USBDEVICE);
             if (UsbDevice == NULL) {
-                ERROR(TEXT("[XHCI_Attach] USB device object allocation failed"));
+                ERROR(TEXT("USB device object allocation failed"));
                 XHCI_FreeResources(Device);
                 KernelHeapFree(Device);
                 return NULL;

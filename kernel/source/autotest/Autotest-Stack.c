@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     // Test 1: CopyStackWithEBP operation
     Results->TestsRun++;
     if (!CopyStackWithEBP(DestStackTop, SourceStackTop, TEST_STACK_SIZE, (LINEAR)(SourceStackTop - 16))) {
-        DEBUG(TEXT("[TestCopyStack] CopyStack failed"));
+        DEBUG(TEXT("CopyStack failed"));
         return;
     }
     Results->TestsPassed++;
@@ -92,7 +92,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == ExpectedEbp1) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 1 EBP: expected %X, got %X"), ExpectedEbp1, *DestPtr);
+        DEBUG(TEXT("Frame 1 EBP: expected %X, got %X"), ExpectedEbp1, *DestPtr);
     }
 
     // Test 3: Frame 1 return address preservation
@@ -101,7 +101,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == 0x12345678) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 1 return addr: expected 0x12345678, got %X"), *DestPtr);
+        DEBUG(TEXT("Frame 1 return addr: expected 0x12345678, got %X"), *DestPtr);
     }
 
     // Test 4: Frame 2 EBP adjustment
@@ -111,7 +111,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == ExpectedEbp2) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 2 EBP: expected %X, got %X"), ExpectedEbp2, *DestPtr);
+        DEBUG(TEXT("Frame 2 EBP: expected %X, got %X"), ExpectedEbp2, *DestPtr);
     }
 
     // Test 5: Frame 2 return address preservation
@@ -120,7 +120,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == 0x9ABCDEF0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 2 return addr: expected 0x9ABCDEF0, got %X"), *DestPtr);
+        DEBUG(TEXT("Frame 2 return addr: expected 0x9ABCDEF0, got %X"), *DestPtr);
     }
 
     // Test 6: Frame 3 EBP not adjusted (out of range)
@@ -129,7 +129,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == 0x1000) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 3 EBP: expected 0x1000 (unchanged), got %X"), *DestPtr);
+        DEBUG(TEXT("Frame 3 EBP: expected 0x1000 (unchanged), got %X"), *DestPtr);
     }
 
     // Test 7: Frame 3 return address preservation
@@ -138,7 +138,7 @@ void TestCopyStack(TEST_RESULTS* Results) {
     if (*DestPtr == 0xDEADBEEF) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestCopyStack] Frame 3 return addr: expected 0xDEADBEEF, got %X"), *DestPtr);
+        DEBUG(TEXT("Frame 3 return addr: expected 0xDEADBEEF, got %X"), *DestPtr);
     }
 
     // Test 8: Non-frame data integrity

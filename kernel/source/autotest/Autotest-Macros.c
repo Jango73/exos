@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -262,8 +262,8 @@ void TestMemberOffsetMacro(TEST_RESULTS* Results) {
         if (TestPassed) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestMemberOffsetMacro] Test %d FAILED: %s"), i, Test->Description);
-            DEBUG(TEXT("[TestMemberOffsetMacro]   Expected offset: %d, got: %d"), Test->ExpectedOffset, ActualOffset);
+            DEBUG(TEXT("Test %d FAILED: %s"), i, Test->Description);
+            DEBUG(TEXT("Expected offset: %d, got: %d"), Test->ExpectedOffset, ActualOffset);
         }
     }
 }
@@ -323,8 +323,8 @@ void TestHasMemberMacro(TEST_RESULTS* Results) {
         if (TestPassed) {
             Results->TestsPassed++;
         } else {
-            DEBUG(TEXT("[TestHasMemberMacro] Test %d FAILED: %s"), i, Test->TestDescription);
-            DEBUG(TEXT("[TestHasMemberMacro]   Expected: %s, got: %s"),
+            DEBUG(TEXT("Test %d FAILED: %s"), i, Test->TestDescription);
+            DEBUG(TEXT("Expected: %s, got: %s"),
                   Test->ExpectedHasMember ? TEXT("TRUE") : TEXT("FALSE"),
                   ActualHasMember ? TEXT("TRUE") : TEXT("FALSE"));
         }

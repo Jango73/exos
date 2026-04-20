@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -440,7 +440,7 @@ static LPPACKAGEFS_NODE PackageFSResolveAliasTarget(LPPACKAGEFSFILESYSTEM FileSy
     }
 
     if (Depth >= PACKAGEFS_ALIAS_MAX_DEPTH) {
-        WARNING(TEXT("[PackageFSResolveAliasTarget] Alias depth exceeded"));
+        WARNING(TEXT("Alias depth exceeded"));
         return NULL;
     }
 
@@ -455,7 +455,7 @@ static LPPACKAGEFS_NODE PackageFSResolveAliasTarget(LPPACKAGEFSFILESYSTEM FileSy
 
     Target = PackageFSResolveInternalPath(FileSystem->Root, Path);
     if (Target == NULL) {
-        WARNING(TEXT("[PackageFSResolveAliasTarget] Alias target not found path=%s"), Node->AliasTarget);
+        WARNING(TEXT("Alias target not found path=%s"), Node->AliasTarget);
         return NULL;
     }
 
@@ -464,7 +464,7 @@ static LPPACKAGEFS_NODE PackageFSResolveAliasTarget(LPPACKAGEFSFILESYSTEM FileSy
     }
 
     if ((Target->Attributes & FS_ATTR_FOLDER) == 0) {
-        WARNING(TEXT("[PackageFSResolveAliasTarget] Alias target is not folder path=%s"), Node->AliasTarget);
+        WARNING(TEXT("Alias target is not folder path=%s"), Node->AliasTarget);
         return NULL;
     }
 

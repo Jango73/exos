@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ LPSCRIPT_SCOPE ScriptCreateScope(LPSCRIPT_CONTEXT Context, LPSCRIPT_SCOPE Parent
 
     LPSCRIPT_SCOPE Scope = (LPSCRIPT_SCOPE)ScriptAlloc(Context, sizeof(SCRIPT_SCOPE));
     if (Scope == NULL) {
-        DEBUG(TEXT("[ScriptCreateScope] Failed to allocate scope"));
+        DEBUG(TEXT("Failed to allocate scope"));
         return NULL;
     }
 
@@ -53,7 +53,7 @@ LPSCRIPT_SCOPE ScriptCreateScope(LPSCRIPT_CONTEXT Context, LPSCRIPT_SCOPE Parent
     for (U32 i = 0; i < SCRIPT_VAR_HASH_SIZE; i++) {
         Scope->Buckets[i] = NewListEx(NULL, &Context->Allocator, AllocatorListAlloc, AllocatorListFree);
         if (Scope->Buckets[i] == NULL) {
-            DEBUG(TEXT("[ScriptCreateScope] Failed to create bucket %d"), i);
+            DEBUG(TEXT("Failed to create bucket %d"), i);
             ScriptDestroyScope(Scope);
             return NULL;
         }

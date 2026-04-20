@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -232,7 +232,7 @@ void KernelMain(void) {
 #else
         FramebufferPhysical = (PHYSICAL)MultibootInfo->framebuffer_addr_low;
         if (MultibootInfo->framebuffer_addr_high != 0u) {
-            WARNING(TEXT("[KernelMain] Framebuffer above 4GB not supported"));
+            WARNING(TEXT("Framebuffer above 4GB not supported"));
         }
 #endif
         ConsoleSetFramebufferInfo(
@@ -274,7 +274,7 @@ void KernelMain(void) {
         KernelStartup.KernelSize = (UINT)(FirstModule->mod_end - FirstModule->mod_start);
         KernelStartup.KernelReservedBytes = (UINT)FirstModule->reserved;
         if (KernelStartup.KernelReservedBytes < KernelStartup.KernelSize) {
-            ERROR(TEXT("[KernelMain] Invalid kernel reserved span (reserved=%u size=%u)"),
+            ERROR(TEXT("Invalid kernel reserved span (reserved=%u size=%u)"),
                 KernelStartup.KernelReservedBytes,
                 KernelStartup.KernelSize);
             ConsolePanic(TEXT("Invalid boot kernel reserved span"));

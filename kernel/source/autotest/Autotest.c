@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ static U32 CountTests(void) {
 static void RunSingleTest(const TESTENTRY* Entry, TEST_RESULTS* Results) {
     TEST_RESULTS TestResults = {0, 0};
 
-    DEBUG(TEXT("[Autotest] Running test: %s"), Entry->Name);
+    DEBUG(TEXT("Running test: %s"), Entry->Name);
 
     // Run the test function
     Entry->Func(&TestResults);
@@ -98,7 +98,7 @@ static void RunSingleTest(const TESTENTRY* Entry, TEST_RESULTS* Results) {
     Results->TestsPassed += TestResults.TestsPassed;
 
     // Log results
-    DEBUG(TEXT("[Autotest] %s: %u/%u passed"), Entry->Name, TestResults.TestsPassed, TestResults.TestsRun);
+    DEBUG(TEXT("%s: %u/%u passed"), Entry->Name, TestResults.TestsPassed, TestResults.TestsRun);
 }
 
 /************************************************************************/
@@ -121,9 +121,9 @@ BOOL RunAllTests(void) {
     UNUSED(TotalTestModules);
 
     DEBUG(TEXT("==========================================================================="));
-    DEBUG(TEXT("[Autotest] Starting Test Suite"));
-    DEBUG(TEXT("[Autotest] Found %u test modules to run"), TotalTestModules);
-    DEBUG(TEXT("[Autotest] AUTOTEST_ERROR_SCOPE_BEGIN"));
+    DEBUG(TEXT("Starting Test Suite"));
+    DEBUG(TEXT("Found %u test modules to run"), TotalTestModules);
+    DEBUG(TEXT("AUTOTEST_ERROR_SCOPE_BEGIN"));
 
     // Run each test in the registry
     for (Index = 0; TestRegistry[Index].Name != NULL; Index++) {
@@ -133,19 +133,19 @@ BOOL RunAllTests(void) {
         RunSingleTest(&TestRegistry[Index], &OverallResults);
     }
 
-    DEBUG(TEXT("[Autotest] AUTOTEST_ERROR_SCOPE_END"));
+    DEBUG(TEXT("AUTOTEST_ERROR_SCOPE_END"));
 
     // Determine overall pass/fail status
     AllPassed = (OverallResults.TestsRun == OverallResults.TestsPassed);
 
     // Print summary
-    DEBUG(TEXT("[Autotest] Test Suite Complete"));
-    DEBUG(TEXT("[Autotest] Tests Run: %u, Tests Passed: %u"), OverallResults.TestsRun, OverallResults.TestsPassed);
+    DEBUG(TEXT("Test Suite Complete"));
+    DEBUG(TEXT("Tests Run: %u, Tests Passed: %u"), OverallResults.TestsRun, OverallResults.TestsPassed);
 
     if (AllPassed) {
-        DEBUG(TEXT("[Autotest] ALL TESTS PASSED"));
+        DEBUG(TEXT("ALL TESTS PASSED"));
     } else {
-        WARNING(TEXT("[Autotest] SOME TESTS FAILED (%u failures)"), OverallResults.TestsRun - OverallResults.TestsPassed);
+        WARNING(TEXT("SOME TESTS FAILED (%u failures)"), OverallResults.TestsRun - OverallResults.TestsPassed);
     }
 
     DEBUG(TEXT("==========================================================================="));
@@ -169,22 +169,22 @@ BOOL RunSingleTestByName(LPCSTR TestName) {
     TEST_RESULTS TestResults = {0, 0};
 
     if (TestName == NULL) {
-        DEBUG(TEXT("[Autotest] Test name is NULL"));
+        DEBUG(TEXT("Test name is NULL"));
         return FALSE;
     }
 
-    DEBUG(TEXT("[Autotest] Looking for test: %s"), TestName);
+    DEBUG(TEXT("Looking for test: %s"), TestName);
 
     // Search for the test in the registry
     for (Index = 0; TestRegistry[Index].Name != NULL; Index++) {
         if (STRINGS_EQUAL(TestRegistry[Index].Name, TestName)) {
-            DEBUG(TEXT("[Autotest] Found test: %s"), TestName);
+            DEBUG(TEXT("Found test: %s"), TestName);
             RunSingleTest(&TestRegistry[Index], &TestResults);
             return (TestResults.TestsRun == TestResults.TestsPassed);
         }
     }
 
-    DEBUG(TEXT("[Autotest] Test not found: %s"), TestName);
+    DEBUG(TEXT("Test not found: %s"), TestName);
     return FALSE;
 }
 
@@ -201,9 +201,9 @@ void ListAllTests(void) {
 
     (void)TotalTests;
 
-    DEBUG(TEXT("[Autotest] Available tests (%u total):"), TotalTests);
+    DEBUG(TEXT("Available tests (%u total):"), TotalTests);
 
     for (Index = 0; TestRegistry[Index].Name != NULL; Index++) {
-        DEBUG(TEXT("[Autotest]   %u. %s"), Index + 1, TestRegistry[Index].Name);
+        DEBUG(TEXT("%u. %s"), Index + 1, TestRegistry[Index].Name);
     }
 }

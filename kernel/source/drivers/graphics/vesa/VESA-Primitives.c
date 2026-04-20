@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -743,7 +743,7 @@ void VESADrawSelfTest(LPVESA_CONTEXT Context) {
     if (TestHeight < 16) TestHeight = Height;
     if (TestHeight > Height) TestHeight = Height;
 
-    DEBUG(TEXT("[VESADrawSelfTest] Drawing %u color bands (%ux%u test area)"), (U32)NumBands, (U32)Width, (U32)TestHeight);
+    DEBUG(TEXT("Drawing %u color bands (%ux%u test area)"), (U32)NumBands, (U32)Width, (U32)TestHeight);
 
     for (Index = 0; Index < NumBands; Index++) {
         X1 = Index * StripeWidth;

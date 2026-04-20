@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ void TestRadixTree(TEST_RESULTS* Results) {
         if (Created) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestRadixTree] Creation failed"));
+            ERROR(TEXT("Creation failed"));
         }
     }
 
@@ -122,7 +122,7 @@ void TestRadixTree(TEST_RESULTS* Results) {
         if (InsertedAll && FoundAll) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestRadixTree] Insert/find failed (inserted=%u found=%u)"), InsertedAll, FoundAll);
+            ERROR(TEXT("Insert/find failed (inserted=%u found=%u)"), InsertedAll, FoundAll);
         }
     }
 
@@ -165,7 +165,7 @@ void TestRadixTree(TEST_RESULTS* Results) {
         if (RemovedAll && Cleared) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestRadixTree] Removal failed (removed=%u cleared=%u)"), RemovedAll, Cleared);
+            ERROR(TEXT("Removal failed (removed=%u cleared=%u)"), RemovedAll, Cleared);
         }
     }
 
@@ -238,7 +238,7 @@ void TestRadixTree(TEST_RESULTS* Results) {
         if (IterationOk) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestRadixTree] Iteration failed"));
+            ERROR(TEXT("Iteration failed"));
         }
     }
 }

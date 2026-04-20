@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -198,7 +198,7 @@ BOOL EnsureSharedLowTable(
     LPCSTR Label) {
 
     if (TablePhysical == NULL || Label == NULL) {
-        ERROR(TEXT("[SetupLowRegion] Invalid shared table parameters"));
+        ERROR(TEXT("Invalid shared table parameters"));
         return FALSE;
     }
 
@@ -209,14 +209,14 @@ BOOL EnsureSharedLowTable(
     PHYSICAL Physical = AllocPhysicalPage();
 
     if (Physical == NULL) {
-        ERROR(TEXT("[SetupLowRegion] Out of physical pages for shared %s table"), Label);
+        ERROR(TEXT("Out of physical pages for shared %s table"), Label);
         return FALSE;
     }
 
     LINEAR Linear = MapTemporaryPhysicalPage6(Physical);
 
     if (Linear == NULL) {
-        ERROR(TEXT("[SetupLowRegion] MapTemporaryPhysicalPage3 failed for shared %s table"), Label);
+        ERROR(TEXT("MapTemporaryPhysicalPage3 failed for shared %s table"), Label);
         FreePhysicalPage(Physical);
         return FALSE;
     }
@@ -316,7 +316,7 @@ BOOL AllocateTableAndPopulate(
     Table->Physical = AllocPhysicalPage();
 
     if (Table->Physical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] %s region out of physical pages"), Region->Label);
+        ERROR(TEXT("%s region out of physical pages"), Region->Label);
         return FALSE;
     }
 
@@ -324,7 +324,7 @@ BOOL AllocateTableAndPopulate(
     LINEAR TableLinear = MapTemporaryPhysicalPage6(Table->Physical);
 
     if (TableLinear == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage3 failed for %s table"), Region->Label);
+        ERROR(TEXT("MapTemporaryPhysicalPage3 failed for %s table"), Region->Label);
         FreePhysicalPage(Table->Physical);
         Table->Physical = NULL;
         return FALSE;
@@ -435,7 +435,7 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
 
 
     if (Region->PdptPhysical == NULL || Region->DirectoryPhysical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] Low region out of physical pages"));
+        ERROR(TEXT("Low region out of physical pages"));
         if (Region->PdptPhysical != NULL) {
             FreePhysicalPage(Region->PdptPhysical);
             Region->PdptPhysical = NULL;
@@ -450,7 +450,7 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
     LPPAGE_DIRECTORY Pdpt = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage4(Region->PdptPhysical);
 
     if (Pdpt == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed for low PDPT"));
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed for low PDPT"));
         return FALSE;
     }
 
@@ -460,7 +460,7 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage5(Region->DirectoryPhysical);
 
     if (Directory == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage2 failed for low directory"));
+        ERROR(TEXT("MapTemporaryPhysicalPage2 failed for low directory"));
         return FALSE;
     }
 
@@ -510,7 +510,7 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
 
         if (BitmapDirectoryIndex >= 2u && BitmapDirectoryIndex < PAGE_TABLE_NUM_ENTRIES) {
             if (Region->TableCount >= ARRAY_COUNT(Region->Tables)) {
-                ERROR(TEXT("[SetupLowRegion] Bitmap seed table overflow index=%u"), BitmapDirectoryIndex);
+                ERROR(TEXT("Bitmap seed table overflow index=%u"), BitmapDirectoryIndex);
                 return FALSE;
             }
 
@@ -536,7 +536,7 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
 
         for (UINT Index = 0; Index < UserSeedTables; Index++) {
             if (Region->TableCount >= TableCapacity) {
-                ERROR(TEXT("[SetupLowRegion] User seed table overflow index=%u count=%u capacity=%u"),
+                ERROR(TEXT("User seed table overflow index=%u count=%u capacity=%u"),
                     Index,
                     Region->TableCount,
                     TableCapacity);
@@ -605,7 +605,7 @@ BOOL SetupKernelRegion(REGION_SETUP* Region, UINT TableCountRequired) {
     Region->Global = 0;
 
     if (TableCountRequired > ARRAY_COUNT(Region->Tables)) {
-        ERROR(TEXT("[AllocPageDirectory] Kernel region requires too many tables"));
+        ERROR(TEXT("Kernel region requires too many tables"));
         return FALSE;
     }
 
@@ -614,14 +614,14 @@ BOOL SetupKernelRegion(REGION_SETUP* Region, UINT TableCountRequired) {
 
 
     if (Region->PdptPhysical == NULL || Region->DirectoryPhysical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] Kernel region out of physical pages"));
+        ERROR(TEXT("Kernel region out of physical pages"));
         return FALSE;
     }
 
     LPPAGE_DIRECTORY Pdpt = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage4(Region->PdptPhysical);
 
     if (Pdpt == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed for kernel PDPT"));
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed for kernel PDPT"));
         return FALSE;
     }
 
@@ -630,7 +630,7 @@ BOOL SetupKernelRegion(REGION_SETUP* Region, UINT TableCountRequired) {
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage5(Region->DirectoryPhysical);
 
     if (Directory == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage2 failed for kernel directory"));
+        ERROR(TEXT("MapTemporaryPhysicalPage2 failed for kernel directory"));
         return FALSE;
     }
 
@@ -699,14 +699,14 @@ BOOL SetupHighUserRegion(
 
 
     if (Region->PdptPhysical == NULL || Region->DirectoryPhysical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] High user region out of physical pages"));
+        ERROR(TEXT("High user region out of physical pages"));
         return FALSE;
     }
 
     LPPAGE_DIRECTORY Pdpt = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage4(Region->PdptPhysical);
 
     if (Pdpt == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed for high user PDPT"));
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed for high user PDPT"));
         return FALSE;
     }
 
@@ -715,7 +715,7 @@ BOOL SetupHighUserRegion(
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage5(Region->DirectoryPhysical);
 
     if (Directory == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage2 failed for high user directory"));
+        ERROR(TEXT("MapTemporaryPhysicalPage2 failed for high user directory"));
         return FALSE;
     }
 
@@ -787,7 +787,7 @@ PHYSICAL AllocPageDirectory(void) {
     PHYSICAL Pml4Physical = NULL;
     BOOL Success = FALSE;
     if (EnsureCurrentStackSpace(N_32KB) == FALSE) {
-        ERROR(TEXT("[AllocPageDirectory] Unable to ensure stack availability"));
+        ERROR(TEXT("Unable to ensure stack availability"));
         return NULL;
     }
 
@@ -818,14 +818,14 @@ PHYSICAL AllocPageDirectory(void) {
     Pml4Physical = AllocPhysicalPage();
 
     if (Pml4Physical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] Out of physical pages"));
+        ERROR(TEXT("Out of physical pages"));
         goto Out;
     }
 
     LINEAR Pml4Linear = MapTemporaryPhysicalPage4(Pml4Physical);
 
     if (Pml4Linear == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed on PML4"));
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed on PML4"));
         goto Out;
     }
 
@@ -919,7 +919,7 @@ PHYSICAL AllocUserPageDirectory(void) {
     BOOL Success = FALSE;
 
     if (EnsureCurrentStackSpace(N_32KB) == FALSE) {
-        ERROR(TEXT("[AllocUserPageDirectory] Unable to ensure stack availability"));
+        ERROR(TEXT("Unable to ensure stack availability"));
         return NULL;
     }
 
@@ -938,14 +938,14 @@ PHYSICAL AllocUserPageDirectory(void) {
     Pml4Physical = AllocPhysicalPage();
 
     if (Pml4Physical == NULL) {
-        ERROR(TEXT("[AllocUserPageDirectory] Out of physical pages"));
+        ERROR(TEXT("Out of physical pages"));
         goto Out;
     }
 
     LINEAR Pml4Linear = MapTemporaryPhysicalPage4(Pml4Physical);
 
     if (Pml4Linear == NULL) {
-        ERROR(TEXT("[AllocUserPageDirectory] MapTemporaryPhysicalPage1 failed on PML4"));
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed on PML4"));
         goto Out;
     }
 
@@ -954,7 +954,7 @@ PHYSICAL AllocUserPageDirectory(void) {
 
     LPPML4 CurrentPml4 = GetCurrentPml4VA();
     if (CurrentPml4 == NULL) {
-        ERROR(TEXT("[AllocUserPageDirectory] Current PML4 pointer is NULL"));
+        ERROR(TEXT("Current PML4 pointer is NULL"));
         goto Out;
     }
 
@@ -1019,7 +1019,7 @@ PHYSICAL AllocUserPageDirectory(void) {
     }
 
     if (ClonedKernelEntries == 0u) {
-        ERROR(TEXT("[AllocUserPageDirectory] No kernel PML4 entries copied from current directory"));
+        ERROR(TEXT("No kernel PML4 entries copied from current directory"));
         goto Out;
     }
 
@@ -1032,7 +1032,7 @@ PHYSICAL AllocUserPageDirectory(void) {
     Pml4Linear = MapTemporaryPhysicalPage4(Pml4Physical);
 
     if (Pml4Linear == NULL) {
-        ERROR(TEXT("[AllocUserPageDirectory] MapTemporaryPhysicalPage4 failed on PML4"));
+        ERROR(TEXT("MapTemporaryPhysicalPage4 failed on PML4"));
         goto Out;
     }
 
@@ -1144,7 +1144,7 @@ void InitializeMemoryManager(void) {
 
     UINT ReservedBytes = KernelStartup.KernelReservedBytes;
     if (ReservedBytes < KernelStartup.KernelSize) {
-        ERROR(TEXT("[InitializeMemoryManager] Invalid kernel reserved span (reserved=%u size=%u)"),
+        ERROR(TEXT("Invalid kernel reserved span (reserved=%u size=%u)"),
             ReservedBytes,
             KernelStartup.KernelSize);
         ConsolePanic(TEXT("Invalid boot kernel reserved span"));
@@ -1203,7 +1203,7 @@ void InitializeMemoryManager(void) {
         }
 
         if (NextPageCount == 0) {
-            ERROR(TEXT("[InitializeMemoryManager] Could not place buddy metadata (size=%u)"), BuddyMetadataSizeAligned);
+            ERROR(TEXT("Could not place buddy metadata (size=%u)"), BuddyMetadataSizeAligned);
             ConsolePanic(TEXT("Could not place physical memory allocator metadata"));
             DO_THE_SLEEPING_BEAUTY;
         }
@@ -1212,7 +1212,7 @@ void InitializeMemoryManager(void) {
     }
 
     if (WorkingPageCount != RequestedPageCount) {
-        WARNING(TEXT("[InitializeMemoryManager] Clamped page count from %u to %u to place metadata"),
+        WARNING(TEXT("Clamped page count from %u to %u to place metadata"),
             RequestedPageCount,
             WorkingPageCount);
         KernelStartup.PageCount = WorkingPageCount;
@@ -1223,7 +1223,7 @@ void InitializeMemoryManager(void) {
     SetPhysicalAllocatorMetadataRange(BuddyMetadataPhysical, BuddyMetadataPhysical + BuddyMetadataSizeAligned);
 
     if (BuddyInitialize((LINEAR)BuddyMetadataPhysical, BuddyMetadataSizeAligned, KernelStartup.PageCount) == FALSE) {
-        ERROR(TEXT("[InitializeMemoryManager] BuddyInitialize failed (PA=%p size=%u pages=%u)"),
+        ERROR(TEXT("BuddyInitialize failed (PA=%p size=%u pages=%u)"),
             (LPVOID)(LINEAR)BuddyMetadataPhysical,
             BuddyMetadataSizeAligned,
             KernelStartup.PageCount);
@@ -1240,7 +1240,7 @@ void InitializeMemoryManager(void) {
     PHYSICAL NewPageDirectory = AllocPageDirectory();
 
     if (NewPageDirectory == NULL) {
-        ERROR(TEXT("[InitializeMemoryManager] AllocPageDirectory failed"));
+        ERROR(TEXT("AllocPageDirectory failed"));
         ConsolePanic(TEXT("Could not allocate critical memory management tool"));
         DO_THE_SLEEPING_BEAUTY;
     }
@@ -1259,7 +1259,7 @@ void InitializeMemoryManager(void) {
     Kernel_x86_32.GDT = (LPVOID)AllocKernelRegion(0, GDT_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("GDT"));
 
     if (Kernel_x86_32.GDT == NULL) {
-        ERROR(TEXT("[InitializeMemoryManager] AllocRegion for GDT failed"));
+        ERROR(TEXT("AllocRegion for GDT failed"));
         ConsolePanic(TEXT("Could not allocate critical memory management tool"));
         DO_THE_SLEEPING_BEAUTY;
     }
@@ -1360,7 +1360,7 @@ void FreeEmptyPageTables(void) {
 
                 LPPAGE_TABLE Table = (LPPAGE_TABLE)MapTemporaryPhysicalPage6(TablePhysical);
                 if (Table == NULL) {
-                    ERROR(TEXT("[FreeEmptyPageTables] Failed to map table PML4=%u PDPT=%u Dir=%u phys=%p"),
+                    ERROR(TEXT("Failed to map table PML4=%u PDPT=%u Dir=%u phys=%p"),
                         Pml4Index, PdptIndex, DirIndex, (LPVOID)TablePhysical);
                     continue;
                 }
@@ -1495,7 +1495,7 @@ BOOL PopulateRegionPagesLegacy(LINEAR Base,
                 Physical = AllocPhysicalPage();
 
                 if (Physical == NULL) {
-                    ERROR(TEXT("[%s] AllocPhysicalPage failed"), FunctionName);
+                    ERROR(TEXT("AllocPhysicalPage failed"));
                     BOOL PreviousBootstrap = G_RegionDescriptorBootstrap;
                     G_RegionDescriptorBootstrap = TRUE;
                     FreeRegion(RollbackBase, (UINT)(Index << PAGE_SIZE_MUL));
@@ -1564,7 +1564,7 @@ LINEAR AllocRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Ta
 
     // Can't allocate more than 25% of total memory at once
     if (Size > KernelStartup.MemorySize / 4) {
-        ERROR(TEXT("[AllocRegion] Size %x exceeds 25%% of memory (%lX)"), Size, KernelStartup.MemorySize / 4);
+        ERROR(TEXT("Size %x exceeds 25%% of memory (%lX)"), Size, KernelStartup.MemorySize / 4);
         return NULL;
     }
 
@@ -1577,17 +1577,17 @@ LINEAR AllocRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Ta
     // If an exact physical mapping is requested, validate inputs
     if (Target != 0) {
         if ((Target & (PAGE_SIZE - 1)) != 0) {
-            ERROR(TEXT("[AllocRegion] Target not page-aligned (%x)"), Target);
+            ERROR(TEXT("Target not page-aligned (%x)"), Target);
             return NULL;
         }
 
         if ((Flags & ALLOC_PAGES_IO) == 0 && (Flags & ALLOC_PAGES_COMMIT) == 0) {
-            ERROR(TEXT("[AllocRegion] Exact PMA mapping requires COMMIT"));
+            ERROR(TEXT("Exact PMA mapping requires COMMIT"));
             return NULL;
         }
 
         if (ValidatePhysicalTargetRange(Target, NumPages) == FALSE) {
-            ERROR(TEXT("[AllocRegion] Target range cannot be addressed"));
+            ERROR(TEXT("Target range cannot be addressed"));
             return NULL;
         }
         /* NOTE: Do not reject pages already marked used here.
@@ -1677,14 +1677,14 @@ LINEAR AllocRegion(LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Ta
 BOOL ResizeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Target, UINT Size, UINT NewSize, U32 Flags) {
 
     if (Base == 0) {
-        ERROR(TEXT("[ResizeRegion] Base cannot be null"));
+        ERROR(TEXT("Base cannot be null"));
         return FALSE;
     }
 
     Base = CanonicalizeLinearAddress(Base);
 
     if (NewSize > KernelStartup.MemorySize / 4) {
-        ERROR(TEXT("[ResizeRegion] New size %x exceeds 25%% of memory (%u)"),
+        ERROR(TEXT("New size %x exceeds 25%% of memory (%u)"),
               NewSize,
               KernelStartup.MemorySize / 4);
         return FALSE;
@@ -1696,7 +1696,7 @@ BOOL ResizeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Tar
     if (RequestedPages == 0) RequestedPages = 1;
 
     if (RequestedPages == CurrentPages) {
-        DEBUG(TEXT("[ResizeRegion] No page count change"));
+        DEBUG(TEXT("No page count change"));
         return TRUE;
     }
 
@@ -1706,7 +1706,7 @@ BOOL ResizeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Tar
         UINT AdditionalSize = AdditionalPages << PAGE_SIZE_MUL;
 
         if (IsRegionFree(NewBase, AdditionalSize) == FALSE) {
-            DEBUG(TEXT("[ResizeRegion] Additional region not free at %x"), NewBase);
+            DEBUG(TEXT("Additional region not free at %x"), NewBase);
             return FALSE;
         }
 
@@ -1791,7 +1791,7 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
 
             ClearPageTableEntry(Table, TabEntry);
         } else if (IsLargePage == FALSE) {
-            DEBUG(TEXT("[FreeRegion] Missing mapping Dir=%u Tab=%u IsLarge=%u"),
+            DEBUG(TEXT("Missing mapping Dir=%u Tab=%u IsLarge=%u"),
                 DirEntry,
                 TabEntry,
                 (UINT)(IsLargePage ? 1u : 0u));
@@ -1823,7 +1823,7 @@ BOOL FreeRegion(LINEAR Base, UINT Size) {
 LINEAR MapIOMemory(PHYSICAL PhysicalBase, UINT Size) {
     // Basic parameter checks
     if (PhysicalBase == 0 || Size == 0) {
-        ERROR(TEXT("[MapIOMemory] Invalid parameters (PA=%x Size=%x)"), PhysicalBase, Size);
+        ERROR(TEXT("Invalid parameters (PA=%x Size=%x)"), PhysicalBase, Size);
         return NULL;
     }
 
@@ -1864,7 +1864,7 @@ LINEAR MapIOMemory(PHYSICAL PhysicalBase, UINT Size) {
  */
 LINEAR MapFramebufferMemory(PHYSICAL PhysicalBase, UINT Size) {
     if (PhysicalBase == 0 || Size == 0) {
-        ERROR(TEXT("[MapFramebufferMemory] Invalid parameters (PA=%p Size=%u)"),
+        ERROR(TEXT("Invalid parameters (PA=%p Size=%u)"),
               (LPVOID)(LINEAR)PhysicalBase,
               Size);
         return NULL;
@@ -1884,7 +1884,7 @@ LINEAR MapFramebufferMemory(PHYSICAL PhysicalBase, UINT Size) {
     );
 
     if (AlignedResult == NULL) {
-        WARNING(TEXT("[MapFramebufferMemory] WC mapping failed, falling back to UC"));
+        WARNING(TEXT("WC mapping failed, falling back to UC"));
         return MapIOMemory(PhysicalBase, Size);
     }
 
@@ -1904,7 +1904,7 @@ LINEAR MapFramebufferMemory(PHYSICAL PhysicalBase, UINT Size) {
 BOOL UnMapIOMemory(LINEAR LinearBase, UINT Size) {
     // Basic parameter checks
     if (LinearBase == 0 || Size == 0) {
-        ERROR(TEXT("[UnMapIOMemory] Invalid parameters (LA=%x Size=%x)"), LinearBase, Size);
+        ERROR(TEXT("Invalid parameters (LA=%x Size=%x)"), LinearBase, Size);
         return FALSE;
     }
 

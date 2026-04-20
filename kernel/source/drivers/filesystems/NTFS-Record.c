@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -141,13 +141,13 @@ static BOOL NtfsValidateFileRecordBuffer(
             FileSystem->BytesPerSector,
             Header.UpdateSequenceOffset,
             Header.UpdateSequenceSize)) {
-        WARNING(TEXT("[NtfsValidateFileRecordBuffer] Fixup failed index=%u"), Index);
+        WARNING(TEXT("Fixup failed index=%u"), Index);
         return FALSE;
     }
 
     MemoryCopy(&Header, RecordBuffer, sizeof(NTFS_FILE_RECORD_HEADER));
     if (Header.RealSize > FileSystem->FileRecordSize) {
-        WARNING(TEXT("[NtfsValidateFileRecordBuffer] Invalid real size=%u index=%u"), Header.RealSize, Index);
+        WARNING(TEXT("Invalid real size=%u index=%u"), Header.RealSize, Index);
         return FALSE;
     }
     MemoryCopy(HeaderOut, &Header, sizeof(NTFS_FILE_RECORD_HEADER));
@@ -281,7 +281,7 @@ BOOL NtfsLoadFileRecordBuffer(
 
     if (FileSystem->FileRecordSize == 0 || FileSystem->BytesPerSector == 0 ||
         !NtfsIsPowerOfTwo(FileSystem->BytesPerSector)) {
-        WARNING(TEXT("[NtfsLoadFileRecordBuffer] Invalid NTFS geometry"));
+        WARNING(TEXT("Invalid NTFS geometry"));
         return FALSE;
     }
     if (!NtfsIsValidFileRecordIndex(FileSystem, Index)) {
@@ -305,12 +305,12 @@ BOOL NtfsLoadFileRecordBuffer(
                     &InvalidRecordMagicWarningLimiter,
                     NTFS_INVALID_RECORD_MAGIC_LOG_LIMIT,
                     NTFS_INVALID_RECORD_MAGIC_LOG_COOLDOWN_MS) == FALSE) {
-                WARNING(TEXT("[NtfsLoadFileRecordBuffer] Unable to initialize warning limiter"));
+                WARNING(TEXT("Unable to initialize warning limiter"));
             }
         }
         if (RateLimiterShouldTrigger(&InvalidRecordMagicWarningLimiter, GetSystemTime(), &SuppressedWarnings)) {
             WARNING(
-                TEXT("[NtfsLoadFileRecordBuffer] Invalid file record magic=%x index=%u suppressed=%u"),
+                TEXT("Invalid file record magic=%x index=%u suppressed=%u"),
                 Header.Magic,
                 Index,
                 SuppressedWarnings);
@@ -433,7 +433,7 @@ static BOOL NtfsGetResidentValue(
     if (AttributeView == NULL || AttributeView->RecordBuffer == NULL) return FALSE;
     if (AttributeView->IsNonResident) return FALSE;
     if (AttributeView->AttributeLength < NTFS_ATTRIBUTE_HEADER_RESIDENT_SIZE) {
-        WARNING(TEXT("[NtfsGetResidentValue] Invalid resident length=%u"), AttributeView->AttributeLength);
+        WARNING(TEXT("Invalid resident length=%u"), AttributeView->AttributeLength);
         return FALSE;
     }
 
@@ -441,7 +441,7 @@ static BOOL NtfsGetResidentValue(
     ValueOffset = NtfsLoadU16(AttributeView->RecordBuffer + AttributeView->AttributeOffset + 20);
     if ((U32)ValueOffset > AttributeView->AttributeLength ||
         ValueLength > (AttributeView->AttributeLength - (U32)ValueOffset)) {
-        WARNING(TEXT("[NtfsGetResidentValue] Invalid resident value offset=%u length=%u"), ValueOffset, ValueLength);
+        WARNING(TEXT("Invalid resident value offset=%u length=%u"), ValueOffset, ValueLength);
         return FALSE;
     }
 
@@ -488,13 +488,13 @@ static BOOL NtfsHandleDataAttribute(
         U16 RunListOffset;
 
         if (AttributeView->AttributeLength < NTFS_ATTRIBUTE_HEADER_NON_RESIDENT_SIZE) {
-            WARNING(TEXT("[NtfsHandleDataAttribute] Invalid non-resident length=%u"), AttributeView->AttributeLength);
+            WARNING(TEXT("Invalid non-resident length=%u"), AttributeView->AttributeLength);
             return FALSE;
         }
 
         RunListOffset = NtfsLoadU16(AttributeView->RecordBuffer + AttributeView->AttributeOffset + 32);
         if ((U32)RunListOffset >= AttributeView->AttributeLength) {
-            WARNING(TEXT("[NtfsHandleDataAttribute] Invalid runlist offset=%u"), RunListOffset);
+            WARNING(TEXT("Invalid runlist offset=%u"), RunListOffset);
             return FALSE;
         }
 
@@ -569,7 +569,7 @@ static BOOL NtfsHandleSecurityDescriptorAttribute(
 
     if (AttributeView->IsNonResident) {
         if (AttributeView->AttributeLength < NTFS_ATTRIBUTE_HEADER_NON_RESIDENT_SIZE) {
-            WARNING(TEXT("[NtfsHandleSecurityDescriptorAttribute] Invalid non-resident length=%u"), AttributeView->AttributeLength);
+            WARNING(TEXT("Invalid non-resident length=%u"), AttributeView->AttributeLength);
             return FALSE;
         }
         AttributeView->RecordInfo->SecurityDescriptor.Size = NtfsLoadU64(
@@ -634,7 +634,7 @@ static BOOL NtfsParseFileRecordAttributes(
 
     AttributeOffset = RecordInfo->SequenceOfAttributesOffset;
     if (AttributeOffset >= RecordInfo->UsedSize || AttributeOffset >= RecordSize) {
-        WARNING(TEXT("[NtfsParseFileRecordAttributes] Invalid attribute offset=%u"), AttributeOffset);
+        WARNING(TEXT("Invalid attribute offset=%u"), AttributeOffset);
         return FALSE;
     }
 
@@ -657,13 +657,13 @@ static BOOL NtfsParseFileRecordAttributes(
 
         AttributeLength = NtfsLoadU32(RecordBuffer + AttributeOffset + 4);
         if (AttributeLength < NTFS_ATTRIBUTE_HEADER_RESIDENT_SIZE) {
-            WARNING(TEXT("[NtfsParseFileRecordAttributes] Invalid attribute length=%u"), AttributeLength);
+            WARNING(TEXT("Invalid attribute length=%u"), AttributeLength);
             return FALSE;
         }
 
         if (AttributeOffset > RecordInfo->UsedSize - AttributeLength ||
             AttributeOffset > RecordSize - AttributeLength) {
-            WARNING(TEXT("[NtfsParseFileRecordAttributes] Attribute out of bounds offset=%u length=%u"),
+            WARNING(TEXT("Attribute out of bounds offset=%u length=%u"),
                 AttributeOffset, AttributeLength);
             return FALSE;
         }
@@ -692,7 +692,7 @@ static BOOL NtfsParseFileRecordAttributes(
         if (DataAttributeLengthOut != NULL) *DataAttributeLengthOut = ParseState.DataAttributeLength;
     }
 
-    WARNING(TEXT("[NtfsParseFileRecordAttributes] Missing attribute end marker"));
+    WARNING(TEXT("Missing attribute end marker"));
     return FALSE;
 }
 
@@ -787,7 +787,7 @@ BOOL NtfsReadNonResidentDataAttributeRange(
 
     RunListOffset = NtfsLoadU16(DataAttribute + 32);
     if (RunListOffset >= DataAttributeLength) {
-        WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Invalid runlist offset=%u"), RunListOffset);
+        WARNING(TEXT("Invalid runlist offset=%u"), RunListOffset);
         return FALSE;
     }
 
@@ -816,13 +816,13 @@ BOOL NtfsReadNonResidentDataAttributeRange(
         LengthSize = Header & 0x0F;
         OffsetSize = (Header >> 4) & 0x0F;
         if (LengthSize == 0) {
-            WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Invalid run length size=0"));
+            WARNING(TEXT("Invalid run length size=0"));
             return FALSE;
         }
 
         if (RunPointer > RunEnd || LengthSize > (U32)(RunEnd - RunPointer) ||
             OffsetSize > (U32)(RunEnd - (RunPointer + LengthSize))) {
-            WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Truncated runlist"));
+            WARNING(TEXT("Truncated runlist"));
             return FALSE;
         }
 
@@ -830,7 +830,7 @@ BOOL NtfsReadNonResidentDataAttributeRange(
         RunPointer += LengthSize;
 
         if (U64_High32(ClusterCount64) != 0) {
-            WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Cluster count too large"));
+            WARNING(TEXT("Cluster count too large"));
             return FALSE;
         }
         ClusterCount = U64_Low32(ClusterCount64);
@@ -846,7 +846,7 @@ BOOL NtfsReadNonResidentDataAttributeRange(
         RunPointer += OffsetSize;
 
         if (ClusterCount > 0xFFFFFFFF / FileSystem->BytesPerCluster) {
-            WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Run byte size overflow"));
+            WARNING(TEXT("Run byte size overflow"));
             return FALSE;
         }
         RunBytes = ClusterCount * FileSystem->BytesPerCluster;
@@ -877,14 +877,14 @@ BOOL NtfsReadNonResidentDataAttributeRange(
             U32 DestinationOffset;
 
             if (CurrentLcn < 0) {
-                WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Invalid LCN"));
+                WARNING(TEXT("Invalid LCN"));
                 if (SectorBuffer != NULL) KernelHeapFree(SectorBuffer);
                 return FALSE;
             }
 
             ClusterLcn = (U32)CurrentLcn;
             if (ClusterLcn > 0xFFFFFFFF / FileSystem->SectorsPerCluster) {
-                WARNING(TEXT("[NtfsReadNonResidentDataAttribute] LCN sector overflow"));
+                WARNING(TEXT("LCN sector overflow"));
                 if (SectorBuffer != NULL) KernelHeapFree(SectorBuffer);
                 return FALSE;
             }
@@ -893,13 +893,13 @@ BOOL NtfsReadNonResidentDataAttributeRange(
             RelativeSector = SkipInRun / BytesPerSector;
             OffsetInSector = SkipInRun % BytesPerSector;
             if (SectorOffset > 0xFFFFFFFF - RelativeSector) {
-                WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Partition sector overflow"));
+                WARNING(TEXT("Partition sector overflow"));
                 if (SectorBuffer != NULL) KernelHeapFree(SectorBuffer);
                 return FALSE;
             }
             SectorOffset += RelativeSector;
             if (FileSystem->PartitionStart > 0xFFFFFFFF - SectorOffset) {
-                WARNING(TEXT("[NtfsReadNonResidentDataAttribute] Partition sector overflow"));
+                WARNING(TEXT("Partition sector overflow"));
                 if (SectorBuffer != NULL) KernelHeapFree(SectorBuffer);
                 return FALSE;
             }
@@ -908,7 +908,7 @@ BOOL NtfsReadNonResidentDataAttributeRange(
             if (SectorBuffer == NULL) {
                 SectorBuffer = (U8*)KernelHeapAlloc(BytesPerSector);
                 if (SectorBuffer == NULL) {
-                    ERROR(TEXT("[NtfsReadNonResidentDataAttribute] Unable to allocate sector buffer"));
+                    ERROR(TEXT("Unable to allocate sector buffer"));
                     return FALSE;
                 }
             }

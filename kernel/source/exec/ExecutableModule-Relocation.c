@@ -375,7 +375,7 @@ static BOOL ApplyExecutableModuleRelocation32(U32 Type, LINEAR Target, LINEAR Sy
             Value = (U32)SymbolAddress;
             break;
         default:
-            WARNING(TEXT("[ApplyExecutableModuleRelocation32] Unsupported relocation type=%u"), Type);
+            WARNING(TEXT("Unsupported relocation type=%u"), Type);
             return FALSE;
     }
 
@@ -482,7 +482,7 @@ static BOOL RelocateExecutableModuleTable32(
                        Symbol->SectionIndex,
                        Symbol->Value,
                        &SymbolAddress)) {
-            WARNING(TEXT("[RelocateExecutableModuleTable32] Unresolved symbol name=%s"), SymbolName);
+            WARNING(TEXT("Unresolved symbol name=%s"), SymbolName);
             return FALSE;
         }
 
@@ -527,7 +527,7 @@ static BOOL ApplyExecutableModuleRelocation64(U32 Type, LINEAR Target, LINEAR Sy
             *((U32*)Target) = (U32)Value;
             return TRUE;
         default:
-            WARNING(TEXT("[ApplyExecutableModuleRelocation64] Unsupported relocation type=%u"), Type);
+            WARNING(TEXT("Unsupported relocation type=%u"), Type);
             return FALSE;
     }
 }
@@ -631,7 +631,7 @@ static BOOL RelocateExecutableModuleTable64(
                        Symbol->SectionIndex,
                        (UINT)Symbol->Value,
                        &SymbolAddress)) {
-            WARNING(TEXT("[RelocateExecutableModuleTable64] Unresolved symbol name=%s"), SymbolName);
+            WARNING(TEXT("Unresolved symbol name=%s"), SymbolName);
             return FALSE;
         }
 
@@ -669,7 +669,7 @@ BOOL RelocateExecutableModuleBinding(
     }
 
     if (Image->Metadata.Dynamic.SymbolTable.Present == FALSE) {
-        WARNING(TEXT("[RelocateExecutableModuleBinding] Missing dynamic symbol table"));
+        WARNING(TEXT("Missing dynamic symbol table"));
         return FALSE;
     }
 
@@ -692,7 +692,7 @@ BOOL RelocateExecutableModuleBinding(
         }
 #endif
 
-        WARNING(TEXT("[RelocateExecutableModuleBinding] Unsupported module architecture=%u"), Image->Metadata.Architecture);
+        WARNING(TEXT("Unsupported module architecture=%u"), Image->Metadata.Architecture);
         return FALSE;
     }
 

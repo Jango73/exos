@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -183,7 +183,7 @@ static BOOL XHCI_ResetHubPort(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub, U8 Po
     }
 
     if (Timeout == 0) {
-        WARNING(TEXT("[XHCI_ResetHubPort] Timeout %u ms (Port=%u)"), XHCI_PORT_RESET_TIMEOUT_MS, Port);
+        WARNING(TEXT("Timeout %u ms (Port=%u)"), XHCI_PORT_RESET_TIMEOUT_MS, Port);
     }
 
     return (Timeout != 0);
@@ -463,7 +463,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
 
     U8 PortCount = 0;
     if (!XHCI_ReadHubDescriptor(Device, Hub, &PortCount)) {
-        ERROR(TEXT("[XHCI_InitHub] Hub descriptor read failed"));
+        ERROR(TEXT("Hub descriptor read failed"));
         return FALSE;
     }
 
@@ -472,7 +472,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
     Hub->HubPortStatus = (U16*)KernelHeapAlloc(sizeof(U16) * PortCount);
 
     if (Hub->HubChildren == NULL || Hub->HubPortStatus == NULL) {
-        ERROR(TEXT("[XHCI_InitHub] Hub port allocation failed"));
+        ERROR(TEXT("Hub port allocation failed"));
         if (Hub->HubChildren != NULL) {
             KernelHeapFree(Hub->HubChildren);
             Hub->HubChildren = NULL;
@@ -489,7 +489,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
 
     Hub->HubInterruptEndpoint = XHCI_FindHubInterruptEndpoint(Hub);
     if (Hub->HubInterruptEndpoint == NULL) {
-        ERROR(TEXT("[XHCI_InitHub] Hub interrupt endpoint not found"));
+        ERROR(TEXT("Hub interrupt endpoint not found"));
         KernelHeapFree(Hub->HubChildren);
         Hub->HubChildren = NULL;
         KernelHeapFree(Hub->HubPortStatus);
@@ -498,7 +498,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
     }
 
     if (!XHCI_AddInterruptEndpoint(Device, Hub, Hub->HubInterruptEndpoint)) {
-        ERROR(TEXT("[XHCI_InitHub] Hub interrupt endpoint init failed"));
+        ERROR(TEXT("Hub interrupt endpoint init failed"));
         KernelHeapFree(Hub->HubChildren);
         Hub->HubChildren = NULL;
         KernelHeapFree(Hub->HubPortStatus);
@@ -508,7 +508,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
 
     Hub->HubInterruptLength = (U16)((PortCount + 1U + 7U) / 8U);
     if (!XHCI_AllocPage(TEXT("XHCI_HubStatus"), &Hub->HubStatusPhysical, &Hub->HubStatusLinear)) {
-        ERROR(TEXT("[XHCI_InitHub] Hub status buffer alloc failed"));
+        ERROR(TEXT("Hub status buffer alloc failed"));
         KernelHeapFree(Hub->HubChildren);
         Hub->HubChildren = NULL;
         KernelHeapFree(Hub->HubPortStatus);
@@ -520,7 +520,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
     Hub->HubStatusPending = FALSE;
 
     if (!XHCI_UpdateHubSlotContext(Device, Hub)) {
-        ERROR(TEXT("[XHCI_InitHub] Hub slot context update failed"));
+        ERROR(TEXT("Hub slot context update failed"));
         FreeRegion(Hub->HubStatusLinear, PAGE_SIZE);
         FreePhysicalPage(Hub->HubStatusPhysical);
         Hub->HubStatusLinear = 0;
@@ -545,7 +545,7 @@ BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
                     LPXHCI_USB_DEVICE Child = Hub->HubChildren[Port - 1];
                     if (Child != NULL && Child->IsHub) {
                         if (!XHCI_InitHub(Device, Child)) {
-                            WARNING(TEXT("[XHCI_InitHub] Hub init failed on port %u"), Port);
+                            WARNING(TEXT("Hub init failed on port %u"), Port);
                         }
                     }
                 }
@@ -590,7 +590,7 @@ static void XHCI_HandleHubStatus(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub) {
                         LPXHCI_USB_DEVICE Child = Hub->HubChildren[Port - 1];
                         if (Child != NULL && Child->IsHub) {
                             if (!XHCI_InitHub(Device, Child)) {
-                                WARNING(TEXT("[XHCI_HandleHubStatus] Hub init failed on port %u"), Port);
+                                WARNING(TEXT("Hub init failed on port %u"), Port);
                             }
                         }
                     }
@@ -657,7 +657,7 @@ static void XHCI_PollHubs(LPVOID Context) {
         if (Completion == XHCI_COMPLETION_SUCCESS || Completion == XHCI_COMPLETION_SHORT_PACKET) {
             XHCI_HandleHubStatus(Device, Hub);
         } else {
-            WARNING(TEXT("[XHCI_PollHubs] Hub interrupt completion %x"), Completion);
+            WARNING(TEXT("Hub interrupt completion %x"), Completion);
         }
     }
 }
@@ -679,6 +679,6 @@ void XHCI_RegisterHubPoll(LPXHCI_DEVICE Device) {
 
     Device->HubPollToken = DeferredWorkRegisterPollOnly(XHCI_PollHubs, (LPVOID)Device, TEXT("XHCIHub"));
     if (DeferredWorkTokenIsValid(Device->HubPollToken) == FALSE) {
-        WARNING(TEXT("[XHCI_RegisterHubPoll] Failed to register hub poll"));
+        WARNING(TEXT("Failed to register hub poll"));
     }
 }

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -243,7 +243,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                                     if (UseDeadlockMonitor != FALSE && WaitStateActive != FALSE) {
                                         DeadlockMonitorOnWaitCancel(Task, Mutex);
                                     }
-                                    WARNING(TEXT("[LockMutex] Timeout while waiting mutex=%p owner_task=%p waiter_task=%p timeout=%u"),
+                                    WARNING(TEXT("Timeout while waiting mutex=%p owner_task=%p waiter_task=%p timeout=%u"),
                                         Mutex,
                                         Mutex->Task,
                                         Task,
@@ -259,7 +259,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                             if (Mutex->Lock > 1) {
                                 UINT Now = GetSystemTime();
                                 if (ThresholdLatchCheck(&ReentrantErrorLatch, Now)) {
-                                    ERROR(TEXT("[LockMutex] Reentrant mutex hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
+                                    ERROR(TEXT("Reentrant mutex hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
                                           Mutex,
                                           Mutex->Task,
                                           Task,
@@ -268,7 +268,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                                 }
 
                                 if (ThresholdLatchCheck(&ReentrantForceUnlockLatch, Now)) {
-                                    ERROR(TEXT("[LockMutex] Force unlock after reentrant hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
+                                    ERROR(TEXT("Force unlock after reentrant hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
                                           Mutex,
                                           Mutex->Task,
                                           Task,
@@ -286,7 +286,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
 
                             UINT CurrentTime = GetSystemTime();
                             if (CurrentTime - LastDebugTime >= 2000) {
-                                DEBUG(TEXT("[LockMutex] Task %p (%s) waiting for mutex %p owned by task %p (%s) for %u ms"),
+                                DEBUG(TEXT("Task %p (%s) waiting for mutex %p owned by task %p (%s) for %u ms"),
                                       Task, Task->Name,
                                       Mutex, Mutex->Task, Mutex->Task->Name,
                                       (U32)(CurrentTime - StartWaitTime));

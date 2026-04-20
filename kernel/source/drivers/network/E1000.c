@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ static U16 E1000_EepromReadWord(LPE1000DEVICE Device, U32 Address) {
     }
 
     // EEPROM read failed/timed out - log error and return 0 as safe default
-    ERROR(TEXT("[E1000_EepromReadWord] EEPROM read timeout at address %u after %u iterations"), Address, Count);
+    ERROR(TEXT("EEPROM read timeout at address %u after %u iterations"), Address, Count);
     return 0;
 }
 
@@ -401,7 +401,7 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
             Device->RxRingCount * sizeof(E1000_RXDESC),
             FALSE,
             TEXT("E1000RxRing"))) {
-        ERROR(TEXT("[E1000_SetupReceive] RX ring allocation failed"));
+        ERROR(TEXT("RX ring allocation failed"));
         return FALSE;
     }
 
@@ -410,7 +410,7 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
             Device->RxRingCount * PAGE_SIZE,
             FALSE,
             TEXT("E1000RxPool"))) {
-        ERROR(TEXT("[E1000_SetupReceive] RX pool allocation failed"));
+        ERROR(TEXT("RX pool allocation failed"));
         return FALSE;
     }
 
@@ -420,12 +420,12 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
         LINEAR BufferLinear = DMABufferGetIndexedLinear(&Device->RxBufferPool, Index, PAGE_SIZE);
 
         if (BufferPhys == 0 || BufferLinear == 0) {
-            ERROR(TEXT("[E1000_SetupReceive] RX pool address lookup failed at %u"), Index);
+            ERROR(TEXT("RX pool address lookup failed at %u"), Index);
             return FALSE;
         }
 
         if ((BufferPhys & 0xF) != 0) {
-            ERROR(TEXT("[E1000_SetupReceive] Invalid/unaligned buffer physical address %p at index %u"),
+            ERROR(TEXT("Invalid/unaligned buffer physical address %p at index %u"),
                   BufferPhys,
                   Index);
             return FALSE;
@@ -440,7 +440,7 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
         Ring[Index].Special = 0;
 
         if (Index < 3) {
-            DEBUG(TEXT("[E1000_SetupReceive] RX[%u]: PhysAddr=%x Linear=%x (aligned=%s)"),
+            DEBUG(TEXT("RX[%u]: PhysAddr=%x Linear=%x (aligned=%s)"),
                   Index,
                   (U32)BufferPhys,
                   (U32)BufferLinear,
@@ -449,7 +449,7 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
     }
 
     if ((DMABufferGetPhysical(&Device->RxRingBuffer, 0) & 0xF) != 0) {
-        ERROR(TEXT("[E1000_SetupReceive] Descriptor ring not 16-byte aligned: %p"),
+        ERROR(TEXT("Descriptor ring not 16-byte aligned: %p"),
               DMABufferGetPhysical(&Device->RxRingBuffer, 0));
         return FALSE;
     }
@@ -524,7 +524,7 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
             Device->TxRingCount * sizeof(E1000_TXDESC),
             FALSE,
             TEXT("E1000TxRing"))) {
-        ERROR(TEXT("[E1000_SetupTransmit] TX ring allocation failed"));
+        ERROR(TEXT("TX ring allocation failed"));
         return FALSE;
     }
 
@@ -533,7 +533,7 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
             Device->TxRingCount * PAGE_SIZE,
             FALSE,
             TEXT("E1000TxPool"))) {
-        ERROR(TEXT("[E1000_SetupTransmit] TX pool allocation failed"));
+        ERROR(TEXT("TX pool allocation failed"));
         return FALSE;
     }
 
@@ -541,12 +541,12 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
     for (Index = 0; Index < Device->TxRingCount; Index++) {
         PHYSICAL BufferPhys = DMABufferGetIndexedPhysical(&Device->TxBufferPool, Index, PAGE_SIZE);
         if (BufferPhys == 0) {
-            ERROR(TEXT("[E1000_SetupTransmit] TX pool phys lookup failed at %u"), Index);
+            ERROR(TEXT("TX pool phys lookup failed at %u"), Index);
             return FALSE;
         }
 
         if ((BufferPhys & 0xF) != 0) {
-            ERROR(TEXT("[E1000_SetupTransmit] Invalid/unaligned TX buffer physical address %p at index %u"),
+            ERROR(TEXT("Invalid/unaligned TX buffer physical address %p at index %u"),
                   BufferPhys,
                   Index);
             return FALSE;
@@ -563,7 +563,7 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
     }
 
     if ((DMABufferGetPhysical(&Device->TxRingBuffer, 0) & 0xF) != 0) {
-        ERROR(TEXT("[E1000_SetupTransmit] TX descriptor ring not 16-byte aligned: %p"),
+        ERROR(TEXT("TX descriptor ring not 16-byte aligned: %p"),
               DMABufferGetPhysical(&Device->TxRingBuffer, 0));
         return FALSE;
     }
@@ -613,7 +613,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
 
 
     if (Bar0Phys == NULL || Bar0Size == 0) {
-        ERROR(TEXT("[E1000_Attach] Invalid BAR0"));
+        ERROR(TEXT("Invalid BAR0"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -623,7 +623,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
     Device->MmioSize = Bar0Size;
 
     if (Device->MmioBase == NULL) {
-        ERROR(TEXT("[E1000_Attach] MapIOMemory failed"));
+        ERROR(TEXT("MapIOMemory failed"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -632,7 +632,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
     PCI_EnableBusMaster(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, TRUE);
 
     if (!E1000_Reset(Device)) {
-        ERROR(TEXT("[E1000_Attach] Reset failed"));
+        ERROR(TEXT("Reset failed"));
         KernelHeapFree(Device);
         return NULL;
     }
@@ -644,7 +644,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
     E1000_SetupMacFilters(Device);
 
     if (!E1000_SetupReceive(Device)) {
-        ERROR(TEXT("[E1000_Attach] RX setup failed"));
+        ERROR(TEXT("RX setup failed"));
         if (Device->MmioBase) {
             UnMapIOMemory(Device->MmioBase, Device->MmioSize);
         }
@@ -655,7 +655,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
 
 
     if (!E1000_SetupTransmit(Device)) {
-        ERROR(TEXT("[E1000_Attach] TX setup failed"));
+        ERROR(TEXT("TX setup failed"));
         E1000_ReleaseDMAResources(Device);
         if (Device->MmioBase) {
             UnMapIOMemory(Device->MmioBase, Device->MmioSize);
@@ -681,7 +681,7 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
 static BOOL E1000_EnableInterrupts(LPE1000DEVICE Device, U8 LegacyIRQ, U8 TargetCPU) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
         if (Device->MmioBase == NULL) {
-            WARNING(TEXT("[E1000_EnableInterrupts] MMIO base is NULL"));
+            WARNING(TEXT("MMIO base is NULL"));
             return FALSE;
         }
 
@@ -690,7 +690,7 @@ static BOOL E1000_EnableInterrupts(LPE1000DEVICE Device, U8 LegacyIRQ, U8 Target
         }
 
         if (LegacyIRQ == MAX_U8) {
-            WARNING(TEXT("[E1000_EnableInterrupts] No valid IRQ line available"));
+            WARNING(TEXT("No valid IRQ line available"));
             return FALSE;
         }
 
@@ -706,7 +706,7 @@ static BOOL E1000_EnableInterrupts(LPE1000DEVICE Device, U8 LegacyIRQ, U8 Target
         };
 
         if (!DeviceInterruptRegister(&Registration, &Device->InterruptSlot)) {
-            WARNING(TEXT("[E1000_EnableInterrupts] Failed to register device interrupt"));
+            WARNING(TEXT("Failed to register device interrupt"));
             Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
             Device->InterruptRegistered = FALSE;
             Device->InterruptArmed = FALSE;
@@ -746,7 +746,7 @@ static BOOL E1000_EnableInterrupts(LPE1000DEVICE Device, U8 LegacyIRQ, U8 Target
 static BOOL E1000_DisableInterrupts(LPE1000DEVICE Device, U8 LegacyIRQ) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
         if (Device->MmioBase == NULL) {
-            WARNING(TEXT("[E1000_DisableInterrupts] MMIO base is NULL"));
+            WARNING(TEXT("MMIO base is NULL"));
             return FALSE;
         }
 
@@ -794,7 +794,7 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
 
         Device->AckTraceCount++;
         if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-            WARNING(TEXT("[E1000_AcknowledgeInterrupt] Cause=%x Armed=%s Polling=%s"),
+            WARNING(TEXT("Cause=%x Armed=%s Polling=%s"),
                     InterruptCause,
                     Device->InterruptArmed ? TEXT("YES") : TEXT("NO"),
                     DeferredWorkIsPollingMode() ? TEXT("YES") : TEXT("NO"));
@@ -802,7 +802,7 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
 
         if (InterruptCause == 0U) {
             if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-                WARNING(TEXT("[E1000_AcknowledgeInterrupt] No pending interrupt cause"));
+                WARNING(TEXT("No pending interrupt cause"));
             }
             return FALSE;
         }
@@ -810,13 +810,13 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
         if (Device->InterruptArmed) {
             if (DeferredWorkIsPollingMode()) {
                 if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-                    WARNING(TEXT("[E1000_AcknowledgeInterrupt] Polling mode - masking interrupts (IMC=%x)"),
+                    WARNING(TEXT("Polling mode - masking interrupts (IMC=%x)"),
                             MAX_U32);
                 }
                 E1000_WriteReg32(Device->MmioBase, E1000_REG_IMC, MAX_U32);
             } else {
                 if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-                    WARNING(TEXT("[E1000_AcknowledgeInterrupt] Re-arming interrupts with mask=%x"),
+                    WARNING(TEXT("Re-arming interrupts with mask=%x"),
                             E1000_DEFAULT_INTERRUPT_MASK);
                 }
                 E1000_WriteReg32(Device->MmioBase, E1000_REG_IMS, E1000_DEFAULT_INTERRUPT_MASK);
@@ -849,21 +849,21 @@ static BOOL E1000_InterruptTopHalf(LPDEVICE DevicePointer, LPVOID Context) {
 
     if (!E1000_AcknowledgeInterrupt(Device, &Cause)) {
         if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-            WARNING(TEXT("[E1000_InterruptTopHalf] No cause reported (trace=%u)"),
+            WARNING(TEXT("No cause reported (trace=%u)"),
                     Device->InterruptTraceCount);
         }
         return FALSE;
     }
 
     if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-        WARNING(TEXT("[E1000_InterruptTopHalf] Cause=%x RelevantMask=%x"),
+        WARNING(TEXT("Cause=%x RelevantMask=%x"),
                 Cause,
                 (E1000_INT_RXT0 | E1000_INT_RXO | E1000_INT_RXDMT0 | E1000_INT_LSC));
     }
 
     if ((Cause & (E1000_INT_RXT0 | E1000_INT_RXO | E1000_INT_RXDMT0 | E1000_INT_LSC)) == 0) {
         if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-            WARNING(TEXT("[E1000_InterruptTopHalf] Ignored cause=%x (no relevant bits)"), Cause);
+            WARNING(TEXT("Ignored cause=%x (no relevant bits)"), Cause);
         }
         return FALSE;
     }
@@ -872,11 +872,11 @@ static BOOL E1000_InterruptTopHalf(LPDEVICE DevicePointer, LPVOID Context) {
     }
 
     if ((Cause & E1000_INT_RXO) != 0) {
-        WARNING(TEXT("[E1000_InterruptTopHalf] RX overrun detected (cause=%x)"), Cause);
+        WARNING(TEXT("RX overrun detected (cause=%x)"), Cause);
     }
 
     if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-        WARNING(TEXT("[E1000_InterruptTopHalf] Scheduling deferred work for cause=%x"), Cause);
+        WARNING(TEXT("Scheduling deferred work for cause=%x"), Cause);
     }
 
     return TRUE;
@@ -957,7 +957,7 @@ static U32 E1000_TransmitSend(LPE1000DEVICE Device, const U8 *Data, U32 Length) 
     }
 
     if (Wait >= E1000_TX_TIMEOUT_ITER) {
-        ERROR(TEXT("[E1000_TransmitSend] TX timeout - packet transmission failed"));
+        ERROR(TEXT("TX timeout - packet transmission failed"));
         return DF_RETURN_NT_TX_FAIL;
     }
 
@@ -990,7 +990,7 @@ static U32 E1000_ReceivePoll(LPE1000DEVICE Device) {
                 // No data available - show RX register state every 100 polls
                 static U32 DATA_SECTION PollCount = 0;
                 if ((PollCount++ % 100) == 0) {
-                    DEBUG(TEXT("[E1000_ReceivePoll] RDH=%x RDT=%x RCTL=%x"),
+                    DEBUG(TEXT("RDH=%x RDT=%x RCTL=%x"),
                           E1000_ReadReg32(Device->MmioBase, E1000_REG_RDH),
                           E1000_ReadReg32(Device->MmioBase, E1000_REG_RDT),
                           E1000_ReadReg32(Device->MmioBase, E1000_REG_RCTL));
@@ -1034,7 +1034,7 @@ static U32 E1000_ReceivePoll(LPE1000DEVICE Device) {
     }
 
     if (Count >= MaxIterations) {
-        WARNING(TEXT("[E1000_ReceivePoll] Hit maximum iteration limit (%u), potential infinite loop prevented"), MaxIterations);
+        WARNING(TEXT("Hit maximum iteration limit (%u), potential infinite loop prevented"), MaxIterations);
     }
 
     return DF_RETURN_SUCCESS;

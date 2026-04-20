@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ static BOOL BuildQualifiedFileName(LPCSTR Name, LPSTR QualifiedName) {
     U32 RelativeLength;
 
     if (Name == NULL || QualifiedName == NULL) {
-        ERROR(TEXT("[BuildQualifiedFileName] Bad parameters"));
+        ERROR(TEXT("Bad parameters"));
         return FALSE;
     }
 
@@ -72,13 +72,13 @@ static BOOL BuildQualifiedFileName(LPCSTR Name, LPSTR QualifiedName) {
 
     BaseLength = StringLength(QualifiedName);
     if (BaseLength == 0) {
-        ERROR(TEXT("[BuildQualifiedFileName] Empty base path"));
+        ERROR(TEXT("Empty base path"));
         return FALSE;
     }
 
     if (QualifiedName[BaseLength - 1] != PATH_SEP) {
         if (BaseLength + 1 >= MAX_PATH_NAME) {
-            ERROR(TEXT("[BuildQualifiedFileName] Base path too long (%u)"), BaseLength);
+            ERROR(TEXT("Base path too long (%u)"), BaseLength);
             return FALSE;
         }
         QualifiedName[BaseLength] = PATH_SEP;
@@ -88,7 +88,7 @@ static BOOL BuildQualifiedFileName(LPCSTR Name, LPSTR QualifiedName) {
 
     RelativeLength = StringLength(Name);
     if (BaseLength + RelativeLength >= MAX_PATH_NAME) {
-        ERROR(TEXT("[BuildQualifiedFileName] Path too long (%u + %u)"), BaseLength, RelativeLength);
+        ERROR(TEXT("Path too long (%u + %u)"), BaseLength, RelativeLength);
         return FALSE;
     }
 
@@ -197,20 +197,20 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
     // Resolve the requested name against the process working directory
 
     if (!BuildQualifiedFileName(Info->Name, QualifiedName)) {
-        ERROR(TEXT("[OpenFile] BuildQualifiedFileName failed name=%s flags=%x"), Info->Name, Info->Flags);
+        ERROR(TEXT("BuildQualifiedFileName failed name=%s flags=%x"), Info->Name, Info->Flags);
         return NULL;
     }
 
-    DEBUG(TEXT("[OpenFile] Name=%s, Flags=%x"), Info->Name, Info->Flags);
+    DEBUG(TEXT("Name=%s, Flags=%x"), Info->Name, Info->Flags);
     {
         LPPROCESS Process = GetCurrentProcess();
         if (Process != NULL) {
-            DEBUG(TEXT("[OpenFile] Current process workfolder=%s"), Process->WorkFolder);
+            DEBUG(TEXT("Current process workfolder=%s"), Process->WorkFolder);
         }
     }
 
     RequestedName = QualifiedName;
-    DEBUG(TEXT("[OpenFile] QualifiedName=%s"), RequestedName);
+    DEBUG(TEXT("QualifiedName=%s"), RequestedName);
 
     //-------------------------------------
     // Check if the file is already open
@@ -255,7 +255,7 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
         UnlockMutex(MUTEX_FILESYSTEM);
 
         if (SystemFileSystem == NULL) {
-            WARNING(TEXT("[OpenFile] SystemFS unavailable path=%s"), RequestedName);
+            WARNING(TEXT("SystemFS unavailable path=%s"), RequestedName);
             return NULL;
         }
 
@@ -265,7 +265,7 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
         Find.Flags = Info->Flags;
         StringCopy(Find.Name, RequestedName);
 
-        DEBUG(TEXT("[OpenFile] Using SystemFS, path=%s"), Find.Name);
+        DEBUG(TEXT("Using SystemFS, path=%s"), Find.Name);
 
         File = (LPFILE)SystemFileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)&Find);
         ReleaseKernelObject(SystemFileSystem);
@@ -281,7 +281,7 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
             UnlockMutex(MUTEX_FILE);
         }
         if (File == NULL) {
-            WARNING(TEXT("[OpenFile] SystemFS open failed path=%s flags=%x"), Find.Name, Find.Flags);
+            WARNING(TEXT("SystemFS open failed path=%s flags=%x"), Find.Name, Find.Flags);
         }
 
         return File;
@@ -291,10 +291,10 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
     // Get the name of the volume in which the file
     // is supposed to be located
 
-    DEBUG(TEXT("[OpenFile] Searching for %s in file systems"), RequestedName);
+    DEBUG(TEXT("Searching for %s in file systems"), RequestedName);
 
     if (!BuildFileSystemProbeSnapshot(&FileSystemSnapshot, &FileSystemSnapshotCount)) {
-        ERROR(TEXT("[OpenFile] Unable to build filesystem probe snapshot"));
+        ERROR(TEXT("Unable to build filesystem probe snapshot"));
         return NULL;
     }
 
@@ -308,12 +308,12 @@ LPFILE OpenFile(LPFILE_OPEN_INFO Info) {
         Find.Flags = Info->Flags;
         StringCopy(Find.Name, RequestedName);
 
-        DEBUG(TEXT("[OpenFile] Probing %s with %s"), FileSystem->Driver->Product, Find.Name);
+        DEBUG(TEXT("Probing %s with %s"), FileSystem->Driver->Product, Find.Name);
 
         File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)&Find);
 
         SAFE_USE(File) {
-            DEBUG(TEXT("[OpenFile] Found %s in %s"), RequestedName, FileSystem->Driver->Product);
+            DEBUG(TEXT("Found %s in %s"), RequestedName, FileSystem->Driver->Product);
 
             LockMutex(MUTEX_FILE, INFINITY);
 
@@ -489,7 +489,7 @@ UINT WriteFile(LPFILE_OPERATION Operation) {
             if (Result == DF_RETURN_SUCCESS) {
                 BytesWritten = File->BytesTransferred;
                 if (BytesWritten != Operation->NumBytes) {
-                    ERROR(TEXT("[WriteFile] Short write rejected path=%s requested=%u written=%u"),
+                    ERROR(TEXT("Short write rejected path=%s requested=%u written=%u"),
                         File->Name,
                         Operation->NumBytes,
                         BytesWritten);
@@ -549,7 +549,7 @@ LPVOID FileReadAll(LPCSTR Name, UINT *Size) {
     UINT BytesToRead = 0;
     UINT BytesRead = 0;
 
-    DEBUG(TEXT("[FileReadAll] Name = %s"), Name);
+    DEBUG(TEXT("Name = %s"), Name);
 
     SAFE_USE_2(Name, Size) {
         //-------------------------------------
@@ -562,7 +562,7 @@ LPVOID FileReadAll(LPCSTR Name, UINT *Size) {
 
         if (File == NULL) return NULL;
 
-        DEBUG(TEXT("[FileReadAll] File found"));
+        DEBUG(TEXT("File found"));
 
         //-------------------------------------
         // Allocate buffer and read content
@@ -578,7 +578,7 @@ LPVOID FileReadAll(LPCSTR Name, UINT *Size) {
             FileOp.NumBytes = BytesToRead;
             BytesRead = ReadFile(&FileOp);
             if (BytesRead < BytesToRead) {
-                WARNING(TEXT("[FileReadAll] Short read on %s (%u/%u)"), Name, BytesRead, BytesToRead);
+                WARNING(TEXT("Short read on %s (%u/%u)"), Name, BytesRead, BytesToRead);
             }
             *Size = BytesRead;
             ((LPSTR)Buffer)[BytesRead] = STR_NULL;
@@ -607,7 +607,7 @@ UINT FileWriteAll(LPCSTR Name, LPCVOID Buffer, UINT Size) {
     LPFILE File = NULL;
     UINT BytesWritten = 0;
 
-    DEBUG(TEXT("[FileWriteAll] name %s, size %u"), Name, Size);
+    DEBUG(TEXT("name %s, size %u"), Name, Size);
 
     SAFE_USE_2(Name, Buffer) {
         //-------------------------------------
@@ -619,7 +619,7 @@ UINT FileWriteAll(LPCSTR Name, LPCVOID Buffer, UINT Size) {
         File = OpenFile(&OpenInfo);
 
         if (File == NULL) {
-            DEBUG(TEXT("[FileWriteAll] OpenFile failed to create %s"), Name);
+            DEBUG(TEXT("OpenFile failed to create %s"), Name);
             return 0;
         }
 
@@ -632,7 +632,7 @@ UINT FileWriteAll(LPCSTR Name, LPCVOID Buffer, UINT Size) {
         FileOp.NumBytes = Size;
         BytesWritten = WriteFile(&FileOp);
         if (BytesWritten != Size) {
-            WARNING(TEXT("[FileWriteAll] Write failed name=%s requested=%u written=%u"),
+            WARNING(TEXT("Write failed name=%s requested=%u written=%u"),
                 Name,
                 Size,
                 BytesWritten);

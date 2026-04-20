@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,13 +47,12 @@ static BOOL NVMeShouldEmitIoWarning(LPCOOLDOWN Cooldown) {
  * @param SectorCount Number of sectors to transfer.
  * @param Buffer Transfer buffer.
  * @param BufferBytes Buffer size in bytes.
- * @param FunctionName Caller function name for logs.
  * @param TransferBytesOut Receives validated transfer size in bytes.
  * @param BasePhysOut Receives contiguous physical base address.
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL NVMePrepareIoTransfer(LPNVME_DEVICE Device, U32 SectorCount, LPCVOID Buffer, U32 BufferBytes,
-                                  LPCSTR FunctionName, U32* TransferBytesOut, PHYSICAL* BasePhysOut) {
+                                  U32* TransferBytesOut, PHYSICAL* BasePhysOut) {
     U32 BytesPerSector;
     LINEAR BufferLinear;
     PHYSICAL BasePhys;
@@ -78,18 +77,18 @@ static BOOL NVMePrepareIoTransfer(LPNVME_DEVICE Device, U32 SectorCount, LPCVOID
     }
 
     if (*TransferBytesOut > (2 * N_4KB)) {
-        WARNING(TEXT("[%s] Transfer too large for PRP1/PRP2 %u bytes"), FunctionName, (U32)*TransferBytesOut);
+        WARNING(TEXT("Transfer too large for PRP1/PRP2 %u bytes"), (U32)*TransferBytesOut);
         return FALSE;
     }
 
     if (SectorCount > 0x10000) {
-        WARNING(TEXT("[%s] Too many sectors %u"), FunctionName, (U32)SectorCount);
+        WARNING(TEXT("Too many sectors %u"), (U32)SectorCount);
         return FALSE;
     }
 
     BufferLinear = (LINEAR)Buffer;
     if ((BufferLinear & (N_4KB - 1)) != 0) {
-        WARNING(TEXT("[%s] Buffer not 4 KiB aligned %p"), FunctionName, Buffer);
+        WARNING(TEXT("Buffer not 4 KiB aligned %p"), Buffer);
         return FALSE;
     }
 
@@ -102,7 +101,7 @@ static BOOL NVMePrepareIoTransfer(LPNVME_DEVICE Device, U32 SectorCount, LPCVOID
         LINEAR Linear = BufferLinear + (LINEAR)Offset;
         PHYSICAL Physical = MapLinearToPhysical(Linear);
         if (Physical != (BasePhys + (PHYSICAL)Offset)) {
-            WARNING(TEXT("[%s] Buffer not contiguous at %x"), FunctionName, (U32)Offset);
+            WARNING(TEXT("Buffer not contiguous at %x"), (U32)Offset);
             return FALSE;
         }
     }
@@ -239,7 +238,7 @@ static BOOL NVMeEnableMsix(LPNVME_DEVICE Device, U8 Vector) {
 
     U8 CapOffset = PCI_FindCapability(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CAP_ID_MSIX);
     if (CapOffset == 0) {
-        WARNING(TEXT("[NVMeEnableMsix] MSI-X capability not found"));
+        WARNING(TEXT("MSI-X capability not found"));
         return FALSE;
     }
 
@@ -249,7 +248,7 @@ static BOOL NVMeEnableMsix(LPNVME_DEVICE Device, U8 Vector) {
     U8 TableBir = (U8)(TableInfo & 0x7);
     U32 TableOffset = TableInfo & ~0x7;
 
-    DEBUG(TEXT("[NVMeEnableMsix] Cap=%x Control=%x TableSize=%x BIR=%x Offset=%x"),
+    DEBUG(TEXT("Cap=%x Control=%x TableSize=%x BIR=%x Offset=%x"),
           (U32)CapOffset,
           (U32)Control,
           (U32)TableSize,
@@ -257,19 +256,19 @@ static BOOL NVMeEnableMsix(LPNVME_DEVICE Device, U8 Vector) {
           (U32)TableOffset);
 
     if (TableBir != 0) {
-        WARNING(TEXT("[NVMeEnableMsix] Unsupported MSI-X table BIR %u"), (U32)TableBir);
+        WARNING(TEXT("Unsupported MSI-X table BIR %u"), (U32)TableBir);
         return FALSE;
     }
 
     if (Device->MmioBase == 0 || Device->MmioSize == 0) {
-        WARNING(TEXT("[NVMeEnableMsix] Invalid BAR0 mapping"));
+        WARNING(TEXT("Invalid BAR0 mapping"));
         return FALSE;
     }
 
     U32 TableBytes = (U32)TableSize * 16;
     U32 NeededSize = TableOffset + TableBytes;
     if (NeededSize > Device->MmioSize) {
-        WARNING(TEXT("[NVMeEnableMsix] MSI-X table exceeds BAR0 size"));
+        WARNING(TEXT("MSI-X table exceeds BAR0 size"));
         return FALSE;
     }
 
@@ -286,7 +285,7 @@ static BOOL NVMeEnableMsix(LPNVME_DEVICE Device, U8 Vector) {
     Control |= (U16)0x8000;
     PCI_Write16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, (U16)(CapOffset + 2), Control);
 
-    DEBUG(TEXT("[NVMeEnableMsix] Enabled MSI-X vector %x"), (U32)Vector);
+    DEBUG(TEXT("Enabled MSI-X vector %x"), (U32)Vector);
     return TRUE;
 }
 
@@ -313,14 +312,14 @@ BOOL NVMeSetupInterrupts(LPNVME_DEVICE Device) {
     Registration.Name = TEXT("NVMe");
 
     if (!DeviceInterruptRegister(&Registration, &Device->InterruptSlot)) {
-        WARNING(TEXT("[NVMeSetupInterrupts] Device interrupt registration failed"));
+        WARNING(TEXT("Device interrupt registration failed"));
         Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         return FALSE;
     }
 
     Device->MsixVector = GetDeviceInterruptVector(Device->InterruptSlot);
     if (!NVMeEnableMsix(Device, Device->MsixVector)) {
-        WARNING(TEXT("[NVMeSetupInterrupts] MSI-X setup failed"));
+        WARNING(TEXT("MSI-X setup failed"));
         DeviceInterruptUnregister(Device->InterruptSlot);
         Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         return FALSE;
@@ -403,14 +402,14 @@ static BOOL NVMeSubmitIoCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Comman
         Completion.Status = EntryStatus;
 
         if (Completion.SubmissionQueueId != QueueId && NVMeShouldEmitIoWarning(&Device->IoCompletionCoherencyWarningCooldown)) {
-            WARNING(TEXT("[NVMeSubmitIoCommand] Unexpected SQID=%x expected=%x"),
+            WARNING(TEXT("Unexpected SQID=%x expected=%x"),
                 (U32)Completion.SubmissionQueueId,
                 (U32)QueueId);
         }
 
         if (Completion.SubmissionQueueHead >= Device->IoSqEntries &&
             NVMeShouldEmitIoWarning(&Device->IoCompletionCoherencyWarningCooldown)) {
-            WARNING(TEXT("[NVMeSubmitIoCommand] Invalid SQ head=%x entries=%x"),
+            WARNING(TEXT("Invalid SQ head=%x entries=%x"),
                 (U32)Completion.SubmissionQueueHead,
                 (U32)Device->IoSqEntries);
         }
@@ -429,7 +428,7 @@ static BOOL NVMeSubmitIoCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Comman
 
         if (Completion.CommandId != CommandId) {
             if (NVMeShouldEmitIoWarning(&Device->IoCompletionMismatchWarningCooldown)) {
-                WARNING(TEXT("[NVMeSubmitIoCommand] Unexpected completion ID=%x expected=%x"),
+                WARNING(TEXT("Unexpected completion ID=%x expected=%x"),
                     (U32)Completion.CommandId,
                     (U32)CommandId);
             }
@@ -445,7 +444,7 @@ static BOOL NVMeSubmitIoCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Comman
     }
 
     if (NVMeShouldEmitIoWarning(&Device->IoCompletionTimeoutWarningCooldown)) {
-        WARNING(TEXT("[NVMeSubmitIoCommand] Timeout waiting for completion"));
+        WARNING(TEXT("Timeout waiting for completion"));
     }
     UnlockMutex(&(Device->Mutex));
     return FALSE;
@@ -463,12 +462,10 @@ static BOOL NVMeSubmitIoCommand(LPNVME_DEVICE Device, const NVME_COMMAND* Comman
  * @param SectorCount Number of sectors to transfer.
  * @param TransferBytes Prepared transfer size in bytes.
  * @param BasePhys Contiguous physical base address of the transfer buffer.
- * @param FunctionName Caller function name for logs.
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL NVMeSubmitReadWriteCommand(LPNVME_DEVICE Device, U8 Opcode, U32 NamespaceId, U64 Lba,
-                                       U32 SectorCount, U32 TransferBytes, PHYSICAL BasePhys,
-                                       LPCSTR FunctionName) {
+                                       U32 SectorCount, U32 TransferBytes, PHYSICAL BasePhys) {
     NVME_COMMAND Command;
     NVME_COMPLETION Completion;
     U16 Status;
@@ -504,8 +501,7 @@ static BOOL NVMeSubmitReadWriteCommand(LPNVME_DEVICE Device, U8 Opcode, U32 Name
         U16 Sc = (U16)(Status & 0xFF);
         U16 Sct = (U16)((Status >> 8) & 0x7);
         U16 Dnr = (U16)((Status >> 14) & 0x1);
-        WARNING(TEXT("[%s] Status=%x SCT=%x SC=%x DNR=%x"),
-                FunctionName,
+        WARNING(TEXT("Status=%x SCT=%x SC=%x DNR=%x"),
                 (U32)Status,
                 (U32)Sct,
                 (U32)Sc,
@@ -543,7 +539,7 @@ BOOL NVMeSubmitIoNoop(LPNVME_DEVICE Device) {
         U16 Sc = (U16)(Status & 0xFF);
         U16 Sct = (U16)((Status >> 8) & 0x7);
         U16 Dnr = (U16)((Status >> 14) & 0x1);
-        WARNING(TEXT("[NVMeSubmitIoNoop] Status=%x SCT=%x SC=%x DNR=%x"),
+        WARNING(TEXT("Status=%x SCT=%x SC=%x DNR=%x"),
                 (U32)Status,
                 (U32)Sct,
                 (U32)Sc,
@@ -551,7 +547,7 @@ BOOL NVMeSubmitIoNoop(LPNVME_DEVICE Device) {
         return FALSE;
     }
 
-    DEBUG(TEXT("[NVMeSubmitIoNoop] NO-OP completed on QID=%x"),
+    DEBUG(TEXT("NO-OP completed on QID=%x"),
           (U32)Device->IoQueueId);
     return TRUE;
 }
@@ -578,7 +574,6 @@ BOOL NVMeReadSectors(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorC
                                SectorCount,
                                Buffer,
                                BufferBytes,
-                               TEXT("NVMeReadSectors"),
                                &TransferBytes,
                                &BasePhys)) {
         return FALSE;
@@ -590,8 +585,7 @@ BOOL NVMeReadSectors(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorC
                                       Lba,
                                       SectorCount,
                                       TransferBytes,
-                                      BasePhys,
-                                      TEXT("NVMeReadSectors"));
+                                      BasePhys);
 }
 
 /************************************************************************/
@@ -616,7 +610,6 @@ BOOL NVMeWriteSectors(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 Sector
                                SectorCount,
                                Buffer,
                                BufferBytes,
-                               TEXT("NVMeWriteSectors"),
                                &TransferBytes,
                                &BasePhys)) {
         return FALSE;
@@ -628,8 +621,7 @@ BOOL NVMeWriteSectors(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 Sector
                                       Lba,
                                       SectorCount,
                                       TransferBytes,
-                                      BasePhys,
-                                      TEXT("NVMeWriteSectors"));
+                                      BasePhys);
 }
 
 /************************************************************************/
@@ -670,11 +662,11 @@ BOOL NVMeReadTest(LPNVME_DEVICE Device) {
         U32 SigHigh = (U32)Data[511];
         UNUSED(SigLow);
         UNUSED(SigHigh);
-        DEBUG(TEXT("[NVMeReadTest] MBR signature=%x %x"),
+        DEBUG(TEXT("MBR signature=%x %x"),
               SigLow,
               SigHigh);
     } else {
-        WARNING(TEXT("[NVMeReadTest] Read LBA0 failed"));
+        WARNING(TEXT("Read LBA0 failed"));
     }
 
     KernelHeapFree(Raw);
@@ -732,7 +724,7 @@ BOOL NVMeCreateIoQueues(LPNVME_DEVICE Device) {
         U16 Sc = (U16)(Status & 0xFF);
         U16 Sct = (U16)((Status >> 8) & 0x7);
         U16 Dnr = (U16)((Status >> 14) & 0x1);
-        WARNING(TEXT("[NVMeCreateIoQueues] CQ raw=%x status=%x qid=%x qsize=%x iv=%x flags=%x msix=%x vec=%x"),
+        WARNING(TEXT("CQ raw=%x status=%x qid=%x qsize=%x iv=%x flags=%x msix=%x vec=%x"),
                 (U32)Completion.Status,
                 (U32)Status,
                 (U32)Device->IoQueueId,
@@ -741,13 +733,13 @@ BOOL NVMeCreateIoQueues(LPNVME_DEVICE Device) {
                 (U32)CqFlags,
                 (U32)(Device->MsixEnabled ? 1 : 0),
                 (U32)Device->MsixVector);
-        WARNING(TEXT("[NVMeCreateIoQueues] SQ=%p CQ=%p CqOffset=%x CqAlign=%x SqAlign=%x"),
+        WARNING(TEXT("SQ=%p CQ=%p CqOffset=%x CqAlign=%x SqAlign=%x"),
                 (LPVOID)(LINEAR)SqPhys,
                 (LPVOID)(LINEAR)CqPhys,
                 (U32)0,
                 (U32)(CqPhys & (N_4KB - 1)),
                 (U32)(SqPhys & (N_4KB - 1)));
-        WARNING(TEXT("[NVMeCreateIoQueues] Create CQ status %x SCT=%x SC=%x DNR=%x"),
+        WARNING(TEXT("Create CQ status %x SCT=%x SC=%x DNR=%x"),
                 (U32)Status,
                 (U32)Sct,
                 (U32)Sc,
@@ -777,7 +769,7 @@ BOOL NVMeCreateIoQueues(LPNVME_DEVICE Device) {
         U16 Sc = (U16)(Status & 0xFF);
         U16 Sct = (U16)((Status >> 8) & 0x7);
         U16 Dnr = (U16)((Status >> 14) & 0x1);
-        WARNING(TEXT("[NVMeCreateIoQueues] Create SQ status %x SCT=%x SC=%x DNR=%x"),
+        WARNING(TEXT("Create SQ status %x SCT=%x SC=%x DNR=%x"),
                 (U32)Status,
                 (U32)Sct,
                 (U32)Sc,
@@ -786,7 +778,7 @@ BOOL NVMeCreateIoQueues(LPNVME_DEVICE Device) {
         return FALSE;
     }
 
-    DEBUG(TEXT("[NVMeCreateIoQueues] IO QID=%u SQ=%p CQ=%p SQE=%u CQE=%u"),
+    DEBUG(TEXT("IO QID=%u SQ=%p CQ=%p SQE=%u CQE=%u"),
           (U32)Device->IoQueueId,
           (LPVOID)(LINEAR)SqPhys,
           (LPVOID)(LINEAR)CqPhys,

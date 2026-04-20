@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -258,7 +258,7 @@ I32 DatabaseSave(DATABASE *Database, LPCSTR Filename) {
     UINT BytesWritten = FileWriteAll(Filename, Buffer, TotalSize);
 
     if (BytesWritten == 0) {
-        DEBUG(TEXT("[DatabaseSave] Failed to save database to %s"), Filename);
+        DEBUG(TEXT("Failed to save database to %s"), Filename);
     }
 
     KernelHeapFree(Buffer);
@@ -282,7 +282,7 @@ I32 DatabaseLoad(DATABASE *Database, LPCSTR Filename) {
     UINT FileSize;
     LPVOID Buffer = FileReadAll(Filename, &FileSize);
     if (!Buffer) {
-        DEBUG(TEXT("[DatabaseLoad] Failed to read %s"), Filename);
+        DEBUG(TEXT("Failed to read %s"), Filename);
         return -1;
     }
 

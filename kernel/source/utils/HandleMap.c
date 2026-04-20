@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ static LPHANDLE_MAP_ENTRY HandleMapAllocateEntry(LPHANDLE_MAP Map, UINT Handle) 
 
     LINEAR Address = BlockListAllocate(&Map->EntryAllocator);
     if (Address == 0) {
-        ERROR(TEXT("[HandleMapAllocateEntry] BlockListAllocate failed (handle=%u)"), Handle);
+        ERROR(TEXT("BlockListAllocate failed (handle=%u)"), Handle);
         return NULL;
     }
 
@@ -141,7 +141,7 @@ void HandleMapInit(LPHANDLE_MAP Map) {
 
     Map->NextHandle = HANDLE_MINIMUM;
 
-    DEBUG(TEXT("[HandleMapInit] Initialized handle map"));
+    DEBUG(TEXT("Initialized handle map"));
 }
 
 /************************************************************************/
@@ -199,7 +199,7 @@ UINT HandleMapAllocateHandle(LPHANDLE_MAP Map, UINT* HandleOut) {
     if (!RadixTreeInsert(Map->Tree, Candidate, (LINEAR)Entry)) {
         HandleMapReleaseEntry(Map, Entry);
         UnlockMutex(&Map->Mutex);
-        ERROR(TEXT("[HandleMapAllocateHandle] RadixTreeInsert failed (handle=%u)"), Candidate);
+        ERROR(TEXT("RadixTreeInsert failed (handle=%u)"), Candidate);
         return HANDLE_MAP_ERROR_INTERNAL;
     }
 
@@ -227,7 +227,7 @@ UINT HandleMapAttachPointer(LPHANDLE_MAP Map, UINT Handle, LINEAR Pointer) {
     LPHANDLE_MAP_ENTRY Entry = HandleMapGetEntryLocked(Map, Handle);
     if (Entry == NULL) {
         UnlockMutex(&Map->Mutex);
-        WARNING(TEXT("[HandleMapAttachPointer] Unknown handle=%u"), Handle);
+        WARNING(TEXT("Unknown handle=%u"), Handle);
         return HANDLE_MAP_ERROR_NOT_FOUND;
     }
 
@@ -235,7 +235,7 @@ UINT HandleMapAttachPointer(LPHANDLE_MAP Map, UINT Handle, LINEAR Pointer) {
 
     SAFE_USE(Entry) {
         if (Entry->Attached) {
-            WARNING(TEXT("[HandleMapAttachPointer] Handle=%u already attached to %p"), Handle, (LPVOID)Entry->Pointer);
+            WARNING(TEXT("Handle=%u already attached to %p"), Handle, (LPVOID)Entry->Pointer);
             Result = HANDLE_MAP_ERROR_ALREADY_ATTACHED;
         } else {
             Entry->Pointer = Pointer;
@@ -259,7 +259,7 @@ UINT HandleMapDetachPointer(LPHANDLE_MAP Map, UINT Handle, LINEAR* PointerOut) {
     LPHANDLE_MAP_ENTRY Entry = HandleMapGetEntryLocked(Map, Handle);
     if (Entry == NULL) {
         UnlockMutex(&Map->Mutex);
-        WARNING(TEXT("[HandleMapDetachPointer] Unknown handle=%u"), Handle);
+        WARNING(TEXT("Unknown handle=%u"), Handle);
         return HANDLE_MAP_ERROR_NOT_FOUND;
     }
 
@@ -322,13 +322,13 @@ UINT HandleMapReleaseHandle(LPHANDLE_MAP Map, UINT Handle) {
     LPHANDLE_MAP_ENTRY Entry = HandleMapGetEntryLocked(Map, Handle);
     if (Entry == NULL) {
         UnlockMutex(&Map->Mutex);
-        WARNING(TEXT("[HandleMapReleaseHandle] Unknown handle=%u"), Handle);
+        WARNING(TEXT("Unknown handle=%u"), Handle);
         return HANDLE_MAP_ERROR_NOT_FOUND;
     }
 
     if (!RadixTreeRemove(Map->Tree, Handle)) {
         UnlockMutex(&Map->Mutex);
-        ERROR(TEXT("[HandleMapReleaseHandle] RadixTreeRemove failed (handle=%u)"), Handle);
+        ERROR(TEXT("RadixTreeRemove failed (handle=%u)"), Handle);
         return HANDLE_MAP_ERROR_INTERNAL;
     }
 
@@ -343,7 +343,7 @@ UINT HandleMapReleaseHandle(LPHANDLE_MAP Map, UINT Handle) {
     HandleMapReleaseEntry(Map, Entry);
 
     if (WasAttached && Pointer != 0) {
-        WARNING(TEXT("[HandleMapReleaseHandle] Handle=%u released while still attached to %p"), Handle, (LPVOID)Pointer);
+        WARNING(TEXT("Handle=%u released while still attached to %p"), Handle, (LPVOID)Pointer);
     }
 
     UnlockMutex(&Map->Mutex);

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -290,13 +290,13 @@ static UINT GOPGfxLoad(void) {
     if (Console.FramebufferPhysical == 0 || Console.FramebufferWidth == 0 || Console.FramebufferHeight == 0 ||
         Console.FramebufferPitch == 0 || Console.FramebufferBitsPerPixel == 0 ||
         Console.FramebufferType != MULTIBOOT_FRAMEBUFFER_RGB) {
-        DEBUG(TEXT("[GOPGfxLoad] No RGB boot framebuffer available"));
+        DEBUG(TEXT("No RGB boot framebuffer available"));
         return DF_RETURN_UNEXPECTED;
     }
 
     BytesPerPixel = Console.FramebufferBitsPerPixel / 8;
     if (BytesPerPixel == 0 || (BytesPerPixel != 2 && BytesPerPixel != 3 && BytesPerPixel != 4)) {
-        WARNING(TEXT("[GOPGfxLoad] Unsupported framebuffer format bpp=%u"), Console.FramebufferBitsPerPixel);
+        WARNING(TEXT("Unsupported framebuffer format bpp=%u"), Console.FramebufferBitsPerPixel);
         return DF_RETURN_UNEXPECTED;
     }
 
@@ -307,7 +307,7 @@ static UINT GOPGfxLoad(void) {
 
     GOPGfxState.FrameBufferLinear = MapFramebufferMemory(Console.FramebufferPhysical, FrameBufferSize);
     if (GOPGfxState.FrameBufferLinear == 0) {
-        ERROR(TEXT("[GOPGfxLoad] MapFramebufferMemory failed for %p size=%u"),
+        ERROR(TEXT("MapFramebufferMemory failed for %p size=%u"),
             (LPVOID)(LINEAR)Console.FramebufferPhysical,
             FrameBufferSize);
         return DF_RETURN_UNEXPECTED;
@@ -356,7 +356,7 @@ static UINT GOPGfxLoad(void) {
                            (Console.FramebufferBitsPerPixel == 24) ? GFX_FORMAT_RGB888 : GFX_FORMAT_RGB565
     };
 
-    DEBUG(TEXT("[GOPGfxLoad] Active mode %ux%u bpp=%u pitch=%u"),
+    DEBUG(TEXT("Active mode %ux%u bpp=%u pitch=%u"),
         Console.FramebufferWidth,
         Console.FramebufferHeight,
         Console.FramebufferBitsPerPixel,
@@ -490,7 +490,7 @@ static UINT GOPGfxSetMode(LPGRAPHICS_MODE_INFO Info) {
     SAFE_USE(Info) {
         if ((Info->Width != 0 && Info->Width != (U32)GOPGfxState.Context.Width) ||
             (Info->Height != 0 && Info->Height != (U32)GOPGfxState.Context.Height)) {
-            WARNING(TEXT("[GOPGfxSetMode] Requested %ux%u, keeping active %ux%u"),
+            WARNING(TEXT("Requested %ux%u, keeping active %ux%u"),
                 Info->Width,
                 Info->Height,
                 (U32)GOPGfxState.Context.Width,

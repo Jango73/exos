@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -174,7 +174,7 @@ static BOOL ATAWaitNotBusy(U32 Port, U32 TimeOut) {
         }
     }
 
-    DEBUG(TEXT("[ATAWaitNotBusy] Time-out in ATA port %x"), Port);
+    DEBUG(TEXT("Time-out in ATA port %x"), Port);
 
     return FALSE;
 }
@@ -191,7 +191,7 @@ static BOOL ATAWaitDataReady(U32 Port, U32 TimeOut) {
         }
     }
 
-    DEBUG(TEXT("[ATAWaitDataReady] Time-out in ATA port %x"), Port);
+    DEBUG(TEXT("Time-out in ATA port %x"), Port);
 
     return FALSE;
 }
@@ -206,7 +206,7 @@ static BOOL InitializeATA(void) {
     U32 Drive;
     U32 DisksFound = 0;
 
-    DEBUG(TEXT("[InitializeATA] Enter"));
+    DEBUG(TEXT("Enter"));
 
     DisableInterrupt(IRQ_ATA);
 
@@ -249,7 +249,7 @@ static BOOL InitializeATA(void) {
             ATAID = (LPATADRIVEID)Buffer;
 
             if (ATAID->PhysicalCylinders != 0 && ATAID->PhysicalHeads != 0 && ATAID->PhysicalSectors != 0) {
-                DEBUG(TEXT("[InitializeATA] port: %x, drive: %x"), (U32)RealPort, (U32)Drive);
+                DEBUG(TEXT("port: %x, drive: %x"), (U32)RealPort, (U32)Drive);
 
                 Disk = NewATADisk();
                 if (Disk == NULL) continue;
@@ -296,12 +296,12 @@ static BOOL InitializeATA(void) {
     // Only enable IRQ if we found at least one disk
     if (DisksFound > 0) {
         EnableInterrupt(IRQ_ATA);
-        DEBUG(TEXT("[InitializeATA] Found %d disk(s), IRQ enabled"), DisksFound);
+        DEBUG(TEXT("Found %d disk(s), IRQ enabled"), DisksFound);
     } else {
-        DEBUG(TEXT("[InitializeATA] No disks found, IRQ remains disabled"));
+        DEBUG(TEXT("No disks found, IRQ remains disabled"));
     }
 
-    DEBUG(TEXT("[InitializeATA] Exit"));
+    DEBUG(TEXT("Exit"));
 
     return TRUE;
 }
@@ -620,18 +620,18 @@ void HardDriveHandler(void) {
     // and should not return 0xFF (floating bus)
     if (Status0 != 0xFF && (Status0 & (HD_STATUS_DRQ | HD_STATUS_ERROR))) {
         RealInterrupt = TRUE;
-        DEBUG(TEXT("[HardDriveHandler] Real interrupt on primary channel, status: %x"), Status0);
+        DEBUG(TEXT("Real interrupt on primary channel, status: %x"), Status0);
     }
 
     if (Status1 != 0xFF && (Status1 & (HD_STATUS_DRQ | HD_STATUS_ERROR))) {
         RealInterrupt = TRUE;
-        DEBUG(TEXT("[HardDriveHandler] Real interrupt on secondary channel, status: %x"), Status1);
+        DEBUG(TEXT("Real interrupt on secondary channel, status: %x"), Status1);
     }
 
     // Only process if this is a real interrupt
     if (RealInterrupt) {
         // TODO: Add proper interrupt handling code here
-        DEBUG(TEXT("[HardDriveHandler] Processing ATA interrupt"));
+        DEBUG(TEXT("Processing ATA interrupt"));
     }
 
     Busy = 0;

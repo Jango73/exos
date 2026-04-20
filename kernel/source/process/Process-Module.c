@@ -298,7 +298,7 @@ static BOOL ResolveProcessModuleSymbol(LPVOID Context, LPEXECUTABLE_SYMBOL_RESOL
     }
 
     if (Resolution->Required != FALSE) {
-        WARNING(TEXT("[ResolveProcessModuleSymbol] Unresolved symbol name=%s"), Resolution->Name);
+        WARNING(TEXT("Unresolved symbol name=%s"), Resolution->Name);
     }
 
     return FALSE;
@@ -321,7 +321,7 @@ static BOOL CopyProcessModulePrivateSegmentTemplate(
         LINEAR Destination = MappingBase + (PageIndex << PAGE_SIZE_MUL);
 
         if (Source == 0) {
-            ERROR(TEXT("[CopyProcessModulePrivateSegmentTemplate] MapTemporaryPhysicalPage1 failed page=%u"),
+            ERROR(TEXT("MapTemporaryPhysicalPage1 failed page=%u"),
                   PageIndex);
             return FALSE;
         }
@@ -912,7 +912,7 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
                 }
 
                 if (ProcessModuleSegmentIsWritableExecutable(Segment)) {
-                    ERROR(TEXT("[InstallProcessModuleBindingSegments] Writable executable segment rejected index=%u"),
+                    ERROR(TEXT("Writable executable segment rejected index=%u"),
                           SegmentIndex);
                     UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                     UnlockMutex(&(Process->Mutex));

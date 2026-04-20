@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ void LogRegisters32(LPINTEL_32_REGISTERS Regs) {
  */
 void LogFrame(LPINTERRUPT_FRAME Frame) {
     if (Frame == NULL) {
-        ERROR(TEXT("[LogFrame] No interrupt frame provided"));
+        ERROR(TEXT("No interrupt frame provided"));
         return;
     }
 
@@ -157,7 +157,7 @@ void LogFrame(LPINTERRUPT_FRAME Frame) {
  */
 void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
     if (Table == NULL || Size == 0) {
-        DEBUG(TEXT("[LogGlobalDescriptorTable] Table is empty"));
+        DEBUG(TEXT("Table is empty"));
         return;
     }
 
@@ -183,7 +183,7 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         UNUSED(RawHigh);
 
         if (U64_EQUAL(Raw, NullDescriptor)) {
-            DEBUG(TEXT("[LogGlobalDescriptorTable] Entry %u: raw[63:32]=%x raw[31:0]=%x (null)"),
+            DEBUG(TEXT("Entry %u: raw[63:32]=%x raw[31:0]=%x (null)"),
                 Index,
                 RawHigh,
                 RawLow);
@@ -193,11 +193,11 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
 
         const SEGMENT_DESCRIPTOR* Descriptor = &Table[Index];
 
-        DEBUG(TEXT("[LogGlobalDescriptorTable] Entry %u: raw[63:32]=%x raw[31:0]=%x"), Index, RawHigh, RawLow);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Limit_00_15=%x Limit_16_19=%x"),
+        DEBUG(TEXT("Entry %u: raw[63:32]=%x raw[31:0]=%x"), Index, RawHigh, RawLow);
+        DEBUG(TEXT("Limit_00_15=%x Limit_16_19=%x"),
             (U32)Descriptor->Limit_00_15,
             (U32)Descriptor->Limit_16_19);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
+        DEBUG(TEXT("Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
             (U32)Descriptor->Base_00_15,
             (U32)Descriptor->Base_16_23,
             (U32)Descriptor->Base_24_31);
@@ -211,15 +211,15 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
             UNUSED(Limit);
             UNUSED(Base);
 
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Type=%u Privilege=%u Present=%u"),
+            DEBUG(TEXT("Type=%u Privilege=%u Present=%u"),
                 (U32)SystemDescriptor->Type,
                 (U32)SystemDescriptor->Privilege,
                 (U32)SystemDescriptor->Present);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Available=%u Unused=%u Granularity=%u"),
+            DEBUG(TEXT("Available=%u Unused=%u Granularity=%u"),
                 (U32)SystemDescriptor->Available,
                 (U32)SystemDescriptor->Unused,
                 (U32)SystemDescriptor->Granularity);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Base=%p Limit=%x"), (LPVOID)(UINT)Base, Limit);
+            DEBUG(TEXT("Base=%p Limit=%x"), (LPVOID)(UINT)Base, Limit);
 
             Index++;
             continue;
@@ -237,20 +237,20 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         UNUSED(Base);
         UNUSED(TypeBits);
 
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Accessed=%u CanWrite=%u ConformExpand=%u Type=%u Segment=%u"),
+        DEBUG(TEXT("Accessed=%u CanWrite=%u ConformExpand=%u Type=%u Segment=%u"),
             (U32)Descriptor->Accessed,
             (U32)Descriptor->CanWrite,
             (U32)Descriptor->ConformExpand,
             (U32)Descriptor->Type,
             (U32)Descriptor->Segment);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Privilege=%u Present=%u Available=%u Unused=%u OperandSize=%u Granularity=%u"),
+        DEBUG(TEXT("Privilege=%u Present=%u Available=%u Unused=%u OperandSize=%u Granularity=%u"),
             (U32)Descriptor->Privilege,
             (U32)Descriptor->Present,
             (U32)Descriptor->Available,
             (U32)Descriptor->Unused,
             (U32)Descriptor->OperandSize,
             (U32)Descriptor->Granularity);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   TypeBits=%x Base=%p Limit=%x"), TypeBits, (LPVOID)(UINT)Base, Limit);
+        DEBUG(TEXT("TypeBits=%x Base=%p Limit=%x"), TypeBits, (LPVOID)(UINT)Base, Limit);
 
         Index++;
     }
@@ -303,7 +303,7 @@ void LogPageDirectory(PHYSICAL DirectoryPhysical) {
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage1(DirectoryPhysical);
     UINT DirEntry = 0;
 
-    DEBUG(TEXT("[LogPageDirectory] Page Directory PA=%x contents:"), DirectoryPhysical);
+    DEBUG(TEXT("Page Directory PA=%x contents:"), DirectoryPhysical);
 
     for (DirEntry = 0; DirEntry < 1024; DirEntry++) {
         if (Directory[DirEntry].Present) {
@@ -312,7 +312,7 @@ void LogPageDirectory(PHYSICAL DirectoryPhysical) {
             UNUSED(VirtualAddress);
             UNUSED(PhysicalAddress);
 
-            DEBUG(TEXT("[LogPageDirectory] PDE[%03u]: VA=%x-%x -> PT_PA=%x Present=%u RW=%u Priv=%u"), DirEntry,
+            DEBUG(TEXT("PDE[%03u]: VA=%x-%x -> PT_PA=%x Present=%u RW=%u Priv=%u"), DirEntry,
                 VirtualAddress, VirtualAddress + 0x3FFFFF, PhysicalAddress, Directory[DirEntry].Present,
                 Directory[DirEntry].ReadWrite, Directory[DirEntry].Privilege);
 
@@ -331,27 +331,27 @@ void LogPageDirectory(PHYSICAL DirectoryPhysical) {
                         PhysicalAddress = Table[TabEntry].Address << 12;
                         UNUSED(PhysicalAddress);
 
-                        DEBUG(TEXT("[LogPageDirectory]   PTE[%u]: VA=%x -> PA=%x Present=%u RW=%u Priv=%u Dirty=%u Fixed=%u"),
+                        DEBUG(TEXT("PTE[%u]: VA=%x -> PA=%x Present=%u RW=%u Priv=%u Dirty=%u Fixed=%u"),
                             TabEntry, VirtualAddress, PhysicalAddress, Table[TabEntry].Present, Table[TabEntry].ReadWrite,
                             Table[TabEntry].Privilege, Table[TabEntry].Dirty, Table[TabEntry].Fixed);
 
 #if DEBUG_OUTPUT == 1
                         U8* Memory = (U8*)MapTemporaryPhysicalPage3(PhysicalAddress);
-                        LogMemoryLine16B(LOG_DEBUG, (LPCSTR)"[LogPageDirectory]     RAM: ", Memory);
+                        LogMemoryLine16B(LOG_DEBUG, TEXT("    RAM: "), Memory);
 #endif
                     } else if (MappedCount == 4) {
-                        DEBUG(TEXT("[LogPageDirectory]   ... (%u more mapped pages) ..."), 1024 - 6);
+                        DEBUG(TEXT("... (%u more mapped pages) ..."), 1024 - 6);
                     }
                 }
             }
 
             if (MappedCount > 0) {
-                DEBUG(TEXT("[LogPageDirectory]   Total mapped pages in PDE[%u]: %u/1024"), DirEntry, MappedCount);
+                DEBUG(TEXT("Total mapped pages in PDE[%u]: %u/1024"), DirEntry, MappedCount);
             }
         }
     }
 
-    DEBUG(TEXT("[LogPageDirectory] End of page directory"));
+    DEBUG(TEXT("End of page directory"));
 }
 
 /***************************************************************************/
@@ -692,18 +692,18 @@ void BacktraceFromCurrent(U32 MaxFrames) {
  */
 void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT EntriesToLog) {
     if (Table == NULL) {
-        KernelLogText(Type, TEXT("[LogInterruptDescriptorTable] Table pointer is null"));
+        KernelLogText(Type, TEXT("Table pointer is null"));
         return;
     }
 
     if (EntriesToLog == 0) {
-        KernelLogText(Type, TEXT("[LogInterruptDescriptorTable] No entries requested"));
+        KernelLogText(Type, TEXT("No entries requested"));
         return;
     }
 
     KernelLogText(
         Type,
-        TEXT("[LogInterruptDescriptorTable] Base=%p, dumping first %u entries"),
+        TEXT("Base=%p, dumping first %u entries"),
         (const void*)Table,
         EntriesToLog);
 
@@ -717,13 +717,13 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
 
         KernelLogText(
             Type,
-            TEXT("[LogInterruptDescriptorTable]   Entry %u: raw[31:0]=%x raw[63:32]=%x"),
+            TEXT("Entry %u: raw[31:0]=%x raw[63:32]=%x"),
             Index,
             RawLow,
             RawHigh);
         KernelLogText(
             Type,
-            TEXT("[LogInterruptDescriptorTable]     Selector=%x Type=%u DPL=%u Present=%u Offset=%x"),
+            TEXT("Selector=%x Type=%u DPL=%u Present=%u Offset=%x"),
             (U32)Entry->Selector,
             (U32)Entry->Type,
             (U32)Entry->Privilege,

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ static BOOL NtfsReadAttributeValue(
 
         ValueBuffer = (U8*)KernelHeapAlloc(ValueLength);
         if (ValueBuffer == NULL) {
-            ERROR(TEXT("[NtfsReadAttributeValue] Unable to allocate %u bytes"), ValueLength);
+            ERROR(TEXT("Unable to allocate %u bytes"), ValueLength);
             return FALSE;
         }
 
@@ -147,13 +147,13 @@ static BOOL NtfsReadAttributeValue(
         U32 BytesRead;
 
         if (U64_High32(DataSize64) != 0) {
-            WARNING(TEXT("[NtfsReadAttributeValue] Attribute data size too large"));
+            WARNING(TEXT("Attribute data size too large"));
             return FALSE;
         }
 
         DataSize = U64_Low32(DataSize64);
         if (DataSize > NTFS_MAX_INDEX_ALLOCATION_BYTES) {
-            WARNING(TEXT("[NtfsReadAttributeValue] Attribute data size unsupported=%u"), DataSize);
+            WARNING(TEXT("Attribute data size unsupported=%u"), DataSize);
             return FALSE;
         }
 
@@ -165,7 +165,7 @@ static BOOL NtfsReadAttributeValue(
 
         ValueBuffer = (U8*)KernelHeapAlloc(DataSize);
         if (ValueBuffer == NULL) {
-            ERROR(TEXT("[NtfsReadAttributeValue] Unable to allocate %u bytes"), DataSize);
+            ERROR(TEXT("Unable to allocate %u bytes"), DataSize);
             return FALSE;
         }
 
@@ -537,13 +537,13 @@ static BOOL NtfsLoadFolderIndexStreams(
     if (BitmapDataOut == NULL || BitmapDataSizeOut == NULL) return FALSE;
 
     if (!NtfsLoadFileRecordBuffer(FileSystem, FolderIndex, &BaseRecordBuffer, &BaseRecordHeader)) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to load folder record index=%u"), FolderIndex);
+        WARNING(TEXT("Unable to load folder record index=%u"), FolderIndex);
         return FALSE;
     }
 
     NtfsInitFileRecordInfoFromHeader(FileSystem, FolderIndex, &BaseRecordHeader, &BaseRecordInfo);
     if ((BaseRecordInfo.Flags & NTFS_FR_FLAG_FOLDER) == 0) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] Record is not a folder index=%u flags=%x"), FolderIndex, BaseRecordInfo.Flags);
+        WARNING(TEXT("Record is not a folder index=%u flags=%x"), FolderIndex, BaseRecordInfo.Flags);
         KernelHeapFree(BaseRecordBuffer);
         return FALSE;
     }
@@ -558,7 +558,7 @@ static BOOL NtfsLoadFolderIndexStreams(
             IndexAllocationDataSizeOut,
             BitmapDataOut,
             BitmapDataSizeOut)) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to parse folder index attributes index=%u"), FolderIndex);
+        WARNING(TEXT("Unable to parse folder index attributes index=%u"), FolderIndex);
         KernelHeapFree(BaseRecordBuffer);
         return FALSE;
     }
@@ -576,7 +576,7 @@ static BOOL NtfsLoadFolderIndexStreams(
             NTFS_ATTRIBUTE_ATTRIBUTE_LIST,
             &AttributeListAttribute,
             &AttributeListAttributeLength)) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to parse ATTRIBUTE_LIST index=%u"), FolderIndex);
+        WARNING(TEXT("Unable to parse ATTRIBUTE_LIST index=%u"), FolderIndex);
         KernelHeapFree(BaseRecordBuffer);
         return FALSE;
     }
@@ -594,7 +594,7 @@ static BOOL NtfsLoadFolderIndexStreams(
             AttributeListAttributeLength,
             &AttributeListValue,
             &AttributeListValueSize)) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to read ATTRIBUTE_LIST index=%u"), FolderIndex);
+        WARNING(TEXT("Unable to read ATTRIBUTE_LIST index=%u"), FolderIndex);
         KernelHeapFree(BaseRecordBuffer);
         return TRUE;
     }
@@ -608,7 +608,7 @@ static BOOL NtfsLoadFolderIndexStreams(
         U16 EntryLength = NtfsLoadU16(Entry + 4);
 
         if (EntryLength < NTFS_ATTRIBUTE_LIST_ENTRY_MIN_SIZE) {
-            WARNING(TEXT("[NtfsLoadFolderIndexStreams] Invalid ATTRIBUTE_LIST entry length=%u index=%u"),
+            WARNING(TEXT("Invalid ATTRIBUTE_LIST entry length=%u index=%u"),
                 EntryLength,
                 FolderIndex);
             HasAttributeListParseFailure = TRUE;
@@ -616,7 +616,7 @@ static BOOL NtfsLoadFolderIndexStreams(
         }
 
         if (EntryOffset > AttributeListValueSize - EntryLength) {
-            WARNING(TEXT("[NtfsLoadFolderIndexStreams] ATTRIBUTE_LIST entry out of bounds offset=%u length=%u index=%u"),
+            WARNING(TEXT("ATTRIBUTE_LIST entry out of bounds offset=%u length=%u index=%u"),
                 EntryOffset,
                 EntryLength,
                 FolderIndex);
@@ -666,7 +666,7 @@ static BOOL NtfsLoadFolderIndexStreams(
 
         if (RecordIndex == FolderIndex) continue;
         if (!NtfsLoadFileRecordBuffer(FileSystem, RecordIndex, &RecordBuffer, &RecordHeader)) {
-            WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to load extension record index=%u base=%u"),
+            WARNING(TEXT("Unable to load extension record index=%u base=%u"),
                 RecordIndex,
                 FolderIndex);
             continue;
@@ -681,7 +681,7 @@ static BOOL NtfsLoadFolderIndexStreams(
                     &BaseRecordIndex,
                     &BaseRecordSequence) ||
                 BaseRecordIndex != FolderIndex) {
-                WARNING(TEXT("[NtfsLoadFolderIndexStreams] Ignoring foreign extension record index=%u base=%u expected=%u"),
+                WARNING(TEXT("Ignoring foreign extension record index=%u base=%u expected=%u"),
                     RecordIndex,
                     BaseRecordIndex,
                     FolderIndex);
@@ -703,7 +703,7 @@ static BOOL NtfsLoadFolderIndexStreams(
                 IndexAllocationDataSizeOut,
                 BitmapDataOut,
                 BitmapDataSizeOut)) {
-            WARNING(TEXT("[NtfsLoadFolderIndexStreams] Unable to parse extension index attributes index=%u base=%u"),
+            WARNING(TEXT("Unable to parse extension index attributes index=%u base=%u"),
                 RecordIndex,
                 FolderIndex);
             KernelHeapFree(RecordBuffer);
@@ -718,7 +718,7 @@ static BOOL NtfsLoadFolderIndexStreams(
     }
 
     if (HasAttributeListParseFailure) {
-        WARNING(TEXT("[NtfsLoadFolderIndexStreams] ATTRIBUTE_LIST parsing stopped early index=%u"), FolderIndex);
+        WARNING(TEXT("ATTRIBUTE_LIST parsing stopped early index=%u"), FolderIndex);
     }
 
     if (AttributeListValue != NULL) KernelHeapFree(AttributeListValue);
@@ -1262,7 +1262,7 @@ static BOOL NtfsPrepareIndexAllocationRecords(LPNTFS_FOLDER_ENUM_CONTEXT Context
                 Context->FileSystem->BytesPerSector,
                 Header.UpdateSequenceOffset,
                 Header.UpdateSequenceSize)) {
-            WARNING(TEXT("[NtfsPrepareIndexAllocationRecords] Fixup failed vcn=%u"), Index);
+            WARNING(TEXT("Fixup failed vcn=%u"), Index);
             return FALSE;
         }
     }
@@ -1339,7 +1339,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
         }
 
         if (IndexRootValue == NULL || IndexRootValueSize < NTFS_ATTRIBUTE_HEADER_RESIDENT_SIZE) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] Missing INDEX_ROOT index=%u"), FolderIndex);
+            WARNING(TEXT("Missing INDEX_ROOT index=%u"), FolderIndex);
             if (IndexRootValue != NULL) KernelHeapFree(IndexRootValue);
             if (IndexAllocationData != NULL) KernelHeapFree(IndexAllocationData);
             if (BitmapData != NULL) KernelHeapFree(BitmapData);
@@ -1347,7 +1347,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
         }
 
         if (IndexRootValue == NULL || IndexRootValueSize < sizeof(NTFS_INDEX_ROOT_HEADER) + sizeof(NTFS_INDEX_HEADER)) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] INDEX_ROOT payload invalid size=%u index=%u"),
+            WARNING(TEXT("INDEX_ROOT payload invalid size=%u index=%u"),
                 IndexRootValueSize,
                 FolderIndex);
             if (IndexRootValue != NULL) KernelHeapFree(IndexRootValue);
@@ -1358,7 +1358,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
 
         MemoryCopy(&RootHeader, IndexRootValue, sizeof(NTFS_INDEX_ROOT_HEADER));
         if (RootHeader.IndexBlockSize == 0 || !NtfsIsPowerOfTwo(RootHeader.IndexBlockSize)) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] Invalid index block size=%u index=%u"),
+            WARNING(TEXT("Invalid index block size=%u index=%u"),
                 RootHeader.IndexBlockSize,
                 FolderIndex);
             KernelHeapFree(IndexRootValue);
@@ -1385,7 +1385,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
         MaxVcnRecords = 0;
         if (Context.IndexAllocation != NULL && Context.IndexBlockSize != 0) {
             if ((Context.IndexAllocationSize % Context.IndexBlockSize) != 0) {
-                WARNING(TEXT("[NtfsEnumerateFolderByIndex] INDEX_ALLOCATION size misaligned size=%u block=%u index=%u"),
+                WARNING(TEXT("INDEX_ALLOCATION size misaligned size=%u block=%u index=%u"),
                     Context.IndexAllocationSize,
                     Context.IndexBlockSize,
                     FolderIndex);
@@ -1403,7 +1403,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
             Context.VisitedVcnMapSize = (MaxVcnRecords + 7) / 8;
             Context.VisitedVcnMap = (U8*)KernelHeapAlloc(Context.VisitedVcnMapSize);
             if (Context.VisitedVcnMap == NULL) {
-                WARNING(TEXT("[NtfsEnumerateFolderByIndex] Unable to allocate visited map size=%u index=%u"),
+                WARNING(TEXT("Unable to allocate visited map size=%u index=%u"),
                     Context.VisitedVcnMapSize,
                     FolderIndex);
                 KernelHeapFree(IndexRootValue);
@@ -1415,7 +1415,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
         }
 
         if (!NtfsPrepareIndexAllocationRecords(&Context)) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] Unable to prepare index allocation records index=%u"), FolderIndex);
+            WARNING(TEXT("Unable to prepare index allocation records index=%u"), FolderIndex);
             if (Context.VisitedVcnMap != NULL) KernelHeapFree(Context.VisitedVcnMap);
             KernelHeapFree(IndexRootValue);
             if (IndexAllocationData != NULL) KernelHeapFree(IndexAllocationData);
@@ -1428,7 +1428,7 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
         if (MaxVcnRecords > 0) {
             PendingVcns = (U32*)KernelHeapAlloc(MaxVcnRecords * sizeof(U32));
             if (PendingVcns == NULL) {
-                WARNING(TEXT("[NtfsEnumerateFolderByIndex] Unable to allocate pending VCN list count=%u index=%u"),
+                WARNING(TEXT("Unable to allocate pending VCN list count=%u index=%u"),
                     MaxVcnRecords,
                     FolderIndex);
                 if (Context.VisitedVcnMap != NULL) KernelHeapFree(Context.VisitedVcnMap);
@@ -1486,10 +1486,10 @@ static BOOL NtfsEnumerateFolderByIndexInternal(
             }
         }
         if (HadNodeTraversalFailure) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] Ignored one or more invalid index-allocation nodes index=%u"), FolderIndex);
+            WARNING(TEXT("Ignored one or more invalid index-allocation nodes index=%u"), FolderIndex);
         }
         if (!Result) {
-            WARNING(TEXT("[NtfsEnumerateFolderByIndex] Index traversal failed index=%u error=%x stage=%u vcn=%u region=%u offset=%u size=%u cursor=%u len=%u flags=%x ref_invalid=%u idx_invalid=%u record_read_fail=%u seq_mismatch=%u"),
+            WARNING(TEXT("Index traversal failed index=%u error=%x stage=%u vcn=%u region=%u offset=%u size=%u cursor=%u len=%u flags=%x ref_invalid=%u idx_invalid=%u record_read_fail=%u seq_mismatch=%u"),
                 FolderIndex,
                 Context.DiagTraverseErrorCode,
                 Context.DiagTraverseStage,

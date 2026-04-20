@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ void UDP_Initialize(LPDEVICE Device) {
 
     Context = (LPUDP_CONTEXT)KernelHeapAlloc(sizeof(UDP_CONTEXT));
     if (Context == NULL) {
-        ERROR(TEXT("[UDP_Initialize] Failed to allocate UDP context"));
+        ERROR(TEXT("Failed to allocate UDP context"));
         return;
     }
 
@@ -169,7 +169,7 @@ void UDP_RegisterPortHandler(LPDEVICE Device, U16 Port, UDP_PortHandler Handler)
         // Check if port already registered
         for (Index = 0; Index < UDP_MAX_PORTS; Index++) {
             if (Context->PortBindings[Index].IsValid && Context->PortBindings[Index].Port == Port) {
-                WARNING(TEXT("[UDP_RegisterPortHandler] Port %u already registered, overwriting"), Port);
+                WARNING(TEXT("Port %u already registered, overwriting"), Port);
                 Context->PortBindings[Index].Handler = Handler;
                 return;
             }
@@ -185,7 +185,7 @@ void UDP_RegisterPortHandler(LPDEVICE Device, U16 Port, UDP_PortHandler Handler)
             }
         }
 
-        ERROR(TEXT("[UDP_RegisterPortHandler] No free port binding slots"));
+        ERROR(TEXT("No free port binding slots"));
     }
 }
 
@@ -213,7 +213,7 @@ void UDP_UnregisterPortHandler(LPDEVICE Device, U16 Port) {
             }
         }
 
-        WARNING(TEXT("[UDP_UnregisterPortHandler] Port %u not found"), Port);
+        WARNING(TEXT("Port %u not found"), Port);
     }
 }
 
@@ -250,7 +250,7 @@ int UDP_Send(LPDEVICE Device, U32 DestinationIP, U16 SourcePort, U16 Destination
 
             UDPLength = sizeof(UDP_HEADER) + PayloadLength;
             if (UDPLength > 1500) {
-                ERROR(TEXT("[UDP_Send] Packet too large: %u bytes"), UDPLength);
+                ERROR(TEXT("Packet too large: %u bytes"), UDPLength);
                 return 0;
             }
 
@@ -307,7 +307,7 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
     Context = UDP_GetContext(g_UDPDevice);
     SAFE_USE_2(Context, Payload) {
         if (PayloadLength < sizeof(UDP_HEADER)) {
-            ERROR(TEXT("[UDP_OnIPv4Packet] Packet too small: %u bytes"), PayloadLength);
+            ERROR(TEXT("Packet too small: %u bytes"), PayloadLength);
             return;
         }
 
@@ -325,7 +325,7 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
 
         // Validate length
         if (Length < sizeof(UDP_HEADER) || Length > PayloadLength) {
-            ERROR(TEXT("[UDP_OnIPv4Packet] Invalid UDP length: %u (packet length: %u)"), Length, PayloadLength);
+            ERROR(TEXT("Invalid UDP length: %u (packet length: %u)"), Length, PayloadLength);
             return;
         }
 
@@ -336,7 +336,7 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
                                                             Length - sizeof(UDP_HEADER));
             CalculatedChecksum = Ntohs(CalculatedChecksum);
             if (CalculatedChecksum != Checksum) {
-                ERROR(TEXT("[UDP_OnIPv4Packet] Invalid UDP checksum: expected %x, got %x"),
+                ERROR(TEXT("Invalid UDP checksum: expected %x, got %x"),
                       CalculatedChecksum, Checksum);
                 return;
             }

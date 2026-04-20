@@ -209,7 +209,7 @@ static void PrintProfileDumpLine(LPCSTR Format, ...) {
     VarArgEnd(Args);
 
     ConsolePrint(TEXT("%s\n"), Buffer);
-    DEBUG(TEXT("[CMD_prof] %s"), Buffer);
+    DEBUG(TEXT("%s"), Buffer);
 }
 
 /************************************************************************/

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -589,7 +589,7 @@ BOOL LoadExecutable_ELF(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LI
 
     UNUSED(BssBase);
 
-    DEBUG(TEXT("[LoadExecutable_ELF] %s"), File->Name);
+    DEBUG(TEXT("%s"), File->Name);
 
     ELFInitializeFileOperation(File, &FileOperation);
 
@@ -603,10 +603,10 @@ BOOL LoadExecutable_ELF(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LI
     if (!ELFAnalyzeLayout(&FileOperation, FileSize, &Header, Class, &Layout)) goto Out_Error;
     if (!ELFLoadSegments(&FileOperation, FileSize, &Header, &Layout, Class, Info, CodeBase, DataBase)) goto Out_Error;
 
-    DEBUG(TEXT("[LoadExecutable_ELF] Exit (success)"));
+    DEBUG(TEXT("Exit (success)"));
     return TRUE;
 
 Out_Error:
-    DEBUG(TEXT("[LoadExecutable_ELF] Exit (error)"));
+    DEBUG(TEXT("Exit (error)"));
     return FALSE;
 }

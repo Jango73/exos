@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 
 #define DEFINE_FATAL_HANDLER(FunctionName, Description)             \
     void FunctionName(LPINTERRUPT_FRAME Frame) {                    \
-        ERROR(TEXT("[" #FunctionName "] %s"), TEXT(Description));   \
+        ERROR(TEXT("%s"), TEXT(Description));                       \
         LogCPUState(Frame);                                         \
         Die();                                                      \
     }
@@ -50,7 +50,7 @@ void LogCPUState(LPINTERRUPT_FRAME Frame) {
     ConsoleSetPagingActive(FALSE);
 
     if (Frame == NULL) {
-        ERROR(TEXT("[LogCPUState] No interrupt frame available"));
+        ERROR(TEXT("No interrupt frame available"));
         ConsoleSetPagingActive(PreviousPagingActive);
         return;
     }
@@ -66,13 +66,13 @@ void LogCPUState(LPINTERRUPT_FRAME Frame) {
             LINEAR Value = 0;
 
             if (!IsValidMemory(EntryAddress)) {
-                DEBUG(TEXT("[LogCPUState] Stack[%u] @ %p invalid"), Index, (LPVOID)EntryAddress);
+                DEBUG(TEXT("Stack[%u] @ %p invalid"), Index, (LPVOID)EntryAddress);
                 break;
             }
 
             Value = *((LINEAR*)EntryAddress);
             UNUSED(Value);
-            DEBUG(TEXT("[LogCPUState] Stack[%u] @ %p = %p"), Index, (LPVOID)EntryAddress, (LPVOID)Value);
+            DEBUG(TEXT("Stack[%u] @ %p = %p"), Index, (LPVOID)EntryAddress, (LPVOID)Value);
         }
     }
 
@@ -86,7 +86,7 @@ void LogCPUState(LPINTERRUPT_FRAME Frame) {
 void Die(void) {
     LPTASK Task;
 
-    DEBUG(TEXT("[Die] Enter"));
+    DEBUG(TEXT("Enter"));
 
     Task = GetCurrentTask();
 
@@ -100,7 +100,7 @@ void Die(void) {
         if (Task->OwnerProcess != &KernelProcess) {
             KernelKillTask(Task);
         } else {
-            ERROR(TEXT("[Die] Fatal fault in kernel task, halting without KernelKillTask"));
+            ERROR(TEXT("Fatal fault in kernel task, halting without KernelKillTask"));
             ConsolePanic(TEXT("Fatal fault in kernel task"));
         }
 
@@ -194,19 +194,19 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
 
     __asm__ __volatile__("mov %%cr2, %0" : "=r"(FaultAddress));
 
-    DEBUG(TEXT("[PageFaultHandler] CR2=%p Err=%x RIP=%p RSP=%p"),
+    DEBUG(TEXT("CR2=%p Err=%x RIP=%p RSP=%p"),
           (LPVOID)FaultAddress,
           (UINT)Frame->ErrCode,
           (LPVOID)Frame->Registers.RIP,
           (LPVOID)Frame->Registers.RSP);
 
     if (ResolveKernelPageFault((LINEAR)FaultAddress)) {
-        DEBUG(TEXT("[PageFaultHandler] Resolved kernel page fault %p"), (LPVOID)FaultAddress);
+        DEBUG(TEXT("Resolved kernel page fault %p"), (LPVOID)FaultAddress);
         return;
     }
 
-    ERROR(TEXT("[PageFaultHandler] Page fault at %p"), (LINEAR)FaultAddress);
-    ERROR(TEXT("[PageFaultHandler] Error code = %x"), (UINT)Frame->ErrCode);
+    ERROR(TEXT("Page fault at %p"), (LINEAR)FaultAddress);
+    ERROR(TEXT("Error code = %x"), (UINT)Frame->ErrCode);
     LogCPUState(Frame);
     Die();
 }

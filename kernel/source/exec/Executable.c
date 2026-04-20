@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ BOOL GetExecutableImageInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     U32 Signature;
     EXECUTABLE_INFO ImageInfo;
 
-    DEBUG(TEXT("[GetExecutableImageInfo] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (File == NULL) return FALSE;
     if (Metadata == NULL) return FALSE;
@@ -105,7 +105,7 @@ BOOL GetExecutableImageInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
         return GetExecutableImageInfo_ELF(File, Metadata);
     }
 
-    DEBUG(TEXT("[GetExecutableImageInfo] Unknown signature %X"), Signature);
+    DEBUG(TEXT("Unknown signature %X"), Signature);
     return FALSE;
 }
 
@@ -120,7 +120,7 @@ BOOL GetExecutableImageInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
 BOOL GetExecutableModuleInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     U32 Signature;
 
-    DEBUG(TEXT("[GetExecutableModuleInfo] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (File == NULL) return FALSE;
     if (Metadata == NULL) return FALSE;
@@ -130,7 +130,7 @@ BOOL GetExecutableModuleInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
         return GetExecutableModuleInfo_ELF(File, Metadata);
     }
 
-    DEBUG(TEXT("[GetExecutableModuleInfo] Unsupported signature %X"), Signature);
+    DEBUG(TEXT("Unsupported signature %X"), Signature);
     return FALSE;
 }
 
@@ -145,7 +145,7 @@ BOOL GetExecutableModuleInfo(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
 BOOL GetExecutableInfo(LPFILE File, LPEXECUTABLE_INFO Info) {
     EXECUTABLE_METADATA Metadata;
 
-    DEBUG(TEXT("[GetExecutableInfo] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (File == NULL) return FALSE;
     if (Info == NULL) return FALSE;
@@ -166,7 +166,7 @@ BOOL GetExecutableInfo(LPFILE File, LPEXECUTABLE_INFO Info) {
 BOOL LoadExecutable(LPEXECUTABLE_LOAD Load) {
     U32 Signature;
 
-    DEBUG(TEXT("[LoadExecutable] Enter"));
+    DEBUG(TEXT("Enter"));
 
     if (Load == NULL) return FALSE;
     if (Load->File == NULL) return FALSE;
@@ -179,7 +179,7 @@ BOOL LoadExecutable(LPEXECUTABLE_LOAD Load) {
         return LoadExecutable_ELF(Load->File, Load->Info, Load->CodeBase, Load->DataBase, Load->BssBase);
     }
 
-    DEBUG(TEXT("[LoadExecutable] Unknown signature %X"), Signature);
+    DEBUG(TEXT("Unknown signature %X"), Signature);
 
     return FALSE;
 }

@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -55,13 +55,13 @@ BOOL DMABufferAllocate(LPDMA_BUFFER Buffer, UINT Size, BOOL RequireContiguous, L
         PHYSICAL MaximumBaseAddress;
 
         if (AllocatedSize > MAX_U32) {
-            ERROR(TEXT("[DMABufferAllocate] DMA size exceeds low-32-bit window (%u)"), AllocatedSize);
+            ERROR(TEXT("DMA size exceeds low-32-bit window (%u)"), AllocatedSize);
             return FALSE;
         }
 
         MaximumBaseAddress = (PHYSICAL)(MAX_U32 - (AllocatedSize - 1));
         if (!FindAvailableMemoryRangeInWindow((PHYSICAL)N_1MB, MaximumBaseAddress, 0, 0, AllocatedSize, &PhysicalBase)) {
-            ERROR(TEXT("[DMABufferAllocate] No contiguous DMA range found for %s size=%u"), Tag, AllocatedSize);
+            ERROR(TEXT("No contiguous DMA range found for %s size=%u"), Tag, AllocatedSize);
             return FALSE;
         }
     }
@@ -72,7 +72,7 @@ BOOL DMABufferAllocate(LPDMA_BUFFER Buffer, UINT Size, BOOL RequireContiguous, L
         ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
         Tag);
     if (LinearBase == 0) {
-        ERROR(TEXT("[DMABufferAllocate] AllocKernelRegion failed for %s size=%u contiguous=%u"),
+        ERROR(TEXT("AllocKernelRegion failed for %s size=%u contiguous=%u"),
               Tag,
               AllocatedSize,
               RequireContiguous ? 1 : 0);

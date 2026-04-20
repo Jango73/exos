@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ void QuickSort(LPVOID Base, U32 NumItems, U32 ItemSize, COMPAREFUNC Func) {
         RecursiveSort((U8*)Base, 0, NumItems - 1, ItemSize, Func, Buffer);
         KernelHeapFree(Buffer);
     } else {
-        ERROR(TEXT("[QuickSort] Failed to allocate temporary buffer"));
+        ERROR(TEXT("Failed to allocate temporary buffer"));
     }
 }
 

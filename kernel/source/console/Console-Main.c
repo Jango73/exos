@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -718,7 +718,7 @@ BOOL ConsoleGetString(LPSTR Buffer, U32 Size) {
     U32 Index = 0;
     U32 Done = 0;
 
-    DEBUG(TEXT("[ConsoleGetString] Enter"));
+    DEBUG(TEXT("Enter"));
 
     Buffer[0] = STR_NULL;
 
@@ -754,7 +754,7 @@ BOOL ConsoleGetString(LPSTR Buffer, U32 Size) {
 
     Buffer[Index] = STR_NULL;
 
-    DEBUG(TEXT("[ConsoleGetString] Exit"));
+    DEBUG(TEXT("Exit"));
 
     return TRUE;
 }

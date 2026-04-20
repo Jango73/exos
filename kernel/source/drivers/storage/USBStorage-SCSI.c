@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -144,8 +144,8 @@ BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
 
     if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock),
                               sizeof(SenseData), TRUE, SenseData)) {
-        WARNING(TEXT("[USBStorageRequestSenseData] Request sense failed"));
-        DEBUG(TEXT("[USBStorageRequestSenseData] LastOp=%x Stage=%u LastCSW=%x Residue=%u"),
+        WARNING(TEXT("Request sense failed"));
+        DEBUG(TEXT("LastOp=%x Stage=%u LastCSW=%x Residue=%u"),
               (U32)Device->LastScsiOpCode,
               (U32)Device->LastBotStage,
               (U32)Device->LastCswStatus,
@@ -159,7 +159,7 @@ BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
     SenseDataOut->AdditionalSenseCodeQualifier = SenseData[13];
 
     if (LogResult) {
-        WARNING(TEXT("[USBStorageRequestSenseData] Sense=%x ASC=%x ASCQ=%x LastOp=%x"),
+        WARNING(TEXT("Sense=%x ASC=%x ASCQ=%x LastOp=%x"),
                 (U32)SenseDataOut->SenseKey,
                 (U32)SenseDataOut->AdditionalSenseCode,
                 (U32)SenseDataOut->AdditionalSenseCodeQualifier,
@@ -196,7 +196,7 @@ BOOL USBStorageInquiry(LPUSB_MASS_STORAGE_DEVICE Device) {
     MemoryCopy(Vendor, &InquiryData[8], 8);
     MemoryCopy(Product, &InquiryData[16], 16);
 
-    DEBUG(TEXT("[USBStorageInquiry] Vendor=%s Product=%s"), Vendor, Product);
+    DEBUG(TEXT("Vendor=%s Product=%s"), Vendor, Product);
     return TRUE;
 }
 
@@ -274,12 +274,12 @@ BOOL USBStorageReadCapacity(LPUSB_MASS_STORAGE_DEVICE Device) {
     BlockSize = Ntohl(TemporaryValue);
 
     if (LastLogicalBlockAddress == 0xFFFFFFFF) {
-        ERROR(TEXT("[USBStorageReadCapacity] Device too large for READ CAPACITY(10)"));
+        ERROR(TEXT("Device too large for READ CAPACITY(10)"));
         return FALSE;
     }
 
     if (BlockSize != 512 && BlockSize != 4096) {
-        ERROR(TEXT("[USBStorageReadCapacity] Unsupported block size %u"), BlockSize);
+        ERROR(TEXT("Unsupported block size %u"), BlockSize);
         return FALSE;
     }
 
@@ -326,7 +326,7 @@ BOOL USBStorageReinitializeDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
 
         if (SenseData.SenseKey != USB_SCSI_SENSE_KEY_NOT_READY &&
             SenseData.SenseKey != USB_SCSI_SENSE_KEY_UNIT_ATTENTION) {
-            DEBUG(TEXT("[USBStorageReinitializeDevice] Sense=%x ASC=%x ASCQ=%x"),
+            DEBUG(TEXT("Sense=%x ASC=%x ASCQ=%x"),
                   (U32)SenseData.SenseKey,
                   (U32)SenseData.AdditionalSenseCode,
                   (U32)SenseData.AdditionalSenseCodeQualifier);
@@ -337,13 +337,13 @@ BOOL USBStorageReinitializeDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
     }
 
     if (!MediumReady) {
-        WARNING(TEXT("[USBStorageReinitializeDevice] Device stayed busy"));
+        WARNING(TEXT("Device stayed busy"));
         Device->Ready = FALSE;
         return FALSE;
     }
 
     if (!USBStorageInquiry(Device) || !USBStorageReadCapacity(Device)) {
-        WARNING(TEXT("[USBStorageReinitializeDevice] Device reinit failed"));
+        WARNING(TEXT("Device reinit failed"));
         Device->Ready = FALSE;
         return FALSE;
     }
@@ -373,13 +373,13 @@ BOOL USBStorageRecoverCommandFailure(LPUSB_MASS_STORAGE_DEVICE Device, U8 Failed
     }
 
     if (SenseData.SenseKey == USB_SCSI_SENSE_KEY_UNIT_ATTENTION) {
-        WARNING(TEXT("[USBStorageRecoverCommandFailure] Media state changed Op=%x"),
+        WARNING(TEXT("Media state changed Op=%x"),
                 (U32)FailedOperation);
         return USBStorageReinitializeDevice(Device);
     }
 
     if (SenseData.SenseKey == USB_SCSI_SENSE_KEY_NOT_READY) {
-        WARNING(TEXT("[USBStorageRecoverCommandFailure] Device not ready Op=%x"),
+        WARNING(TEXT("Device not ready Op=%x"),
                 (U32)FailedOperation);
         return USBStorageReinitializeDevice(Device);
     }

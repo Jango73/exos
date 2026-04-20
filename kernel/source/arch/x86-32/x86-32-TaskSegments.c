@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ LPDRIVER TaskSegmentsGetDriver(void) {
 /***************************************************************************/
 
 void InitializeTaskSegments(void) {
-    DEBUG(TEXT("[InitializeTaskSegments] Enter"));
+    DEBUG(TEXT("Enter"));
 
     U32 TssSize = sizeof(TASK_STATE_SEGMENT);
 
@@ -73,7 +73,7 @@ void InitializeTaskSegments(void) {
         0, TssSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("TSS"));
 
     if (Kernel_x86_32.TSS == NULL) {
-        ERROR(TEXT("[InitializeTaskSegments] AllocRegion for TSS failed"));
+        ERROR(TEXT("AllocRegion for TSS failed"));
         DO_THE_SLEEPING_BEAUTY;
     }
 
@@ -87,12 +87,12 @@ void InitializeTaskSegments(void) {
     SetTSSDescriptorBase(Desc, (U32)Kernel_x86_32.TSS);
     SetTSSDescriptorLimit(Desc, sizeof(TASK_STATE_SEGMENT) - 1);
 
-    DEBUG(TEXT("[InitializeTaskSegments] TSS = %p"), Kernel_x86_32.TSS);
-    DEBUG(TEXT("[InitializeTaskSegments] Loading task register"));
+    DEBUG(TEXT("TSS = %p"), Kernel_x86_32.TSS);
+    DEBUG(TEXT("Loading task register"));
 
     LoadInitialTaskRegister(SELECTOR_TSS);
 
-    DEBUG(TEXT("[InitializeTaskSegments] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/

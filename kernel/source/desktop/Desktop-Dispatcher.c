@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
     SAFE_USE_VALID_ID(Desktop->Task, KOID_TASK) {
         if (IsDesktopDispatcherTask(Desktop->Task) != FALSE) {
             if (EnsureAllMessageQueues(Desktop->Task, TRUE) == FALSE) {
-                WARNING(TEXT("[DesktopEnsureDispatcherTask] Unable to initialize dispatcher message queues"));
+                WARNING(TEXT("Unable to initialize dispatcher message queues"));
                 return FALSE;
             }
             SAFE_USE_VALID_ID(Desktop->Window, KOID_WINDOW) {
@@ -156,12 +156,12 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
 
     DispatcherTask = KernelCreateTask(&KernelProcess, &TaskInfo);
     if (DispatcherTask == NULL) {
-        WARNING(TEXT("[DesktopEnsureDispatcherTask] Unable to create desktop dispatcher"));
+        WARNING(TEXT("Unable to create desktop dispatcher"));
         return FALSE;
     }
 
     if (EnsureAllMessageQueues(DispatcherTask, TRUE) == FALSE) {
-        WARNING(TEXT("[DesktopEnsureDispatcherTask] Unable to initialize dispatcher message queues"));
+        WARNING(TEXT("Unable to initialize dispatcher message queues"));
         return FALSE;
     }
 

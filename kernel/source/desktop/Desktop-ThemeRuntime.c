@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -179,7 +179,7 @@ BOOL LoadTheme(LPCSTR Path) {
     if (Path == NULL || Path[0] == STR_NULL) {
         Theme->LastStatus = DESKTOP_THEME_STATUS_BAD_PARAMETER;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_FILE_READ_FAILED;
-        WARNING(TEXT("[LoadTheme] Invalid theme path"));
+        WARNING(TEXT("Invalid theme path"));
         return FALSE;
     }
 
@@ -187,7 +187,7 @@ BOOL LoadTheme(LPCSTR Path) {
     if (Source == NULL || SourceSize == 0) {
         Theme->LastStatus = DESKTOP_THEME_STATUS_INVALID_TOML;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_FILE_READ_FAILED;
-        WARNING(TEXT("[LoadTheme] Cannot read theme file %s"), Path);
+        WARNING(TEXT("Cannot read theme file %s"), Path);
         if (Source != NULL) KernelHeapFree(Source);
         return FALSE;
     }
@@ -195,7 +195,7 @@ BOOL LoadTheme(LPCSTR Path) {
     if (DesktopThemeParseStrict(Source, &Candidate, &Status) == FALSE) {
         Theme->LastStatus = Status;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_PARSE_FAILED;
-        WARNING(TEXT("[LoadTheme] Parse failed status=%x path=%s"), Status, Path);
+        WARNING(TEXT("Parse failed status=%x path=%s"), Status, Path);
         KernelHeapFree(Source);
         return FALSE;
     }
@@ -238,7 +238,7 @@ BOOL ActivateTheme(LPCSTR NameOrHandle) {
         if (MatchesPath == FALSE && MatchesAlias == FALSE) {
             Theme->LastStatus = DESKTOP_THEME_STATUS_BAD_PARAMETER;
             Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_NO_STAGED_THEME;
-            WARNING(TEXT("[ActivateTheme] Unknown theme handle %s"), NameOrHandle);
+            WARNING(TEXT("Unknown theme handle %s"), NameOrHandle);
             return FALSE;
         }
     }
@@ -247,7 +247,7 @@ BOOL ActivateTheme(LPCSTR NameOrHandle) {
     if (StagedRuntime == NULL) {
         Theme->LastStatus = DESKTOP_THEME_STATUS_BAD_PARAMETER;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_NO_STAGED_THEME;
-        WARNING(TEXT("[ActivateTheme] No staged theme available"));
+        WARNING(TEXT("No staged theme available"));
         return FALSE;
     }
 
@@ -259,7 +259,7 @@ BOOL ActivateTheme(LPCSTR NameOrHandle) {
     if (DesktopThemeActivateParsed(StagedRuntime, BuiltinRuntime, &ActiveRuntime) == FALSE) {
         Theme->LastStatus = DESKTOP_THEME_STATUS_NO_MEMORY;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_ACTIVATION_FAILED;
-        WARNING(TEXT("[ActivateTheme] Activation failed"));
+        WARNING(TEXT("Activation failed"));
         return FALSE;
     }
 
@@ -338,7 +338,7 @@ BOOL ResetThemeToDefault(void) {
     if (DesktopThemeActivateParsed(NULL, BuiltinRuntime, &ActiveRuntime) == FALSE) {
         Theme->LastStatus = DESKTOP_THEME_STATUS_NO_MEMORY;
         Theme->LastFallbackReason = DESKTOP_THEME_FALLBACK_REASON_ACTIVATION_FAILED;
-        WARNING(TEXT("[ResetThemeToDefault] Reset failed"));
+        WARNING(TEXT("Reset failed"));
         return FALSE;
     }
 

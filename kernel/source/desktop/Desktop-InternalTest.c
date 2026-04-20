@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -336,7 +336,7 @@ static BOOL DesktopInternalEnsureSingleWindow(
 
     Window = (LPWINDOW)CreateWindow(&WindowInfo);
     if (Window == NULL) {
-        WARNING(TEXT("[DesktopInternalEnsureSingleWindow] Test window creation failed title=%s id=%x"), Title, WindowID);
+        WARNING(TEXT("Test window creation failed title=%s id=%x"), Title, WindowID);
         return FALSE;
     }
 
@@ -421,13 +421,13 @@ BOOL DesktopInternalRunStressDrag(LPDESKTOP Desktop, U32 Cycles) {
     }
 
     if (DesktopInternalTestEnsureWindowsVisible(Desktop) == FALSE) {
-        WARNING(TEXT("[DesktopInternalRunStressDrag] Test windows unavailable"));
+        WARNING(TEXT("Test windows unavailable"));
         return FALSE;
     }
 
     FirstWindow = DesktopInternalFindTestWindow(Desktop, DESKTOP_INTERNAL_TEST_WINDOW_ID_A);
     if (FirstWindow == NULL || FirstWindow->TypeID != KOID_WINDOW) {
-        WARNING(TEXT("[DesktopInternalRunStressDrag] Missing test window id=%x"), DESKTOP_INTERNAL_TEST_WINDOW_ID_A);
+        WARNING(TEXT("Missing test window id=%x"), DESKTOP_INTERNAL_TEST_WINDOW_ID_A);
         return FALSE;
     }
 

@@ -551,8 +551,8 @@ static inline U32 U64_Low32(U64 Value) {
 #ifdef __KERNEL__
 
 #if DEBUG_OUTPUT == 1
-    #define DEBUG(a, ...) KernelLogText(LOG_DEBUG, (a), ##__VA_ARGS__)
-    #define TEST(a, ...) KernelLogText(LOG_TEST, (a), ##__VA_ARGS__)
+    #define DEBUG(a, ...) KernelLogTextFromFunction(LOG_DEBUG, TEXT(__func__), (a), ##__VA_ARGS__)
+    #define TEST(a, ...) KernelLogTextFromFunction(LOG_TEST, TEXT(__func__), (a), ##__VA_ARGS__)
 #else
     #define DEBUG(a, ...)
     #define TEST(a, ...)
@@ -564,9 +564,9 @@ static inline U32 U64_Low32(U64 Value) {
     #define FINE_DEBUG(a, ...)
 #endif
 
-#define VERBOSE(a, ...) KernelLogText(LOG_VERBOSE, (a), ##__VA_ARGS__)
-#define WARNING(a, ...) KernelLogText(LOG_WARNING, (a), ##__VA_ARGS__)
-#define ERROR(a, ...) KernelLogText(LOG_ERROR, (a), ##__VA_ARGS__)
+#define VERBOSE(a, ...) KernelLogTextFromFunction(LOG_VERBOSE, TEXT(__func__), (a), ##__VA_ARGS__)
+#define WARNING(a, ...) KernelLogTextFromFunction(LOG_WARNING, TEXT(__func__), (a), ##__VA_ARGS__)
+#define ERROR(a, ...) KernelLogTextFromFunction(LOG_ERROR, TEXT(__func__), (a), ##__VA_ARGS__)
 
 #else   // __KERNEL__
 

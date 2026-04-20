@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -240,17 +240,17 @@ static U32 NetworkManager_FindNetworkDevices(void) {
 
                                 Count++;
                             } else {
-                                ERROR(TEXT("[NetworkManager_FindNetworkDevices] Failed to allocate network device context"));
+                                ERROR(TEXT("Failed to allocate network device context"));
                             }
                         }
                     }
                 }
             }
         } else {
-            WARNING(TEXT("[NetworkManager_FindNetworkDevices] No PCI devices available"));
+            WARNING(TEXT("No PCI devices available"));
         }
     } else {
-        WARNING(TEXT("[NetworkManager_FindNetworkDevices] PCI device list is unavailable"));
+        WARNING(TEXT("PCI device list is unavailable"));
     }
 
     return NetworkDeviceList != NULL ? NetworkDeviceList->NumItems : 0;
@@ -271,7 +271,7 @@ void InitializeNetwork(void) {
     NetworkManager_FindNetworkDevices();
 
     if (NetworkDeviceList == NULL || NetworkDeviceList->NumItems == 0) {
-        WARNING(TEXT("[InitializeNetwork] No network devices found"));
+        WARNING(TEXT("No network devices found"));
         return;
     }
 
@@ -339,7 +339,7 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
         SAFE_USE_VALID_ID(Device->Driver, KOID_DRIVER) {
             if (Device->Driver->Type != DRIVER_TYPE_NETWORK) {
-                ERROR(TEXT("[NetworkManager_InitializeDevice] Device is not a network device"));
+                ERROR(TEXT("Device is not a network device"));
                 return;
             }
 
@@ -359,7 +359,7 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             }
 
             if (DeviceContext == NULL) {
-                ERROR(TEXT("[NetworkManager_InitializeDevice] Device %p not found in network device list!"), (LPVOID)Device);
+                ERROR(TEXT("Device %p not found in network device list!"), (LPVOID)Device);
                 return;
             }
 
@@ -432,13 +432,13 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
                 DeviceContext->InterruptSlot = InterruptConfig.VectorSlot;
                 DeviceContext->InterruptsEnabled = InterruptConfig.InterruptEnabled;
                 if (!DeviceContext->InterruptsEnabled) {
-                    WARNING(TEXT("[NetworkManager_InitializeDevice] Hardware interrupts unavailable, using polling on slot %u"),
+                    WARNING(TEXT("Hardware interrupts unavailable, using polling on slot %u"),
                             DeviceContext->InterruptSlot);
                 }
             } else {
                 DeviceContext->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
                 DeviceContext->InterruptsEnabled = FALSE;
-                WARNING(TEXT("[NetworkManager_InitializeDevice] Falling back to polling mode (Result=%u, Slot=%u)"),
+                WARNING(TEXT("Falling back to polling mode (Result=%u, Slot=%u)"),
                         InterruptResult,
                         InterruptConfig.VectorSlot);
             }

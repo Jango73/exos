@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -217,7 +217,7 @@ static U32 RTL8169AllocateBuffers(LPRTL8169_DEVICE Device) {
                 Device->RxDescriptorCount * sizeof(RTL8169_RX_DESCRIPTOR),
                 TRUE,
                 TEXT("RTL8169RxRing"))) {
-            ERROR(TEXT("[RTL8169AllocateBuffers] RX ring allocation failed"));
+            ERROR(TEXT("RX ring allocation failed"));
             return DF_RETURN_NO_MEMORY;
         }
     }
@@ -228,7 +228,7 @@ static U32 RTL8169AllocateBuffers(LPRTL8169_DEVICE Device) {
                 Device->TxDescriptorCount * sizeof(RTL8169_TX_DESCRIPTOR),
                 TRUE,
                 TEXT("RTL8169TxRing"))) {
-            ERROR(TEXT("[RTL8169AllocateBuffers] TX ring allocation failed"));
+            ERROR(TEXT("TX ring allocation failed"));
             DMABufferRelease(&Device->RxRing);
             return DF_RETURN_NO_MEMORY;
         }
@@ -240,7 +240,7 @@ static U32 RTL8169AllocateBuffers(LPRTL8169_DEVICE Device) {
                 Device->RxDescriptorCount * PAGE_SIZE,
                 FALSE,
                 TEXT("RTL8169RxBufferPool"))) {
-            ERROR(TEXT("[RTL8169AllocateBuffers] RX buffer pool allocation failed"));
+            ERROR(TEXT("RX buffer pool allocation failed"));
             DMABufferRelease(&Device->TxRing);
             DMABufferRelease(&Device->RxRing);
             return DF_RETURN_NO_MEMORY;
@@ -253,7 +253,7 @@ static U32 RTL8169AllocateBuffers(LPRTL8169_DEVICE Device) {
                 Device->TxDescriptorCount * PAGE_SIZE,
                 FALSE,
                 TEXT("RTL8169TxBufferPool"))) {
-            ERROR(TEXT("[RTL8169AllocateBuffers] TX buffer pool allocation failed"));
+            ERROR(TEXT("TX buffer pool allocation failed"));
             DMABufferRelease(&Device->RxBufferPool);
             DMABufferRelease(&Device->TxRing);
             DMABufferRelease(&Device->RxRing);
@@ -290,7 +290,7 @@ static U32 RTL8169InitializeDescriptorRings(LPRTL8169_DEVICE Device) {
         U32 DescriptorFlags = RTL8169_DESCRIPTOR_OWN | RTL8169_RX_BUFFER_SIZE;
 
         if (BufferPhysical == 0) {
-            ERROR(TEXT("[RTL8169InitializeDescriptorRings] RX buffer physical lookup failed at %u"), Index);
+            ERROR(TEXT("RX buffer physical lookup failed at %u"), Index);
             return DF_RETURN_INPUT_OUTPUT;
         }
 
@@ -309,7 +309,7 @@ static U32 RTL8169InitializeDescriptorRings(LPRTL8169_DEVICE Device) {
         U32 DescriptorFlags = 0;
 
         if (BufferPhysical == 0) {
-            ERROR(TEXT("[RTL8169InitializeDescriptorRings] TX buffer physical lookup failed at %u"), Index);
+            ERROR(TEXT("TX buffer physical lookup failed at %u"), Index);
             return DF_RETURN_INPUT_OUTPUT;
         }
 
@@ -392,7 +392,7 @@ static LPPCI_DEVICE RTL8169Attach(LPPCI_DEVICE PciDevice) {
         0);
 
     if (Device->DeviceInfo == NULL) {
-        ERROR(TEXT("[RTL8169Attach] Missing hardware description for %x:%x"),
+        ERROR(TEXT("Missing hardware description for %x:%x"),
               (UINT)Device->Info.VendorID,
               (UINT)Device->Info.DeviceID);
         ReleaseKernelObject(Device);
@@ -422,7 +422,7 @@ static LPPCI_DEVICE RTL8169Attach(LPPCI_DEVICE PciDevice) {
     }
 
     Device->ProductName = Device->DeviceInfo->ProductName;
-    DEBUG(TEXT("[RTL8169Attach] Attached %s controller %x:%x on %x:%x.%x"),
+    DEBUG(TEXT("Attached %s controller %x:%x on %x:%x.%x"),
           Device->DeviceInfo->ProductName,
           (UINT)Device->Info.VendorID,
           (UINT)Device->Info.DeviceID,
@@ -525,7 +525,7 @@ static U32 RTL8169InitializeController(LPRTL8169_DEVICE Device) {
         RTL8169_REG_TXCONFIG,
         RTL8169_TXCONFIG_IFG_NORMAL | RTL8169_TXCONFIG_DMA_1024);
     RTL8169ReadPermanentMac(Device);
-    DEBUG(TEXT("[RTL8169InitializeController] Controller reset complete revision=%x"),
+    DEBUG(TEXT("Controller reset complete revision=%x"),
           Device->HardwareRevision);
     return DF_RETURN_SUCCESS;
 }
@@ -648,7 +648,7 @@ static U32 RTL8169InitializeRegisterAccess(LPRTL8169_DEVICE Device) {
     Device->HardwareRevision = RealtekNetworkReadRegister32(
         (LPREALTEK_NETWORK_COMMON_DEVICE)Device,
         RTL8169_REG_TXCONFIG);
-    DEBUG(TEXT("[RTL8169InitializeRegisterAccess] Revision=%x access=%u bar=%u"),
+    DEBUG(TEXT("Revision=%x access=%u bar=%u"),
           Device->HardwareRevision,
           (UINT)Device->RegisterAccessMode,
           (UINT)Device->RegisterBarIndex);
@@ -689,7 +689,7 @@ static U32 RTL8169PollReceive(LPRTL8169_DEVICE Device) {
             (DescriptorStatus & RTL8169_DESCRIPTOR_FIRST_FRAGMENT) == 0 ||
             (DescriptorStatus & RTL8169_DESCRIPTOR_LAST_FRAGMENT) == 0 ||
             FrameLength <= 4 || FrameLength > RTL8169_RX_BUFFER_SIZE) {
-            WARNING(TEXT("[RTL8169PollReceive] Dropping invalid RX descriptor status=%x length=%u"),
+            WARNING(TEXT("Dropping invalid RX descriptor status=%x length=%u"),
                     DescriptorStatus,
                     FrameLength);
         } else {

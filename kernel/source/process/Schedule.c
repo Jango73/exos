@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ static UINT RemoveDeadTasksFromQueue(LPTASK ExceptTask) {
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
 
         if (State.Status == TASK_STATUS_DEAD) {
-            FINE_DEBUG(TEXT("[RemoveDeadTasksFromQueue] Removing dead task %s at index %d"), Task->Name, Index);
+            FINE_DEBUG(TEXT("Removing dead task %s at index %d"), Task->Name, Index);
 
             // Shift remaining tasks down
             for (UINT ShiftIndex = (UINT)Index; ShiftIndex < TaskList.NumTasks - 1; ShiftIndex++) {
@@ -254,7 +254,7 @@ UINT FindNextRunnableTask(UINT StartIndex) {
 BOOL AddTaskToQueue(LPTASK NewTask) {
     TRACED_FUNCTION;
 
-    FINE_DEBUG(TEXT("[AddTaskToQueue] NewTask = %p"), NewTask);
+    FINE_DEBUG(TEXT("NewTask = %p"), NewTask);
 
     FreezeScheduler();
 
@@ -262,7 +262,7 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
     SAFE_USE_VALID_ID(NewTask, KOID_TASK) {
         // Check if task queue is full
         if (TaskList.NumTasks >= NUM_TASKS) {
-            ERROR(TEXT("[AddTaskToQueue] Cannot add task %p, too many tasks"), NewTask);
+            ERROR(TEXT("Cannot add task %p, too many tasks"), NewTask);
             UnfreezeScheduler();
 
             TRACED_EPILOGUE("AddTaskToQueue");
@@ -280,7 +280,7 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
         }
 
         // Add task to queue
-        FINE_DEBUG(TEXT("[AddTaskToQueue] Adding %p"), NewTask);
+        FINE_DEBUG(TEXT("Adding %p"), NewTask);
 
         TaskList.Tasks[TaskList.NumTasks] = NewTask;
 
@@ -480,7 +480,7 @@ U32 SchedulerRegisterTickCallback(SCHEDULER_TICK_CALLBACK Callback, LPVOID Conte
         RestoreFlags(&Flags);
     }
 
-    ERROR(TEXT("[SchedulerRegisterTickCallback] No free scheduler tick callback slots"));
+    ERROR(TEXT("No free scheduler tick callback slots"));
     return SCHEDULER_TICK_INVALID_HANDLE;
 }
 
@@ -512,23 +512,23 @@ void SchedulerUnregisterTickCallback(U32 Handle) {
 void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
     TASK_SCHEDULER_STATE NextTaskState;
 
-    FINE_DEBUG(TEXT("[SwitchToNextTask] CurrentTask = %p (%s), NextTask = %p (%s)"),
+    FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
         CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
     LINEAR CurrentStackPointer, CurrentFramePointer;
     GetCurrentStackPointer(CurrentStackPointer);
     GetCurrentFramePointer(CurrentFramePointer);
-    DEBUG(TEXT("[SwitchToNextTask] Current SP = %p, current BP = %p"), CurrentStackPointer, CurrentFramePointer);
+    DEBUG(TEXT("Current SP = %p, current BP = %p"), CurrentStackPointer, CurrentFramePointer);
 #endif
 
     if (ScheduleGetTaskState(NextTask, &NextTaskState) == FALSE) {
-        ERROR(TEXT("[SwitchToNextTask] Invalid next task snapshot"));
+        ERROR(TEXT("Invalid next task snapshot"));
         return;
     }
 
     if (NextTaskState.Status > TASK_STATUS_DEAD) {
-        ERROR(TEXT("[SwitchToNextTask] MEMORY CORRUPTION: Task status %x is out of range"),
+        ERROR(TEXT("MEMORY CORRUPTION: Task status %x is out of range"),
             NextTaskState.Status);
         return;
     }
@@ -546,7 +546,7 @@ void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
         SwitchToNextTask_2(CurrentTask, NextTask, NextCr3);
     // }
 
-    FINE_DEBUG(TEXT("[SwitchToNextTask] Exit for task %p (%s)"), CurrentTask, CurrentTask->Name);
+    FINE_DEBUG(TEXT("Exit for task %p (%s)"), CurrentTask, CurrentTask->Name);
 }
 
 /************************************************************************/
@@ -554,14 +554,14 @@ void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
 void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
     TASK_SCHEDULER_STATE NextTaskState;
 
-    FINE_DEBUG(TEXT("[SwitchToNextTask_3] CurrentTask = %p (%s), NextTask = %p (%s)"),
+    FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
         CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
     LINEAR CurrentStackPointer, CurrentFramePointer;
     GetCurrentStackPointer(CurrentStackPointer);
     GetCurrentFramePointer(CurrentFramePointer);
-    DEBUG(TEXT("[SwitchToNextTask_3] Current SP = %p, current BP = %p"), CurrentStackPointer, CurrentFramePointer);
+    DEBUG(TEXT("Current SP = %p, current BP = %p"), CurrentStackPointer, CurrentFramePointer);
 #endif
 
     PrepareNextTaskSwitch(CurrentTask, NextTask);
@@ -577,7 +577,7 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
         if (NextTask->OwnerProcess->Privilege == CPU_PRIVILEGE_KERNEL) {
             LINEAR StackPointer = NextTask->Arch.Stack.Base + NextTask->Arch.Stack.Size - STACK_SAFETY_MARGIN;
 
-            FINE_DEBUG(TEXT("[SwitchToNextTask_3] StackPointer = %p"), StackPointer);
+            FINE_DEBUG(TEXT("StackPointer = %p"), StackPointer);
 
             SetupStackForKernelMode(NextTask, StackPointer, StackPointer);
 
@@ -586,7 +586,7 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
             LogTaskSystemStructures(LOG_DEBUG);
 #endif
 
-            FINE_DEBUG(TEXT("[SwitchToNextTask_3] Calling JumpToReadyTask (StackPointer = %p)"), StackPointer);
+            FINE_DEBUG(TEXT("Calling JumpToReadyTask (StackPointer = %p)"), StackPointer);
 
             JumpToReadyTask(NextTask, StackPointer);
         } else {
@@ -594,8 +594,8 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
             LINEAR SysStackPointer =
                 NextTask->Arch.SystemStack.Base + NextTask->Arch.SystemStack.Size - STACK_SAFETY_MARGIN;
 
-            FINE_DEBUG(TEXT("[SwitchToNextTask_3] SysStackPointer = %p"), SysStackPointer);
-            FINE_DEBUG(TEXT("[SwitchToNextTask_3] StackPointer = %p"), StackPointer);
+            FINE_DEBUG(TEXT("SysStackPointer = %p"), SysStackPointer);
+            FINE_DEBUG(TEXT("StackPointer = %p"), StackPointer);
 
             SetupStackForUserMode(NextTask, SysStackPointer, StackPointer);
 
@@ -604,13 +604,13 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
             LogTaskSystemStructures(LOG_DEBUG);
 #endif
 
-            FINE_DEBUG(TEXT("[SwitchToNextTask_3] Calling JumpToReadyTask (SysStackPointer = %p)"), SysStackPointer);
+            FINE_DEBUG(TEXT("Calling JumpToReadyTask (SysStackPointer = %p)"), SysStackPointer);
 
             JumpToReadyTask(NextTask, SysStackPointer);
         }
     }
 
-    FINE_DEBUG(TEXT("[SwitchToNextTask_3] Exit"));
+    FINE_DEBUG(TEXT("Exit"));
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
     LINEAR ESP; GetESP(ESP);
@@ -639,12 +639,12 @@ void Scheduler(void) {
     PROCESS_SCHEDULER_STATE CurrentProcessState;
     U32 Flags = 0;
     SaveFlags(&Flags);
-    FINE_DEBUG(TEXT("[Scheduler] Enter : IF = %x"), Flags & 0x200);
+    FINE_DEBUG(TEXT("Enter : IF = %x"), Flags & 0x200);
     UNUSED(Flags);
 
     // If scheduler is frozen, don't switch (atomic read - safe in interrupt context)
     if (TaskList.Freeze) {
-        FINE_DEBUG(TEXT("[Scheduler] TaskList frozen: Returning NULL"));
+        FINE_DEBUG(TEXT("TaskList frozen: Returning NULL"));
         return;
     }
 
@@ -658,7 +658,7 @@ void Scheduler(void) {
 
         if (DangerousTask) {
 
-            ERROR(TEXT("[Scheduler] Killing task due to overflow : %X"), DangerousTask);
+            ERROR(TEXT("Killing task due to overflow : %X"), DangerousTask);
 
             // Mark task as dead - will be removed during next context switch
             DangerousTask->SchedulerState.Status = TASK_STATUS_DEAD;
@@ -690,7 +690,7 @@ void Scheduler(void) {
 
     // No runnable tasks - system idle
     if (RunnableCount == 0) {
-        FINE_DEBUG(TEXT("[Scheduler] No runnable tasks"));
+        FINE_DEBUG(TEXT("No runnable tasks"));
 
         return;
     }
@@ -700,7 +700,7 @@ void Scheduler(void) {
         CurrentTaskState.Suspended == FALSE && !QuantumExpired &&
         ScheduleGetProcessState(CurrentTask->OwnerProcess, &CurrentProcessState) != FALSE &&
         CurrentProcessState.Paused == FALSE) {
-        FINE_DEBUG(TEXT("[Scheduler] Current task continues"));
+        FINE_DEBUG(TEXT("Current task continues"));
 
         return;
     }
@@ -713,14 +713,14 @@ void Scheduler(void) {
         LPTASK CurrentTask = (TaskList.CurrentIndex < TaskList.NumTasks) ? TaskList.Tasks[TaskList.CurrentIndex] : NULL;
         LPTASK NextTask = TaskList.Tasks[NextIndex];
 
-        FINE_DEBUG(TEXT("[Scheduler] Switch between task index %u (%s @ %s) and %u (%s @ %s)"),
+        FINE_DEBUG(TEXT("Switch between task index %u (%s @ %s) and %u (%s @ %s)"),
             TaskList.CurrentIndex, CurrentTask ? CurrentTask->Name : TEXT("NULL"),
             CurrentTask ? CurrentTask->OwnerProcess->FileName : TEXT("NULL"), NextIndex, NextTask->Name,
             NextTask->OwnerProcess->FileName);
 
         if (NextIndex >= TaskList.NumTasks) {
             // Should not happen if RunnableCount > 0, but safety check
-            FINE_DEBUG(TEXT("[Scheduler] No next task found"));
+            FINE_DEBUG(TEXT("No next task found"));
 
             return;
         }
@@ -736,7 +736,7 @@ void Scheduler(void) {
 
             if (NextIndex == INFINITY) {
                 // NextTask was somehow removed - this should not happen
-                ERROR(TEXT("[Scheduler] NextTask was removed during cleanup!"));
+                ERROR(TEXT("NextTask was removed during cleanup!"));
                 return;
             }
         }
@@ -746,7 +746,7 @@ void Scheduler(void) {
 
         if (CurrentTask && CurrentTask->OwnerProcess != NextTask->OwnerProcess &&
             CurrentTask->OwnerProcess->Privilege != NextTask->OwnerProcess->Privilege) {
-            FINE_DEBUG(TEXT("[Scheduler] Different ring switch :"));
+            FINE_DEBUG(TEXT("Different ring switch :"));
         }
 
         SwitchToNextTask(CurrentTask, NextTask);
@@ -783,7 +783,7 @@ static BOOL IsObjectSignaled(LPVOID Object) {
     );
 
     SAFE_USE(TermState) {
-        DEBUG(TEXT("[IsObjectSignaled] Object %x found in termination cache - marking as signaled"), Object);
+        DEBUG(TEXT("Object %x found in termination cache - marking as signaled"), Object);
         UnlockMutex(MUTEX_KERNEL);
         return TRUE;
     }
@@ -815,7 +815,7 @@ static UINT GetObjectExitCode(LPVOID Object) {
     );
 
     SAFE_USE(TermState) {
-        DEBUG(TEXT("[GetObjectExitCode] Object %x found in termination cache, ExitCode=%u"), Object, TermState->ExitCode);
+        DEBUG(TEXT("Object %x found in termination cache, ExitCode=%u"), Object, TermState->ExitCode);
         UnlockMutex(MUTEX_KERNEL);
         return TermState->ExitCode;
     }
@@ -890,7 +890,7 @@ U32 Wait(LPWAIT_INFO WaitInfo) {
 
         // Periodic debug output every 2 seconds
         if (CurrentTime - LastDebugTime >= 2000) {
-            DEBUG(TEXT("[Wait] Task %p (%s) waiting for %u objects for %u ms"),
+            DEBUG(TEXT("Task %p (%s) waiting for %u objects for %u ms"),
                   CurrentTask, CurrentTask->Name, WaitInfo->Count, (U32)(CurrentTime - StartTime));
             LastDebugTime = CurrentTime;
         }

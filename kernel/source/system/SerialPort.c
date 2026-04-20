@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -89,11 +89,11 @@ void SerialOut(U8 Which, U8 Char) {
 /**
  * @brief Interrupt handler for COM2.
  */
-void COM2Handler(void) { DEBUG(TEXT("[COM2Handler]")); }
+void COM2Handler(void) { DEBUG(TEXT("")); }
 
 /************************************************************************/
 
 /**
  * @brief Interrupt handler for COM1.
  */
-void COM1Handler(void) { DEBUG(TEXT("[COM1Handler]")); }
+void COM1Handler(void) { DEBUG(TEXT("")); }

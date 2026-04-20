@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ void LogCPUState(LPINTERRUPT_FRAME Frame) {
 void Die(void) {
     LPTASK Task;
 
-    DEBUG(TEXT("[DIE] Enter"));
+    DEBUG(TEXT("Enter"));
 
     Task = GetCurrentTask();
 
@@ -370,14 +370,14 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
     LINEAR FaultAddress;
     __asm__ volatile("mov %%cr2, %0" : "=r"(FaultAddress));
 
-    DEBUG(TEXT("[PageFaultHandler] CR2=%X Err=%X EIP=%X ESP=%X"),
+    DEBUG(TEXT("CR2=%X Err=%X EIP=%X ESP=%X"),
           FaultAddress,
           Frame->ErrCode,
           Frame->Registers.EIP,
           Frame->Registers.ESP);
 
     if (ResolveKernelPageFault(FaultAddress)) {
-        DEBUG(TEXT("[PageFaultHandler] Resolved kernel page fault %X"), FaultAddress);
+        DEBUG(TEXT("Resolved kernel page fault %X"), FaultAddress);
         return;
     }
 

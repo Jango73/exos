@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -257,7 +257,7 @@ void ClockHandler(void) {
 
     /*
     if (SystemUpTime % 1000 == 0) {
-        DEBUG(TEXT("[ClockHandler] Time = %d"), SystemUpTime);
+        DEBUG(TEXT("Time = %d"), SystemUpTime);
     }
     */
 }
@@ -403,15 +403,15 @@ BOOL SetLocalTime(LPDATETIME Time) {
 
 /************************************************************************/
 
-void RTCHandler(void) { DEBUG(TEXT("[RTCHandler]")); }
+void RTCHandler(void) { DEBUG(TEXT("")); }
 
 /************************************************************************/
 
-void PIC2Handler(void) { DEBUG(TEXT("[PIC2Handler]")); }
+void PIC2Handler(void) { DEBUG(TEXT("")); }
 
 /************************************************************************/
 
-void FPUHandler(void) { DEBUG(TEXT("[FPUHandler]")); }
+void FPUHandler(void) { DEBUG(TEXT("")); }
 
 /************************************************************************/
 

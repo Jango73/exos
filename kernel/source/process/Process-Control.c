@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ BOOL ProcessControlTogglePaused(LPPROCESS Process) {
         Paused = Process->SchedulerState.Paused;
         UnlockMutex(&(Process->Mutex));
 
-        DEBUG(TEXT("[ProcessControlTogglePaused] Process %s is %s"), Process->FileName, Paused ? TEXT("paused") : TEXT("running"));
+        DEBUG(TEXT("Process %s is %s"), Process->FileName, Paused ? TEXT("paused") : TEXT("running"));
 
         return TRUE;
     }

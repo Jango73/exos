@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ static BOOL CheckCanaries(const U32* Front, const U32* Back, LPCSTR Context) {
     }
 
     if (*Front != CANARY_VALUE || *Back != CANARY_VALUE) {
-        DEBUG(TEXT("[TestCircularBuffer] Canary corrupted in %s (front=%08X back=%08X)"), Context, *Front, *Back);
+        DEBUG(TEXT("Canary corrupted in %s (front=%08X back=%08X)"), Context, *Front, *Back);
         return FALSE;
     }
 
@@ -119,7 +119,7 @@ void TestCircularBuffer(TEST_RESULTS* Results) {
             CheckCanaries(&Output.FrontCanary, &Output.BackCanary, TEXT("basic output"))) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestCircularBuffer] Basic write/read failed (written=%u read=%u data=%u/%u)"),
+            ERROR(TEXT("Basic write/read failed (written=%u read=%u data=%u/%u)"),
                   Written,
                   Read,
                   AvailableAfterWrite,
@@ -192,7 +192,7 @@ void TestCircularBuffer(TEST_RESULTS* Results) {
             CheckCanaries(&Output.FrontCanary, &Output.BackCanary, TEXT("wrap output"))) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestCircularBuffer] Wrap-around failed (W1=%u R1=%u W2=%u avail=%u R2=%u valid=%u)"),
+            ERROR(TEXT("Wrap-around failed (W1=%u R1=%u W2=%u avail=%u R2=%u valid=%u)"),
                   FirstWrite,
                   FirstRead,
                   SecondWrite,
@@ -246,7 +246,7 @@ void TestCircularBuffer(TEST_RESULTS* Results) {
             CheckCanaries(&Output.FrontCanary, &Output.BackCanary, TEXT("growth output"))) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestCircularBuffer] Growth failed (written=%u read=%u size=%u alloc=%u valid=%u)"),
+            ERROR(TEXT("Growth failed (written=%u read=%u size=%u alloc=%u valid=%u)"),
                   Written,
                   Read,
                   SizeAfterGrowth,
@@ -301,7 +301,7 @@ void TestCircularBuffer(TEST_RESULTS* Results) {
             CheckCanaries(&Input.FrontCanary, &Input.BackCanary, TEXT("overflow input"))) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestCircularBuffer] Overflow/reset failed (written=%u overflow=%u flag=%u length=%u)"),
+            ERROR(TEXT("Overflow/reset failed (written=%u overflow=%u flag=%u length=%u)"),
                   Written,
                   OverflowAttempt,
                   OverflowFlagged,
@@ -437,7 +437,7 @@ void TestCircularBuffer(TEST_RESULTS* Results) {
             CheckCanaries(&ReadChunk.FrontCanary, &ReadChunk.BackCanary, TEXT("final stress read"))) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("[TestCircularBuffer] Stress scenario failed (pending=%u available=%u iteration=%u)"),
+            ERROR(TEXT("Stress scenario failed (pending=%u available=%u iteration=%u)"),
                   Pending,
                   CircularBuffer_GetAvailableData(&Buffer),
                   Iteration);

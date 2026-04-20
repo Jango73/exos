@@ -137,7 +137,7 @@ static LPTASK_MODULE_TLS_BLOCK TaskCreateModuleTlsBlock(
                                          ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
                                          TEXT("TaskModuleTls"));
     if (TlsBase == 0) {
-        ERROR(TEXT("[TaskCreateModuleTlsBlock] Module TLS allocation failed task process=%p size=%u"),
+        ERROR(TEXT("Module TLS allocation failed task process=%p size=%u"),
               Binding->Process,
               AllocationSize);
         return NULL;
@@ -313,7 +313,7 @@ static BOOL TaskRefreshModuleTlsLocked(LPTASK Task) {
                                            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
                                            TEXT("TaskUserTls"));
     if (NewAnchor == 0) {
-        ERROR(TEXT("[TaskRefreshModuleTlsLocked] User TLS anchor allocation failed task=%p size=%u"),
+        ERROR(TEXT("User TLS anchor allocation failed task=%p size=%u"),
               Task,
               NewAnchorSize);
         return FALSE;
@@ -444,7 +444,7 @@ void TaskReleaseModuleTlsBlock(LPTASK Task, LPEXECUTABLE_MODULE_BINDING Binding)
                 UnfreezeScheduler();
                 DeleteTaskModuleTlsBlock(Block);
                 if (TaskRefreshModuleTlsLocked(Task) == FALSE) {
-                    WARNING(TEXT("[TaskReleaseModuleTlsBlock] User TLS anchor refresh failed task=%p"), Task);
+                    WARNING(TEXT("User TLS anchor refresh failed task=%p"), Task);
                 }
             }
 
@@ -614,7 +614,7 @@ void TaskReleaseUserTlsAnchor(LPTASK Task) {
 
     FreezeScheduler();
     if (TaskSetUserTlsAnchor(Task, 0) == FALSE) {
-        WARNING(TEXT("[TaskReleaseUserTlsAnchor] User TLS anchor reset failed task=%p"), Task);
+        WARNING(TEXT("User TLS anchor reset failed task=%p"), Task);
     }
     Task->UserTlsAnchor = 0;
     Task->UserTlsAnchorSize = 0;

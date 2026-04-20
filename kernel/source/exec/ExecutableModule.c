@@ -298,7 +298,7 @@ static BOOL BuildExecutableModuleSharedSegment(
 
     VirtualAddressOffset = Segment->VirtualAddress & PAGE_SIZE_MASK;
     if ((Segment->FileOffset & PAGE_SIZE_MASK) != VirtualAddressOffset) {
-        WARNING(TEXT("[BuildExecutableModuleSharedSegment] Misaligned file-backed segment index=%u offset=%u vaddr=%p"),
+        WARNING(TEXT("Misaligned file-backed segment index=%u offset=%u vaddr=%p"),
             SegmentIndex,
             Segment->FileOffset,
             Segment->VirtualAddress);
@@ -314,7 +314,7 @@ static BOOL BuildExecutableModuleSharedSegment(
     MemorySet(SharedSegment, 0, sizeof(EXECUTABLE_MODULE_SHARED_SEGMENT));
     SharedSegment->PhysicalPages = (PHYSICAL*)KernelHeapAlloc(PageCount * sizeof(PHYSICAL));
     if (SharedSegment->PhysicalPages == NULL) {
-        ERROR(TEXT("[BuildExecutableModuleSharedSegment] KernelHeapAlloc failed pages=%u"), PageCount);
+        ERROR(TEXT("KernelHeapAlloc failed pages=%u"), PageCount);
         return FALSE;
     }
 
@@ -335,7 +335,7 @@ static BOOL BuildExecutableModuleSharedSegment(
         UINT ReadSize;
 
         if (PhysicalPage == 0) {
-            ERROR(TEXT("[BuildExecutableModuleSharedSegment] AllocPhysicalPage failed index=%u page=%u"),
+            ERROR(TEXT("AllocPhysicalPage failed index=%u page=%u"),
                 SegmentIndex,
                 PageIndex);
             DeleteExecutableModuleSharedSegment(SharedSegment);
@@ -345,7 +345,7 @@ static BOOL BuildExecutableModuleSharedSegment(
         SharedSegment->PhysicalPages[PageIndex] = PhysicalPage;
         MappedPage = MapTemporaryPhysicalPage1(PhysicalPage);
         if (MappedPage == 0) {
-            ERROR(TEXT("[BuildExecutableModuleSharedSegment] MapTemporaryPhysicalPage1 failed index=%u page=%u"),
+            ERROR(TEXT("MapTemporaryPhysicalPage1 failed index=%u page=%u"),
                 SegmentIndex,
                 PageIndex);
             DeleteExecutableModuleSharedSegment(SharedSegment);
@@ -369,7 +369,7 @@ static BOOL BuildExecutableModuleSharedSegment(
         }
 
         if (!ReadExecutableModuleFileBytes(File, ReadOffset, (LPVOID)MappedPage, ReadSize)) {
-            ERROR(TEXT("[BuildExecutableModuleSharedSegment] ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"),
+            ERROR(TEXT("ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"),
                 SegmentIndex,
                 ReadOffset,
                 ReadSize);
@@ -514,27 +514,27 @@ LPEXECUTABLE_MODULE_IMAGE AcquireExecutableModuleImage(LPFILE File) {
     LPLIST ModuleImageList = NULL;
 
     if (File == NULL || File->TypeID != KOID_FILE) {
-        ERROR(TEXT("[AcquireExecutableModuleImage] Invalid file"));
+        ERROR(TEXT("Invalid file"));
         return NULL;
     }
 
     if (!GetExecutableModuleInfo(File, &Metadata)) {
-        WARNING(TEXT("[AcquireExecutableModuleImage] GetExecutableModuleInfo failed name=%s"), File->Name);
+        WARNING(TEXT("GetExecutableModuleInfo failed name=%s"), File->Name);
         return NULL;
     }
 
     if (Metadata.Dynamic.RequiresTextRelocation != FALSE) {
-        WARNING(TEXT("[AcquireExecutableModuleImage] Text relocations are not supported name=%s"), File->Name);
+        WARNING(TEXT("Text relocations are not supported name=%s"), File->Name);
         return NULL;
     }
 
     if (Metadata.Dynamic.HasConstructors != FALSE) {
-        WARNING(TEXT("[AcquireExecutableModuleImage] Module constructors are not supported name=%s"), File->Name);
+        WARNING(TEXT("Module constructors are not supported name=%s"), File->Name);
         return NULL;
     }
 
     if (!CaptureExecutableModuleFileIdentity(File, &Identity)) {
-        ERROR(TEXT("[AcquireExecutableModuleImage] CaptureExecutableModuleFileIdentity failed"));
+        ERROR(TEXT("CaptureExecutableModuleFileIdentity failed"));
         return NULL;
     }
 
@@ -551,7 +551,7 @@ LPEXECUTABLE_MODULE_IMAGE AcquireExecutableModuleImage(LPFILE File) {
     Image = CreateExecutableModuleImage(File, &Identity, &Metadata);
     if (Image == NULL) {
         ReleaseExecutableModuleFileIdentity(&Identity);
-        WARNING(TEXT("[AcquireExecutableModuleImage] CreateExecutableModuleImage failed name=%s"), Identity.Name);
+        WARNING(TEXT("CreateExecutableModuleImage failed name=%s"), Identity.Name);
         return NULL;
     }
 

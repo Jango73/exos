@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ void TestIPv4ChecksumCalculation(TEST_RESULTS* Results) {
     if (CalculatedChecksum != 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4ChecksumCalculation] Test 1 failed: checksum is zero"));
+        DEBUG(TEXT("Test 1 failed: checksum is zero"));
     }
 
     // Test 2: Verify checksum with different header values
@@ -95,7 +95,7 @@ void TestIPv4ChecksumCalculation(TEST_RESULTS* Results) {
     if (SecondChecksum != CalculatedChecksum && SecondChecksum != 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4ChecksumCalculation] Test 2 failed: checksum unchanged or zero"));
+        DEBUG(TEXT("Test 2 failed: checksum unchanged or zero"));
     }
 
     // Test 3: Zero header should produce maximum checksum (all 1s complement)
@@ -107,7 +107,7 @@ void TestIPv4ChecksumCalculation(TEST_RESULTS* Results) {
     if (ZeroChecksum != 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4ChecksumCalculation] Test 3 failed: zero header produced zero checksum"));
+        DEBUG(TEXT("Test 3 failed: zero header produced zero checksum"));
     }
 
     // Test 4: Test checksum with maximum values
@@ -120,7 +120,7 @@ void TestIPv4ChecksumCalculation(TEST_RESULTS* Results) {
     if (MaxChecksum != ZeroChecksum) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4ChecksumCalculation] Test 4 failed: max header same as zero"));
+        DEBUG(TEXT("Test 4 failed: max header same as zero"));
     }
 }
 
@@ -158,7 +158,7 @@ void TestIPv4PendingPacketManagement(TEST_RESULTS* Results) {
     if (InvalidResult1 == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4PendingPacketManagement] Test 1 failed: NULL context accepted"));
+        DEBUG(TEXT("Test 1 failed: NULL context accepted"));
     }
 
     // Test 2: Test IPv4_AddPendingPacket parameter validation (NULL payload)
@@ -168,7 +168,7 @@ void TestIPv4PendingPacketManagement(TEST_RESULTS* Results) {
     if (InvalidResult2 == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4PendingPacketManagement] Test 2 failed: NULL payload accepted"));
+        DEBUG(TEXT("Test 2 failed: NULL payload accepted"));
     }
 
     // Test 3: Test IPv4_AddPendingPacket parameter validation (zero payload length)
@@ -178,7 +178,7 @@ void TestIPv4PendingPacketManagement(TEST_RESULTS* Results) {
     if (InvalidResult3 == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4PendingPacketManagement] Test 3 failed: zero payload length accepted"));
+        DEBUG(TEXT("Test 3 failed: zero payload length accepted"));
     }
 
     // Test 4: Test IPv4_AddPendingPacket parameter validation (payload too large)
@@ -188,7 +188,7 @@ void TestIPv4PendingPacketManagement(TEST_RESULTS* Results) {
     if (InvalidResult4 == 0) {
         Results->TestsPassed++;
     } else {
-        DEBUG(TEXT("[TestIPv4PendingPacketManagement] Test 4 failed: oversized payload accepted"));
+        DEBUG(TEXT("Test 4 failed: oversized payload accepted"));
     }
 }
 

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -62,7 +62,8 @@ void KernelLogSetTagFilter(LPCSTR TagFilter);
 LPCSTR KernelLogGetTagFilter(void);
 U32 KernelLogGetRecentSequence(void);
 BOOL KernelLogCaptureRecentLines(LPKERNEL_LOG_RECENT_VIEW View);
-void KernelLogText(U32, LPCSTR, ...);
+void KernelLogText(U32 Type, LPCSTR Format, ...);
+void KernelLogTextFromFunction(U32 Type, LPCSTR FunctionName, LPCSTR Format, ...);
 void KernelLogMem(U32 Type, LINEAR Memory, U32 Size);
 void LogTaskSystemStructures(U32 Type);
 

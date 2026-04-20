@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -187,12 +187,12 @@ BOOL DesktopTimerEnsureTask(LPDESKTOP Desktop) {
 
     TimerTask = KernelCreateTask(&KernelProcess, &TaskInfo);
     if (TimerTask == NULL) {
-        WARNING(TEXT("[DesktopTimerEnsureTask] Unable to create desktop timer task"));
+        WARNING(TEXT("Unable to create desktop timer task"));
         return FALSE;
     }
 
     if (EnsureAllMessageQueues(TimerTask, TRUE) == FALSE) {
-        WARNING(TEXT("[DesktopTimerEnsureTask] Unable to initialize timer task message queues"));
+        WARNING(TEXT("Unable to initialize timer task message queues"));
         return FALSE;
     }
 

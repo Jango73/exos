@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
  */
 void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
     if (Table == NULL || EntryCount == 0) {
-        DEBUG(TEXT("[LogGlobalDescriptorTable] Table is empty"));
+        DEBUG(TEXT("Table is empty"));
         return;
     }
 
@@ -52,7 +52,7 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
         U64 RawHigh = 0;
 
         if (RawLow == 0) {
-            DEBUG(TEXT("[LogGlobalDescriptorTable] Entry %u: raw[63:0]=%p raw[127:64]=%p (null)"),
+            DEBUG(TEXT("Entry %u: raw[63:0]=%p raw[127:64]=%p (null)"),
                 Index,
                 (LPVOID)RawLow,
                 (LPVOID)RawHigh);
@@ -72,7 +72,7 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
         }
         UNUSED(RawHigh);
 
-        DEBUG(TEXT("[LogGlobalDescriptorTable] Entry %u: raw[63:0]=%p raw[127:64]=%p"), Index, (LPVOID)RawLow, (LPVOID)RawHigh);
+        DEBUG(TEXT("Entry %u: raw[63:0]=%p raw[127:64]=%p"), Index, (LPVOID)RawLow, (LPVOID)RawHigh);
 
         if (IsSystemDescriptor) {
             U32 Limit = ((U32)SystemDescriptor->Limit_00_15)
@@ -84,30 +84,30 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
             UNUSED(Limit);
             UNUSED(Base);
 
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Limit_00_15=%x Limit_16_19=%x"),
+            DEBUG(TEXT("Limit_00_15=%x Limit_16_19=%x"),
                 (U32)SystemDescriptor->Limit_00_15,
                 (U32)SystemDescriptor->Limit_16_19);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Base_00_15=%x Base_16_23=%x Base_24_31=%x Base_32_63=%x"),
+            DEBUG(TEXT("Base_00_15=%x Base_16_23=%x Base_24_31=%x Base_32_63=%x"),
                 (U32)SystemDescriptor->Base_00_15,
                 (U32)SystemDescriptor->Base_16_23,
                 (U32)SystemDescriptor->Base_24_31,
                 (U32)SystemDescriptor->Base_32_63);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Accessed=%u CanWrite=%u ConformExpand=%u Code=%u"),
+            DEBUG(TEXT("Accessed=%u CanWrite=%u ConformExpand=%u Code=%u"),
                 (U32)SystemDescriptor->Accessed,
                 (U32)SystemDescriptor->CanWrite,
                 (U32)SystemDescriptor->ConformExpand,
                 (U32)SystemDescriptor->Code);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   S=%u Privilege=%u Present=%u"),
+            DEBUG(TEXT("S=%u Privilege=%u Present=%u"),
                 (U32)SystemDescriptor->S,
                 (U32)SystemDescriptor->Privilege,
                 (U32)SystemDescriptor->Present);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Available=%u LongMode=%u DefaultSize=%u Granularity=%u Reserved=%x"),
+            DEBUG(TEXT("Available=%u LongMode=%u DefaultSize=%u Granularity=%u Reserved=%x"),
                 (U32)SystemDescriptor->Available,
                 (U32)SystemDescriptor->LongMode,
                 (U32)SystemDescriptor->DefaultSize,
                 (U32)SystemDescriptor->Granularity,
                 (U32)SystemDescriptor->Reserved);
-            DEBUG(TEXT("[LogGlobalDescriptorTable]   Base=%p Limit=%x"), (LPVOID)Base, Limit);
+            DEBUG(TEXT("Base=%p Limit=%x"), (LPVOID)Base, Limit);
 
             Index += 2u;
             continue;
@@ -120,23 +120,23 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
         UNUSED(Limit);
         UNUSED(Base);
 
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Limit_00_15=%x Limit_16_19=%x"),
+        DEBUG(TEXT("Limit_00_15=%x Limit_16_19=%x"),
             (U32)Descriptor->Limit_00_15,
             (U32)Descriptor->Limit_16_19);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
+        DEBUG(TEXT("Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
             (U32)Descriptor->Base_00_15,
             (U32)Descriptor->Base_16_23,
             (U32)Descriptor->Base_24_31);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   Accessed=%u CanWrite=%u ConformExpand=%u Code=%u"),
+        DEBUG(TEXT("Accessed=%u CanWrite=%u ConformExpand=%u Code=%u"),
             (U32)Descriptor->Accessed,
             (U32)Descriptor->CanWrite,
             (U32)Descriptor->ConformExpand,
             (U32)Descriptor->Code);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   S=%u Privilege=%u Present=%u"),
+        DEBUG(TEXT("S=%u Privilege=%u Present=%u"),
             (U32)Descriptor->S,
             (U32)Descriptor->Privilege,
             (U32)Descriptor->Present);
-        DEBUG(TEXT("[LogGlobalDescriptorTable]   AVL=%u LongMode=%u DefaultSize=%u Granularity=%u"),
+        DEBUG(TEXT("AVL=%u LongMode=%u DefaultSize=%u Granularity=%u"),
             (U32)Descriptor->Available,
             (U32)Descriptor->LongMode,
             (U32)Descriptor->DefaultSize,
@@ -150,44 +150,44 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 EntryCount) {
 
 void LogRegisters64(const LPINTEL_64_REGISTERS Regs) {
     if (Regs == NULL) {
-        KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] No register snapshot available"));
+        KernelLogText(LOG_VERBOSE, TEXT("No register snapshot available"));
         return;
     }
 
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] CS : %x DS : %x SS : %x"), (U32)Regs->CS, (U32)Regs->DS, (U32)Regs->SS);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] ES : %x FS : %x GS : %x"), (U32)Regs->ES, (U32)Regs->FS, (U32)Regs->GS);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] RAX : %p RBX : %p RCX : %p RDX : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("CS : %x DS : %x SS : %x"), (U32)Regs->CS, (U32)Regs->DS, (U32)Regs->SS);
+    KernelLogText(LOG_VERBOSE, TEXT("ES : %x FS : %x GS : %x"), (U32)Regs->ES, (U32)Regs->FS, (U32)Regs->GS);
+    KernelLogText(LOG_VERBOSE, TEXT("RAX : %p RBX : %p RCX : %p RDX : %p"),
         (LPVOID)Regs->RAX,
         (LPVOID)Regs->RBX,
         (LPVOID)Regs->RCX,
         (LPVOID)Regs->RDX);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] RSI : %p RDI : %p RBP : %p RSP : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("RSI : %p RDI : %p RBP : %p RSP : %p"),
         (LPVOID)Regs->RSI,
         (LPVOID)Regs->RDI,
         (LPVOID)Regs->RBP,
         (LPVOID)Regs->RSP);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] R8 : %p R9 : %p R10 : %p R11 : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("R8 : %p R9 : %p R10 : %p R11 : %p"),
         (LPVOID)Regs->R8,
         (LPVOID)Regs->R9,
         (LPVOID)Regs->R10,
         (LPVOID)Regs->R11);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] R12 : %p R13 : %p R14 : %p R15 : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("R12 : %p R13 : %p R14 : %p R15 : %p"),
         (LPVOID)Regs->R12,
         (LPVOID)Regs->R13,
         (LPVOID)Regs->R14,
         (LPVOID)Regs->R15);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] RIP : %p RFLAGS : %p"), (LPVOID)Regs->RIP, (LPVOID)Regs->RFlags);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] CR0 : %p CR2 : %p CR3 : %p CR4 : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("RIP : %p RFLAGS : %p"), (LPVOID)Regs->RIP, (LPVOID)Regs->RFlags);
+    KernelLogText(LOG_VERBOSE, TEXT("CR0 : %p CR2 : %p CR3 : %p CR4 : %p"),
         (LPVOID)Regs->CR0,
         (LPVOID)Regs->CR2,
         (LPVOID)Regs->CR3,
         (LPVOID)Regs->CR4);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] CR8 : %p"), (LPVOID)Regs->CR8);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] DR0 : %p DR1 : %p DR2 : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("CR8 : %p"), (LPVOID)Regs->CR8);
+    KernelLogText(LOG_VERBOSE, TEXT("DR0 : %p DR1 : %p DR2 : %p"),
         (LPVOID)Regs->DR0,
         (LPVOID)Regs->DR1,
         (LPVOID)Regs->DR2);
-    KernelLogText(LOG_VERBOSE, TEXT("[LogRegisters64] DR3 : %p DR6 : %p DR7 : %p"),
+    KernelLogText(LOG_VERBOSE, TEXT("DR3 : %p DR6 : %p DR7 : %p"),
         (LPVOID)Regs->DR3,
         (LPVOID)Regs->DR6,
         (LPVOID)Regs->DR7);
@@ -197,13 +197,13 @@ void LogRegisters64(const LPINTEL_64_REGISTERS Regs) {
 
 void LogTaskStateSegment(U32 LogType, const X86_64_TASK_STATE_SEGMENT* Tss) {
     if (Tss == NULL) {
-        KernelLogText(LogType, TEXT("[LogTaskStateSegment] Null TSS pointer"));
+        KernelLogText(LogType, TEXT("Null TSS pointer"));
         return;
     }
 
     KernelLogText(
         LogType,
-        TEXT("[LogTaskStateSegment] TSS @ %p (sizeof=%u):\n"
+        TEXT("TSS @ %p (sizeof=%u):\n"
              "  Reserved0   = %x\n"
              "  RSP0/1/2    = %p / %p / %p\n"
              "  Reserved1   = %x\n"
@@ -259,13 +259,13 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
     LINEAR Pml4Linear = MapTemporaryPhysicalPage1(Pml4Physical);
 
     if (Pml4Linear == 0) {
-        ERROR(TEXT("[LogPageDirectory64] MapTemporaryPhysicalPage1 failed for PML4 %p"), (LPVOID)Pml4Physical);
+        ERROR(TEXT("MapTemporaryPhysicalPage1 failed for PML4 %p"), (LPVOID)Pml4Physical);
         return;
     }
 
     LPPML4 Pml4 = (LPPML4)Pml4Linear;
 
-    DEBUG(TEXT("[LogPageDirectory64] PML4 PA=%p contents:"), (LPVOID)Pml4Physical);
+    DEBUG(TEXT("PML4 PA=%p contents:"), (LPVOID)Pml4Physical);
 
     for (UINT Pml4Index = 0; Pml4Index < PML4_ENTRY_COUNT; Pml4Index++) {
         const X86_64_PML4_ENTRY *Pml4Entry = &Pml4[Pml4Index];
@@ -277,7 +277,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
         PHYSICAL PdptPhysical = (PHYSICAL)(Pml4Entry->Address << 12);
         UNUSED(LinearEnd);
 
-        DEBUG(TEXT("[LogPageDirectory64] PML4E[%u]: VA=%p-%p -> PDPT_PA=%p Present=%u RW=%u Priv=%u NX=%u"),
+        DEBUG(TEXT("PML4E[%u]: VA=%p-%p -> PDPT_PA=%p Present=%u RW=%u Priv=%u NX=%u"),
             Pml4Index,
             (LPVOID)LinearBase,
             (LPVOID)LinearEnd,
@@ -290,7 +290,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
         LINEAR PdptLinear = MapTemporaryPhysicalPage2(PdptPhysical);
 
         if (PdptLinear == 0) {
-            ERROR(TEXT("[LogPageDirectory64] MapTemporaryPhysicalPage2 failed for PDPT %p"),
+            ERROR(TEXT("MapTemporaryPhysicalPage2 failed for PDPT %p"),
                 (LPVOID)PdptPhysical);
             continue;
         }
@@ -310,7 +310,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                 PHYSICAL HugePhysical = (PHYSICAL)(PdptEntry->Address << 12);
                 UNUSED(HugePhysical);
 
-                DEBUG(TEXT("[LogPageDirectory64]   PDPTE[%u]: VA=%p-%p -> 1GB page PA=%p Present=%u RW=%u Priv=%u NX=%u"),
+                DEBUG(TEXT("PDPTE[%u]: VA=%p-%p -> 1GB page PA=%p Present=%u RW=%u Priv=%u NX=%u"),
                     PdptIndex,
                     (LPVOID)PdptBase,
                     (LPVOID)PdptEnd,
@@ -324,7 +324,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
 
             PHYSICAL PageDirectoryPhysical = (PHYSICAL)(PdptEntry->Address << 12);
 
-            DEBUG(TEXT("[LogPageDirectory64]   PDPTE[%u]: VA=%p-%p -> PD_PA=%p Present=%u RW=%u Priv=%u NX=%u"),
+            DEBUG(TEXT("PDPTE[%u]: VA=%p-%p -> PD_PA=%p Present=%u RW=%u Priv=%u NX=%u"),
                 PdptIndex,
                 (LPVOID)PdptBase,
                 (LPVOID)PdptEnd,
@@ -337,7 +337,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
             LINEAR DirectoryLinear = MapTemporaryPhysicalPage3(PageDirectoryPhysical);
 
             if (DirectoryLinear == 0) {
-                ERROR(TEXT("[LogPageDirectory64] MapTemporaryPhysicalPage3 failed for directory %p"),
+                ERROR(TEXT("MapTemporaryPhysicalPage3 failed for directory %p"),
                     (LPVOID)PageDirectoryPhysical);
                 continue;
             }
@@ -357,7 +357,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                     PHYSICAL LargePhysical = (PHYSICAL)(DirectoryEntry->Address << 12);
                     UNUSED(LargePhysical);
 
-                    DEBUG(TEXT("[LogPageDirectory64]     PDE[%u]: VA=%p-%p -> 2MB page PA=%p Present=%u RW=%u Priv=%u Global=%u NX=%u"),
+                    DEBUG(TEXT("PDE[%u]: VA=%p-%p -> 2MB page PA=%p Present=%u RW=%u Priv=%u Global=%u NX=%u"),
                         DirectoryIndex,
                         (LPVOID)DirectoryBase,
                         (LPVOID)DirectoryEnd,
@@ -372,7 +372,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
 
                 PHYSICAL TablePhysical = (PHYSICAL)(DirectoryEntry->Address << 12);
 
-                DEBUG(TEXT("[LogPageDirectory64]     PDE[%u]: VA=%p-%p -> PT_PA=%p Present=%u RW=%u Priv=%u Global=%u NX=%u"),
+                DEBUG(TEXT("PDE[%u]: VA=%p-%p -> PT_PA=%p Present=%u RW=%u Priv=%u Global=%u NX=%u"),
                     DirectoryIndex,
                     (LPVOID)DirectoryBase,
                     (LPVOID)DirectoryEnd,
@@ -386,12 +386,12 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                 LINEAR TableLinear = MapTemporaryPhysicalPage2(TablePhysical);
 
                 if (TableLinear == 0) {
-                    ERROR(TEXT("[LogPageDirectory64] MapTemporaryPhysicalPage2 failed for table %p"),
+                    ERROR(TEXT("MapTemporaryPhysicalPage2 failed for table %p"),
                         (LPVOID)TablePhysical);
 
                     PdptLinear = MapTemporaryPhysicalPage2(PdptPhysical);
                     if (PdptLinear == 0) {
-                        ERROR(TEXT("[LogPageDirectory64] Failed to restore PDPT mapping %p"),
+                        ERROR(TEXT("Failed to restore PDPT mapping %p"),
                             (LPVOID)PdptPhysical);
                         return;
                     }
@@ -399,7 +399,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                     Pdpt = (LPPDPT)PdptLinear;
                     DirectoryLinear = MapTemporaryPhysicalPage3(PageDirectoryPhysical);
                     if (DirectoryLinear == 0) {
-                        ERROR(TEXT("[LogPageDirectory64] Failed to restore directory mapping %p"),
+                        ERROR(TEXT("Failed to restore directory mapping %p"),
                             (LPVOID)PageDirectoryPhysical);
                         return;
                     }
@@ -424,7 +424,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                         UNUSED(TableVirtual);
                         UNUSED(PagePhysical);
 
-                        DEBUG(TEXT("[LogPageDirectory64]       PTE[%u]: VA=%p -> PA=%p Present=%u RW=%u Priv=%u Dirty=%u Global=%u NX=%u"),
+                        DEBUG(TEXT("PTE[%u]: VA=%p -> PA=%p Present=%u RW=%u Priv=%u Dirty=%u Global=%u NX=%u"),
                             TableIndex,
                             (LPVOID)TableVirtual,
                             (LPVOID)PagePhysical,
@@ -435,13 +435,13 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
                             (U32)TableEntry->Global,
                             (U32)TableEntry->NoExecute);
                     } else if (MappedCount == 4u) {
-                        DEBUG(TEXT("[LogPageDirectory64]       ... (%u more mapped pages) ..."),
+                        DEBUG(TEXT("... (%u more mapped pages) ..."),
                             PAGE_TABLE_NUM_ENTRIES - 6u);
                     }
                 }
 
                 if (MappedCount > 0) {
-                    DEBUG(TEXT("[LogPageDirectory64]       Total mapped pages in PT[%u]: %u/%u"),
+                    DEBUG(TEXT("Total mapped pages in PT[%u]: %u/%u"),
                         DirectoryIndex,
                         MappedCount,
                         PAGE_TABLE_NUM_ENTRIES);
@@ -449,7 +449,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
 
                 PdptLinear = MapTemporaryPhysicalPage2(PdptPhysical);
                 if (PdptLinear == 0) {
-                    ERROR(TEXT("[LogPageDirectory64] Failed to restore PDPT mapping %p"),
+                    ERROR(TEXT("Failed to restore PDPT mapping %p"),
                         (LPVOID)PdptPhysical);
                     return;
                 }
@@ -458,7 +458,7 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
 
                 DirectoryLinear = MapTemporaryPhysicalPage3(PageDirectoryPhysical);
                 if (DirectoryLinear == 0) {
-                    ERROR(TEXT("[LogPageDirectory64] Failed to restore directory mapping %p"),
+                    ERROR(TEXT("Failed to restore directory mapping %p"),
                         (LPVOID)PageDirectoryPhysical);
                     return;
                 }
@@ -468,14 +468,14 @@ void LogPageDirectory64(PHYSICAL Pml4Physical) {
         }
     }
 
-    DEBUG(TEXT("[LogPageDirectory64] End of page directory"));
+    DEBUG(TEXT("End of page directory"));
 }
 
 /************************************************************************/
 
 void LogFrame(LPINTERRUPT_FRAME Frame) {
     if (Frame == NULL) {
-        ERROR(TEXT("[LogFrame] No interrupt frame provided"));
+        ERROR(TEXT("No interrupt frame provided"));
         return;
     }
 
@@ -493,11 +493,11 @@ void BacktraceFrom(U64 StartRbp, U32 MaxFrames) {
     U32 Depth = 0;
     U64 Rbp = StartRbp;
 
-    KernelLogText(LOG_VERBOSE, TEXT("[BacktraceFrom] Backtrace (RBP=%p, max=%u)"), (LPVOID)StartRbp, MaxFrames);
+    KernelLogText(LOG_VERBOSE, TEXT("Backtrace (RBP=%p, max=%u)"), (LPVOID)StartRbp, MaxFrames);
 
     while (Rbp != 0 && Depth < MaxFrames) {
         if (IsValidMemory((LINEAR)Rbp) == FALSE) {
-            KernelLogText(LOG_VERBOSE, TEXT("[BacktraceFrom] #%u  RBP=%p  [stop: invalid frame]"), Depth, (LPVOID)Rbp);
+            KernelLogText(LOG_VERBOSE, TEXT("#%u  RBP=%p  [stop: invalid frame]"), Depth, (LPVOID)Rbp);
             break;
         }
 
@@ -506,22 +506,22 @@ void BacktraceFrom(U64 StartRbp, U32 MaxFrames) {
         U64 ReturnAddress = FramePointer[1];
 
         if (ReturnAddress == 0) {
-            KernelLogText(LOG_VERBOSE, TEXT("[BacktraceFrom] #%u  RBP=%p  RET=? [null]"), Depth, (LPVOID)Rbp);
+            KernelLogText(LOG_VERBOSE, TEXT("#%u  RBP=%p  RET=? [null]"), Depth, (LPVOID)Rbp);
             break;
         }
 
-        KernelLogText(LOG_VERBOSE, TEXT("[BacktraceFrom] #%u  RIP=%p  RBP=%p"), Depth, (LPVOID)ReturnAddress, (LPVOID)Rbp);
+        KernelLogText(LOG_VERBOSE, TEXT("#%u  RIP=%p  RBP=%p"), Depth, (LPVOID)ReturnAddress, (LPVOID)Rbp);
 
         if (NextRbp == Rbp) {
             KernelLogText(LOG_VERBOSE,
-                TEXT("[BacktraceFrom] #%u  Next frame pointer %p equals current frame (stop)"), Depth, (LPVOID)NextRbp);
+                TEXT("#%u  Next frame pointer %p equals current frame (stop)"), Depth, (LPVOID)NextRbp);
             Depth++;
             break;
         }
 
         if (NextRbp != 0 && NextRbp <= Rbp) {
             KernelLogText(LOG_VERBOSE,
-                TEXT("[BacktraceFrom] #%u  Next frame pointer %p is not greater than current %p (stop)"),
+                TEXT("#%u  Next frame pointer %p is not greater than current %p (stop)"),
                 Depth,
                 (LPVOID)NextRbp,
                 (LPVOID)Rbp);
@@ -533,7 +533,7 @@ void BacktraceFrom(U64 StartRbp, U32 MaxFrames) {
         Depth++;
     }
 
-    KernelLogText(LOG_VERBOSE, TEXT("[BacktraceFrom] Backtrace end (frames=%u)"), Depth);
+    KernelLogText(LOG_VERBOSE, TEXT("Backtrace end (frames=%u)"), Depth);
 }
 
 /************************************************************************/
@@ -546,18 +546,18 @@ void BacktraceFrom(U64 StartRbp, U32 MaxFrames) {
  */
 void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT EntriesToLog) {
     if (Table == NULL) {
-        KernelLogText(Type, TEXT("[LogInterruptDescriptorTable] Table pointer is null"));
+        KernelLogText(Type, TEXT("Table pointer is null"));
         return;
     }
 
     if (EntriesToLog == 0) {
-        KernelLogText(Type, TEXT("[LogInterruptDescriptorTable] No entries requested"));
+        KernelLogText(Type, TEXT("No entries requested"));
         return;
     }
 
     KernelLogText(
         Type,
-        TEXT("[LogInterruptDescriptorTable] Base=%p, dumping first %u entries"),
+        TEXT("Base=%p, dumping first %u entries"),
         (const void*)Table,
         EntriesToLog);
 
@@ -568,7 +568,7 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
 
         KernelLogText(
             Type,
-            TEXT("[LogInterruptDescriptorTable]   Entry %u: raw[31:0]=%x raw[63:32]=%x raw[95:64]=%x raw[127:96]=%x"),
+            TEXT("Entry %u: raw[31:0]=%x raw[63:32]=%x raw[95:64]=%x raw[127:96]=%x"),
             Index,
             Raw[0],
             Raw[1],
@@ -576,7 +576,7 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
             Raw[3]);
         KernelLogText(
             Type,
-            TEXT("[LogInterruptDescriptorTable]     Selector=%x Type=%u IST=%u DPL=%u Present=%u"),
+            TEXT("Selector=%x Type=%u IST=%u DPL=%u Present=%u"),
             (U32)Entry->Selector,
             (U32)Entry->Type,
             (U32)Entry->InterruptStackTable,
@@ -584,7 +584,7 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
             (U32)Entry->Present);
         KernelLogText(
             Type,
-            TEXT("[LogInterruptDescriptorTable]     Offset_32_63=%x Offset_16_31=%x Offset_00_15=%x"),
+            TEXT("Offset_32_63=%x Offset_16_31=%x Offset_00_15=%x"),
             (U32)Entry->Offset_32_63,
             (U32)Entry->Offset_16_31,
             (U32)Entry->Offset_00_15);

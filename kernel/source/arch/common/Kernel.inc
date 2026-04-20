@@ -168,7 +168,6 @@ extern InitializeKernel
 extern KernelPrint
 extern ConsolePrint
 extern ConsolePrintChar
-extern ClockTestTask
 extern KernelLogText
 
 extern SystemCallHandler

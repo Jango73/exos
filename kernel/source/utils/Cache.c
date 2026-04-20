@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ void CacheInit(LPCACHE Cache, UINT Capacity) {
     Cache->Entries = (LPCACHE_ENTRY)KernelHeapAlloc(AllocationSize);
 
     if (Cache->Entries == NULL) {
-        ERROR(TEXT("[CacheInit] KernelHeapAlloc failed"));
+        ERROR(TEXT("KernelHeapAlloc failed"));
     }
 
     for (UINT Index = 0; Index < Capacity; Index++) {
@@ -200,7 +200,7 @@ void CacheInit(LPCACHE Cache, UINT Capacity) {
  * @param Cache Cache structure to deinitialize
  */
 void CacheDeinit(LPCACHE Cache) {
-    DEBUG(TEXT("[CacheDeinit] Enter"));
+    DEBUG(TEXT("Enter"));
 
     LockMutex(&Cache->Mutex, INFINITY);
 
@@ -212,7 +212,7 @@ void CacheDeinit(LPCACHE Cache) {
 
             if (Cache->Entries[Index].Dirty) {
                 if (!CacheFlushEntryLocked(Cache, &Cache->Entries[Index])) {
-                    WARNING(TEXT("[CacheDeinit] Flush failed for dirty entry %u"), Index);
+                    WARNING(TEXT("Flush failed for dirty entry %u"), Index);
                 }
             }
 
@@ -301,7 +301,7 @@ BOOL CacheAdd(LPCACHE Cache, LPVOID Data, UINT TTL_MS) {
 
     if (FreeIndex == MAX_UINT) {
         if (!CacheEvictOneEntryLocked(Cache)) {
-            DEBUG(TEXT("[CacheAdd] Cache full and no entry available"));
+            DEBUG(TEXT("Cache full and no entry available"));
             UnlockMutex(&Cache->Mutex);
             return FALSE;
         }

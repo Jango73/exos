@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ void SetSystemSegmentDescriptorBase(LPX86_64_SYSTEM_SEGMENT_DESCRIPTOR Descripto
  * @brief Allocate and initialize the architecture task-state segment.
  */
 void InitializeTaskSegments(void) {
-    DEBUG(TEXT("[InitializeTaskSegments] Enter"));
+    DEBUG(TEXT("Enter"));
 
     UINT TssSize = sizeof(X86_64_TASK_STATE_SEGMENT);
 
@@ -104,7 +104,7 @@ void InitializeTaskSegments(void) {
         0, TssSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("TSS"));
 
     if (Kernel_x86_32.TSS == NULL) {
-        ERROR(TEXT("[InitializeTaskSegments] AllocKernelRegion for TSS failed"));
+        ERROR(TEXT("AllocKernelRegion for TSS failed"));
         ConsolePanic(TEXT("AllocKernelRegion for TSS failed"));
     }
 
@@ -136,12 +136,12 @@ void InitializeTaskSegments(void) {
     Descriptor->Granularity = 0;
     Descriptor->Reserved = 0;
 
-    DEBUG(TEXT("[InitializeTaskSegments] TSS = %p"), Kernel_x86_32.TSS);
-    DEBUG(TEXT("[InitializeTaskSegments] Loading task register"));
+    DEBUG(TEXT("TSS = %p"), Kernel_x86_32.TSS);
+    DEBUG(TEXT("Loading task register"));
 
     LoadInitialTaskRegister(SELECTOR_TSS);
 
-    DEBUG(TEXT("[InitializeTaskSegments] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/

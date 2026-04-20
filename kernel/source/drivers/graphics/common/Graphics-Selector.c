@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -205,7 +205,7 @@ BOOL GraphicsSelectorForceBackendByName(LPCSTR Name) {
 
     LoadResult = Driver->Command(DF_LOAD, 0);
     if ((Driver->Flags & DRIVER_FLAG_READY) == 0) {
-        WARNING(TEXT("[GraphicsSelectorForceBackendByName] Rejecting forced backend %s (load_result=%u, ready=0)"),
+        WARNING(TEXT("Rejecting forced backend %s (load_result=%u, ready=0)"),
             Driver->Product,
             LoadResult);
         return FALSE;
@@ -221,7 +221,7 @@ BOOL GraphicsSelectorForceBackendByName(LPCSTR Name) {
     GraphicsSelectorState.ActiveIndex = 0;
     GraphicsSelectorDriver.Flags |= DRIVER_FLAG_READY;
 
-    DEBUG(TEXT("[GraphicsSelectorForceBackendByName] Forced backend %s loaded (score=%u priority=%u)"),
+    DEBUG(TEXT("Forced backend %s loaded (score=%u priority=%u)"),
         Driver->Product,
         Score,
         Priority);
@@ -378,13 +378,13 @@ static UINT GraphicsSelectorLoad(void) {
         }
 
         LoadResult = Driver->Command(DF_LOAD, 0);
-        DEBUG(TEXT("[GraphicsSelectorLoad] Probe backend %s load_result=%u ready=%u"),
+        DEBUG(TEXT("Probe backend %s load_result=%u ready=%u"),
             Driver->Product,
             LoadResult,
             (Driver->Flags & DRIVER_FLAG_READY) != 0 ? 1 : 0);
 
         if ((Driver->Flags & DRIVER_FLAG_READY) == 0) {
-            WARNING(TEXT("[GraphicsSelectorLoad] Rejecting backend %s (load_result=%u, ready=0)"),
+            WARNING(TEXT("Rejecting backend %s (load_result=%u, ready=0)"),
                 Driver->Product,
                 LoadResult);
             continue;
@@ -392,11 +392,11 @@ static UINT GraphicsSelectorLoad(void) {
 
         Score = GraphicsSelectorScoreDriver(Driver);
         Priority = GraphicsSelectorBackendPriority(Driver);
-        DEBUG(TEXT("[GraphicsSelectorLoad] Candidate backend %s score=%u priority=%u"),
+        DEBUG(TEXT("Candidate backend %s score=%u priority=%u"),
             Driver->Product, Score, Priority);
 
         if (GraphicsSelectorState.BackendCount >= sizeof(GraphicsSelectorState.Backends) / sizeof(GraphicsSelectorState.Backends[0])) {
-            WARNING(TEXT("[GraphicsSelectorLoad] Backend table full, skipping %s"), Driver->Product);
+            WARNING(TEXT("Backend table full, skipping %s"), Driver->Product);
             continue;
         }
 
@@ -418,7 +418,7 @@ static UINT GraphicsSelectorLoad(void) {
     }
 
     if (GraphicsSelectorState.BackendCount == 0) {
-        WARNING(TEXT("[GraphicsSelectorLoad] No active graphics backend"));
+        WARNING(TEXT("No active graphics backend"));
         GraphicsSelectorDriver.Flags |= DRIVER_FLAG_READY;
         return DF_RETURN_SUCCESS;
     }
@@ -426,10 +426,10 @@ static UINT GraphicsSelectorLoad(void) {
     GraphicsSelectorState.ActiveIndex = 0;
     GraphicsSelectorDriver.Flags |= DRIVER_FLAG_READY;
 
-    DEBUG(TEXT("[GraphicsSelectorLoad] Selected backend: %s (score=%u)"),
+    DEBUG(TEXT("Selected backend: %s (score=%u)"),
         GraphicsSelectorState.Backends[0]->Product, GraphicsSelectorState.Scores[0]);
     for (Index = 1; Index < GraphicsSelectorState.BackendCount; Index++) {
-        DEBUG(TEXT("[GraphicsSelectorLoad] Fallback backend[%u]: %s (score=%u)"),
+        DEBUG(TEXT("Fallback backend[%u]: %s (score=%u)"),
             Index,
             GraphicsSelectorState.Backends[Index]->Product,
             GraphicsSelectorState.Scores[Index]);
@@ -546,7 +546,7 @@ static UINT GraphicsSelectorForward(UINT Function, UINT Parameter) {
         if (IsCursorCommand != FALSE &&
             CursorForwardLimiterReady != FALSE &&
             RateLimiterShouldTrigger(&CursorForwardLimiter, Now, &Suppressed) != FALSE) {
-            DEBUG(TEXT("[GraphicsSelectorForward] cursor fn=%u backend=%s index=%u result=%u active=%u suppressed=%u"),
+            DEBUG(TEXT("cursor fn=%u backend=%s index=%u result=%u active=%u suppressed=%u"),
                 Function,
                 Driver->Product,
                 Index,

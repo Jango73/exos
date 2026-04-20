@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -241,11 +241,11 @@ static BOOL InitializeVESA(void) {
     INTEL_X86_REGISTERS Regs;
 
     if (VesaIsSupportedOnCurrentBootPath() == FALSE) {
-        WARNING(TEXT("[InitializeVESA] Unsupported boot path for VESA"));
+        WARNING(TEXT("Unsupported boot path for VESA"));
         return FALSE;
     }
 
-    DEBUG(TEXT("[InitializeVESA] Enter"));
+    DEBUG(TEXT("Enter"));
 
     //-------------------------------------
     // Initialize the context
@@ -271,23 +271,23 @@ static BOOL InitializeVESA(void) {
 
     RealModeCall(VIDEO_CALL, &Regs);
 
-    DEBUG(TEXT("[InitializeVESA] Real mode call done"));
+    DEBUG(TEXT("Real mode call done"));
 
     if (Regs.X.AX == 0x004F) {
         MemoryCopy(&(VESAContext.VESAInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(VESAINFOBLOCK));
 
-        DEBUG(TEXT("[InitializeVESA] VESAInfo.Signature: %x %x %x %x"),
+        DEBUG(TEXT("VESAInfo.Signature: %x %x %x %x"),
             VESAContext.VESAInfo.Signature[0], VESAContext.VESAInfo.Signature[1],
             VESAContext.VESAInfo.Signature[2], VESAContext.VESAInfo.Signature[3]);
-        DEBUG(TEXT("[InitializeVESA] VESAInfo.Version: %u"), VESAContext.VESAInfo.Version);
-        DEBUG(TEXT("[InitializeVESA] VESAInfo.Memory: %u KB"), VESAContext.VESAInfo.Memory * 64);
+        DEBUG(TEXT("VESAInfo.Version: %u"), VESAContext.VESAInfo.Version);
+        DEBUG(TEXT("VESAInfo.Memory: %u KB"), VESAContext.VESAInfo.Memory * 64);
 
         if (VESAContext.VESAInfo.Signature[0] != 'V') return DF_RETURN_GENERIC;
         if (VESAContext.VESAInfo.Signature[1] != 'E') return DF_RETURN_GENERIC;
         if (VESAContext.VESAInfo.Signature[2] != 'S') return DF_RETURN_GENERIC;
         if (VESAContext.VESAInfo.Signature[3] != 'A') return DF_RETURN_GENERIC;
     } else {
-        ERROR(TEXT("[InitializeVESA] Call to VESA information failed"));
+        ERROR(TEXT("Call to VESA information failed"));
     }
 
     /*
@@ -300,7 +300,7 @@ static BOOL InitializeVESA(void) {
                 (VESAContext.VESAInfo.Memory << MUL_64KB) >> MUL_1KB);
                 */
 
-    DEBUG(TEXT("[InitializeVESA] Exit"));
+    DEBUG(TEXT("Exit"));
 
     return TRUE;
 }
@@ -427,7 +427,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     UINT FrameBufferSize = 0;
     LINEAR LinearBase = 0;
 
-    DEBUG(TEXT("[SetVideoMode] GFX mode request : %ux%ux%u"), Info->Width, Info->Height, Info->BitsPerPixel);
+    DEBUG(TEXT("GFX mode request : %ux%ux%u"), Info->Width, Info->Height, Info->BitsPerPixel);
 
     RequestedWidth = Info->Width;
     RequestedHeight = Info->Height;
@@ -454,7 +454,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
         }
 
         if (SelectedModeIndex == INFINITY) {
-            WARNING(TEXT("[SetVideoMode] Auto-select failed: no mode candidate"));
+            WARNING(TEXT("Auto-select failed: no mode candidate"));
             return DF_RETURN_GENERIC;
         }
 
@@ -462,7 +462,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
         RequestedHeight = VESAModeSpecs[SelectedModeIndex].Height;
         RequestedBitsPerPixel = VESAModeSpecs[SelectedModeIndex].BitsPerPixel;
 
-        DEBUG(TEXT("[SetVideoMode] Auto-select chose %ux%ux%u"),
+        DEBUG(TEXT("Auto-select chose %ux%ux%u"),
             RequestedWidth,
             RequestedHeight,
             RequestedBitsPerPixel);
@@ -481,7 +481,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     for (Index = 0;; Index++) {
         if (VESAModeSpecs[Index].Mode == 0) return DF_RETURN_GENERIC;
 
-        DEBUG(TEXT("[SetVideoMode] Checking mode %x"), VESAModeSpecs[Index].Mode);
+        DEBUG(TEXT("Checking mode %x"), VESAModeSpecs[Index].Mode);
 
         if (VESAModeSpecs[Index].Width == RequestedWidth && VESAModeSpecs[Index].Height == RequestedHeight &&
             VESAModeSpecs[Index].BitsPerPixel == RequestedBitsPerPixel) {
@@ -490,9 +490,9 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
 
             ModePtr = (U16*)(UINT)MKLINPTR(VESAContext.VESAInfo.ModePointer);
 
-            DEBUG(TEXT("[SetVideoMode] Mode res = %ux%ux%u"), VESAModeSpecs[Index].Width,
+            DEBUG(TEXT("Mode res = %ux%ux%u"), VESAModeSpecs[Index].Width,
                 VESAModeSpecs[Index].Height, VESAModeSpecs[Index].BitsPerPixel);
-            DEBUG(TEXT("[SetVideoMode] ModePtr = %p"), ModePtr);
+            DEBUG(TEXT("ModePtr = %p"), ModePtr);
 
             if (ModePtr == NULL || IsValidMemory((LINEAR)ModePtr) == FALSE) {
                 ModeListValid = FALSE;
@@ -510,7 +510,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
 
                     if (ModePtr[Mode] == VESAModeSpecs[Index].Mode) {
                         ModeListed = TRUE;
-                        DEBUG(TEXT("[SetVideoMode] Mode found"));
+                        DEBUG(TEXT("Mode found"));
                         break;
                     }
                 }
@@ -521,9 +521,9 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
 
             if (ModeListed == FALSE) {
                 if (ModeListValid == FALSE) {
-                    WARNING(TEXT("[SetVideoMode] Mode list pointer invalid, forcing mode %x"), VESAModeSpecs[Index].Mode);
+                    WARNING(TEXT("Mode list pointer invalid, forcing mode %x"), VESAModeSpecs[Index].Mode);
                 } else {
-                    WARNING(TEXT("[SetVideoMode] Mode %x not advertised, forcing selection"), VESAModeSpecs[Index].Mode);
+                    WARNING(TEXT("Mode %x not advertised, forcing selection"), VESAModeSpecs[Index].Mode);
                 }
             }
 
@@ -536,7 +536,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     //-------------------------------------
     // Get info about the mode
 
-    DEBUG(TEXT("[SetVideoMode] Getting mode info..."));
+    DEBUG(TEXT("Getting mode info..."));
 
     MemorySet(&Regs, 0, sizeof(Regs));
     Regs.X.AX = 0x4F01;
@@ -546,19 +546,19 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     RealModeCall(VIDEO_CALL, &Regs);
 
     if (Regs.X.AX != 0x004F) {
-        ERROR(TEXT("[SetVideoMode] VESA GetModeInfo failed (AX=%x)"), Regs.X.AX);
+        ERROR(TEXT("VESA GetModeInfo failed (AX=%x)"), Regs.X.AX);
         return DF_RETURN_GENERIC;
     }
 
     MemoryCopy(&(VESAContext.ModeInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(MODEINFOBLOCK));
 
     if ((VESAContext.ModeInfo.Attributes & 0x80) == 0) {
-        ERROR(TEXT("[SetVideoMode] Mode %x does not support linear frame buffers"), VESAContext.ModeSpecs.Mode);
+        ERROR(TEXT("Mode %x does not support linear frame buffers"), VESAContext.ModeSpecs.Mode);
         return DF_RETURN_GENERIC;
     }
 
     if (VESAContext.ModeInfo.PhysBasePtr == 0) {
-        ERROR(TEXT("[SetVideoMode] Mode %x returned null PhysBasePtr"), VESAContext.ModeSpecs.Mode);
+        ERROR(TEXT("Mode %x returned null PhysBasePtr"), VESAContext.ModeSpecs.Mode);
         return DF_RETURN_GENERIC;
     }
 
@@ -571,7 +571,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     RealModeCall(VIDEO_CALL, &Regs);
 
     if (Regs.X.AX != 0x004F) {
-        ERROR(TEXT("[SetVideoMode] Failed to set mode %x (AX=%x)"), VESAContext.ModeSpecs.Mode, Regs.X.AX);
+        ERROR(TEXT("Failed to set mode %x (AX=%x)"), VESAContext.ModeSpecs.Mode, Regs.X.AX);
         return DF_RETURN_GENERIC;
     }
 
@@ -599,7 +599,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
 
     FrameBufferSize = VESAContext.Header.BytesPerScanLine * VESAContext.Header.Height;
     if (FrameBufferSize == 0) {
-        ERROR(TEXT("[SetVideoMode] Frame buffer size is zero (pitch=%u height=%u)"), VESAContext.Header.BytesPerScanLine,
+        ERROR(TEXT("Frame buffer size is zero (pitch=%u height=%u)"), VESAContext.Header.BytesPerScanLine,
             VESAContext.Header.Height);
         return DF_RETURN_GENERIC;
     }
@@ -607,7 +607,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     VESAContext.FrameBufferPhysical = (PHYSICAL)VESAContext.ModeInfo.PhysBasePtr;
     LinearBase = MapIOMemory(VESAContext.FrameBufferPhysical, FrameBufferSize);
     if (LinearBase == 0) {
-        ERROR(TEXT("[SetVideoMode] MapIOMemory failed for LFB base %p size %u"),
+        ERROR(TEXT("MapIOMemory failed for LFB base %p size %u"),
             (LPVOID)(LINEAR)VESAContext.FrameBufferPhysical, FrameBufferSize);
         VESAContext.FrameBufferPhysical = 0;
         return DF_RETURN_GENERIC;
@@ -618,7 +618,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     VESAContext.LinearFrameBufferEnabled = TRUE;
     VESAContext.Header.MemoryBase = (U8*)(LINEAR)LinearBase;
 
-    DEBUG(TEXT("[SetVideoMode] LFB mapped at %p (phys=%p pitch=%u size=%u)"), VESAContext.Header.MemoryBase,
+    DEBUG(TEXT("LFB mapped at %p (phys=%p pitch=%u size=%u)"), VESAContext.Header.MemoryBase,
         (LPVOID)(LINEAR)VESAContext.FrameBufferPhysical, VESAContext.Header.BytesPerScanLine, FrameBufferSize);
 
 #if VESA_ENABLE_SELFTEST
@@ -1116,7 +1116,7 @@ UINT VESACommands(UINT Function, UINT Param) {
                 }
 
                 if (VESAContext.Header.Width == 0 || VESAContext.Header.Height == 0 || VESAContext.Header.BitsPerPixel == 0) {
-                    WARNING(TEXT("[VESACommands] GETMODEINFO requested but no active VESA mode is available"));
+                    WARNING(TEXT("GETMODEINFO requested but no active VESA mode is available"));
                     return DF_RETURN_UNEXPECTED;
                 }
 

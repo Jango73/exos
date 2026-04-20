@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -236,7 +236,7 @@ UINT IntelGfxWaitForNextVBlank(U32 TimeoutMilliseconds, U32* SequenceOut) {
         U32 Suppressed = 0;
         U32 Now = GetSystemTime();
         if (RateLimiterShouldTrigger(&IntelGfxVBlankTimeoutLogLimiter, Now, &Suppressed)) {
-            WARNING(TEXT("[IntelGfxWaitForNextVBlank] Timeout pipe=%u timeout=%u sequence=%u suppressed=%u"),
+            WARNING(TEXT("Timeout pipe=%u timeout=%u sequence=%u suppressed=%u"),
                 IntelGfxState.ActivePipeIndex,
                 EffectiveTimeout,
                 CurrentSequence,
@@ -272,7 +272,7 @@ void IntelGfxOnModeActivated(void) {
         RateLimiterReset(&IntelGfxVBlankTimeoutLogLimiter);
     }
 
-    DEBUG(TEXT("[IntelGfxOnModeActivated] VBlank path=%s pipe=%u"),
+    DEBUG(TEXT("VBlank path=%s pipe=%u"),
         InterruptEnabled ? TEXT("interrupt+poll") : TEXT("poll"),
         IntelGfxState.ActivePipeIndex);
 }

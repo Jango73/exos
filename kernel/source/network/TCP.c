@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -64,14 +64,14 @@ static UINT TCP_GetConfiguredBufferSize(LPCSTR configKey, U32 fallback, U32 maxL
         U32 parsedValue = StringToU32(configValue);
         if (parsedValue > 0) {
             if (parsedValue > maxLimit) {
-                WARNING(TEXT("[TCP_GetConfiguredBufferSize] %s=%u exceeds maximum %u, clamping"),
+                WARNING(TEXT("%s=%u exceeds maximum %u, clamping"),
                         configKey, parsedValue, maxLimit);
                 return (UINT)maxLimit;
             }
             return (UINT)parsedValue;
         }
 
-        WARNING(TEXT("[TCP_GetConfiguredBufferSize] %s has invalid value '%s', using fallback"),
+        WARNING(TEXT("%s has invalid value '%s', using fallback"),
                 configKey, configValue);
     }
 
@@ -753,7 +753,7 @@ static void TCP_ActionSendSyn(STATE_MACHINE* SM, LPVOID EventData) {
 
     I32 SendResult = TCP_SendPacket(Conn, TCP_FLAG_SYN, NULL, 0);
     if (SendResult < 0) {
-        ERROR(TEXT("[TCP_ActionSendSyn] SYN send failed"));
+        ERROR(TEXT("SYN send failed"));
     }
 }
 
@@ -768,7 +768,7 @@ static void TCP_ActionSendSynAck(STATE_MACHINE* SM, LPVOID EventData) {
 
     int SendResult = TCP_SendPacket(Conn, TCP_FLAG_SYN | TCP_FLAG_ACK, NULL, 0);
     if (SendResult < 0) {
-        ERROR(TEXT("[TCP_ActionSendSynAck] Failed to send SYN+ACK packet"));
+        ERROR(TEXT("Failed to send SYN+ACK packet"));
         SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
     }
 }
@@ -792,7 +792,7 @@ static void TCP_ActionSendAck(STATE_MACHINE* SM, LPVOID EventData) {
 
     int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
     if (SendResult < 0) {
-        ERROR(TEXT("[TCP_ActionSendAck] Failed to send ACK packet"));
+        ERROR(TEXT("Failed to send ACK packet"));
         SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
     }
 }
@@ -805,7 +805,7 @@ static void TCP_ActionSendFin(STATE_MACHINE* SM, LPVOID EventData) {
 
     int SendResult = TCP_SendPacket(Conn, TCP_FLAG_FIN | TCP_FLAG_ACK, NULL, 0);
     if (SendResult < 0) {
-        ERROR(TEXT("[TCP_ActionSendFin] Failed to send FIN packet"));
+        ERROR(TEXT("Failed to send FIN packet"));
         SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
     }
 }
@@ -844,7 +844,7 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
 
                 int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
                 if (SendResult < 0) {
-                    ERROR(TEXT("[TCP_ActionProcessData] Failed to send ACK for duplicate segment"));
+                    ERROR(TEXT("Failed to send ACK for duplicate segment"));
                     SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
                 }
                 return;
@@ -859,7 +859,7 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
 
             int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
             if (SendResult < 0) {
-                ERROR(TEXT("[TCP_ActionProcessData] Failed to send ACK for out-of-order segment"));
+                ERROR(TEXT("Failed to send ACK for out-of-order segment"));
                 SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
             }
             return;
@@ -867,11 +867,11 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
 
 
         if (Conn->RecvBufferUsed >= Conn->RecvBufferCapacity) {
-            WARNING(TEXT("[TCP_ActionProcessData] Receive buffer full, advertising zero window"));
+            WARNING(TEXT("Receive buffer full, advertising zero window"));
 
             int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
             if (SendResult < 0) {
-                ERROR(TEXT("[TCP_ActionProcessData] Failed to send zero window ACK"));
+                ERROR(TEXT("Failed to send zero window ACK"));
                 SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
             }
             return;
@@ -914,7 +914,7 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
 
     int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
     if (SendResult < 0) {
-        ERROR(TEXT("[TCP_ActionProcessData] Failed to send ACK packet"));
+        ERROR(TEXT("Failed to send ACK packet"));
         SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
     }
 }
@@ -1292,7 +1292,7 @@ LPTCP_CONNECTION TCP_CreateConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPor
     // Create notification context for this connection
     Conn->NotificationContext = Notification_CreateContext();
     if (Conn->NotificationContext == NULL) {
-        ERROR(TEXT("[TCP_CreateConnection] Failed to create notification context"));
+        ERROR(TEXT("Failed to create notification context"));
         KernelHeapFree(Conn);
         return NULL;
     }
@@ -1406,7 +1406,7 @@ int TCP_Send(LPTCP_CONNECTION Connection, const U8* Data, U32 Length) {
 
             I32 SendResult = TCP_SendPacket(Connection, TCP_FLAG_PSH | TCP_FLAG_ACK, CurrentData, ChunkSize);
             if (SendResult < 0) {
-                ERROR(TEXT("[TCP_Send] Failed to send %u bytes chunk"), ChunkSize);
+                ERROR(TEXT("Failed to send %u bytes chunk"), ChunkSize);
                 return (TotalSent > 0) ? (I32)TotalSent : -1;
             }
 
@@ -1586,7 +1586,7 @@ void TCP_Update(void) {
 
         // Safety check: if in TIME_WAIT state but timer is invalid, force close
         if (CurrentState == TCP_STATE_TIME_WAIT && Conn->TimeWaitTimer == 0) {
-            WARNING(TEXT("[TCP_Update] TIME_WAIT state with invalid timer, forcing close for connection %p"), (LPVOID)Conn);
+            WARNING(TEXT("TIME_WAIT state with invalid timer, forcing close for connection %p"), (LPVOID)Conn);
             SM_ProcessEvent(&Conn->StateMachine, TCP_EVENT_TIMEOUT, NULL);
         }
 
@@ -1628,7 +1628,7 @@ void TCP_SetNotificationContext(LPTCP_CONNECTION Connection, LPNOTIFICATION_CONT
 
 U32 TCP_RegisterCallback(LPTCP_CONNECTION Connection, U32 Event, NOTIFICATION_CALLBACK Callback, LPVOID UserData) {
     if (Connection == NULL || Connection->NotificationContext == NULL) {
-        ERROR(TEXT("[TCP_RegisterCallback] Invalid connection or no notification context"));
+        ERROR(TEXT("Invalid connection or no notification context"));
         return 1;
     }
 
@@ -1636,7 +1636,7 @@ U32 TCP_RegisterCallback(LPTCP_CONNECTION Connection, U32 Event, NOTIFICATION_CA
     if (Result != 0) {
         return 0; // Success
     } else {
-        ERROR(TEXT("[TCP_RegisterCallback] Failed to register callback for event %u on connection %p"), Event, (LPVOID)Connection);
+        ERROR(TEXT("Failed to register callback for event %u on connection %p"), Event, (LPVOID)Connection);
         return 1; // Error
     }
 }
@@ -1752,7 +1752,7 @@ void TCP_HandleApplicationRead(LPTCP_CONNECTION Connection, U32 BytesConsumed) {
 
         if (ShouldSend) {
             if (TCP_SendPacket(Connection, TCP_FLAG_ACK, NULL, 0) < 0) {
-                ERROR(TEXT("[TCP_HandleApplicationRead] Failed to transmit window update ACK"));
+                ERROR(TEXT("Failed to transmit window update ACK"));
             }
         }
     }

@@ -43,6 +43,7 @@
 - [ ] Execute iGPU.md : Step 11
 
 - [ ] Implement full UTF and Unicode.md
+- [ ] Handle languages
 
 - [ ] Fix input-info #PF on exit
 - [ ] Keyboard : Handle '<' key in french keyboard mapping.
@@ -58,6 +59,14 @@
 
 - [x] Record boot date-time and expose time values to script in shell : boot datetime, current datetime
 - [x] Make GetSystemTime return an incremented SystemUpTime value before the clock interrupt really ticks
+
+### Logs
+
+- [x] Use __func__ to automatically include function name
+
+### Building
+
+- [ ] Implement Native-C-Compiler.md
 
 ### Scheduling
 
@@ -120,7 +129,7 @@
 
 ### System data view
 
-- Add following infos in PCI page:
+- [ ] Add following infos in PCI page:
   - VendorID/DeviceID
   - Command / Status
   - Class/Subclass/ProgIF
@@ -128,66 +137,56 @@
   - Capabilities Pointer + scan capabilities (MSI/MSI-X, PCIe)
   - Interrupt Line/Pin
 
-### Logs
-
-- Use __func__ to automatically include function name
-
 ### Drivers
 
-- Implement PCIe : Peripheral-Component-Interconnect-Express.md
-- Implement VMD : Volume-Management-Device.md
-- Implement NVidia
-- Implement Radeon
+- [ ] Implement PCIe : Peripheral-Component-Interconnect-Express.md
+- [ ] Implement VMD : Volume-Management-Device.md
+- [ ] Implement NVidia
+- [ ] Implement Radeon
 
 ### Session
 
-- Lock session on inactivity in graphics display
+- [ ] Lock session on inactivity in graphics display
 
 ### Shell
 
-- Add an interactive confirmation before `kill(handle)` terminates a sensitive kernel task or process
+- [ ] Add an interactive confirmation before `kill(handle)` terminates a sensitive kernel task or process
 
 ### Scripting
 
 ### Console
 
-- Implement Text-Terminal.md
+- [ ] Implement Text-Terminal.md
 
 ### Graphics
 
-- Implement Cursor-Bitmap-Architecture.md
-- Implement VGA-Console-Driver-Delegation-Plan.md
+- [ ] Implement Cursor-Bitmap-Architecture.md
 
 ### Filesystem cache
 
-- Create a generic fixed-size cache
-- Add a cluster cache to FAT16 and FAT32
+- [ ] Create a generic fixed-size cache
+- [ ] Add a cluster cache to FAT16 and FAT32
 
 ### Network
-- Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
-- Optimize/evolve the network stack
+- [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
+- [ ] Optimize/evolve the network stack
 
 ### Security 
 
-- NX/DEP : Prevents execution in non-executable memory regions (stack/heap), blocking classic injected shellcode attacks.
-- PIE/ASLR userland : Makes userland binaries position-independent and randomizes memory layout to hinder return-oriented and memory-guessing attacks.
-- Stack canaries : Places sentinel values before return addresses to detect and stop stack buffer overflows before control hijack.
-- RELRO : Marks relocation tables read-only to stop attackers from modifying GOT/PLT entries at runtime.
-- Signed kernel modules + Secure Boot : Allows only cryptographically signed kernel modules and verifies the boot chain to prevent unauthorized code from loading.
-- KASLR : Randomizes the kernel's memory base to make kernel address offsets unpredictable for exploitation.
-- Audit/fuzz pipeline + ASAN/UBSAN : Continuous auditing and fuzzing with sanitizers to catch memory errors and undefined behavior during development.
+- [ ] NX/DEP : Prevents execution in non-executable memory regions (stack/heap), blocking classic injected shellcode attacks.
+- [ ] PIE/ASLR userland : Makes userland binaries position-independent and randomizes memory layout to hinder return-oriented and memory-guessing attacks.
+- [ ] Stack canaries : Places sentinel values before return addresses to detect and stop stack buffer overflows before control hijack.
+- [ ] RELRO : Marks relocation tables read-only to stop attackers from modifying GOT/PLT entries at runtime.
+- [ ] Signed kernel modules + Secure Boot : Allows only cryptographically signed kernel modules and verifies the boot chain to prevent unauthorized code from loading.
+- [ ] KASLR : Randomizes the kernel's memory base to make kernel address offsets unpredictable for exploitation.
+- [ ] Audit/fuzz pipeline + ASAN/UBSAN : Continuous auditing and fuzzing with sanitizers to catch memory errors and undefined behavior during development.
 
 ### File systems
 
-- Implement ext3 and ext4
-- Load exos.bin from the EXT2 system partition instead of the ESP in UEFI
-
-### Localization
-
-- Handle languages
+- [ ] Implement ext3 and ext4
+- [ ] Load exos.bin from the EXT2 system partition instead of the ESP in UEFI
 
 ### Other
 
-- Implement x86-Disassembly.md
-- Implement Native-C-Compiler.md
-- Implement Floppy-Drive.md
+- [ ] Implement x86-Disassembly.md
+- [ ] Implement Floppy-Drive.md

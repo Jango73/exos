@@ -1,7 +1,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -365,12 +365,12 @@ BOOL NtfsReadBootSector(
 
     BytesPerSector = NtfsGetDiskBytesPerSector(Disk);
     if (!NtfsIsSupportedSectorSize(BytesPerSector)) {
-        WARNING(TEXT("[NtfsReadBootSector] Unsupported sector size %u"), BytesPerSector);
+        WARNING(TEXT("Unsupported sector size %u"), BytesPerSector);
         return FALSE;
     }
 
     if (BytesPerSector > BufferSize || BytesPerSector > NTFS_MAX_SECTOR_SIZE) {
-        WARNING(TEXT("[NtfsReadBootSector] Buffer too small for sector size %u"), BytesPerSector);
+        WARNING(TEXT("Buffer too small for sector size %u"), BytesPerSector);
         return FALSE;
     }
 
@@ -384,7 +384,7 @@ BOOL NtfsReadBootSector(
 
     Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[NtfsReadBootSector] Boot sector read failed result=%x"), Result);
+        WARNING(TEXT("Boot sector read failed result=%x"), Result);
         return FALSE;
     }
 
@@ -415,30 +415,30 @@ BOOL NtfsReadSectors(
     if (NumSectors == 0) return FALSE;
 
     if (Sector < FileSystem->PartitionStart) {
-        WARNING(TEXT("[NtfsReadSectors] Sector underflow %u"), Sector);
+        WARNING(TEXT("Sector underflow %u"), Sector);
         return FALSE;
     }
 
     RelativeSector = Sector - FileSystem->PartitionStart;
     if (RelativeSector >= FileSystem->PartitionSize) {
-        WARNING(TEXT("[NtfsReadSectors] Sector out of partition %u"), Sector);
+        WARNING(TEXT("Sector out of partition %u"), Sector);
         return FALSE;
     }
 
     if (NumSectors > FileSystem->PartitionSize - RelativeSector) {
-        WARNING(TEXT("[NtfsReadSectors] Read over partition boundary sector=%u count=%u"),
+        WARNING(TEXT("Read over partition boundary sector=%u count=%u"),
             Sector, NumSectors);
         return FALSE;
     }
 
     if (NumSectors > 0xFFFFFFFF / FileSystem->BytesPerSector) {
-        WARNING(TEXT("[NtfsReadSectors] Byte size overflow count=%u"), NumSectors);
+        WARNING(TEXT("Byte size overflow count=%u"), NumSectors);
         return FALSE;
     }
 
     MaxBytes = NumSectors * FileSystem->BytesPerSector;
     if (BufferSize < MaxBytes) {
-        WARNING(TEXT("[NtfsReadSectors] Buffer too small %u<%u"), BufferSize, MaxBytes);
+        WARNING(TEXT("Buffer too small %u<%u"), BufferSize, MaxBytes);
         return FALSE;
     }
 
@@ -452,7 +452,7 @@ BOOL NtfsReadSectors(
 
     Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
     if (Result != DF_RETURN_SUCCESS) {
-        WARNING(TEXT("[NtfsReadSectors] Read failed result=%x"), Result);
+        WARNING(TEXT("Read failed result=%x"), Result);
         return FALSE;
     }
 
@@ -479,7 +479,7 @@ BOOL NtfsComputeFileRecordSize(
 
     RawValue = (U8)(BootSector->FileRecordSize & 0xFF);
     if (RawValue == 0) {
-        WARNING(TEXT("[NtfsComputeFileRecordSize] Invalid file record size byte=0"));
+        WARNING(TEXT("Invalid file record size byte=0"));
         return FALSE;
     }
 
@@ -490,7 +490,7 @@ BOOL NtfsComputeFileRecordSize(
         U8 Shift = (U8)(-SignedValue);
 
         if (Shift > 31) {
-            WARNING(TEXT("[NtfsComputeFileRecordSize] Invalid file record exponent=%u"), Shift);
+            WARNING(TEXT("Invalid file record exponent=%u"), Shift);
             return FALSE;
         }
 
@@ -498,12 +498,12 @@ BOOL NtfsComputeFileRecordSize(
     }
 
     if (RecordSize < NTFS_MIN_FILE_RECORD_SIZE || RecordSize > NTFS_MAX_FILE_RECORD_SIZE) {
-        WARNING(TEXT("[NtfsComputeFileRecordSize] Unsupported file record size=%u"), RecordSize);
+        WARNING(TEXT("Unsupported file record size=%u"), RecordSize);
         return FALSE;
     }
 
     if (!NtfsIsPowerOfTwo(RecordSize)) {
-        WARNING(TEXT("[NtfsComputeFileRecordSize] File record size not power-of-two=%u"), RecordSize);
+        WARNING(TEXT("File record size not power-of-two=%u"), RecordSize);
         return FALSE;
     }
 
@@ -532,20 +532,20 @@ BOOL NtfsComputeMftStartSector(
     if (SectorOut == NULL) return FALSE;
 
     if (U64_High32(MftStartCluster) != 0) {
-        WARNING(TEXT("[NtfsComputeMftStartSector] Unsupported MFT cluster high part=%x"),
+        WARNING(TEXT("Unsupported MFT cluster high part=%x"),
             (U32)U64_High32(MftStartCluster));
         return FALSE;
     }
 
     ClusterLow = (U32)U64_Low32(MftStartCluster);
     if (ClusterLow > 0xFFFFFFFF / SectorsPerCluster) {
-        WARNING(TEXT("[NtfsComputeMftStartSector] Cluster multiplication overflow cluster=%u"), ClusterLow);
+        WARNING(TEXT("Cluster multiplication overflow cluster=%u"), ClusterLow);
         return FALSE;
     }
 
     ClusterOffsetSectors = ClusterLow * SectorsPerCluster;
     if (PartitionStart > 0xFFFFFFFF - ClusterOffsetSectors) {
-        WARNING(TEXT("[NtfsComputeMftStartSector] Sector overflow start=%u"), PartitionStart);
+        WARNING(TEXT("Sector overflow start=%u"), PartitionStart);
         return FALSE;
     }
 
@@ -580,7 +580,7 @@ BOOL NtfsApplyFileRecordFixup(
 
     SectorsInRecord = RecordSize / SectorSize;
     if ((U32)UpdateSequenceSize != (SectorsInRecord + 1)) {
-        WARNING(TEXT("[NtfsApplyFileRecordFixup] Invalid update sequence size=%u sectors=%u"),
+        WARNING(TEXT("Invalid update sequence size=%u sectors=%u"),
             UpdateSequenceSize, SectorsInRecord);
         return FALSE;
     }
@@ -588,7 +588,7 @@ BOOL NtfsApplyFileRecordFixup(
     FixupWords = (U32)UpdateSequenceSize;
     if ((U32)UpdateSequenceOffset > RecordSize) return FALSE;
     if (FixupWords > (RecordSize - (U32)UpdateSequenceOffset) / sizeof(U16)) {
-        WARNING(TEXT("[NtfsApplyFileRecordFixup] Update sequence out of range offset=%u words=%u"),
+        WARNING(TEXT("Update sequence out of range offset=%u words=%u"),
             UpdateSequenceOffset, FixupWords);
         return FALSE;
     }
@@ -601,7 +601,7 @@ BOOL NtfsApplyFileRecordFixup(
         U16 Replacement;
 
         if (TailValue != UpdateSequenceNumber) {
-            WARNING(TEXT("[NtfsApplyFileRecordFixup] Update sequence mismatch index=%u"), Index);
+            WARNING(TEXT("Update sequence mismatch index=%u"), Index);
             return FALSE;
         }
 
@@ -743,7 +743,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     }
 
     if (Buffer[510] != 0x55 || Buffer[511] != 0xAA) {
-        WARNING(TEXT("[MountPartition_NTFS] Invalid boot signature (%x, %x)"),
+        WARNING(TEXT("Invalid boot signature (%x, %x)"),
             Buffer[510], Buffer[511]);
         return FALSE;
     }
@@ -751,7 +751,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     BootSector = (LPNTFS_MBR)Buffer;
     if (BootSector->OEMName[0] != 'N' || BootSector->OEMName[1] != 'T' ||
         BootSector->OEMName[2] != 'F' || BootSector->OEMName[3] != 'S') {
-        WARNING(TEXT("[MountPartition_NTFS] Invalid OEM name (%x %x %x %x %x %x %x %x)"),
+        WARNING(TEXT("Invalid OEM name (%x %x %x %x %x %x %x %x)"),
             BootSector->OEMName[0], BootSector->OEMName[1],
             BootSector->OEMName[2], BootSector->OEMName[3],
             BootSector->OEMName[4], BootSector->OEMName[5],
@@ -761,25 +761,25 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
     BootBytesPerSector = BootSector->BytesPerSector;
     if (!NtfsIsSupportedSectorSize(BootBytesPerSector)) {
-        WARNING(TEXT("[MountPartition_NTFS] Unsupported boot sector size %u"), BootBytesPerSector);
+        WARNING(TEXT("Unsupported boot sector size %u"), BootBytesPerSector);
         return FALSE;
     }
 
     if (BootBytesPerSector != DiskBytesPerSector) {
-        WARNING(TEXT("[MountPartition_NTFS] Disk/boot sector mismatch %u/%u"),
+        WARNING(TEXT("Disk/boot sector mismatch %u/%u"),
             DiskBytesPerSector, BootBytesPerSector);
         return FALSE;
     }
 
     SectorsPerCluster = BootSector->SectorsPerCluster;
     if (!NtfsIsPowerOfTwo(SectorsPerCluster)) {
-        WARNING(TEXT("[MountPartition_NTFS] Invalid sectors per cluster %u"), SectorsPerCluster);
+        WARNING(TEXT("Invalid sectors per cluster %u"), SectorsPerCluster);
         return FALSE;
     }
 
     BytesPerCluster = BootBytesPerSector * SectorsPerCluster;
     if (BytesPerCluster == 0) {
-        WARNING(TEXT("[MountPartition_NTFS] Invalid bytes per cluster"));
+        WARNING(TEXT("Invalid bytes per cluster"));
         return FALSE;
     }
 
@@ -794,7 +794,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
     FileSystem = (LPNTFSFILESYSTEM)CreateKernelObject(sizeof(NTFSFILESYSTEM), KOID_FILESYSTEM);
     if (FileSystem == NULL) {
-        ERROR(TEXT("[MountPartition_NTFS] Unable to allocate NTFS filesystem object"));
+        ERROR(TEXT("Unable to allocate NTFS filesystem object"));
         return FALSE;
     }
 
@@ -823,7 +823,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     MemorySet(&RecordInfo, 0, sizeof(NTFS_FILE_RECORD_INFO));
     if (NtfsReadFileRecord((LPFILESYSTEM)FileSystem, 0, &RecordInfo)) {
     } else {
-        WARNING(TEXT("[MountPartition_NTFS] MFT[0] read failed"));
+        WARNING(TEXT("MFT[0] read failed"));
     }
 
     return TRUE;

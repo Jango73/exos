@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -399,18 +399,18 @@ static BOOL MountGptFatPartition(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition
     Mounted = MountPartition_FAT32(Disk, Partition, 0u, PartIndex);
     if (Mounted) {
         if (FormatOut != NULL) *FormatOut = PARTITION_FORMAT_FAT32;
-        DEBUG(TEXT("[MountGptFatPartition] FAT32 mounted entry %u"), PartIndex);
+        DEBUG(TEXT("FAT32 mounted entry %u"), PartIndex);
         return TRUE;
     }
 
     Mounted = MountPartition_FAT16(Disk, Partition, 0u, PartIndex);
     if (Mounted) {
         if (FormatOut != NULL) *FormatOut = PARTITION_FORMAT_FAT16;
-        DEBUG(TEXT("[MountGptFatPartition] FAT16 mounted entry %u"), PartIndex);
+        DEBUG(TEXT("FAT16 mounted entry %u"), PartIndex);
         return TRUE;
     }
 
-    WARNING(TEXT("[MountGptFatPartition] FAT mount failed for entry %u"), PartIndex);
+    WARNING(TEXT("FAT mount failed for entry %u"), PartIndex);
     return FALSE;
 }
 
@@ -432,12 +432,12 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
     if (Disk == NULL) return FALSE;
     DiskSectorBytes = FileSystemGetDiskBytesPerSector(Disk);
     if (DiskSectorBytes > FILESYSTEM_MAX_SECTOR_SIZE) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] Unsupported sector size %u"), DiskSectorBytes);
+        WARNING(TEXT("Unsupported sector size %u"), DiskSectorBytes);
         return FALSE;
     }
 
     if (!FileSystemReadDiskSector(Disk, 1u, SectorBuffer, sizeof(SectorBuffer))) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] GPT header read failed"));
+        WARNING(TEXT("GPT header read failed"));
         return FALSE;
     }
 
@@ -446,33 +446,33 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
         Header.Signature[2] != 'I' || Header.Signature[3] != ' ' ||
         Header.Signature[4] != 'P' || Header.Signature[5] != 'A' ||
         Header.Signature[6] != 'R' || Header.Signature[7] != 'T') {
-        WARNING(TEXT("[MountDiskPartitionsGpt] Invalid GPT signature"));
+        WARNING(TEXT("Invalid GPT signature"));
         return FALSE;
     }
 
     if (Header.SizeOfPartitionEntry == 0u || Header.NumPartitionEntries == 0u) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] No GPT entries"));
+        WARNING(TEXT("No GPT entries"));
         return FALSE;
     }
 
     if (Header.SizeOfPartitionEntry > DiskSectorBytes) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry size too large (%u)"), Header.SizeOfPartitionEntry);
+        WARNING(TEXT("GPT entry size too large (%u)"), Header.SizeOfPartitionEntry);
         return FALSE;
     }
 
     if (U64_High32(Header.PartitionEntryLba) != 0u) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry LBA above 4GB not supported"));
+        WARNING(TEXT("GPT entry LBA above 4GB not supported"));
         return FALSE;
     }
 
     U32 EntryLbaBase = U64_Low32(Header.PartitionEntryLba);
     U32 EntriesPerSector = DiskSectorBytes / Header.SizeOfPartitionEntry;
     if (EntriesPerSector == 0u) {
-        WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry size invalid (%u)"), Header.SizeOfPartitionEntry);
+        WARNING(TEXT("GPT entry size invalid (%u)"), Header.SizeOfPartitionEntry);
         return FALSE;
     }
 
-    DEBUG(TEXT("[MountDiskPartitionsGpt] GPT entries=%u entry_size=%u"),
+    DEBUG(TEXT("GPT entries=%u entry_size=%u"),
           Header.NumPartitionEntries, Header.SizeOfPartitionEntry);
 
     for (U32 EntryIndex = 0; EntryIndex < Header.NumPartitionEntries; EntryIndex++) {
@@ -483,7 +483,7 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
         U32 SectorLba = EntryLbaBase + SectorIndex;
 
         if (!FileSystemReadDiskSector(Disk, SectorLba, SectorBuffer, sizeof(SectorBuffer))) {
-            WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry read failed at LBA %u"), SectorLba);
+            WARNING(TEXT("GPT entry read failed at LBA %u"), SectorLba);
             return FALSE;
         }
 
@@ -500,14 +500,14 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
         }
 
         if (U64_High32(Entry.FirstLba) != 0u || U64_High32(Entry.LastLba) != 0u) {
-            WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry %u above 4GB not supported"), EntryIndex);
+            WARNING(TEXT("GPT entry %u above 4GB not supported"), EntryIndex);
             continue;
         }
 
         U32 FirstLba = U64_Low32(Entry.FirstLba);
         U32 LastLba = U64_Low32(Entry.LastLba);
         if (LastLba < FirstLba) {
-            WARNING(TEXT("[MountDiskPartitionsGpt] GPT entry %u has invalid range"), EntryIndex);
+            WARNING(TEXT("GPT entry %u has invalid range"), EntryIndex);
             continue;
         }
 
@@ -518,9 +518,9 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
 
         if (GptGuidEquals(Entry.TypeGuid, GptGuidLinuxExtx)) {
             Partition.Type = FSID_LINUX_EXT2;
-            DEBUG(TEXT("[MountDiskPartitionsGpt] Mounting EXT2 partition %u"), EntryIndex);
+            DEBUG(TEXT("Mounting EXT2 partition %u"), EntryIndex);
             if (!MountPartition_EXT2(Disk, &Partition, 0u, EntryIndex)) {
-                WARNING(TEXT("[MountDiskPartitionsGpt] EXT2 mount failed for entry %u"), EntryIndex);
+                WARNING(TEXT("EXT2 mount failed for entry %u"), EntryIndex);
                 RegisterUnusedFileSystem(Disk,
                     PARTITION_SCHEME_GPT,
                     FSID_NONE,
@@ -548,7 +548,7 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
 
         if (GptGuidEquals(Entry.TypeGuid, GptGuidEfiSystem)) {
             U32 MountedFormat = PARTITION_FORMAT_UNKNOWN;
-            DEBUG(TEXT("[MountDiskPartitionsGpt] EFI FAT partition detected at entry %u"), EntryIndex);
+            DEBUG(TEXT("EFI FAT partition detected at entry %u"), EntryIndex);
             if (MountGptFatPartition(Disk, &Partition, EntryIndex, &MountedFormat)) {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(MountedFileSystem,
@@ -577,7 +577,7 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
 
         if (GptGuidEquals(Entry.TypeGuid, GptGuidMicrosoftBasicData)) {
             U32 MountedFormat = PARTITION_FORMAT_UNKNOWN;
-            DEBUG(TEXT("[MountDiskPartitionsGpt] Microsoft basic data detected at entry %u"), EntryIndex);
+            DEBUG(TEXT("Microsoft basic data detected at entry %u"), EntryIndex);
             if (MountGptFatPartition(Disk, &Partition, EntryIndex, &MountedFormat)) {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(MountedFileSystem,
@@ -639,7 +639,7 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
  * the resulting TOML data in the kernel configuration state.
  */
 static void ReadKernelConfiguration(void) {
-    DEBUG(TEXT("[ReadKernelConfiguration] Enter"));
+    DEBUG(TEXT("Enter"));
 
     UINT Size = 0;
     LPVOID Buffer = FileReadAll(TEXT(KERNEL_CONFIG_NAME), &Size);
@@ -648,11 +648,11 @@ static void ReadKernelConfiguration(void) {
         Buffer = FileReadAll(TEXT(KERNEL_CONFIG_NAME_UPPER), &Size);
 
         SAFE_USE(Buffer) {
-            DEBUG(TEXT("[ReadKernelConfiguration] Config read from %s"),
+            DEBUG(TEXT("Config read from %s"),
                   TEXT(KERNEL_CONFIG_NAME_UPPER));
         }
     } else {
-        DEBUG(TEXT("[ReadKernelConfiguration] Config read from %s"),
+        DEBUG(TEXT("Config read from %s"),
               TEXT(KERNEL_CONFIG_NAME));
     }
 
@@ -661,7 +661,7 @@ static void ReadKernelConfiguration(void) {
         KernelHeapFree(Buffer);
     }
 
-    DEBUG(TEXT("[ReadKernelConfiguration] Exit"));
+    DEBUG(TEXT("Exit"));
 }
 
 /***************************************************************************/
@@ -715,14 +715,14 @@ static void FileSystemSelectActivePartitionFromConfig(void) {
 
         if (FileSystemHasConfigFile(FileSystem, TEXT(KERNEL_CONFIG_NAME)) ||
             FileSystemHasConfigFile(FileSystem, TEXT(KERNEL_CONFIG_NAME_UPPER))) {
-            DEBUG(TEXT("[FileSystemSelectActivePartitionFromConfig] Active partition set to %s"),
+            DEBUG(TEXT("Active partition set to %s"),
                   FileSystem->Name);
             FileSystemSetActivePartition(FileSystem);
             return;
         }
     }
 
-    WARNING(TEXT("[FileSystemSelectActivePartitionFromConfig] Config not found in any filesystem"));
+    WARNING(TEXT("Config not found in any filesystem"));
 }
 
 /***************************************************************************/
@@ -971,7 +971,7 @@ void FileSystemSetActivePartition(LPFILESYSTEM FileSystem) {
     SAFE_USE(FileSystem) {
         FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
         StringCopy(GlobalInfo->ActivePartitionName, FileSystem->Name);
-        DEBUG(TEXT("[FileSystemSetActivePartition] Active partition name set to %s"), FileSystem->Name);
+        DEBUG(TEXT("Active partition name set to %s"), FileSystem->Name);
     }
 }
 
@@ -1037,11 +1037,11 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     U32 Index;
     U32 BytesPerSector;
 
-    DEBUG(TEXT("[MountDiskPartitions] Disk = %x, Partition = %x, Base = %x"), Disk, Partition, Base);
+    DEBUG(TEXT("Disk = %x, Partition = %x, Base = %x"), Disk, Partition, Base);
 
     BytesPerSector = FileSystemGetDiskBytesPerSector(Disk);
     if (BytesPerSector > FILESYSTEM_MAX_SECTOR_SIZE) {
-        WARNING(TEXT("[MountDiskPartitions] Unsupported sector size %u"), BytesPerSector);
+        WARNING(TEXT("Unsupported sector size %u"), BytesPerSector);
         return FALSE;
     }
 
@@ -1056,7 +1056,7 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
         Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
         if (Result != DF_RETURN_SUCCESS) {
-            WARNING(TEXT("[MountDiskPartitions] MBR read failed result=%x"), Result);
+            WARNING(TEXT("MBR read failed result=%x"), Result);
             return FALSE;
         }
 
@@ -1068,7 +1068,7 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
     for (Index = 0; Index < MBR_PARTITION_COUNT; Index++) {
         if (Partition[Index].Type == FSID_GPT_PROTECTIVE) {
-            DEBUG(TEXT("[MountDiskPartitions] GPT protective MBR detected"));
+            DEBUG(TEXT("GPT protective MBR detected"));
             return MountDiskPartitionsGpt(Disk);
         }
     }
@@ -1094,7 +1094,7 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
                 case FSID_DOS_FAT16S:
                 case FSID_DOS_FAT16L: {
                     PartitionFormat = PARTITION_FORMAT_FAT16;
-                    DEBUG(TEXT("[MountDiskPartitions] Mounting FAT16 partition"));
+                    DEBUG(TEXT("Mounting FAT16 partition"));
                     PartitionMounted =
                         MountPartition_FAT16(Disk, Partition + Index, Base, Index);
                 } break;
@@ -1102,21 +1102,21 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
                 case FSID_DOS_FAT32:
                 case FSID_DOS_FAT32_LBA1: {
                     PartitionFormat = PARTITION_FORMAT_FAT32;
-                    DEBUG(TEXT("[MountDiskPartitions] Mounting FAT32 partition"));
+                    DEBUG(TEXT("Mounting FAT32 partition"));
                     PartitionMounted =
                         MountPartition_FAT32(Disk, Partition + Index, Base, Index);
                 } break;
 
                 case FSID_OS2_HPFS: {
                     PartitionFormat = PARTITION_FORMAT_NTFS;
-                    DEBUG(TEXT("[MountDiskPartitions] Mounting NTFS partition"));
+                    DEBUG(TEXT("Mounting NTFS partition"));
                     PartitionMounted =
                         MountPartition_NTFS(Disk, Partition + Index, Base, Index);
                 } break;
 
                 case FSID_EXOS: {
                     PartitionFormat = PARTITION_FORMAT_EXFS;
-                    DEBUG(TEXT("[MountDiskPartitions] Mounting EXFS partition"));
+                    DEBUG(TEXT("Mounting EXFS partition"));
                     PartitionMounted =
                         MountPartition_EXFS(Disk, Partition + Index, Base, Index);
                 } break;
@@ -1136,13 +1136,13 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
                     PartitionFormat = PARTITION_FORMAT_EXT2;
 #endif
                 {
-                    DEBUG(TEXT("[MountDiskPartitions] Mounting EXT2 partition"));
+                    DEBUG(TEXT("Mounting EXT2 partition"));
                     PartitionMounted =
                         MountPartition_EXT2(Disk, Partition + Index, Base, Index);
                 } break;
 
                 default: {
-                    WARNING(TEXT("[MountDiskPartitions] Partition type %X not implemented\n"),
+                    WARNING(TEXT("Partition type %X not implemented\n"),
                         (U32)Partition[Index].Type);
                 } break;
             }
@@ -1166,11 +1166,11 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
                     if (GetSystemFSData()->Root != NULL) {
                         if (!SystemFSMountFileSystem(MountedFileSystem)) {
-                            WARNING(TEXT("[MountDiskPartitions] SystemFS mount failed for %s"),
+                            WARNING(TEXT("SystemFS mount failed for %s"),
                                 MountedFileSystem->Name);
                         }
                     } else {
-                        WARNING(TEXT("[MountDiskPartitions] SystemFS not ready for %s"),
+                        WARNING(TEXT("SystemFS not ready for %s"),
                             MountedFileSystem->Name);
                     }
                     if (PartitionIsActive) {

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ LPINTERRUPT_FRAME BuildInterruptFrame(U32 InterruptNumber, U32 HasErrorCode, UIN
     Stack = (U64*)(StackPointer + sizeof(INTERRUPT_FRAME));
 
     if (IsValidMemory((LINEAR)Stack) == FALSE) {
-        DEBUG(TEXT("[BuildInterruptFrame] Invalid stack computed : %p"), (LINEAR)Stack);
+        DEBUG(TEXT("Invalid stack computed : %p"), (LINEAR)Stack);
         DO_THE_SLEEPING_BEAUTY;
     }
 
@@ -107,13 +107,13 @@ LPINTERRUPT_FRAME BuildInterruptFrame(U32 InterruptNumber, U32 HasErrorCode, UIN
     Frame->Registers.RIP = Stack[INCOMING_RIP_INDEX + HasErrorCode];
     Frame->Registers.CS = (U16)(Stack[INCOMING_CS_INDEX + HasErrorCode] & MAX_U16);
 
-    FINE_DEBUG(TEXT("[BuildInterruptFrame] FRAME BUILD DEBUG - intNo=%d HasErrorCode=%d UserMode=%d"),
+    FINE_DEBUG(TEXT("FRAME BUILD DEBUG - intNo=%d HasErrorCode=%d UserMode=%d"),
         InterruptNumber, HasErrorCode, UserMode);
-    // FINE_DEBUG(TEXT("[BuildInterruptFrame] Stack at %p:"), (LINEAR)Stack);
+    // FINE_DEBUG(TEXT("Stack at %p:"), (LINEAR)Stack);
     // if (SCHEDULING_DEBUG_OUTPUT == 1) {
         // KernelLogMem(LOG_DEBUG, (LINEAR)Stack, 256);
     // }
-    FINE_DEBUG(TEXT("[BuildInterruptFrame] Extracted: RIP=%p CS=%x RFLAGS=%x"), (LINEAR)Frame->Registers.RIP,
+    FINE_DEBUG(TEXT("Extracted: RIP=%p CS=%x RFLAGS=%x"), (LINEAR)Frame->Registers.RIP,
         Frame->Registers.CS, Frame->Registers.RFlags);
 
     Frame->Registers.RAX = Stack[INCOMING_RAX_INDEX];

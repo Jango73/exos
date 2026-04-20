@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,10 +79,11 @@ static U32 DATA_SECTION KernelConsolePrintDepth = 0;
 static UINT KernelLogDriverCommands(UINT Function, UINT Parameter);
 static BOOL KernelLogIsTagSeparator(STR Char);
 static BOOL KernelLogFilterContainsTag(LPCSTR Tag, U32 TagLength);
-static BOOL KernelLogShouldEmit(LPCSTR Text);
+static BOOL KernelLogShouldEmit(LPCSTR FunctionName, LPCSTR Text);
 static void KernelLogDropOldestRecentLine(void);
 static void KernelLogAppendRecentLine(LPCSTR Text);
 static BOOL KernelLogCopyRecentLineText(U8* Destination, UINT DestinationSize, UINT* Cursor, U32 StartOffset, U32 Length);
+static void KernelLogWriteFormatted(U32 Type, LPCSTR FunctionName, LPCSTR Format, VarArgList Args);
 
 DRIVER DATA_SECTION KernelLogDriver = {
     .TypeID = KOID_DRIVER,
@@ -241,16 +242,21 @@ static BOOL KernelLogFilterContainsTag(LPCSTR Tag, U32 TagLength) {
 
 /**
  * @brief Determines if a formatted log line passes the active tag filter.
+ * @param FunctionName Function name supplied by the log macro.
  * @param Text Fully formatted log line.
  * @return TRUE when line should be emitted, FALSE otherwise.
  */
-static BOOL KernelLogShouldEmit(LPCSTR Text) {
+static BOOL KernelLogShouldEmit(LPCSTR FunctionName, LPCSTR Text) {
     LPSTR OpenBracket;
     LPSTR CloseBracket;
     U32 TagLength;
 
     if (StringEmpty(KernelLogState.TagFilter)) {
         return TRUE;
+    }
+
+    if (StringEmpty(FunctionName) == FALSE) {
+        return KernelLogFilterContainsTag(FunctionName, (U32)StringLength(FunctionName));
     }
 
     if (StringEmpty(Text)) {
@@ -501,17 +507,18 @@ static UINT KernelLogDriverCommands(UINT Function, UINT Parameter) {
 /************************************************************************/
 
 /**
- * @brief Logs formatted text to the kernel log.
+ * @brief Writes formatted text to the kernel log.
  *
  * Outputs timestamped log messages to the serial port. The function is
  * thread-safe and disables interrupts during output to ensure atomic logging.
  * Supports printf-style format strings with variable arguments.
  *
  * @param Type Log message type/severity level
+ * @param FunctionName Function name to use as the log tag
  * @param Format Printf-style format string
- * @param ... Variable arguments for format string
+ * @param Args Variable arguments for format string
  */
-void KernelLogText(U32 Type, LPCSTR Format, ...) {
+static void KernelLogWriteFormatted(U32 Type, LPCSTR FunctionName, LPCSTR Format, VarArgList Args) {
     if (StringEmpty(Format)) return;
 
     U32 Flags;
@@ -523,20 +530,24 @@ void KernelLogText(U32 Type, LPCSTR Format, ...) {
 
     STR TimeBuffer[128];
     STR TextBuffer[MAX_STRING_BUFFER];
+    STR MessageBuffer[KERNEL_LOG_ENTRY_BUFFER_SIZE];
     STR EntryBuffer[KERNEL_LOG_ENTRY_BUFFER_SIZE];
-    VarArgList Args;
 
     UINT Time = GetSystemTime();
     StringPrintFormat(TimeBuffer, TEXT("T%u> "), (U32)Time);
 
-    VarArgStart(Args, Format);
     StringPrintFormatArgs(TextBuffer, Format, Args);
-    VarArgEnd(Args);
 
-    if (!KernelLogShouldEmit(TextBuffer)) {
+    if (!KernelLogShouldEmit(FunctionName, TextBuffer)) {
         UnfreezeScheduler();
         RestoreFlags(&Flags);
         return;
+    }
+
+    if (StringEmpty(FunctionName) == FALSE) {
+        StringPrintFormat(MessageBuffer, TEXT("[%s] %s"), FunctionName, TextBuffer);
+    } else {
+        StringCopy(MessageBuffer, TextBuffer);
     }
 
     switch (Type) {
@@ -550,7 +561,7 @@ void KernelLogText(U32 Type, LPCSTR Format, ...) {
 
         default:
         case LOG_VERBOSE: {
-            ConsolePrint(TextBuffer);
+            ConsolePrint(MessageBuffer);
             ConsolePrint(Text_NewLine);
         } break;
 
@@ -563,12 +574,50 @@ void KernelLogText(U32 Type, LPCSTR Format, ...) {
         } break;
     }
 
-    StringPrintFormat(EntryBuffer, TEXT("%s%s%s\n"), TimeBuffer, Prefix, TextBuffer);
+    StringPrintFormat(EntryBuffer, TEXT("%s%s%s\n"), TimeBuffer, Prefix, MessageBuffer);
     KernelPrintString(EntryBuffer);
     KernelLogAppendRecentLine(EntryBuffer);
 
     UnfreezeScheduler();
     RestoreFlags(&Flags);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Logs formatted text to the kernel log with an explicit function tag.
+ *
+ * @param Type Log message type/severity level
+ * @param FunctionName Function name to use as the log tag
+ * @param Format Printf-style format string
+ * @param ... Variable arguments for format string
+ */
+void KernelLogTextFromFunction(U32 Type, LPCSTR FunctionName, LPCSTR Format, ...) {
+    VarArgList Args;
+
+    VarArgStart(Args, Format);
+    KernelLogWriteFormatted(Type, FunctionName, Format, Args);
+    VarArgEnd(Args);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Logs formatted text to the kernel log without an explicit function tag.
+ *
+ * This entry point serves non-C callers. C code uses the KernelLogText macro,
+ * which injects the caller function name.
+ *
+ * @param Type Log message type/severity level
+ * @param Format Printf-style format string
+ * @param ... Variable arguments for format string
+ */
+void KernelLogText(U32 Type, LPCSTR Format, ...) {
+    VarArgList Args;
+
+    VarArgStart(Args, Format);
+    KernelLogWriteFormatted(Type, NULL, Format, Args);
+    VarArgEnd(Args);
 }
 
 /************************************************************************/
@@ -594,9 +643,18 @@ void KernelLogMem(U32 Type, LINEAR Memory, U32 Size) {
         if (IsValidMemory((LINEAR)Pointer) == FALSE) return;
         if (IsValidMemory((LINEAR)(Pointer + 31)) == FALSE) return;
 
-        KernelLogText(
-            Type, TEXT("%08x : %08x %08x %08x %08x %08x %08x %08x %08x"), Pointer, Pointer[0], Pointer[1], Pointer[2],
-            Pointer[3], Pointer[4], Pointer[5], Pointer[6], Pointer[7]);
+        KernelLogTextFromFunction(Type,
+                                  TEXT(__func__),
+                                  TEXT("%08x : %08x %08x %08x %08x %08x %08x %08x %08x"),
+                                  Pointer,
+                                  Pointer[0],
+                                  Pointer[1],
+                                  Pointer[2],
+                                  Pointer[3],
+                                  Pointer[4],
+                                  Pointer[5],
+                                  Pointer[6],
+                                  Pointer[7]);
         Pointer += 4;
     }
 }

@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -551,18 +551,18 @@ void UseKeyboardLayout(LPCSTR Code) {
             KERNEL_FILE_EXTENSION_KEYBOARD_LAYOUT,
             Path,
             MAX_PATH_NAME) == FALSE) {
-        WARNING(TEXT("[UseKeyboardLayout] Invalid keyboard layout path, using embedded en-US layout"));
+        WARNING(TEXT("Invalid keyboard layout path, using embedded en-US layout"));
         Keyboard.LayoutHid = NULL;
         Keyboard.PendingDeadKey = 0;
         Keyboard.PendingComposeKey = 0;
         return;
     }
 
-    DEBUG(TEXT("[UseKeyboardLayout] Loading %s"), Path);
+    DEBUG(TEXT("Loading %s"), Path);
 
     Layout = LoadKeyboardLayout(Path);
     if (Layout == NULL) {
-        WARNING(TEXT("[UseKeyboardLayout] Using embedded en-US layout"));
+        WARNING(TEXT("Using embedded en-US layout"));
         Keyboard.LayoutHid = NULL;
     } else {
         Keyboard.LayoutHid = Layout;

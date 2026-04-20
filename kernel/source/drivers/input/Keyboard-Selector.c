@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -169,11 +169,11 @@ static BOOL KeyboardSelectorDetectUsbKeyboard(void) {
 static UINT KeyboardSelectorLoad(UINT Parameter) {
     UNUSED(Parameter);
 
-    DEBUG(TEXT("[KeyboardSelectorLoad] Detecting keyboard"));
+    DEBUG(TEXT("Detecting keyboard"));
 
     BOOL HasUsbKeyboard = KeyboardSelectorDetectUsbKeyboard();
     if (HasUsbKeyboard) {
-        DEBUG(TEXT("[KeyboardSelectorLoad] USB HID keyboard detected"));
+        DEBUG(TEXT("USB HID keyboard detected"));
         UINT Result = USBKeyboardGetDriver()->Command(DF_LOAD, 0);
         if (Result == DF_RETURN_SUCCESS) {
             KeyboardSelectorDriver.Flags |= DRIVER_FLAG_READY;
@@ -183,7 +183,7 @@ static UINT KeyboardSelectorLoad(UINT Parameter) {
 
     U16 Ps2Identifier = DetectKeyboard();
     if (Ps2Identifier != 0) {
-        DEBUG(TEXT("[KeyboardSelectorLoad] PS/2 keyboard detected (id=%x)"), (UINT)Ps2Identifier);
+        DEBUG(TEXT("PS/2 keyboard detected (id=%x)"), (UINT)Ps2Identifier);
         UINT Result = StdKeyboardGetDriver()->Command(DF_LOAD, 0);
         if (Result == DF_RETURN_SUCCESS) {
             KeyboardSelectorDriver.Flags |= DRIVER_FLAG_READY;
@@ -191,7 +191,7 @@ static UINT KeyboardSelectorLoad(UINT Parameter) {
         return Result;
     }
 
-    ERROR(TEXT("[KeyboardSelectorLoad] No keyboard detected"));
+    ERROR(TEXT("No keyboard detected"));
     KeyboardSelectorDriver.Flags &= ~DRIVER_FLAG_READY;
     return DF_RETURN_UNEXPECTED;
 }
