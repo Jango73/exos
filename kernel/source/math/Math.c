@@ -25,6 +25,7 @@
 
 #include "core/KernelData.h"
 #include "arch/intel/x86-Common.h"
+#include "system/Clock.h"
 
 /************************************************************************/
 

@@ -24,9 +24,9 @@
 #include "input/MouseCommon.h"
 
 #include "Arch.h"
-#include "sync/DeferredWork.h"
-#include "log/Log.h"
 #include "input/MouseDispatcher.h"
+#include "log/Log.h"
+#include "sync/DeferredWork.h"
 
 static void MouseCommonDeferredWork(LPVOID Context);
 
@@ -57,15 +57,15 @@ BOOL MouseCommonInitialize(LPMOUSE_COMMON_CONTEXT Context) {
         Context->Packet.Buttons = 0;
         Context->Packet.Pending = FALSE;
 
-        if (Context->DeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+        if (DeferredWorkTokenIsValid(Context->DeferredWorkToken) == FALSE) {
             DEFERRED_WORK_REGISTRATION Registration;
             Registration.WorkCallback = MouseCommonDeferredWork;
             Registration.PollCallback = NULL;
             Registration.Context = Context;
             Registration.Name = TEXT("MouseDispatch");
 
-            Context->DeferredHandle = DeferredWorkRegister(&Registration);
-            if (Context->DeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+            Context->DeferredWorkToken = DeferredWorkRegisterForQueue(DEFERRED_WORK_QUEUE_FAST, &Registration);
+            if (DeferredWorkTokenIsValid(Context->DeferredWorkToken) == FALSE) {
                 return FALSE;
             }
         }
@@ -101,8 +101,8 @@ void MouseCommonQueuePacket(LPMOUSE_COMMON_CONTEXT Context, I32 DeltaX, I32 Delt
 
     RestoreFlags(&Flags);
 
-    if (Context->DeferredHandle != DEFERRED_WORK_INVALID_HANDLE) {
-        DeferredWorkSignal(Context->DeferredHandle);
+    if (DeferredWorkTokenIsValid(Context->DeferredWorkToken) != FALSE) {
+        DeferredWorkSignal(Context->DeferredWorkToken);
     }
 }
 

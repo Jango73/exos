@@ -58,7 +58,7 @@ static inline UINT ProfileGetTicks(void)
 
 /************************************************************************/
 
-#define PROFILE_MAX_STATS 64
+#define PROFILE_MAX_STATS 128
 #define PIT_FREQUENCY 1193180u
 #define PIT_DIVISOR 11932u
 
@@ -66,7 +66,6 @@ static PROFILE_STATS ProfileStats[PROFILE_MAX_STATS];
 static UINT ProfileStatsCount = 0;
 static UINT ProfileSamplesWritten = 0;
 static UINT ProfileSamplesDropped = 0;
-static UINT ProfileSamplesLogged = 0;
 
 /************************************************************************/
 
@@ -142,17 +141,44 @@ static void ProfileRecordSample(LPCSTR Name, UINT DurationTicks)
     }
 
     ProfileSamplesWritten++;
+}
 
-    if (ProfileSamplesLogged < 8)
+/************************************************************************/
+
+/**
+ * @brief Compute the duration of one profiling scope.
+ * @param Scope Profiling scope to inspect.
+ * @return Duration in microseconds.
+ */
+static UINT ProfileComputeScopeDuration(LPPROFILE_SCOPE Scope)
+{
+    UINT EndMillis;
+    UINT EndCount;
+    UINT BaseMillis;
+    UINT BaseMicros;
+    UINT StartOffsetMicros;
+    UINT EndOffsetMicros;
+    INT OffsetDelta;
+    INT DurationMicrosSigned;
+
+    if (Scope == NULL)
     {
-        DEBUG(TEXT("[ProfileRecordSample] name=%s duration=%u ticks=%u written=%u dropped=%u"),
-              Entry->Name,
-              DurationTicks,
-              DurationTicks,
-              ProfileSamplesWritten,
-              ProfileSamplesDropped);
-        ProfileSamplesLogged++;
+        return 0;
     }
+
+    EndMillis = GetSystemTime();
+    EndCount = ProfileReadPITCount();
+
+    BaseMillis = (EndMillis >= Scope->StartMillis) ? (EndMillis - Scope->StartMillis) : 0;
+    BaseMicros = BaseMillis * 1000;
+
+    StartOffsetMicros = ((PIT_DIVISOR - Scope->StartCount) * 1000000) / PIT_FREQUENCY;
+    EndOffsetMicros = ((PIT_DIVISOR - EndCount) * 1000000) / PIT_FREQUENCY;
+
+    OffsetDelta = (INT)EndOffsetMicros - (INT)StartOffsetMicros;
+    DurationMicrosSigned = (INT)BaseMicros + OffsetDelta;
+
+    return (DurationMicrosSigned >= 0) ? (UINT)DurationMicrosSigned : 0;
 }
 
 /************************************************************************/
@@ -179,6 +205,20 @@ void ProfileCountCall(LPCSTR Name)
     }
 
     Entry->CallCount++;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Record a measured profiling duration.
+ *
+ * @param Name Entry name bound to a static call site.
+ * @param DurationMicros Duration in microseconds.
+ */
+void ProfileRecordDuration(LPCSTR Name, UINT DurationMicros)
+{
+    ProfileCountCall(Name);
+    ProfileRecordSample(Name, DurationMicros);
 }
 
 /************************************************************************/
@@ -218,28 +258,30 @@ void ProfileStart(LPPROFILE_SCOPE Scope, LPCSTR Name)
  */
 void ProfileStop(LPPROFILE_SCOPE Scope)
 {
+    (void)ProfileStopDuration(Scope);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Stop a profiling scope and return the recorded duration.
+ * @param Scope Profiling scope to finalize.
+ * @return Duration in microseconds.
+ */
+UINT ProfileStopDuration(LPPROFILE_SCOPE Scope)
+{
+    UINT DurationMicros;
+
     if (Scope == NULL)
     {
-        return;
+        return 0;
     }
 
     Scope->State = PROFILE_SCOPE_STATE_INACTIVE;
-
-    UINT EndMillis = GetSystemTime();
-    UINT EndCount = ProfileReadPITCount();
-
-    UINT BaseMillis = (EndMillis >= Scope->StartMillis) ? (EndMillis - Scope->StartMillis) : 0;
-    UINT BaseMicros = BaseMillis * 1000;
-
-    UINT StartOffsetMicros = ((PIT_DIVISOR - Scope->StartCount) * 1000000u) / PIT_FREQUENCY;
-    UINT EndOffsetMicros = ((PIT_DIVISOR - EndCount) * 1000000u) / PIT_FREQUENCY;
-
-    INT OffsetDelta = (INT)EndOffsetMicros - (INT)StartOffsetMicros;
-    INT DurationMicrosSigned = (INT)BaseMicros + OffsetDelta;
-
-    UINT DurationMicros = (DurationMicrosSigned >= 0) ? (UINT)DurationMicrosSigned : 0;
+    DurationMicros = ProfileComputeScopeDuration(Scope);
 
     ProfileRecordSample(Scope->Name, DurationMicros);
+    return DurationMicros;
 }
 
 /************************************************************************/
@@ -286,7 +328,6 @@ UINT ProfileGetStats(LPPROFILE_QUERY_INFO Info)
         ProfileStatsCount = 0;
         ProfileSamplesWritten = 0;
         ProfileSamplesDropped = 0;
-        ProfileSamplesLogged = 0;
         MemorySet(ProfileStats, 0, sizeof(ProfileStats));
     }
 
@@ -315,6 +356,22 @@ void ProfileStart(LPPROFILE_SCOPE Scope, LPCSTR Name)
 void ProfileStop(LPPROFILE_SCOPE Scope)
 {
     UNUSED(Scope);
+}
+
+/************************************************************************/
+
+UINT ProfileStopDuration(LPPROFILE_SCOPE Scope)
+{
+    UNUSED(Scope);
+    return 0;
+}
+
+/************************************************************************/
+
+void ProfileRecordDuration(LPCSTR Name, UINT DurationMicros)
+{
+    UNUSED(Name);
+    UNUSED(DurationMicros);
 }
 
 /************************************************************************/

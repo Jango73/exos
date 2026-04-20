@@ -28,9 +28,10 @@
 /***************************************************************************/
 
 #include "Base.h"
+#include "User.h"
 #include "core/Driver.h"
 #include "process/Process.h"
-#include "User.h"
+#include "sync/DeferredWork.h"
 
 /***************************************************************************/
 
@@ -165,7 +166,7 @@ typedef struct tag_KEYBOARDSTRUCT {
     KEY_USAGE RepeatUsage;
     UINT RepeatStartTick;
     UINT RepeatLastTick;
-    U32 RepeatHandle;
+    DEFERRED_WORK_TOKEN RepeatToken;
 } KEYBOARDSTRUCT, *LPKEYBOARDSTRUCT;
 
 /***************************************************************************/

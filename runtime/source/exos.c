@@ -52,7 +52,7 @@ U32 Wait(LPWAIT_INFO WaitInfo) { return (U32)exoscall(SYSCALL_Wait, EXOS_PARAM(W
 
 /***************************************************************************/
 
-U32 GetSystemTime(void) { return (U32)exoscall(SYSCALL_GetSystemTime, EXOS_PARAM(0)); }
+UINT GetSystemTime(void) { return (UINT)exoscall(SYSCALL_GetSystemTime, EXOS_PARAM(0)); }
 
 /***************************************************************************/
 
@@ -839,7 +839,7 @@ void ConsoleClear(void) {
 
 /***************************************************************************/
 
-U32 ConsoleSetMode(U32 Columns, U32 Rows) {
+U32 ConsoleSetColumnsRows(U32 Columns, U32 Rows) {
     GRAPHICS_MODE_INFO Info;
 
     Info.Header.Size = sizeof Info;

@@ -654,6 +654,19 @@ HANDLE GetWindowDesktop(HANDLE Window) {
 
 /***************************************************************************/
 
+HANDLE GetDesktopWindow(HANDLE DesktopHandle) {
+    LPDESKTOP Desktop;
+    LPWINDOW RootWindow;
+
+    Desktop = (LPDESKTOP)DesktopHandle;
+    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) return NULL;
+    if (DesktopGetRootWindow(Desktop, &RootWindow) == FALSE) return NULL;
+
+    return (HANDLE)RootWindow;
+}
+
+/***************************************************************************/
+
 /*
 static BOOL ComputeWindowRegions(LPWINDOW This) {
     UNUSED(This);

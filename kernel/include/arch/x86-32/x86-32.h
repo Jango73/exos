@@ -422,6 +422,8 @@ typedef struct tag_ARCH_TASK_DATA {
     INTERRUPT_FRAME Context;
     STACK Stack;
     STACK SystemStack;
+    UINT UserTlsDescriptorIndex;
+    U16 UserTlsSelector;
 } ARCH_TASK_DATA, *LPARCH_TASK_DATA;
 
 // The GDT register

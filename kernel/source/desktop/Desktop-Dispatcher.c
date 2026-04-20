@@ -103,11 +103,11 @@ static U32 DesktopDispatcherTask(LPVOID Parameter) {
         Message.Header.Flags = 0;
         Message.Target = NULL;
 
-        if (GetMessage(&Message) == FALSE) {
+        if (KernelGetMessage(&Message) == FALSE) {
             continue;
         }
 
-        if (DispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
+        if (KernelDispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
             DispatchFailureCount++;
         }
     }
@@ -150,11 +150,11 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
     TaskInfo.Func = DesktopDispatcherTask;
     TaskInfo.Parameter = Desktop;
     TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
-    TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
+    TaskInfo.Priority = TASK_PRIORITY_HIGHEST;
     TaskInfo.Flags = 0;
     StringCopy(TaskInfo.Name, DESKTOP_DISPATCHER_TASK_NAME);
 
-    DispatcherTask = CreateTask(&KernelProcess, &TaskInfo);
+    DispatcherTask = KernelCreateTask(&KernelProcess, &TaskInfo);
     if (DispatcherTask == NULL) {
         WARNING(TEXT("[DesktopEnsureDispatcherTask] Unable to create desktop dispatcher"));
         return FALSE;

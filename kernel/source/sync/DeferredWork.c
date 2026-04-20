@@ -1,4 +1,3 @@
-
 /************************************************************************\
 
     EXOS Kernel
@@ -24,67 +23,36 @@
 
 #include "sync/DeferredWork.h"
 
-#include "core/KernelEvent.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
-#include "memory/Memory.h"
 #include "process/Process.h"
-#include "process/Schedule.h"
 #include "process/Task.h"
 #include "system/System.h"
-#include "User.h"
 #include "text/CoreString.h"
 #include "utils/Helpers.h"
 
 /************************************************************************/
+// Macros
 
-typedef struct tag_DEFERRED_WORK_ITEM {
-    volatile BOOL InUse;
-    volatile BOOL Unregistering;
-    DEFERRED_WORK_CALLBACK WorkCallback;
-    DEFERRED_WORK_POLL_CALLBACK PollCallback;
-    LPVOID Context;
-    volatile U32 PendingCount;
-    volatile U32 ActiveCallbacks;
-    STR Name[32];
-} DEFERRED_WORK_ITEM, *LPDEFERRED_WORK_ITEM;
-
-typedef struct tag_DEFERRED_WORK_CONTEXT {
-    DEFERRED_WORK_ITEM WorkItems[DEFERRED_WORK_MAX_ITEMS];
-    LPKERNEL_EVENT DeferredEvent;
-    BOOL PollingMode;
-    BOOL DispatcherStarted;
-} DEFERRED_WORK_CONTEXT;
+#define DEFERRED_WORK_VER_MAJOR 1
+#define DEFERRED_WORK_VER_MINOR 0
 
 /************************************************************************/
+// Other
 
-static DEFERRED_WORK_CONTEXT DATA_SECTION g_DeferredWork = {
-    .DeferredEvent = NULL,
-    .PollingMode = FALSE,
-    .DispatcherStarted = FALSE};
+static DEFERRED_WORK_QUEUE DATA_SECTION g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_COUNT] = {0};
 
 /************************************************************************/
 
 static UINT DeferredWorkDriverCommands(UINT Function, UINT Parameter);
-static BOOL DeferredWorkAcquirePendingDispatch(
-    UINT Handle,
-    DEFERRED_WORK_CALLBACK* Callback,
-    LPVOID* Context,
-    U32* PendingCount);
-static BOOL DeferredWorkAcquirePollDispatch(
-    UINT Handle,
-    DEFERRED_WORK_POLL_CALLBACK* Callback,
-    LPVOID* Context);
-static void DeferredWorkReleaseDispatch(UINT Handle);
-static void DeferredWorkWaitForQuiesced(UINT Handle);
-static void ProcessPendingWork(void);
-static void ProcessPollCallbacks(void);
-static U32 DeferredWorkDispatcherTask(LPVOID Param);
+static U32 DeferredWorkQueueDispatcherTask(LPVOID Param);
+static LPDEFERRED_WORK_QUEUE DeferredWorkGetQueueByID(U32 QueueID);
+static DEFERRED_WORK_TOKEN DeferredWorkMakeInvalidToken(void);
+static DEFERRED_WORK_TOKEN DeferredWorkMakeToken(U32 QueueID, U32 SlotID);
+static BOOL DeferredWorkInitializeQueue(
+    U32 QueueID, LPCSTR Name, BOOL PollingMode, UINT WaitTimeoutMS, UINT PollDelayMS);
 
 /************************************************************************/
-
-#define DEFERRED_WORK_VER_MAJOR 1
-#define DEFERRED_WORK_VER_MINOR 0
 
 DRIVER DATA_SECTION DeferredWorkDriver = {
     .TypeID = KOID_DRIVER,
@@ -104,510 +72,358 @@ DRIVER DATA_SECTION DeferredWorkDriver = {
 /************************************************************************/
 
 /**
- * @brief Retrieves the deferred work driver descriptor.
+ * @brief Retrieve the deferred work driver descriptor.
  * @return Pointer to the deferred work driver.
  */
-LPDRIVER DeferredWorkGetDriver(void) {
-    return &DeferredWorkDriver;
+LPDRIVER DeferredWorkGetDriver(void) { return &DeferredWorkDriver; }
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve one deferred work queue by public identifier.
+ * @param QueueID Queue identifier.
+ * @return Queue pointer or NULL.
+ */
+static LPDEFERRED_WORK_QUEUE DeferredWorkGetQueueByID(U32 QueueID) {
+    if (QueueID >= DEFERRED_WORK_QUEUE_COUNT) return NULL;
+    return &(g_DeferredWorkQueues[QueueID]);
 }
 
 /************************************************************************/
 
 /**
- * @brief Initializes deferred work dispatcher task and event.
- *
- * Reads configuration for timeouts/polling, creates dispatcher task, and
- * prepares internal slots for deferred work items.
- *
+ * @brief Build an invalid deferred work token.
+ * @return Invalid token.
+ */
+static DEFERRED_WORK_TOKEN DeferredWorkMakeInvalidToken(void) {
+    DEFERRED_WORK_TOKEN Token;
+
+    Token.QueueID = DEFERRED_WORK_QUEUE_INVALID;
+    Token.SlotID = DEFERRED_WORK_INVALID_SLOT;
+    return Token;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Build a deferred work token from queue and slot identifiers.
+ * @param QueueID Queue identifier.
+ * @param SlotID Slot identifier.
+ * @return Token identifying the queue slot.
+ */
+static DEFERRED_WORK_TOKEN DeferredWorkMakeToken(U32 QueueID, U32 SlotID) {
+    DEFERRED_WORK_TOKEN Token;
+
+    Token.QueueID = QueueID;
+    Token.SlotID = SlotID;
+    return Token;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Tell whether a deferred work token references an existing queue slot.
+ * @param Token Token to inspect.
+ * @return TRUE when the token can be routed.
+ */
+BOOL DeferredWorkTokenIsValid(DEFERRED_WORK_TOKEN Token) {
+    if (Token.QueueID >= DEFERRED_WORK_QUEUE_COUNT) return FALSE;
+    if (Token.SlotID >= DEFERRED_WORK_MAX_ITEMS) return FALSE;
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Initialize one deferred work queue instance.
+ * @param QueueID Queue identifier.
+ * @param Name Dispatcher task name.
+ * @param PollDelayMS Polling delay in milliseconds.
+ * @return TRUE on success.
+ */
+static BOOL DeferredWorkInitializeQueue(
+    U32 QueueID, LPCSTR Name, BOOL PollingMode, UINT WaitTimeoutMS, UINT PollDelayMS) {
+    DEFERRED_WORK_QUEUE_CONFIG Config;
+    LPDEFERRED_WORK_QUEUE Queue = DeferredWorkGetQueueByID(QueueID);
+
+    if (Queue == NULL || Name == NULL) return FALSE;
+
+    MemorySet(&Config, 0, sizeof(Config));
+    Config.Name = Name;
+    Config.TaskCallback = DeferredWorkQueueDispatcherTask;
+    Config.PollingMode = PollingMode;
+    Config.WaitTimeoutMS = WaitTimeoutMS;
+    Config.PollDelayMS = PollDelayMS;
+    Config.TaskPriority = TASK_PRIORITY_LOWER;
+
+    return DeferredWorkQueueInitialize(Queue, &Config);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Initialize deferred work dispatchers and events.
  * @return TRUE on success, FALSE on allocation or task creation failure.
  */
 BOOL InitializeDeferredWork(void) {
-    if (g_DeferredWork.DispatcherStarted) {
+    LPCSTR WaitTimeoutValue;
+    LPCSTR PollDelayValue;
+    LPCSTR ModeValue;
+    U32 Numeric;
+    BOOL PollingMode = FALSE;
+
+    if (g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_STANDARD].DispatcherStarted &&
+        g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_FAST].DispatcherStarted) {
         return TRUE;
     }
 
     SetDeferredWorkWaitTimeout(DEFERRED_WORK_WAIT_TIMEOUT_MS);
     SetDeferredWorkPollDelay(DEFERRED_WORK_POLL_DELAY_MS);
 
-    LPCSTR WaitTimeoutValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_DEFERRED_WORK_WAIT_TIMEOUT_MS));
+    WaitTimeoutValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_DEFERRED_WORK_WAIT_TIMEOUT_MS));
     if (STRING_EMPTY(WaitTimeoutValue) == FALSE) {
         SetDeferredWorkWaitTimeout(StringToU32(WaitTimeoutValue));
     }
 
-    LPCSTR PollDelayValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_DEFERRED_WORK_POLL_DELAY_MS));
+    PollDelayValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_DEFERRED_WORK_POLL_DELAY_MS));
     if (STRING_EMPTY(PollDelayValue) == FALSE) {
         SetDeferredWorkPollDelay(StringToU32(PollDelayValue));
     }
 
-    MemorySet(g_DeferredWork.WorkItems, 0, sizeof(g_DeferredWork.WorkItems));
-
-    g_DeferredWork.DeferredEvent = CreateKernelEvent();
-    if (g_DeferredWork.DeferredEvent == NULL) {
-        ERROR(TEXT("[InitializeDeferredWork] Failed to create deferred event"));
-        return FALSE;
-    }
-
-    DEBUG(TEXT("[InitializeDeferredWork] Deferred event created at %p"), g_DeferredWork.DeferredEvent);
-
-    LPCSTR ModeValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_POLLING));
+    ModeValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_POLLING));
     if (STRING_EMPTY(ModeValue) == FALSE) {
-        U32 Numeric = StringToU32(ModeValue);
+        Numeric = StringToU32(ModeValue);
         if (Numeric != 0) {
-            g_DeferredWork.PollingMode = TRUE;
+            PollingMode = TRUE;
         } else if (StringCompareNC(ModeValue, TEXT("true")) == 0) {
-            g_DeferredWork.PollingMode = TRUE;
+            PollingMode = TRUE;
         }
     }
 
-    if (g_DeferredWork.PollingMode == TRUE) {
+    if (PollingMode != FALSE) {
         ConsolePrint(TEXT("WARNING : Devices in polling mode.\n"));
     }
 
-    TASK_INFO TaskInfo;
-    MemorySet(&TaskInfo, 0, sizeof(TaskInfo));
-    TaskInfo.Header.Size = sizeof(TASK_INFO);
-    TaskInfo.Header.Version = EXOS_ABI_VERSION;
-    TaskInfo.Func = DeferredWorkDispatcherTask;
-    TaskInfo.Parameter = NULL;
-    TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
-    TaskInfo.Priority = TASK_PRIORITY_LOWER;
-    TaskInfo.Flags = 0;
-    StringCopy(TaskInfo.Name, TEXT("DeferredWork"));
-
-    if (CreateTask(&KernelProcess, &TaskInfo) == NULL) {
-        ERROR(TEXT("[InitializeDeferredWork] Failed to create dispatcher task"));
-        DeleteKernelEvent(g_DeferredWork.DeferredEvent);
-        g_DeferredWork.DeferredEvent = NULL;
+    if (DeferredWorkInitializeQueue(
+            DEFERRED_WORK_QUEUE_STANDARD, TEXT("DeferredWork"), PollingMode, GetDeferredWorkWaitTimeout(),
+            GetDeferredWorkPollDelay()) == FALSE) {
         return FALSE;
     }
 
-    g_DeferredWork.DispatcherStarted = TRUE;
-    DEBUG(TEXT("[InitializeDeferredWork] Dispatcher task started"));
+    if (DeferredWorkInitializeQueue(
+            DEFERRED_WORK_QUEUE_FAST, TEXT("DeferredWorkFast"), PollingMode, DEFERRED_WORK_FAST_DELAY_MS,
+            DEFERRED_WORK_FAST_DELAY_MS) == FALSE) {
+        DeferredWorkQueueShutdown(&(g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_STANDARD]));
+        return FALSE;
+    }
+
+    DEBUG(
+        TEXT("[InitializeDeferredWork] Queues initialized standard_delay=%u fast_delay=%u"), GetDeferredWorkPollDelay(),
+        DEFERRED_WORK_FAST_DELAY_MS);
     return TRUE;
 }
 
 /************************************************************************/
 
 /**
- * @brief Shuts down deferred work dispatcher state.
- *
- * Clears dispatcher flags and resets the deferred event when available.
+ * @brief Shut down deferred work dispatcher state.
  */
 void ShutdownDeferredWork(void) {
-    g_DeferredWork.DispatcherStarted = FALSE;
-    g_DeferredWork.PollingMode = FALSE;
-    SAFE_USE(g_DeferredWork.DeferredEvent) {
-        ResetKernelEvent(g_DeferredWork.DeferredEvent);
-    }
+    DeferredWorkQueueShutdown(&(g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_STANDARD]));
+    DeferredWorkQueueShutdown(&(g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_FAST]));
 }
 
 /************************************************************************/
 
 /**
- * @brief Claims one pending work callback execution for one slot.
- *
- * The callback pointer and context are snapshotted while interrupts are
- * disabled so later unregister operations cannot invalidate the dispatch
- * frame already selected for execution.
- *
- * @param Handle Work item handle to inspect.
- * @param Callback Output callback pointer.
- * @param Context Output callback context.
- * @param PendingCount Output number of queued runs consumed by this claim.
- *
- * @return TRUE when one dispatch batch was acquired, FALSE otherwise.
- */
-static BOOL DeferredWorkAcquirePendingDispatch(
-    UINT Handle,
-    DEFERRED_WORK_CALLBACK* Callback,
-    LPVOID* Context,
-    U32* PendingCount) {
-    LPDEFERRED_WORK_ITEM Item;
-    UINT Flags;
-
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS || Callback == NULL || Context == NULL || PendingCount == NULL) {
-        return FALSE;
-    }
-
-    SaveFlags(&Flags);
-    DisableInterrupts();
-
-    Item = &g_DeferredWork.WorkItems[Handle];
-    if (!Item->InUse || Item->Unregistering || Item->WorkCallback == NULL || Item->PendingCount == 0) {
-        RestoreFlags(&Flags);
-        return FALSE;
-    }
-
-    *Callback = Item->WorkCallback;
-    *Context = Item->Context;
-    *PendingCount = Item->PendingCount;
-    Item->PendingCount = 0;
-    Item->ActiveCallbacks++;
-
-    RestoreFlags(&Flags);
-    return TRUE;
-}
-
-/************************************************************************/
-
-/**
- * @brief Claims one polling callback execution for one slot.
- *
- * @param Handle Work item handle to inspect.
- * @param Callback Output poll callback pointer.
- * @param Context Output callback context.
- *
- * @return TRUE when one polling callback was acquired, FALSE otherwise.
- */
-static BOOL DeferredWorkAcquirePollDispatch(
-    UINT Handle,
-    DEFERRED_WORK_POLL_CALLBACK* Callback,
-    LPVOID* Context) {
-    LPDEFERRED_WORK_ITEM Item;
-    UINT Flags;
-
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS || Callback == NULL || Context == NULL) {
-        return FALSE;
-    }
-
-    SaveFlags(&Flags);
-    DisableInterrupts();
-
-    Item = &g_DeferredWork.WorkItems[Handle];
-    if (!Item->InUse || Item->Unregistering || Item->PollCallback == NULL) {
-        RestoreFlags(&Flags);
-        return FALSE;
-    }
-
-    *Callback = Item->PollCallback;
-    *Context = Item->Context;
-    Item->ActiveCallbacks++;
-
-    RestoreFlags(&Flags);
-    return TRUE;
-}
-
-/************************************************************************/
-
-/**
- * @brief Releases one previously acquired dispatch claim.
- *
- * @param Handle Work item handle previously acquired.
- */
-static void DeferredWorkReleaseDispatch(UINT Handle) {
-    UINT Flags;
-
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS) {
-        return;
-    }
-
-    SaveFlags(&Flags);
-    DisableInterrupts();
-
-    if (g_DeferredWork.WorkItems[Handle].ActiveCallbacks > 0) {
-        g_DeferredWork.WorkItems[Handle].ActiveCallbacks--;
-    }
-
-    RestoreFlags(&Flags);
-}
-
-/************************************************************************/
-
-/**
- * @brief Waits until one work item no longer has in-flight callbacks.
- *
- * @param Handle Work item handle to wait for.
- */
-static void DeferredWorkWaitForQuiesced(UINT Handle) {
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS) {
-        return;
-    }
-
-    while (g_DeferredWork.WorkItems[Handle].ActiveCallbacks > 0) {
-        Sleep(1);
-    }
-}
-
-/************************************************************************/
-
-/**
- * @brief Registers a deferred work item with callbacks and context.
- *
+ * @brief Register a deferred work item in the standard queue.
  * @param Registration Registration information defining callbacks and context.
- *
- * @return Handle to the registered work item or DEFERRED_WORK_INVALID_HANDLE.
+ * @return Token to the registered work item or an invalid token.
  */
-U32 DeferredWorkRegister(const DEFERRED_WORK_REGISTRATION *Registration) {
-    UINT Flags;
-
-    if (Registration == NULL) {
-        return DEFERRED_WORK_INVALID_HANDLE;
-    }
-
-    if (Registration->WorkCallback == NULL && Registration->PollCallback == NULL) {
-        return DEFERRED_WORK_INVALID_HANDLE;
-    }
-
-    for (U32 Index = 0; Index < DEFERRED_WORK_MAX_ITEMS; Index++) {
-        SaveFlags(&Flags);
-        DisableInterrupts();
-
-        if (!g_DeferredWork.WorkItems[Index].InUse &&
-            !g_DeferredWork.WorkItems[Index].Unregistering &&
-            g_DeferredWork.WorkItems[Index].ActiveCallbacks == 0) {
-            g_DeferredWork.WorkItems[Index].InUse = TRUE;
-            g_DeferredWork.WorkItems[Index].Unregistering = FALSE;
-            g_DeferredWork.WorkItems[Index].WorkCallback = Registration->WorkCallback;
-            g_DeferredWork.WorkItems[Index].PollCallback = Registration->PollCallback;
-            g_DeferredWork.WorkItems[Index].Context = Registration->Context;
-            g_DeferredWork.WorkItems[Index].PendingCount = 0;
-            g_DeferredWork.WorkItems[Index].ActiveCallbacks = 0;
-            MemorySet(g_DeferredWork.WorkItems[Index].Name, 0, sizeof(g_DeferredWork.WorkItems[Index].Name));
-            if (Registration->Name) {
-                StringCopyLimit(g_DeferredWork.WorkItems[Index].Name,
-                                Registration->Name,
-                                sizeof(g_DeferredWork.WorkItems[Index].Name));
-            }
-
-            RestoreFlags(&Flags);
-
-            DEBUG(TEXT("[DeferredWorkRegister] Registered work item %u (%s)"),
-                  Index,
-                  g_DeferredWork.WorkItems[Index].Name);
-            return Index;
-        }
-
-        RestoreFlags(&Flags);
-    }
-
-    ERROR(TEXT("[DeferredWorkRegister] No free deferred work slots"));
-    return DEFERRED_WORK_INVALID_HANDLE;
+DEFERRED_WORK_TOKEN DeferredWorkRegister(const DEFERRED_WORK_REGISTRATION* Registration) {
+    return DeferredWorkRegisterForQueue(DEFERRED_WORK_QUEUE_STANDARD, Registration);
 }
 
 /************************************************************************/
 
 /**
- * @brief Registers a polling-only deferred work item.
- *
+ * @brief Register a deferred work item in a selected queue.
+ * @param QueueID Queue identifier.
+ * @param Registration Registration information defining callbacks and context.
+ * @return Token to the registered work item or an invalid token.
+ */
+DEFERRED_WORK_TOKEN DeferredWorkRegisterForQueue(U32 QueueID, const DEFERRED_WORK_REGISTRATION* Registration) {
+    LPDEFERRED_WORK_QUEUE Queue = DeferredWorkGetQueueByID(QueueID);
+    U32 SlotID;
+
+    if (Queue == NULL) return DeferredWorkMakeInvalidToken();
+
+    SlotID = DeferredWorkQueueRegister(Queue, Registration);
+    if (SlotID == DEFERRED_WORK_INVALID_SLOT) return DeferredWorkMakeInvalidToken();
+
+    return DeferredWorkMakeToken(QueueID, SlotID);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Register a polling-only deferred work item in the standard queue.
  * @param PollCallback Callback invoked during polling.
  * @param Context User-provided context passed to callback.
  * @param Name Debug name for the registration.
- *
- * @return Handle to the registered work item or DEFERRED_WORK_INVALID_HANDLE.
+ * @return Token to the registered work item or an invalid token.
  */
-U32 DeferredWorkRegisterPollOnly(DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name) {
-    DEFERRED_WORK_REGISTRATION Registration;
-    MemorySet(&Registration, 0, sizeof(Registration));
-    Registration.WorkCallback = NULL;
-    Registration.PollCallback = PollCallback;
-    Registration.Context = Context;
-    Registration.Name = Name;
-    return DeferredWorkRegister(&Registration);
+DEFERRED_WORK_TOKEN DeferredWorkRegisterPollOnly(
+    DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name) {
+    return DeferredWorkRegisterPollOnlyForQueue(DEFERRED_WORK_QUEUE_STANDARD, PollCallback, Context, Name);
 }
 
 /************************************************************************/
 
 /**
- * @brief Unregisters a deferred work item and clears its slot.
- *
- * @param Handle Deferred work handle to remove.
+ * @brief Register a polling-only deferred work item in a selected queue.
+ * @param QueueID Queue identifier.
+ * @param PollCallback Callback invoked during polling.
+ * @param Context User-provided context passed to callback.
+ * @param Name Debug name for the registration.
+ * @return Token to the registered work item or an invalid token.
  */
-void DeferredWorkUnregister(U32 Handle) {
-    LPDEFERRED_WORK_ITEM Item;
-    UINT Flags;
+DEFERRED_WORK_TOKEN DeferredWorkRegisterPollOnlyForQueue(
+    U32 QueueID, DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name) {
+    LPDEFERRED_WORK_QUEUE Queue = DeferredWorkGetQueueByID(QueueID);
+    U32 SlotID;
 
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS) {
-        return;
-    }
+    if (Queue == NULL) return DeferredWorkMakeInvalidToken();
 
-    SaveFlags(&Flags);
-    DisableInterrupts();
+    SlotID = DeferredWorkQueueRegisterPollOnly(Queue, PollCallback, Context, Name);
+    if (SlotID == DEFERRED_WORK_INVALID_SLOT) return DeferredWorkMakeInvalidToken();
 
-    Item = &g_DeferredWork.WorkItems[Handle];
-    if (!Item->InUse) {
-        RestoreFlags(&Flags);
-        return;
-    }
-
-    Item->Unregistering = TRUE;
-    Item->PendingCount = 0;
-
-    RestoreFlags(&Flags);
-
-    DeferredWorkWaitForQuiesced(Handle);
-
-    SaveFlags(&Flags);
-    DisableInterrupts();
-
-    Item->InUse = FALSE;
-    Item->Unregistering = FALSE;
-    Item->WorkCallback = NULL;
-    Item->PollCallback = NULL;
-    Item->Context = NULL;
-    Item->PendingCount = 0;
-    MemorySet(Item->Name, 0, sizeof(Item->Name));
-
-    RestoreFlags(&Flags);
-
-    DEBUG(TEXT("[DeferredWorkUnregister] Unregistered work item %u"), Handle);
+    return DeferredWorkMakeToken(QueueID, SlotID);
 }
 
 /************************************************************************/
 
 /**
- * @brief Signals a deferred work item to run its work callback.
- *
- * @param Handle Deferred work handle to signal.
+ * @brief Unregister a deferred work item and clear its slot.
+ * @param Token Deferred work token to remove.
  */
-void DeferredWorkSignal(U32 Handle) {
-    LPDEFERRED_WORK_ITEM Item;
-    UINT Flags;
+void DeferredWorkUnregister(DEFERRED_WORK_TOKEN Token) {
+    LPDEFERRED_WORK_QUEUE Queue;
 
-    if (Handle >= DEFERRED_WORK_MAX_ITEMS) {
-        return;
-    }
+    if (DeferredWorkTokenIsValid(Token) == FALSE) return;
 
-    SaveFlags(&Flags);
-    DisableInterrupts();
+    Queue = DeferredWorkGetQueueByID(Token.QueueID);
+    if (Queue == NULL) return;
 
-    Item = &g_DeferredWork.WorkItems[Handle];
-    if (!Item->InUse || Item->Unregistering || Item->WorkCallback == NULL) {
-        RestoreFlags(&Flags);
-        return;
-    }
-
-    Item->PendingCount++;
-    RestoreFlags(&Flags);
-
-    SAFE_USE(g_DeferredWork.DeferredEvent) {
-        SignalKernelEvent(g_DeferredWork.DeferredEvent);
-    }
+    DeferredWorkQueueUnregister(Queue, Token.SlotID);
 }
 
 /************************************************************************/
 
 /**
- * @brief Indicates if deferred work dispatching uses polling mode.
- *
- * @return TRUE when polling mode is enabled, FALSE otherwise.
+ * @brief Signal a deferred work item to run its work callback.
+ * @param Token Deferred work token to signal.
  */
-BOOL DeferredWorkIsPollingMode(void) {
-    return g_DeferredWork.PollingMode;
+void DeferredWorkSignal(DEFERRED_WORK_TOKEN Token) {
+    LPDEFERRED_WORK_QUEUE Queue;
+
+    if (DeferredWorkTokenIsValid(Token) == FALSE) return;
+
+    Queue = DeferredWorkGetQueueByID(Token.QueueID);
+    if (Queue == NULL) return;
+
+    DeferredWorkQueueSignal(Queue, Token.SlotID);
 }
 
 /************************************************************************/
 
 /**
- * @brief Processes pending deferred work callbacks until the queue drains.
- *
- * Resets the deferred event when no pending items remain.
+ * @brief Tell whether the standard queue uses polling mode.
+ * @return TRUE when polling mode is enabled.
  */
-static void ProcessPendingWork(void) {
-    BOOL WorkFound;
+BOOL DeferredWorkIsPollingMode(void) { return DeferredWorkIsPollingModeForQueue(DEFERRED_WORK_QUEUE_STANDARD); }
 
-    do {
-        WorkFound = FALSE;
+/************************************************************************/
 
-        for (U32 Index = 0; Index < DEFERRED_WORK_MAX_ITEMS; Index++) {
-            U32 Pending = 0;
-            LPVOID Context = NULL;
-            DEFERRED_WORK_CALLBACK Callback = NULL;
+/**
+ * @brief Tell whether a selected queue uses polling mode.
+ * @param QueueID Queue identifier.
+ * @return TRUE when polling mode is enabled.
+ */
+BOOL DeferredWorkIsPollingModeForQueue(U32 QueueID) {
+    LPDEFERRED_WORK_QUEUE Queue = DeferredWorkGetQueueByID(QueueID);
 
-            if (!DeferredWorkAcquirePendingDispatch(Index, &Callback, &Context, &Pending)) {
-                continue;
-            }
+    if (Queue == NULL) return FALSE;
+    return DeferredWorkQueueIsPollingMode(Queue);
+}
 
-            while (Pending > 0) {
-                Callback(Context);
-                Pending--;
-                WorkFound = TRUE;
-            }
+/************************************************************************/
 
-            DeferredWorkReleaseDispatch(Index);
-        }
-    } while (WorkFound);
+/**
+ * @brief Refresh polling mode from configuration for all deferred work queues.
+ */
+void DeferredWorkUpdateMode(void) {
+    LPCSTR ModeValue;
+    U32 Numeric;
+    BOOL PollingMode = FALSE;
 
-    UINT Flags;
-    SaveFlags(&Flags);
-    DisableInterrupts();
-
-    BOOL PendingLeft = FALSE;
-    for (U32 Index = 0; Index < DEFERRED_WORK_MAX_ITEMS; Index++) {
-        if (g_DeferredWork.WorkItems[Index].InUse && g_DeferredWork.WorkItems[Index].PendingCount > 0U) {
-            PendingLeft = TRUE;
-            break;
+    ModeValue = GetConfigurationValue(TEXT(CONFIG_GENERAL_POLLING));
+    if (STRING_EMPTY(ModeValue) == FALSE) {
+        Numeric = StringToU32(ModeValue);
+        if (Numeric != 0) {
+            PollingMode = TRUE;
+        } else if (StringCompareNC(ModeValue, TEXT("true")) == 0) {
+            PollingMode = TRUE;
         }
     }
 
-    if (!PendingLeft) {
-        SAFE_USE(g_DeferredWork.DeferredEvent) {
-            ResetKernelEvent(g_DeferredWork.DeferredEvent);
-        }
-    }
-
-    RestoreFlags(&Flags);
+    g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_STANDARD].PollingMode = PollingMode;
+    g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_FAST].PollingMode = PollingMode;
 }
 
 /************************************************************************/
 
 /**
- * @brief Runs all registered polling callbacks.
- */
-static void ProcessPollCallbacks(void) {
-    for (U32 Index = 0; Index < DEFERRED_WORK_MAX_ITEMS; Index++) {
-        LPVOID Context = NULL;
-        DEFERRED_WORK_POLL_CALLBACK Callback = NULL;
-
-        if (!DeferredWorkAcquirePollDispatch(Index, &Callback, &Context)) {
-            continue;
-        }
-
-        Callback(Context);
-        DeferredWorkReleaseDispatch(Index);
-    }
-}
-
-/************************************************************************/
-
-/**
- * @brief Task entry point that dispatches deferred work based on mode.
- *
- * @param Param Unused task parameter.
- *
+ * @brief Dispatcher task for one deferred work queue.
+ * @param Param Deferred work queue pointer.
  * @return Always 0 when the task exits.
  */
-static U32 DeferredWorkDispatcherTask(LPVOID Param) {
-    UNUSED(Param);
-
+static U32 DeferredWorkQueueDispatcherTask(LPVOID Param) {
+    LPDEFERRED_WORK_QUEUE Queue = (LPDEFERRED_WORK_QUEUE)Param;
     WAIT_INFO WaitInfo;
-    MemorySet(&WaitInfo, 0, sizeof(WAIT_INFO));
+    U32 WaitResult;
+
+    if (Queue == NULL) return 0;
+
+    MemorySet(&WaitInfo, 0, sizeof(WaitInfo));
     WaitInfo.Header.Size = sizeof(WAIT_INFO);
     WaitInfo.Header.Version = EXOS_ABI_VERSION;
     WaitInfo.Header.Flags = 0;
     WaitInfo.Count = 1;
-    WaitInfo.Objects[0] = (HANDLE)g_DeferredWork.DeferredEvent;
-    WaitInfo.MilliSeconds = GetDeferredWorkWaitTimeout();
+    WaitInfo.Objects[0] = (HANDLE)Queue->DeferredEvent;
+    WaitInfo.MilliSeconds = Queue->WaitTimeoutMS;
 
     FOREVER {
-        if (DeferredWorkIsPollingMode()) {
-            ProcessPollCallbacks();
-            Sleep(GetDeferredWorkPollDelay());
+        if (DeferredWorkQueueIsPollingMode(Queue)) {
+            DeferredWorkQueueProcessPollCallbacks(Queue);
+            Sleep(Queue->PollDelayMS);
             continue;
         }
 
-        WaitInfo.MilliSeconds = GetDeferredWorkWaitTimeout();
-        U32 WaitResult = Wait(&WaitInfo);
+        WaitInfo.MilliSeconds = Queue->WaitTimeoutMS;
+        WaitResult = Wait(&WaitInfo);
         if (WaitResult == WAIT_TIMEOUT) {
-            ProcessPollCallbacks();
+            DeferredWorkQueueProcessPollCallbacks(Queue);
             continue;
         }
 
         if (WaitResult != WAIT_OBJECT_0) {
-            WARNING(TEXT("[DeferredWorkDispatcherTask] Unexpected wait result %u"), WaitResult);
+            WARNING(
+                TEXT("[DeferredWorkQueueDispatcherTask] Queue=%s unexpected wait result %u"), Queue->Name, WaitResult);
             continue;
         }
 
-        ProcessPendingWork();
+        DeferredWorkQueueProcessPendingWork(Queue);
     }
 
     return 0;
@@ -617,8 +433,9 @@ static U32 DeferredWorkDispatcherTask(LPVOID Param) {
 
 /**
  * @brief Driver command handler for deferred work initialization.
- *
- * DF_LOAD starts deferred work components once; DF_UNLOAD only clears readiness.
+ * @param Function Driver command identifier.
+ * @param Parameter Unused command parameter.
+ * @return Driver command status.
  */
 static UINT DeferredWorkDriverCommands(UINT Function, UINT Parameter) {
     UNUSED(Parameter);
@@ -641,6 +458,7 @@ static UINT DeferredWorkDriverCommands(UINT Function, UINT Parameter) {
                 return DF_RETURN_SUCCESS;
             }
 
+            ShutdownDeferredWork();
             DeferredWorkDriver.Flags &= ~DRIVER_FLAG_READY;
             return DF_RETURN_SUCCESS;
 
@@ -650,3 +468,5 @@ static UINT DeferredWorkDriverCommands(UINT Function, UINT Parameter) {
 
     return DF_RETURN_NOT_IMPLEMENTED;
 }
+
+/************************************************************************/

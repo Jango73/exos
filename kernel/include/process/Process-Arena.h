@@ -41,9 +41,16 @@ typedef struct tag_PROCESS_ARENA_RANGE {
 #define PROCESS_ARENA_IMAGE 0
 #define PROCESS_ARENA_HEAP 1
 #define PROCESS_ARENA_STACK 2
-#define PROCESS_ARENA_SYSTEM 3
-#define PROCESS_ARENA_MMIO 4
-#define PROCESS_ARENA_COUNT 5
+#define PROCESS_ARENA_MODULE 3
+#define PROCESS_ARENA_SYSTEM 4
+#define PROCESS_ARENA_MMIO 5
+#define PROCESS_ARENA_COUNT 6
+
+#define PROCESS_MODULE_ALLOCATION_SHARED 0
+#define PROCESS_MODULE_ALLOCATION_PRIVATE 1
+#define PROCESS_MODULE_ALLOCATION_TLS 2
+#define PROCESS_MODULE_ALLOCATION_BOOKKEEPING 3
+#define PROCESS_MODULE_ALLOCATION_COUNT 4
 
 typedef struct tag_PROCESS_ADDRESS_SPACE {
     PROCESS_ARENA_RANGE Ranges[PROCESS_ARENA_COUNT];
@@ -64,10 +71,19 @@ BOOL ProcessArenaInitializeUser(LPPROCESS Process,
                                 UINT ImageSize,
                                 LINEAR HeapBase,
                                 UINT InitialHeapSize);
+void ProcessArenaConfigureMainHeap(LPPROCESS Process);
 LINEAR ProcessArenaAllocateSystem(LPPROCESS Process, UINT Size, U32 Flags, LPCSTR Tag);
 LINEAR ProcessArenaAllocateMmio(LPPROCESS Process, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag);
 LINEAR ProcessArenaAllocateTaskStack(LPPROCESS Process, UINT Size);
 LINEAR ProcessArenaAllocateUserStack(LPPROCESS Process, UINT Size);
+LINEAR ProcessArenaAllocateModule(LPPROCESS Process, UINT Purpose, UINT Size, U32 Flags, LPCSTR Tag);
+LINEAR ProcessArenaMapModulePages(
+    LPPROCESS Process,
+    UINT Purpose,
+    PHYSICAL* PhysicalPages,
+    UINT PageCount,
+    U32 Flags,
+    LPCSTR Tag);
 
 /************************************************************************/
 

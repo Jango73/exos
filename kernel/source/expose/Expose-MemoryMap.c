@@ -82,7 +82,7 @@ SCRIPT_ERROR MemoryMapRootGetProperty(
     EXPOSE_PROPERTY_GUARD();
 
     EXPOSE_BIND_HOST_HANDLE(
-        "kernel_regions",
+        "kernel_region",
         GetProcessMemoryRegionList(&KernelProcess),
         &MemoryRegionArrayDescriptor,
         NULL);

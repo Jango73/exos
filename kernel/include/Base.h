@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,240 +25,15 @@
 #ifndef BASE_H_INCLUDED
 #define BASE_H_INCLUDED
 
+#include "Types.h"
+
+/************************************************************************/
+
 #pragma pack(push, 1)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/************************************************************************/
-// Define __EXOS__
-
-#define __EXOS__
-
-/************************************************************************/
-// Target architecture detection
-
-#if defined(__i386__) || defined(_M_IX86)
-    #define __EXOS_ARCH_X86_32__
-#elif defined(__x86_64__) || defined(_M_X64)
-    #define __EXOS_ARCH_X86_64__
-#else
-    #error "Unsupported target architecture for EXOS"
-#endif
-
-/************************************************************************/
-// Check __SIZEOF_POINTER__ definition
-
-#ifndef __SIZEOF_POINTER__
-    #if defined(_MSC_VER)
-        #if defined(_WIN64)
-            #define __SIZEOF_POINTER__ 8
-        #else
-            #define __SIZEOF_POINTER__ 4
-        #endif
-    #elif defined(__GNUC__) || defined(__clang__)
-        // GCC and Clang already define this, but we keep a fallback
-        #if defined(__x86_64__) || defined(__aarch64__) || defined(__ppc64__)
-            #define __SIZEOF_POINTER__ 8
-        #else
-            #define __SIZEOF_POINTER__ 4
-        #endif
-    #else
-        #error "Cannot determine pointer size for this compiler."
-    #endif
-#endif
-
-/************************************************************************/
-// Define __EXOS__ bit size
-
-#if __SIZEOF_POINTER__ == 8
-    #define __EXOS_64__
-#else
-    #define __EXOS_32__
-#endif
-
-/************************************************************************/
-// Validate architecture and ABI combination
-
-#if defined(__EXOS_ARCH_X86_32__)
-    #if __SIZEOF_POINTER__ != 4
-        #error "x86-32 build requires 32-bit pointer size"
-    #endif
-#elif defined(__EXOS_ARCH_X86_64__)
-    #if __SIZEOF_POINTER__ != 8
-        #error "x86-64 build requires 64-bit pointer size"
-    #endif
-#endif
-
-/************************************************************************/
-// Storage classes
-
-#define CONST const
-#define FAR far
-#define PACKED __attribute__((packed))
-#define NAKEDCALL __declspec(naked)
-#define NORETURN __attribute__((noreturn))
-#define EXOSAPI
-#define APIENTRY
-#define REGISTER register
-
-#define SECTION(a) __attribute__((section(a)))
-#define DATA_SECTION SECTION(".data")
-
-/************************************************************************/
-// Basic types
-
-#if defined(_MSC_VER)
-    typedef unsigned __int8 U8;     // Unsigned byte
-    typedef signed __int8 I8;       // Signed byte
-    typedef unsigned __int16 U16;   // Unsigned short
-    typedef signed __int16 I16;     // Signed short
-    typedef unsigned __int32 U32;   // Unsigned long
-    typedef signed __int32 I32;     // Signed long
-    typedef unsigned int UINT;      // Unsigned register-sized integer
-    typedef signed int INT;         // Signed register-sized integer
-#elif defined(__GNUC__) || defined(__clang__)
-    typedef unsigned char U8;       // Unsigned byte
-    typedef signed char I8;         // Signed byte
-    typedef unsigned short U16;     // Unsigned short
-    typedef signed short I16;       // Signed short
-    // Unix-land decided to inverse int and long logic ! What a good idea.
-    typedef unsigned int U32;       // Unsigned long
-    typedef signed int I32;         // Signed long
-    typedef unsigned long UINT;     // Unsigned register-sized integer
-    typedef signed long INT;        // Signed register-sized integer
-#else
-    #error "Unsupported compiler for Base.h"
-#endif
-
-/************************************************************************/
-// 48 bit values
-
-typedef struct PACKED tag_U48 {
-    U16 LO;
-    U32 HI;
-} U48;
-
-/************************************************************************/
-// 64 bit values
-
-#ifdef __EXOS_32__
-    typedef struct PACKED tag_U64 {
-        U32 LO;
-        U32 HI;
-    } U64;
-
-    typedef struct PACKED tag_I64 {
-        U32 LO;
-        I32 HI;
-    } I64;
-
-    #define U64_0 { .LO = 0, .HI = 0 }
-    #define U64_EQUAL(a, b) (a.LO == b.LO && a.HI == b.HI)
-#else
-    typedef unsigned long long  U64;
-    typedef signed long long    I64;
-
-    #define U64_0 0
-    #define U64_EQUAL(a, b) (a == b)
-#endif
-
-/************************************************************************/
-// 80 bit values
-
-typedef struct PACKED tag_U80 {
-    U16 LO;
-    U64 HI;
-} U80;
-
-/************************************************************************/
-// 128 bit values
-
-typedef struct PACKED tag_U128 {
-    U64 LO;
-    U64 HI;
-} U128;
-
-/************************************************************************/
-// Capacity for various bit sizes
-
-#define MAX_U8 ((U8)0xFF)
-#define MAX_U16 ((U16)0xFFFF)
-#define MAX_U32 ((U32)0xFFFFFFFF)
-
-#ifdef __EXOS_32__
-    #define MAX_UINT MAX_U32
-#endif
-
-#ifdef __EXOS_64__
-    #define MAX_U64 ((U64)0xFFFFFFFFFFFFFFFF)
-    #define MAX_UINT ((UINT)-1)
-#endif
-
-/************************************************************************/
-// Floating point numbers
-
-typedef float F32;              // 32 bit float
-typedef double F64;             // 64 bit float
-
-/************************************************************************/
-// Some common types
-
-typedef UINT SIZE;              // Size type
-typedef UINT LINEAR;            // Linear virtual address, paged or not
-typedef UINT PHYSICAL;          // Physical address
-
-/************************************************************************/
-
-typedef void* LPVOID;
-typedef const void* LPCVOID;
-
-/************************************************************************/
-
-typedef void (*VOIDFUNC)(void);
-typedef U32 (*TASKFUNC)(LPVOID Param);
-
-/************************************************************************/
-// Boolean type
-
-typedef UINT BOOL;
-
-#ifndef FALSE
-#define FALSE ((BOOL)0)
-#endif
-
-#ifndef TRUE
-#define TRUE ((BOOL)1)
-#endif
-
-/************************************************************************/
-// NULL values
-
-#ifndef NULL
-#define NULL 0
-#endif
-
-#define NULL8 ((U8)0)
-#define NULL16 ((U16)0)
-#define NULL32 ((U32)0)
-#define NULL64 ((U64)0)
-#define NULL128 ((U128)0)
-
-/************************************************************************/
-// Time values
-
-#define INFINITY MAX_U32
-
-/************************************************************************/
-// Handles - Replace pointers in userland to protect kernel
-
-typedef UINT HANDLE;
-typedef UINT SOCKET_HANDLE;
-
-#define HANDLE_MINIMUM 0x10
-
-#define LOOP_LIMIT 512
 
 /************************************************************************/
 // Some machine constants
@@ -384,32 +159,6 @@ typedef UINT SOCKET_HANDLE;
 #define BIT_15_VALUE(a) (((a) >> 15) & 1)
 
 /************************************************************************/
-// These macros give the offset of a structure member and true if a structure
-// of a specified size contains the specified member
-
-#define MEMBER_OFFSET(struc, member) ((UINT)(&(((struc*)NULL)->member)))
-#define HAS_MEMBER(struc, member, struc_size) (MEMBER_OFFSET(struc, member) < struc_size)
-#define ARRAY_COUNT(array) ((UINT)(sizeof(array) / sizeof((array)[0])))
-
-/************************************************************************/
-// ASCII string types
-
-typedef U8 STR;
-typedef CONST STR CSTR;
-typedef STR* LPSTR;
-typedef CONST STR* LPCSTR;
-
-#define TEXT(a) ((LPCSTR)a)
-
-/************************************************************************/
-// Unicode string types
-
-typedef U16 USTR;
-typedef USTR* LPUSTR;
-typedef CONST USTR* LPCUSTR;
-
-
-/************************************************************************/
 
 #ifdef __KERNEL__
 extern void ConsolePrint(LPCSTR Format, ...);
@@ -432,9 +181,6 @@ extern void ConsolePrint(LPCSTR Format, ...);
 #define STR_BACKSLASH ((STR)'\\')
 #define STR_PLUS ((STR)'+')
 #define STR_MINUS ((STR)'-')
-#define PATH_SEP STR_SLASH
-
-#define ROOT "/"
 
 /************************************************************************/
 // Common Unicode character values
@@ -452,20 +198,6 @@ extern void ConsolePrint(LPCSTR Format, ...);
 #define USTR_BACKSLASH ((USTR)'\\')
 #define USTR_PLUS ((USTR)'+')
 #define USTR_MINUS ((USTR)'-')
-
-/************************************************************************/
-// Maximum string lengths
-
-#define MAX_STRING_BUFFER 1024
-#define MAX_COMMAND_LINE MAX_STRING_BUFFER
-#define MAX_PATH_NAME MAX_STRING_BUFFER
-#define MAX_FS_LOGICAL_NAME 64
-#define MAX_FILE_NAME 256
-#define MAX_USER_NAME 128
-#define MAX_NAME 128
-#define MAX_WINDOW_CAPTION 256
-#define MAX_PASSWORD 64
-#define MAX_COMMAND_NAME 64
 
 /************************************************************************/
 // Common color values
@@ -498,33 +230,8 @@ extern void ConsolePrint(LPCSTR Format, ...);
 #define COLOR_DARK_CYAN ((COLOR)0x00808000)
 
 /************************************************************************/
-// Version macros
-
-#define MAKE_VERSION(maj, min) ((U32)(((((U32)maj) & 0xFFFF) << 16) | (((U32)min) & 0xFFFF)))
-
-#define UNSIGNED(val) *((U32*)(&(val)))
-#define SIGNED(val) *((I32*)(&(val)))
-
-/************************************************************************/
-// Color manipulations
-
-typedef U32 COLOR;
-
-#define MAKERGB(r, g, b) ((((COLOR)r & 0xFF) << 0x00) | (((COLOR)g & 0xFF) << 0x08) | (((COLOR)b & 0xFF) << 0x10))
-
-#define MAKERGBA(r, g, b, a)                                                                   \
-    ((((COLOR)r & 0xFF) << 0x00) | (((COLOR)g & 0xFF) << 0x08) | (((COLOR)b & 0xFF) << 0x10) | \
-     (((COLOR)a & 0xFF) << 0x18))
-
-#define SETRED(c, r) (((COLOR)c & 0xFFFFFF00) | ((COLOR)r << 0x00))
-#define SETGREEN(c, g) (((COLOR)c & 0xFFFF00FF) | ((COLOR)g << 0x08))
-#define SETBLUE(c, b) (((COLOR)c & 0xFF00FFFF) | ((COLOR)b << 0x10))
-#define SETALPHA(c, a) (((COLOR)c & 0x00FFFFFF) | ((COLOR)a << 0x18))
-
-/************************************************************************/
 // Utility macros
 
-#define UNUSED(x) (void)(x)
 #define SAFE_USE(a) if ((a) != NULL)
 #define SAFE_USE_2(a, b) if ((a) != NULL && (b) != NULL)
 #define SAFE_USE_3(a, b, c) if ((a) != NULL && (b) != NULL && (c) != NULL)
@@ -568,6 +275,7 @@ typedef U32 COLOR;
 // Forward declaration to avoid circular dependencies
 
 typedef struct tag_PROCESS PROCESS, *LPPROCESS;
+typedef void (*OBJECTDESTRUCTOR)(LPVOID);
 
 /************************************************************************/
 // A kernel object header
@@ -575,25 +283,13 @@ typedef struct tag_PROCESS PROCESS, *LPPROCESS;
 #define OBJECT_FIELDS       \
     UINT TypeID;            \
     UINT References;        \
-    U64 ID;                 \
+    U64 InstanceID;         \
     LPPROCESS OwnerProcess; \
+    OBJECTDESTRUCTOR Destructor; \
 
 typedef struct tag_OBJECT {
     OBJECT_FIELDS
 } OBJECT, *LPOBJECT;
-
-/************************************************************************/
-// A datetime
-
-typedef struct tag_DATETIME {
-    U32 Year : 26;              // 67 108 863
-    U32 Month : 4;              // 15
-    U32 Day : 6;                // 63
-    U32 Hour : 6;               // 63
-    U32 Minute : 6;             // 63
-    U32 Second : 6;             // 63
-    U32 Milli : 10;             // 1023
-} DATETIME, *LPDATETIME;
 
 /************************************************************************/
 // 64 bits math

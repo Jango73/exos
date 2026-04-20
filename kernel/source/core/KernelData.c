@@ -247,6 +247,17 @@ static LIST FileList = {
 
 /************************************************************************/
 
+static LIST ExecutableModuleImageList = {
+    .First = NULL,
+    .Last = NULL,
+    .Current = NULL,
+    .NumItems = 0,
+    .MemAllocFunc = KernelHeapAlloc,
+    .MemFreeFunc = KernelHeapFree,
+    .Destructor = NULL};
+
+/************************************************************************/
+
 static LIST TCPConnectionList = {
     .First = NULL,
     .Last = NULL,
@@ -269,7 +280,7 @@ static LIST SocketList = {
 
 /************************************************************************/
 
-static LIST UserAccountList = {
+static LIST AccountList = {
     .First = NULL,
     .Last = NULL,
     .Current = NULL,
@@ -299,10 +310,11 @@ static KERNEL_DATA DATA_SECTION Kernel = {
     .FileSystem = &FileSystemList,
     .UnusedFileSystem = &UnusedFileSystemList,
     .File = &FileList,
+    .ExecutableModuleImage = &ExecutableModuleImageList,
     .TCPConnection = &TCPConnectionList,
     .Socket = &SocketList,
     .UserSessions = NULL,
-    .UserAccount = &UserAccountList,
+    .UserAccount = &AccountList,
     .ActiveDesktop = NULL,
     .FocusedProcess = &KernelProcess,
     .FileSystemInfo = {.ActivePartitionName = ""},
@@ -333,12 +345,13 @@ static KERNEL_DATA DATA_SECTION Kernel = {
     .HandleMap = {0},
     .CPU = {.Name = "", .Type = 0, .Family = 0, .Model = 0, .Stepping = 0, .Features = 0, .BaseFrequencyMHz = 0},
     .Configuration = NULL,
-    .MinimumQuantum = 10,
-    .MaximumQuantum = 50,
+    .MinimumQuantum = 1,
+    .MaximumQuantum = 8,
     .DeferredWorkWaitTimeoutMS = DEFERRED_WORK_WAIT_TIMEOUT_MS,
     .DeferredWorkPollDelayMS = DEFERRED_WORK_POLL_DELAY_MS,
     .DoLogin = 0,
     .ShowDesktop = 0,
+    .BootTime = {0},
     .Debug = {
         .UseDeadlockMonitor = 0,
         .WindowPipelineTraceEnabled = 0
@@ -677,6 +690,16 @@ LPLIST GetFileList(void) {
 /************************************************************************/
 
 /**
+ * @brief Retrieves the shared executable module image list.
+ * @return Pointer to the module image list.
+ */
+LPLIST GetExecutableModuleImageList(void) {
+    return Kernel.ExecutableModuleImage;
+}
+
+/************************************************************************/
+
+/**
  * @brief Retrieves the TCP connection list.
  * @return Pointer to the TCP connection list.
  */
@@ -717,20 +740,20 @@ void SetUserSessionList(LPLIST List) {
 /************************************************************************/
 
 /**
- * @brief Retrieves the user account list.
- * @return Pointer to the user account list.
+ * @brief Retrieves the account list.
+ * @return Pointer to the account list.
  */
-LPLIST GetUserAccountList(void) {
+LPLIST GetAccountList(void) {
     return Kernel.UserAccount;
 }
 
 /************************************************************************/
 
 /**
- * @brief Sets the user account list pointer.
- * @param List Pointer to the user account list.
+ * @brief Sets the account list pointer.
+ * @param List Pointer to the account list.
  */
-void SetUserAccountList(LPLIST List) {
+void SetAccountList(LPLIST List) {
     Kernel.UserAccount = List;
 }
 
@@ -885,6 +908,19 @@ BOOL GetWindowPipelineTraceEnabled(void) {
 /************************************************************************/
 
 /**
+ * @brief Retrieves the recorded local boot date-time.
+ * @param Time Destination date-time structure.
+ * @return TRUE on success.
+ */
+BOOL GetKernelBootTime(LPDATETIME Time) {
+    if (Time == NULL) return FALSE;
+    *Time = Kernel.BootTime;
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
  * @brief Sets the deadlock monitor usage flag.
  * @param Enabled TRUE to enable mutex deadlock diagnostics hooks, FALSE to disable.
  */
@@ -920,6 +956,17 @@ void SetShowDesktop(BOOL ShowDesktop) {
  */
 void SetWindowPipelineTraceEnabled(BOOL Enabled) {
     Kernel.Debug.WindowPipelineTraceEnabled = Enabled;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Stores the local boot date-time.
+ * @param Time Source date-time structure.
+ */
+void SetKernelBootTime(LPDATETIME Time) {
+    if (Time == NULL) return;
+    Kernel.BootTime = *Time;
 }
 
 /************************************************************************/

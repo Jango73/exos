@@ -99,6 +99,8 @@
 #define IA32_STAR_MSR 0xC0000081
 #define IA32_LSTAR_MSR 0xC0000082
 #define IA32_FMASK_MSR 0xC0000084
+#define IA32_FS_BASE_MSR 0xC0000100
+#define IA32_GS_BASE_MSR 0xC0000101
 
 #define IA32_EFER_SCE 0x1                   // SYSCALL enable
 #define IA32_EFER_LME 0x100                 // IA-32e mode operation
@@ -332,6 +334,7 @@ typedef struct tag_ARCH_TASK_DATA {
     STACK Stack;
     STACK SystemStack;
     STACK Ist1Stack;
+    LINEAR UserTlsBase;
 } ARCH_TASK_DATA, *LPARCH_TASK_DATA;
 
 /************************************************************************/

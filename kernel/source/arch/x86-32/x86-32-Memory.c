@@ -921,12 +921,12 @@ PHYSICAL AllocUserPageDirectory(void) {
     Directory[0].Fixed = 1;
     Directory[0].Address = (PMA_LowTable >> PAGE_SIZE_MUL);
 
-    // Copy present PDEs from current directory, but skip user space (VMA_USER to VMA_LIBRARY-1)
+    // Copy present PDEs from current directory, but skip process-owned user space
     // to allow new process to allocate its own region at VMA_USER
     UNUSED(VMA_TASK_RUNNER);
-    UINT UserStartPDE = GetDirectoryEntry(VMA_USER);             // PDE index for VMA_USER
-    UINT UserEndPDE = GetDirectoryEntry(VMA_LIBRARY - 1) - 1;    // PDE index for VMA_LIBRARY-1, excluding TaskRunner space
-    for (Index = 1; Index < 1023; Index++) {                     // Skip 0 (already done) and 1023 (self-map)
+    UINT UserStartPDE = GetDirectoryEntry(VMA_USER);                 // PDE index for VMA_USER
+    UINT UserEndPDE = GetDirectoryEntry(VMA_USER_LIMIT - 1) - 1;     // Exclude the TaskRunner table
+    for (Index = 1; Index < 1023; Index++) {                         // Skip 0 (already done) and 1023 (self-map)
         if (CurrentPD[Index].Present) {
             // Skip user space PDEs to avoid copying current process's user space
             if (Index >= UserStartPDE && Index <= UserEndPDE) {
@@ -1180,6 +1180,7 @@ static BOOL PopulateRegionPages(LINEAR Base,
     UINT ReadWrite = (Flags & ALLOC_PAGES_READWRITE) ? 1 : 0;
     UINT PteCacheDisabled = (Flags & ALLOC_PAGES_UC) ? 1 : 0;
     UINT PteWriteThrough = (Flags & ALLOC_PAGES_WC) ? 1 : 0;
+    UINT Fixed = (Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) ? 1 : 0;
 
     if (PteCacheDisabled) PteWriteThrough = 0;
 
@@ -1207,14 +1208,14 @@ static BOOL PopulateRegionPages(LINEAR Base,
         Table[TabEntry].Reserved = 0;
         Table[TabEntry].Global = 0;
         Table[TabEntry].User = 0;
-        Table[TabEntry].Fixed = 0;
+        Table[TabEntry].Fixed = Fixed;
         Table[TabEntry].Address = MAX_U32 >> PAGE_SIZE_MUL;
 
         if (Flags & ALLOC_PAGES_COMMIT) {
             if (Target != 0) {
                 Physical = Target + (Index << PAGE_SIZE_MUL);
 
-                if (Flags & ALLOC_PAGES_IO) {
+                if (Fixed) {
                     Table[TabEntry].Fixed = 1;
                     Table[TabEntry].Present = 1;
                     Table[TabEntry].Privilege = PAGE_PRIVILEGE(Base);
@@ -1275,6 +1276,8 @@ static BOOL PopulateRegionPages(LINEAR Base,
  *              - ALLOC_PAGES_UC / ALLOC_PAGES_WC: control cache attributes
  *                (UC has priority over WC).
  *              - ALLOC_PAGES_IO: keep physical pages marked fixed for MMIO.
+ *              - ALLOC_PAGES_FIXED: keep exact physical pages owned by another
+ *                kernel object marked fixed.
  * @return Allocated linear base address or 0 on failure.
  */
 LINEAR AllocRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag) {

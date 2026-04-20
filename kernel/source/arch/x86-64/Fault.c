@@ -98,9 +98,9 @@ void Die(void) {
         FreezeScheduler();
 
         if (Task->OwnerProcess != &KernelProcess) {
-            KillTask(Task);
+            KernelKillTask(Task);
         } else {
-            ERROR(TEXT("[Die] Fatal fault in kernel task, halting without KillTask"));
+            ERROR(TEXT("[Die] Fatal fault in kernel task, halting without KernelKillTask"));
             ConsolePanic(TEXT("Fatal fault in kernel task"));
         }
 

@@ -52,7 +52,7 @@ SCRIPT_ERROR NetworkGetProperty(
 
     EXPOSE_PROPERTY_GUARD();
 
-    EXPOSE_BIND_HOST_HANDLE("devices", GetNetworkDeviceList(), &NetworkDeviceArrayDescriptor, NULL);
+    EXPOSE_BIND_HOST_HANDLE("device", GetNetworkDeviceList(), &NetworkDeviceArrayDescriptor, NULL);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }

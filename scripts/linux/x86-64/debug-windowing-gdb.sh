@@ -14,11 +14,11 @@ POST_F12_WAIT_SECONDS="${POST_F12_WAIT_SECONDS:-6}"
 BUILD_CORE_NAME="${BUILD_CORE_NAME:-x86-64-uefi-debug}"
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-x86-64-uefi-debug-ext2}"
 DEBUG_ELF="build/core/${BUILD_CORE_NAME}/kernel/exos.elf"
-IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-uefi/exos-uefi.img"
-USB_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-mbr/usb-3.img"
-FS_TEST_EXT2_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-mbr/fs-test-ext2.img"
-FS_TEST_FAT32_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-mbr/fs-test-fat32.img"
-FS_TEST_NTFS_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-mbr/fs-test-ntfs.img"
+IMG_PATH="build/image/${BUILD_IMAGE_NAME}/exos-uefi.img"
+USB_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/usb-3.img"
+FS_TEST_EXT2_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/fs-test-ext2.img"
+FS_TEST_FAT32_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/fs-test-fat32.img"
+FS_TEST_NTFS_IMG_PATH="build/image/${BUILD_IMAGE_NAME}/fs-test-ntfs.img"
 LOG_KERNEL="log/kernel-x86-64-uefi-debug.log"
 LOG_COM1="log/debug-com1-x86-64-uefi-debug.log"
 QEMU_STDOUT_LOG="/tmp/qemu-x86-64-uefi-f12-gdb.out"
@@ -60,7 +60,7 @@ if [ ! -f "$DEBUG_ELF" ] || [ ! -f "$IMG_PATH" ]; then
 fi
 
 if [ ! -f "$USB_IMG_PATH" ] || [ ! -f "$FS_TEST_EXT2_IMG_PATH" ] || [ ! -f "$FS_TEST_FAT32_IMG_PATH" ] || [ ! -f "$FS_TEST_NTFS_IMG_PATH" ]; then
-    echo "Missing one or more boot-mbr support images under build/image/${BUILD_IMAGE_NAME}/boot-mbr"
+    echo "Missing one or more support images under build/image/${BUILD_IMAGE_NAME}"
     exit 1
 fi
 
@@ -72,7 +72,7 @@ OVMF_VARS_PATH="$(FindFirmwareFile "${OVMF_VARS:-}" "${OVMF_VARS_CANDIDATES[@]}"
     echo "OVMF vars firmware not found. Set OVMF_VARS to a valid file."
     exit 1
 }
-OVMF_VARS_COPY="build/image/${BUILD_IMAGE_NAME}/boot-uefi/ovmf-vars-debug-f12.fd"
+OVMF_VARS_COPY="build/image/${BUILD_IMAGE_NAME}/work-uefi/ovmf-vars-debug-f12.fd"
 cp -f "$OVMF_VARS_PATH" "$OVMF_VARS_COPY"
 
 source scripts/linux/utils/smoke-test-common.sh

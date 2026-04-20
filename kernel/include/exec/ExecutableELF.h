@@ -83,8 +83,10 @@
 #define PF_R 0x4
 
 /************************************************************************/
-// ELF-specific entry points (mirror the generic ones, with explicit bases)
+// ELF-specific entry points
 
+BOOL GetExecutableImageInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata);
+BOOL GetExecutableModuleInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata);
 BOOL GetExecutableInfo_ELF(LPFILE File, LPEXECUTABLE_INFO Info);
 BOOL LoadExecutable_ELF(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LINEAR DataBase, LINEAR BssBase);
 

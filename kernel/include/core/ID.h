@@ -64,6 +64,8 @@
 #define KOID_TCP 0x5F504354               // "TCP_"
 #define KOID_KERNELEVENT 0x544E5645       // "EVNT"
 #define KOID_MEMORY_REGION_DESCRIPTOR 0x44524D56 // "VMRD"
+#define KOID_EXECUTABLE_MODULE_IMAGE 0x49444F4D // "MODI"
+#define KOID_EXECUTABLE_MODULE_BINDING 0x42444F4D // "MODB"
 
 /************************************************************************/
 // Known partition type identifiers

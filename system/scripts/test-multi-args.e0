@@ -2,4 +2,4 @@ word = "alpha";
 left = 8;
 right = 9;
 is_ok = 10 > 3;
-return smoke_test_multi_args(word, left + right, right + 14, is_ok);
+return smokeTestMultiArgs(word, left + right, right + 14, is_ok);

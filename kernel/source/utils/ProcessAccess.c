@@ -24,7 +24,7 @@
 #include "utils/ProcessAccess.h"
 
 #include "core/Kernel.h"
-#include "user/UserAccount.h"
+#include "user/Account.h"
 #include "process/Process.h"
 #include "process/Task.h"
 
@@ -124,7 +124,7 @@ BOOL ProcessAccessIsAdministratorProcess(LPPROCESS Process) {
         return FALSE;
     }
 
-    Account = FindUserAccountByID(UserID);
+    Account = FindAccountByID(UserID);
     SAFE_USE_VALID_ID(Account, KOID_USER_ACCOUNT) {
         return Account->Privilege == EXOS_PRIVILEGE_ADMIN;
     }

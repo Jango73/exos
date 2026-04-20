@@ -29,10 +29,11 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - **Types**: Use **LINEAR** for virtual addresses (when not using direct pointers), **PHYSICAL** for physical addresses, **UINT** for indexes, sizes and error values. In the kernel, it is **STRICTLY FORBIDDEN** to use a direct c type (int, unsigned long, long long, etc...) : **only types in Base.h are allowed.**
 - **Freestanding**: The kernel **MUST NOT** rely on **ANY** external library/module (unless specified otherwise). **NO** stdlib, stdio, whatever. Everything the kernel needs is built in the compiler and in the codebase.
 - **Debugging**: Debug output is logged with DEBUG(). Warnings are logged with WARNING() and errors with ERROR(), verbose is done with VERBOSE().
+- **Userland debugging**: In runtime/system apps, use the existing `debug()` helper for instrumentation before adding ad-hoc logging paths. It sends the message to the kernel through a syscall, so userland debug traces show up in the standard kernel logs.
 - **Logging**: A log string **ALWAYS** begins with "[FunctionName]" where FunctionName is the name of the function where the logging is done. Use "%p" for pointers and addresses, "%x" for values except for sizes which use "%u". Do not hide errors by removing warnings. Reduce flood with rate limiting while preserving diagnostic signal (`suppressed` count or equivalent).
 - **WARNING/ERROR semantics (mandatory)**: `WARNING()` and `ERROR()` are human-facing alerts. They MUST stay short, actionable, and understandable without deep protocol knowledge.
-- **Diagnostic dumps (mandatory)**: Detailed protocol diagnostics (raw register dumps, TRB dumps, retry traces, queue internals, step-by-step instrumentation) MUST use `DEBUG()` only, never `VERBOSE()`, `WARNING()`, or `ERROR()`.
-- **TEXT literals (mandatory)**: In kernel C code, every string literal passed to APIs/macros expecting `LPCSTR` (for example `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, `KernelLogText`, `ConsolePrint`, and ternary literal fallbacks) **MUST** be wrapped with `TEXT("...")`. Never pass raw `"..."` to those paths.
+- **Diagnostic dumps**: Detailed protocol diagnostics (raw register dumps, TRB dumps, retry traces, queue internals, step-by-step instrumentation) MUST use `DEBUG()` only, never `VERBOSE()`, `WARNING()`, or `ERROR()`.
+- **TEXT literals**: In kernel C code, every string literal passed to APIs/macros expecting `LPCSTR` (for example `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, `KernelLogText`, `ConsolePrint`, and ternary literal fallbacks) **MUST** be wrapped with `TEXT("...")`. Never pass raw `"..."` to those paths.
 - **Declaration order**: Group declarations by type. 1: macros / 2: type definitions / 3: inline functions / 4: external functions / 5: other
 - **Function order**: DO NOT OVERUSE forward declarations. Define functions before they are used.
 - **I18n**: Write comments, console output and technical doc in english.
@@ -46,10 +47,13 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - **Documentation wording**: Use timeless technical wording. Do not use temporal terms like "now", "currently", "at this time" in documentation/comments.
 - **Kernel logical paths**: For kernel file/folder logical paths, use `utils/KernelPath` (`KernelPathResolve` / `KernelPathBuildFile`) and `KernelPath.*` config keys instead of hardcoded absolute paths.
 - **Languages**: C for kernel, avoid Python (use Node.js/JS if needed).
-- **Libraries**: NO stdlib/stdio in kernel - custom implementations only.
 - **Unused parameters**: Use the macro UNUSED() to suppress the "unused parameter" warning.
 - **SAFE_USE macros**: These macros validate pointers in kernel space. In userland code (runtime/system apps), NEVER use SAFE_USE_VALID/SAFE_USE_VALID_ID variants, as they will reject userland addresses.
-- **Pointers**: In the kernel, before using a kernel object pointer, use the appropriate macro for this : SAFE_USE if you got a pointer to any kind of object, SAFE_USE_VALID_ID if you got a pointer to a kernel object **which inherits LISTNODE_FIELDS**. SAFE_USE_2 does the same as SAFE_USE but for two pointers, SAFE_USE_VALID_ID_2 does the same as SAFE_USE_VALID_ID but for two pointers (SAFE_USE_VALID_ID_3 for 3 pointers, etc...).
+- **Pointers**: In the kernel, before using a kernel object pointer, use the appropriate macro for its validation
+  - SAFE_USE if you got a pointer to any kind of object
+  - SAFE_USE_VALID_ID if you got a pointer to a kernel object **which inherits LISTNODE_FIELDS**
+  - SAFE_USE_2 does the same as SAFE_USE but for two pointers
+  - SAFE_USE_VALID_ID_2 does the same as SAFE_USE_VALID_ID but for two pointers (SAFE_USE_VALID_ID_3 for 3 pointers, etc...).
 - **Kernel objects**: Any kernel object that contains OBJECT_FIELDS (thus inherits LISTNODE_FIELDS) and is meant to exist in a global kernel list must be created with CreateKernelObject and destroyed with ReleaseKernelObject.
 - **No direct access to physical memory**: Use the MapTemporaryPhysicalPage1 (MapTemporaryPhysicalPage2, etc...) and MapIOMemory/UnMapIOMemory functions to access physical memory pages.
 - **Drivers**: In driver command dispatchers, any non-implemented function MUST return `DF_RETURN_NOT_IMPLEMENTED`.
@@ -117,8 +121,8 @@ This script runs build + boot + shell command checks (`sysinfo`, `dir`, `/system
   - example: `x86-64-uefi-release-fat32`
 - Typical files:
   - kernel ELF: `build/core/<BUILD_CORE_NAME>/kernel/exos.elf`
-  - MBR image: `build/image/<BUILD_IMAGE_NAME>/boot-mbr/exos.img`
-  - UEFI image: `build/image/<BUILD_IMAGE_NAME>/boot-uefi/exos-uefi.img`
+  - MBR image: `build/image/<BUILD_IMAGE_NAME>/exos.img`
+  - UEFI image: `build/image/<BUILD_IMAGE_NAME>/exos-uefi.img`
 
 **Remote build on Windows (SSH to a Linux build host):**
 ```bat

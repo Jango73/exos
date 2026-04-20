@@ -1,0 +1,7 @@
+user = {};
+user.profile = {};
+user.profile.name = "smoke";
+user.profile.count = 41;
+alias = user;
+alias.profile.count = alias.profile.count + 1;
+return user.profile.count;

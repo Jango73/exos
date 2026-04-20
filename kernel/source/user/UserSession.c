@@ -24,25 +24,26 @@
 
 #include "user/UserSession.h"
 
-#include "system/Clock.h"
-#include "text/CoreString.h"
-#include "sync/DeferredWork.h"
-#include "memory/Heap.h"
-#include "utils/Helpers.h"
 #include "core/Kernel.h"
-#include "utils/List.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
 #include "memory/Memory.h"
-#include "sync/Mutex.h"
 #include "process/Schedule.h"
 #include "process/Task.h"
-#include "user/UserAccount.h"
+#include "sync/DeferredWork.h"
+#include "sync/Mutex.h"
+#include "system/Clock.h"
+#include "text/CoreString.h"
+#include "user/Account.h"
+#include "utils/Helpers.h"
+#include "utils/List.h"
 
 /************************************************************************/
 
 #define SESSION_TIMEOUT_DISPATCH_PERIOD_MS 1000
 
-static U32 UserSessionDeferredHandle = DEFERRED_WORK_INVALID_HANDLE;
+static DEFERRED_WORK_TOKEN UserSessionDeferredToken = {
+    .QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
 static U32 UserSessionSchedulerTickHandle = SCHEDULER_TICK_INVALID_HANDLE;
 static UINT UserSessionLastDispatchTime = 0;
 
@@ -59,10 +60,7 @@ static void UserSessionSchedulerTick(LPVOID Context);
  */
 static void InitializeSessionUnlockPolicy(LPUSER_SESSION Session) {
     SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) {
-        (void)AuthPolicyInit(
-            &(Session->UnlockPolicy),
-            AUTH_POLICY_FAILURE_DELAY_MS,
-            AUTH_POLICY_LOCKOUT_THRESHOLD);
+        (void)AuthPolicyInit(&(Session->UnlockPolicy), AUTH_POLICY_FAILURE_DELAY_MS, AUTH_POLICY_LOCKOUT_THRESHOLD);
     }
 }
 
@@ -88,7 +86,7 @@ static void UserSessionSchedulerTick(LPVOID Context) {
 
     UNUSED(Context);
 
-    if (UserSessionDeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(UserSessionDeferredToken) == FALSE) {
         return;
     }
 
@@ -98,7 +96,7 @@ static void UserSessionSchedulerTick(LPVOID Context) {
     }
 
     UserSessionLastDispatchTime = CurrentTime;
-    DeferredWorkSignal(UserSessionDeferredHandle);
+    DeferredWorkSignal(UserSessionDeferredToken);
 }
 
 /************************************************************************/
@@ -167,8 +165,8 @@ BOOL InitializeSessionSystem(void) {
     Registration.Context = NULL;
     Registration.Name = TEXT("UserSessionTimeout");
 
-    UserSessionDeferredHandle = DeferredWorkRegister(&Registration);
-    if (UserSessionDeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    UserSessionDeferredToken = DeferredWorkRegister(&Registration);
+    if (DeferredWorkTokenIsValid(UserSessionDeferredToken) == FALSE) {
         ERROR(TEXT("[InitializeSessionSystem] Failed to register deferred session timeout work"));
         DeleteList(SessionList);
         SetUserSessionList(NULL);
@@ -178,8 +176,9 @@ BOOL InitializeSessionSystem(void) {
     UserSessionSchedulerTickHandle = SchedulerRegisterTickCallback(UserSessionSchedulerTick, NULL);
     if (UserSessionSchedulerTickHandle == SCHEDULER_TICK_INVALID_HANDLE) {
         ERROR(TEXT("[InitializeSessionSystem] Failed to register scheduler session timeout hook"));
-        DeferredWorkUnregister(UserSessionDeferredHandle);
-        UserSessionDeferredHandle = DEFERRED_WORK_INVALID_HANDLE;
+        DeferredWorkUnregister(UserSessionDeferredToken);
+        UserSessionDeferredToken =
+            (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
         DeleteList(SessionList);
         SetUserSessionList(NULL);
         return FALSE;
@@ -200,9 +199,10 @@ void ShutdownSessionSystem(void) {
         UserSessionSchedulerTickHandle = SCHEDULER_TICK_INVALID_HANDLE;
     }
 
-    if (UserSessionDeferredHandle != DEFERRED_WORK_INVALID_HANDLE) {
-        DeferredWorkUnregister(UserSessionDeferredHandle);
-        UserSessionDeferredHandle = DEFERRED_WORK_INVALID_HANDLE;
+    if (DeferredWorkTokenIsValid(UserSessionDeferredToken) != FALSE) {
+        DeferredWorkUnregister(UserSessionDeferredToken);
+        UserSessionDeferredToken =
+            (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
     }
 
     LPLIST SessionList = GetUserSessionList();
@@ -281,11 +281,9 @@ LPUSER_SESSION CreateUserSession(U64 UserID, HANDLE ShellTask) {
     }
 
     // Update user's last login time
-    LPUSER_ACCOUNT User = FindUserAccountByID(UserID);
+    LPUSER_ACCOUNT User = FindAccountByID(UserID);
 
-    SAFE_USE(User) {
-        User->LastLoginTime = NewSession->LoginTime;
-    }
+    SAFE_USE(User) { User->LastLoginTime = NewSession->LoginTime; }
 
     UnlockMutex(MUTEX_SESSION);
 
@@ -367,9 +365,7 @@ BOOL IsUserSessionTimedOut(LPUSER_SESSION Session) {
  * @return TRUE when locked.
  */
 BOOL IsUserSessionLocked(LPUSER_SESSION Session) {
-    SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) {
-        return Session->IsLocked ? TRUE : FALSE;
-    }
+    SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) { return Session->IsLocked ? TRUE : FALSE; }
 
     return FALSE;
 }
@@ -441,7 +437,7 @@ BOOL VerifySessionUnlockPassword(LPUSER_SESSION Session, LPCSTR Password) {
             return FALSE;
         }
 
-        Account = FindUserAccountByID(Session->UserID);
+        Account = FindAccountByID(Session->UserID);
         SAFE_USE_VALID_ID(Account, KOID_USER_ACCOUNT) {
             if (VerifyPassword(Password, Account->PasswordHash)) {
                 AuthPolicyRecordSuccess(&(Session->UnlockPolicy));
@@ -488,7 +484,7 @@ BOOL SessionUserRequiresPassword(LPUSER_SESSION Session) {
     LPUSER_ACCOUNT Account;
 
     SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) {
-        Account = FindUserAccountByID(Session->UserID);
+        Account = FindAccountByID(Session->UserID);
         return AccountHasDefinedPassword(Account);
     }
 
@@ -570,9 +566,7 @@ LPUSER_SESSION GetCurrentSession(void) {
         return NULL;
     }
 
-    SAFE_USE_VALID_ID(CurrentProcess->Session, KOID_USER_SESSION) {
-        return CurrentProcess->Session;
-    }
+    SAFE_USE_VALID_ID(CurrentProcess->Session, KOID_USER_SESSION) { return CurrentProcess->Session; }
 
     return NULL;
 }

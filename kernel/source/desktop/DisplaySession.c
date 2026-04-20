@@ -329,7 +329,7 @@ BOOL DisplaySwitchToDesktop(LPDESKTOP Desktop) {
         return FALSE;
     }
 
-    return ShowDesktop(Desktop);
+    return KernelShowDesktop(Desktop);
 }
 
 /**

@@ -37,6 +37,7 @@ void MarkSystemTimeOperational(void);
 BOOL IsSystemTimeOperational(void);
 BOOL HasOperationTimedOut(UINT StartTime, UINT LoopCount, UINT LoopLimit, UINT TimeoutMilliseconds);
 void MilliSecondsToHMS(UINT, LPSTR);
+BOOL GetBootLocalTime(LPDATETIME);
 BOOL GetLocalTime(LPDATETIME);
 BOOL SetLocalTime(LPDATETIME);
 

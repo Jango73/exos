@@ -140,7 +140,7 @@ SCRIPT_ERROR DriverGetProperty(
         EXPOSE_BIND_INTEGER("flags", Driver->Flags);
         EXPOSE_BIND_INTEGER("enum_domain_count", Driver->EnumDomainCount);
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("enum_domains"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("enum_domain"))) {
             OutValue->Type = SCRIPT_VAR_HOST_HANDLE;
             OutValue->Value.HostHandle = Driver;
             OutValue->HostDescriptor = &DriverEnumDomainArrayDescriptor;

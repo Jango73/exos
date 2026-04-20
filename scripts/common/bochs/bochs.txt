@@ -8,7 +8,7 @@ vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
 cpu: count=1, ips=20000000, reset_on_triple_fault=1
 cpuid: x86_64=0
 # Note: acpi/apic/ioapic directives may not be available in older Bochs versions
-ata0-master: type=disk, path="build/image/x86-32-mbr-debug-ext2/boot-mbr/exos.img", mode=flat, cylinders=64, heads=16, spt=32, translation=lba
+ata0-master: type=disk, path="build/image/x86-32-mbr-debug-ext2/exos.img", mode=flat, cylinders=64, heads=16, spt=32, translation=lba
 vga: extension=vbe, update_freq=20
 mouse: enabled=1, type=ps2
 boot: disk

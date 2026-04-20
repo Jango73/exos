@@ -53,8 +53,15 @@ function ValidateCrossCompiler() {
     exit 1
 }
 
+function ValidateArchitectureToolchain() {
+    if [ "$ARCH" = "x86-32" ]; then
+        ConfigureCrossToolchainPath
+        ValidateCrossCompiler
+    fi
+}
+
 function Usage() {
-    echo "Usage: $0 --arch <x86-32|x86-64> --fs <ext2|fat32> [--bare-metal] [--boot-stage-markers] [--clean] [--debug|--release] [--force-pic] [--kernel-log-tag-filter <filter>] [--log-udp-dest <ip:port>] [--log-udp-source <ip:port>] [--profiling] [--scheduling-debug] [--split] [--system-data-view] [--uefi] [--use-log-udp] [--use-syscall]"
+    echo "Usage: $0 --arch <x86-32|x86-64> --fs <ext2|fat32> [--boot-stage-markers] [--clean] [--debug|--release] [--force-pic] [--kernel-log-tag-filter <filter>] [--log-udp-dest <ip:port>] [--log-udp-source <ip:port>] [--no-images] [--profiling] [--scheduling-debug] [--split] [--system-data-view] [--uefi] [--use-log-udp] [--use-syscall]"
 }
 
 function ParseIpPort() {
@@ -96,12 +103,12 @@ function ParseIpPort() {
 }
 
 ARCH="x86-32"
-BARE_METAL=0
 BOOT_STAGE_MARKERS=0
 BUILD_UEFI=0
 BUILD_CONFIGURATION="release"
 BUILD_CORE_NAME=""
 BUILD_IMAGE_NAME=""
+BUILD_IMAGES=1
 CLEAN=0
 DEBUG_OUTPUT=0
 DEBUG_SPLIT=0
@@ -141,6 +148,14 @@ function ComputeBuildNames() {
 
     BUILD_CORE_NAME="${ARCH}-${BootMode}-${BUILD_CONFIGURATION}${Suffix}"
     BUILD_IMAGE_NAME="${BUILD_CORE_NAME}-${FILE_SYSTEM}"
+}
+
+function ResolveBootMode() {
+    if [ "$BUILD_UEFI" -eq 1 ]; then
+        echo "uefi"
+    else
+        echo "mbr"
+    fi
 }
 
 function AcquireBuildLock() {
@@ -198,8 +213,6 @@ function FlushImageArtifacts() {
         FlushPathToDisk "$ImagePath"
     done < <(find "$ImageBuildDir" -type f -name "*.img" -print0 2>/dev/null || true)
 
-    FlushPathToDisk "$ImageBuildDir/boot-mbr"
-    FlushPathToDisk "$ImageBuildDir/boot-uefi"
     FlushPathToDisk "$ImageBuildDir"
 }
 
@@ -213,9 +226,6 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             ARCH="$1"
-            ;;
-        --bare-metal)
-            BARE_METAL=1
             ;;
         --boot-stage-markers)
             BOOT_STAGE_MARKERS=1
@@ -271,6 +281,9 @@ while [ $# -gt 0 ]; do
             fi
             ParseIpPort "$1" "UEFI_LOG_UDP_SOURCE"
             ;;
+        --no-images)
+            BUILD_IMAGES=0
+            ;;
         --profiling)
             PROFILING=1
             ;;
@@ -324,8 +337,7 @@ case "$FILE_SYSTEM" in
         ;;
 esac
 
-ConfigureCrossToolchainPath
-ValidateCrossCompiler
+ValidateArchitectureToolchain
 
 AcquireBuildLock
 trap ReleaseBuildLock EXIT
@@ -342,12 +354,14 @@ if [ "$SCHEDULING_DEBUG" -eq 1 ]; then
 fi
 
 ComputeBuildNames
+BOOT_MODE="$(ResolveBootMode)"
 
-export BARE_METAL
 export BOOT_STAGE_MARKERS
 export BUILD_CONFIGURATION
 export BUILD_CORE_NAME
 export BUILD_IMAGE_NAME
+export BOOT_MODE
+export BUILD_IMAGES
 export DEBUG_OUTPUT
 export DEBUG_SPLIT
 export FORCE_PIC
@@ -376,10 +390,8 @@ if [ "$CLEAN" -eq 1 ]; then
     make ARCH="$ARCH" clean
 fi
 
-make ARCH="$ARCH" -j"$(nproc)"
+make ARCH="$ARCH" BUILD_IMAGES="$BUILD_IMAGES" BOOT_MODE="$BOOT_MODE" -j"$(nproc)"
 
-if [ "$BUILD_UEFI" -eq 1 ]; then
-    make ARCH="$ARCH" -C boot-uefi
+if [ "$BUILD_IMAGES" -eq 1 ]; then
+    FlushImageArtifacts
 fi
-
-FlushImageArtifacts

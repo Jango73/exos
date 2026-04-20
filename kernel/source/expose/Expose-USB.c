@@ -171,7 +171,7 @@ SCRIPT_ERROR UsbGetProperty(
 
     EXPOSE_PROPERTY_GUARD();
 
-    if (STRINGS_EQUAL_NO_CASE(Property, TEXT("ports"))) {
+    if (STRINGS_EQUAL_NO_CASE(Property, TEXT("port"))) {
         EXPOSE_REQUIRE_ACCESS(EXPOSE_ACCESS_USB_PORTS, NULL);
         OutValue->Type = SCRIPT_VAR_HOST_HANDLE;
         OutValue->Value.HostHandle = &UsbPortArraySentinel;
@@ -181,9 +181,9 @@ SCRIPT_ERROR UsbGetProperty(
         return SCRIPT_OK;
     }
 
-    EXPOSE_BIND_HOST_HANDLE("nodes", &UsbNodeArraySentinel, &UsbNodeArrayDescriptor, NULL);
-    EXPOSE_BIND_HOST_HANDLE("drives", GetUsbStorageList(), &UsbDriveArrayDescriptor, NULL);
-    EXPOSE_BIND_HOST_HANDLE("devices", &UsbDeviceArraySentinel, &UsbDeviceArrayDescriptor, NULL);
+    EXPOSE_BIND_HOST_HANDLE("node", &UsbNodeArraySentinel, &UsbNodeArrayDescriptor, NULL);
+    EXPOSE_BIND_HOST_HANDLE("drive", GetUsbStorageList(), &UsbDriveArrayDescriptor, NULL);
+    EXPOSE_BIND_HOST_HANDLE("device", &UsbDeviceArraySentinel, &UsbDeviceArrayDescriptor, NULL);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }

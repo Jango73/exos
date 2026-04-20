@@ -1204,7 +1204,7 @@ HANDLE CreatePen(LPPEN_INFO PenInfo) {
  * @param PixelInfo Pixel parameters.
  * @return TRUE on success.
  */
-BOOL SetPixel(LPPIXEL_INFO PixelInfo) {
+BOOL KernelSetPixel(LPPIXEL_INFO PixelInfo) {
     LPGRAPHICSCONTEXT Context;
     PIXEL_INFO Pixel;
 
@@ -1238,7 +1238,7 @@ BOOL SetPixel(LPPIXEL_INFO PixelInfo) {
  * @param PixelInfo Pixel parameters.
  * @return TRUE on success.
  */
-BOOL GetPixel(LPPIXEL_INFO PixelInfo) {
+BOOL KernelGetPixel(LPPIXEL_INFO PixelInfo) {
     LPGRAPHICSCONTEXT Context;
     PIXEL_INFO Pixel;
 
@@ -1326,7 +1326,7 @@ BOOL Line(LPLINE_INFO LineInfo) {
  * @param RectInfo Rectangle parameters.
  * @return TRUE on success.
  */
-BOOL Rectangle(LPRECT_INFO RectInfo) {
+BOOL KernelRectangle(LPRECT_INFO RectInfo) {
     LPGRAPHICSCONTEXT Context;
     RECT_INFO RectangleInfo;
 

@@ -14,7 +14,7 @@ if [ "$DEBUG_SPLIT" = "1" ]; then
 fi
 BUILD_CORE_NAME="${BUILD_CORE_NAME:-${ARCH}-${BOOT_MODE}-${BUILD_CONFIGURATION}${BUILD_SPLIT_SUFFIX}}"
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-${BUILD_CORE_NAME}-${FILE_SYSTEM}}"
-IMG_PATH="${IMG_PATH:-build/image/${BUILD_IMAGE_NAME}/boot-mbr/usb-3.img}"
+IMG_PATH="${IMG_PATH:-build/image/${BUILD_IMAGE_NAME}/usb-3.img}"
 
 if ! command -v nc >/dev/null 2>&1; then
     echo "nc not found. Install netcat or set up another monitor client."

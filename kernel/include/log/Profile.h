@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -62,7 +62,10 @@ typedef struct tag_PROFILE_STATS {
 void ProfileCountCall(LPCSTR Name);
 void ProfileStart(LPPROFILE_SCOPE Scope, LPCSTR Name);
 void ProfileStop(LPPROFILE_SCOPE Scope);
+UINT ProfileStopDuration(LPPROFILE_SCOPE Scope);
+void ProfileRecordDuration(LPCSTR Name, UINT DurationMicros);
 UINT ProfileGetStats(LPPROFILE_QUERY_INFO Info);
+
 /************************************************************************/
 
 static inline void ProfileScopeBegin(LPPROFILE_SCOPE Scope, LPCSTR Name)

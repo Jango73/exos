@@ -40,6 +40,7 @@ extern EnableIRQ
 extern BuildInterruptFrame
 extern KernelLogText
 extern DeviceInterruptHandler
+extern TaskSynchronizeCurrentSystemCallSegments
 
 ;----------------------------------------------------------------------------
 ; Helper values to access function parameters
@@ -690,6 +691,10 @@ Interrupt_SystemCall :
     ; Stack after pushad: [ESP+0]=EDI, [ESP+4]=ESI, [ESP+8]=EBP, [ESP+12]=ESP, [ESP+16]=EBX, [ESP+20]=EDX, [ESP+24]=ECX, [ESP+28]=EAX
     ; After 4 segment registers (16 bytes): EAX is at [esp + 28 + 16] = [esp + 44]
     mov         [esp + 44], eax
+
+    push        esp
+    call        TaskSynchronizeCurrentSystemCallSegments
+    add         esp, 4
 
     pop         gs
     pop         fs

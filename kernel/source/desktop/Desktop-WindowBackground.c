@@ -109,7 +109,7 @@ static BOOL DrawSolidBackground(HANDLE GC, LPRECT Rect, COLOR Color, U32 CornerS
 
     OldPen = SelectPen(GC, NULL);
     OldBrush = SelectBrush(GC, (HANDLE)&Brush);
-    (void)Rectangle(&RectInfo);
+    (void)KernelRectangle(&RectInfo);
     (void)SelectBrush(GC, OldBrush);
     (void)SelectPen(GC, OldPen);
 
@@ -349,7 +349,7 @@ static BOOL DrawLevel1WindowBackground(
         RectInfo.CornerStyle = HasCornerStyle != FALSE ? CornerStyle : RECT_CORNER_STYLE_SQUARE;
 
         OldBrush = SelectBrush(GC, GetSystemBrush(FallbackSystemColor));
-        (void)Rectangle(&RectInfo);
+        (void)KernelRectangle(&RectInfo);
         (void)SelectBrush(GC, OldBrush);
         (void)SelectPen(GC, OldPen);
     }

@@ -167,7 +167,7 @@ static void DesktopCursorDrawTemplate(HANDLE GC, I32 OriginX, I32 OriginY, U32 W
             PixelInfo.X = OriginX + (I32)X;
             PixelInfo.Y = OriginY + (I32)Y;
             PixelInfo.Color = (TemplateToken == 'B') ? 0xFF000000 : 0xFFFFFFFF;
-            (void)SetPixel(&PixelInfo);
+            (void)KernelSetPixel(&PixelInfo);
         }
     }
 }

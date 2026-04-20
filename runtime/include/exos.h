@@ -40,9 +40,27 @@ extern "C" {
 #define EXOS_PARAM(Value) ((uint_t)(Value))
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define EXOS_MODULE_EXPORT __attribute__((visibility("default")))
+#define EXOS_MODULE_IMPORT extern
+#define EXOS_THREAD_LOCAL __thread
+#else
+#define EXOS_MODULE_EXPORT
+#define EXOS_MODULE_IMPORT extern
+#define EXOS_THREAD_LOCAL
+#endif
+
 static inline I32 imin(I32 A, I32 B) { return (A < B) ? A : B; }
 static inline I32 imax(I32 A, I32 B) { return (A > B) ? A : B; }
 
+/************************************************************************/
+
+typedef struct tag_DESKTOP DESKTOP, *LPDESKTOP;
+
+/************************************************************************/
+
+#ifndef EXOS_MESSAGE_DEFINED
+#define EXOS_MESSAGE_DEFINED
 typedef struct tag_MESSAGE {
     HANDLE Target;
     DATETIME Time;
@@ -50,6 +68,7 @@ typedef struct tag_MESSAGE {
     U32 Param1;
     U32 Param2;
 } MESSAGE, *LPMESSAGE;
+#endif
 
 /************************************************************************/
 
@@ -58,10 +77,13 @@ BOOL KillTask(HANDLE);
 void Exit(void);
 void Sleep(U32);
 U32 Wait(LPWAIT_INFO);
-U32 GetSystemTime(void);
+UINT GetSystemTime(void);
 BOOL GetLocalTime(LPDATETIME Time);
 BOOL GetProcessMemoryInfo(LPPROCESS_MEMORY_INFO Info);
 BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info);
+HANDLE LoadModule(LPCSTR Path);
+LPVOID GetModuleSymbol(HANDLE Module, LPCSTR Name);
+BOOL ReleaseModule(HANDLE Module);
 U32 FindFirstFile(FILE_FIND_INFO* Info);
 U32 FindNextFile(FILE_FIND_INFO* Info);
 BOOL GetMessage(HANDLE, LPMESSAGE, U32, U32);
@@ -73,17 +95,26 @@ HANDLE CreateDesktop(void);
 BOOL ShowDesktop(HANDLE);
 HANDLE GetDesktopWindow(HANDLE);
 HANDLE GetCurrentDesktop(void);
+BOOL GetDesktopScreenRect(LPDESKTOP, LPRECT);
 BOOL ApplyDesktopTheme(LPCSTR Target);
 HANDLE RegisterWindowClass(LPCSTR, HANDLE, LPCSTR, WINDOWFUNC, U32);
 BOOL UnregisterWindowClass(HANDLE, LPCSTR);
 HANDLE FindWindowClass(LPCSTR);
 BOOL WindowInheritsClass(HANDLE, HANDLE, LPCSTR);
+HANDLE CreateWindow(LPWINDOW_INFO Info);
 HANDLE CreateWindowWithClass(HANDLE, HANDLE, LPCSTR, WINDOWFUNC, U32, U32, I32, I32, I32, I32);
+BOOL DeleteWindow(HANDLE);
 BOOL DestroyWindow(HANDLE);
+HANDLE FindWindow(HANDLE, U32);
+HANDLE ContainsWindow(HANDLE, HANDLE);
+HANDLE GetWindowDesktop(HANDLE);
 BOOL ShowWindow(HANDLE);
 BOOL HideWindow(HANDLE);
 BOOL SetWindowStyle(HANDLE, U32);
 BOOL ClearWindowStyle(HANDLE, U32);
+BOOL GetWindowStyle(HANDLE, U32*);
+BOOL SetWindowCaption(HANDLE, LPCSTR);
+BOOL GetWindowCaption(HANDLE, LPSTR, UINT);
 BOOL InvalidateClientRect(HANDLE, LPRECT);
 BOOL InvalidateWindowRect(HANDLE, LPRECT);
 UINT SetWindowProp(HANDLE, LPCSTR, UINT);
@@ -103,8 +134,13 @@ HANDLE GetPreviousWindowSibling(HANDLE);
 BOOL MoveWindow(HANDLE, LPRECT);
 HANDLE GetSystemBrush(U32);
 HANDLE GetSystemPen(U32);
+HANDLE CreateBrush(LPBRUSH_INFO);
+HANDLE CreatePen(LPPEN_INFO);
 HANDLE SelectBrush(HANDLE, HANDLE);
 HANDLE SelectPen(HANDLE, HANDLE);
+BOOL Line(LPLINE_INFO LineInfo);
+BOOL Arc(LPARC_INFO ArcInfo);
+BOOL Triangle(LPTRIANGLE_INFO TriangleInfo);
 U32 BaseWindowFunc(HANDLE, U32, U32, U32);
 U32 SetPixel(HANDLE, U32, U32);
 U32 GetPixel(HANDLE, U32, U32);
@@ -114,14 +150,18 @@ BOOL MeasureText(LPTEXT_MEASURE_INFO MeasureInfo);
 BOOL DrawWindowBackground(HANDLE Window, HANDLE GC, LPRECT Rect, U32 ThemeToken);
 BOOL GetMousePosition(LPPOINT);
 U32 GetMouseButtons(void);
+BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info);
+BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info);
 HANDLE CaptureMouse(HANDLE);
 BOOL ReleaseMouse(void);
+BOOL SetWindowTimer(HANDLE Window, U32 TimerID, U32 IntervalMilliseconds);
+BOOL KillWindowTimer(HANDLE Window, U32 TimerID);
 U32 GetKeyModifiers(void);
 U32 ConsoleGetKey(LPKEYCODE);
 U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER);
 void ConsoleGotoXY(LPPOINT);
 void ConsoleClear(void);
-U32 ConsoleSetMode(U32 Columns, U32 Rows);
+U32 ConsoleSetColumnsRows(U32 Columns, U32 Rows);
 BOOL ConsoleGetCurrentMode(LPCONSOLE_MODE_INFO Info);
 BOOL DeleteObject(HANDLE);
 void srand(U32);

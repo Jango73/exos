@@ -41,7 +41,7 @@
 #include "text/CoreString.h"
 #include "text/Text.h"
 #include "User.h"
-#include "user/UserAccount.h"
+#include "user/Account.h"
 #include "fs/SystemFS.h"
 #include "DisplaySession.h"
 #include "process/Process.h"
@@ -110,7 +110,7 @@ typedef struct tag_FILESYSTEM FILESYSTEM, *LPFILESYSTEM;
 
 typedef struct tag_OBJECT_TERMINATION_STATE {
     LPVOID Object;
-    U64 ID;
+    U64 InstanceID;
     UINT ExitCode;
 } OBJECT_TERMINATION_STATE, *LPOBJECT_TERMINATION_STATE;
 
@@ -148,6 +148,7 @@ typedef struct tag_KERNEL_DATA {
     LPLIST FileSystem;
     LPLIST UnusedFileSystem;
     LPLIST File;
+    LPLIST ExecutableModuleImage;
     LPLIST TCPConnection;
     LPLIST Socket;
     LPLIST StartupDrivers;          // Driver list in initialization order
@@ -171,6 +172,7 @@ typedef struct tag_KERNEL_DATA {
     UINT DeferredWorkPollDelayMS;   // Polling delay for deferred work dispatcher in milliseconds
     BOOL DoLogin;                   // Enable/disable login sequence (TRUE=enable, FALSE=disable)
     BOOL ShowDesktop;               // Enable/disable automatic desktop activation (TRUE=enable, FALSE=disable)
+    DATETIME BootTime;              // Local date-time recorded during clock initialization
     KERNEL_DEBUG_STATE Debug;
     STR LanguageCode[8];
     STR KeyboardCode[8];
@@ -188,11 +190,12 @@ void SetShowDesktop(BOOL ShowDesktop);
 void SetWindowPipelineTraceEnabled(BOOL Enabled);
 void SetActiveDesktop(LPDESKTOP Desktop);
 void SetFocusedProcess(LPPROCESS Process);
+void SetKernelBootTime(LPDATETIME Time);
 void SetKeyboardCode(LPCSTR KeyboardCode);
 void SetLanguageCode(LPCSTR LanguageCode);
 void SetMaximumQuantum(UINT MaximumQuantum);
 void SetMinimumQuantum(UINT MinimumQuantum);
-void SetUserAccountList(LPLIST List);
+void SetAccountList(LPLIST List);
 void SetUserSessionList(LPLIST List);
 
 BOOL GetCPUInformation(LPCPU_INFORMATION);
@@ -205,6 +208,7 @@ LPLIST GetDiskList(void);
 BOOL GetDoLogin(void);
 BOOL GetShowDesktop(void);
 BOOL GetWindowPipelineTraceEnabled(void);
+BOOL GetKernelBootTime(LPDATETIME Time);
 LPDRIVER GetDefaultFileSystemDriver(void);
 LPDISPLAY_SESSION GetDisplaySession(void);
 LPLIST GetDriverList(void);
@@ -212,6 +216,7 @@ LPLIST GetStartupDriverList(void);
 LPLIST GetWindowClassList(void);
 LPLIST GetEventList(void);
 LPLIST GetFileList(void);
+LPLIST GetExecutableModuleImageList(void);
 FILESYSTEM_GLOBAL_INFO* GetFileSystemGlobalInfo(void);
 LPLIST GetFileSystemList(void);
 LPLIST GetUnusedFileSystemList(void);
@@ -239,7 +244,7 @@ LPLIST GetUsbDeviceList(void);
 LPLIST GetUsbInterfaceList(void);
 LPLIST GetUsbEndpointList(void);
 LPLIST GetUsbStorageList(void);
-LPLIST GetUserAccountList(void);
+LPLIST GetAccountList(void);
 LPLIST GetUserSessionList(void);
 void InitializeDriverList(void);
 

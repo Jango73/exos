@@ -82,13 +82,15 @@ typedef struct tag_USER_SESSION {
 
 /************************************************************************/
 
-// Functions in UserAccount.c
+// Functions in Account.c
 BOOL InitializeUserSystem(void);
 void ShutdownUserSystem(void);
-LPUSER_ACCOUNT CreateUserAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege);
-BOOL DeleteUserAccount(LPCSTR UserName);
-LPUSER_ACCOUNT FindUserAccount(LPCSTR UserName);
-LPUSER_ACCOUNT FindUserAccountByID(U64 UserID);
+UINT GetAccountCount(void);
+LPUSER_ACCOUNT GetAccountByIndex(UINT Index);
+LPUSER_ACCOUNT CreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege);
+BOOL DeleteAccount(LPCSTR UserName);
+LPUSER_ACCOUNT FindAccount(LPCSTR UserName);
+LPUSER_ACCOUNT FindAccountByID(U64 UserID);
 BOOL ChangeUserPassword(LPCSTR UserName, LPCSTR OldPassword, LPCSTR NewPassword);
 BOOL LoadUserDatabase(void);
 BOOL SaveUserDatabase(void);

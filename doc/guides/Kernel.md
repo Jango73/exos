@@ -196,8 +196,11 @@ Virtual address space setup follows a dependency order.
 - `Image`: executable image span loaded at `VMA_USER`.
 - `Heap`: process heap growth lane.
 - `Stack`: downward-growing user task stacks.
+- `Module`: runtime-loaded executable module mappings and module bookkeeping.
 - `System`: process-owned fixed mappings (for example message queue backing storage).
 - `Mmio`: process MMIO/DMA-oriented mappings.
+
+`VMA_USER_LIMIT` names the upper anchor of the process-owned user arena. The `TaskRunner` user alias sits one page below that anchor, and process arenas are laid out below `VMA_TASK_RUNNER`. x86-32 reserves 64 MiB for `System`, 64 MiB for `Mmio`, 256 MiB for `Stack`, and 1 GiB for `Module`. x86-64 reserves 1 GiB for `System`, 1 GiB for `Mmio`, 4 GiB for `Stack`, and 64 GiB for `Module`; the high user PML4 entry is installed up front and missing lower paging structures are allocated on demand.
 
 3. Region operations inside arena policy:
 - `AllocRegion`, `FreeRegion`, and `ResizeRegion` perform mapping updates, populate page tables, and flush translation state.
@@ -234,11 +237,11 @@ Security in EXOS is implemented as a layered architecture. The effective access 
 #### Layer 3: Identity and session model
 
 - Identity is session-centric: `GetCurrentUser()` resolves the current process session to a user account (`kernel/source/utils/Helpers.c`).
-- `USER_ACCOUNT` stores `UserID`, privilege (`EXOS_PRIVILEGE_USER` or `EXOS_PRIVILEGE_ADMIN`), status, and password hash; `USER_SESSION` stores `SessionID`, `UserID`, login/activity timestamps, lock state, and shell task binding (`kernel/include/UserAccount.h`).
+- `USER_ACCOUNT` stores `UserID`, privilege (`EXOS_PRIVILEGE_USER` or `EXOS_PRIVILEGE_ADMIN`), status, and password hash; `USER_SESSION` stores `SessionID`, `UserID`, login/activity timestamps, lock state, and shell task binding (`kernel/include/user/Account.h`).
 - Session lifecycle is managed by `CreateUserSession`, `SetCurrentSession`, `GetCurrentSession`, timeout validation, and lock/unlock helpers in `kernel/source/user/UserSession.c`.
 - Session inactivity timeout is configurable with `Session.TimeoutSeconds` in kernel configuration, with a compile fallback to `SESSION_TIMEOUT_MS`. Key `Session.TimeoutMinutes` is also accepted when `Session.TimeoutSeconds` is absent.
 - Periodic session timeout enforcement is triggered from the scheduler path through a lightweight scheduler tick callback that signals deferred work; the lock/unlock user interface remains handled by shell code (`kernel/source/process/Schedule.c`, `kernel/source/user/UserSession.c`, `kernel/source/shell/Shell-Main.c`).
-- Authentication throttling uses the shared `utils/AuthPolicy` helper. User login and session unlock flows apply a short cooldown after failures and a temporary lockout after repeated consecutive failures, while successful authentication resets the in-memory throttle state (`kernel/source/utils/AuthPolicy.c`, `kernel/source/user/UserAccount.c`, `kernel/source/user/UserSession.c`).
+- Authentication throttling uses the shared `utils/AuthPolicy` helper. User login and session unlock flows apply a short cooldown after failures and a temporary lockout after repeated consecutive failures, while successful authentication resets the in-memory throttle state (`kernel/source/utils/AuthPolicy.c`, `kernel/source/user/Account.c`, `kernel/source/user/UserSession.c`).
 - Child process creation inherits the parent session (`Process->Session`) and stable owner identifier (`Process->UserID`), preserving identity continuity across spawned processes even when the live session pointer is absent (`kernel/source/process/Process.c`, `kernel/source/user/UserSession.c`).
 - Same-user process targeting policy and caller privilege resolution are centralized in `utils/ProcessAccess`: a process may target itself, processes owned by the same effective user, or any process when the caller resolves to administrator or kernel privilege. For kernel objects that carry `OBJECT_FIELDS`, the canonical security owner is `OBJECT.OwnerProcess`; generic object access checks resolve ownership from that field so tasks, windows, desktops, graphics contexts backed by one desktop, and other process-owned objects share one source of truth. `PROCESS` objects remain the deliberate exception because their `OwnerProcess` link models parentage, while the process object itself is its own security target. The module also exposes a current-process helper and global validation macros so syscall and subsystem code can share the same object-validation plus authorization pattern without local wrappers. Task access wrappers mediate shell task-control commands so the shell does not carry direct policy checks. These helpers are reused by exposure checks, process/task syscalls, generic handle-based syscalls, window/desktop/window-class syscalls, and shell-facing task control (`kernel/source/utils/ProcessAccess.c`, `kernel/source/expose/Expose-Security.c`, `kernel/source/SYSCall.c`, `kernel/source/process/Task-Access.c`).
 
@@ -277,7 +280,9 @@ Security in EXOS is implemented as a layered architecture. The effective access 
 
 #### Object identifiers
 
-Every kernel object stores a 64-bit identifier in `OBJECT_FIELDS`. The identifier is assigned by `CreateKernelObject` using a random UUID source and is kept for the object lifetime, including in the termination cache through `OBJECT_TERMINATION_STATE.ID`. This provides stable identity when memory is reused and keeps scheduler lookups independent from raw pointers. Any kernel object that contains `OBJECT_FIELDS` (and therefore `LISTNODE_FIELDS`) and is meant to live in a global kernel list must be created with `CreateKernelObject` and destroyed with `ReleaseKernelObject`.
+Every kernel object stores a 64-bit instance identifier in `OBJECT_FIELDS.InstanceID`. The identifier is assigned by `CreateKernelObject` using a random UUID source and is kept for the object lifetime, including in the termination cache through `OBJECT_TERMINATION_STATE.InstanceID`. This provides stable identity when memory is reused and keeps scheduler lookups independent from raw pointers. Any kernel object that contains `OBJECT_FIELDS` (and therefore `LISTNODE_FIELDS`) and is meant to live in a global kernel list must be created with `CreateKernelObject` and destroyed with `ReleaseKernelObject`.
+
+`OBJECT_FIELDS` also carries one optional per-object destructor pointer. `CreateKernelObject` initializes that slot to `NULL`, `SetKernelObjectDestructor(...)` binds one type-specific teardown routine when an object owns extra resources, and the global unreferenced-object sweep destroys objects through `DestroyKernelObject(...)`. This keeps garbage collection generic: the sweep does not branch on object types, and object-specific teardown remains attached to the object lifetime contract itself.
 
 #### Event objects
 
@@ -347,7 +352,7 @@ The x86-32 implementation of `SetupTask` (`kernel/source/arch/x86-32/x86-32.c`) 
 
 The x86-64 implementation performs the same baseline duties and also provisions a dedicated Interrupt Stack Table (`IST1`) stack for faults that need a reliable kernel stack when the regular system stack is unusable. During IDT initialization, the kernel assigns `IST1` to fault vectors that are likely to run with a corrupted task stack (double fault, invalid TSS, segment-not-present, stack, general protection, and page faults). This keeps handlers on the emergency per-task stack and prevents double-fault escalation into triple fault when the active stack pointer is invalid.
 
-`CreateTask` calls the architecture-specific helper after generic task bookkeeping. This keeps scheduler and task-manager logic architecture-agnostic while allowing each architecture to specialize `SetupTask`.
+`KernelCreateTask` calls the architecture-specific helper after generic task bookkeeping. This keeps scheduler and task-manager logic architecture-agnostic while allowing each architecture to specialize `SetupTask`.
 
 Both the x86-32 and x86-64 context-switch helpers (`SetupStackForKernelMode` and `SetupStackForUserMode` in their respective architecture headers) must reserve space on the stack in bytes rather than entries before writing the return frame. Subtracting the correct byte count avoids writing past the top of the allocated stack when seeding the initial `iret` frame for a task. On x86-64 the helpers also arrange the bootstrap frame so that the stack pointer becomes 16-byte aligned after `iretq` pops its arguments, preserving the ABI-mandated alignment once execution resumes in the scheduled task.
 
@@ -373,6 +378,8 @@ IRQ 0 └── trap lands in interrupt-a.asm : Interrupt_Clock
     └── calls ClockHandler to increment system time
     └── calls Scheduler to check if it's time to switch to another task
         └── Scheduler switches page directory if needed and returns the next task's context
+
+`GetSystemTime()` normally returns the millisecond counter maintained by `ClockHandler`. After interrupts are enabled, but before IRQ 0 increments that counter, the clock returns synthetic 10 ms steps so boot log entries in that gap do not all carry the same timestamp. The first `ClockHandler` invocation folds that pre-interrupt value into `SystemUpTime` so timestamps do not move backward when the real IRQ-driven counter starts; scheduler time and local date-time remain driven by real clock interrupts.
 
 `Sleep` relies on scheduler wake-up timestamps only after the first `EnableInterrupts` call is executed. Before this point, `Sleep` uses a calibrated busy-wait loop (derived from CPU base frequency) so early-boot delays do not depend on `GetSystemTime` progression.
 
@@ -419,7 +426,7 @@ Interrupt_Clock └── BuildInterruptFrame
             └── ...
         └── CheckStack
             └── GetCurrentTask : endpoint
-        └── KillTask
+        └── KernelKillTask
             └── KernelLogText
                 └── ...
             └── RemoveTaskFromQueue
@@ -510,7 +517,7 @@ EXOS implements a lifecycle management system for both processes and tasks that 
 #### Lifecycle Flow
 
 **1. Task Termination:**
-- When a task terminates, `KillTask()` releases every mutex held by the task before marking it as `TASK_STATUS_DEAD`
+- When a task terminates, `KernelKillTask()` releases every mutex held by the task before marking it as `TASK_STATUS_DEAD`
 - During `DeleteTask()`, the task is removed from the scheduler queue before task resources are released
 - `DeleteDeadTasksAndProcesses()` (called periodically) removes dead tasks and processes from lists
 
@@ -527,7 +534,7 @@ EXOS implements a lifecycle management system for both processes and tasks that 
   - Checks the `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` flag
   - If flag is set: Finds all child processes recursively and kills them
   - If flag is not set: Orphans children by setting their `Parent` field to NULL
-  - Calls `KillTask()` on all tasks of the target process
+  - Calls `KernelKillTask()` on all tasks of the target process
   - Marks the target process as `PROCESS_STATUS_DEAD`
 
 **4. Final Cleanup:**
@@ -627,7 +634,7 @@ Message posting:
 - `SendMessage` is synchronous and window-only.
 
 Message retrieval:
-- `GetMessage`/`PeekMessage` first check the global input queue when the caller’s process has focus (desktop focus + per-desktop `FocusedProcess`), then fall back to the task’s own queue. `GetMessage` blocks if neither queue holds messages; `PeekMessage` is non-blocking. Userland syscalls translate handles in `MESSAGE_INFO` before dispatching to the kernel implementations.
+- Public runtime calls `GetMessage`/`PeekMessage` first check the global input queue when the caller’s process has focus (desktop focus + per-desktop `FocusedProcess`), then fall back to the task’s own queue. `GetMessage` blocks if neither queue holds messages; `PeekMessage` is non-blocking. Userland syscalls translate handles in `MESSAGE_INFO` before dispatching to the kernel implementations `KernelGetMessage` and `KernelPeekMessage`.
 - Focus tracking lives in `Kernel.ActiveDesktop` and `Kernel.FocusedProcess`. A process may exist without any desktop. When a focused process is associated with a desktop, focusing that process also makes its desktop active. When no active desktop exists, input falls back to the focused process, then to `KernelProcess`.
 
 
@@ -702,10 +709,9 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
         - `height`: mode height.
         - `bpp`: mode bit depth.
     - `enum_domain_count`: number of enum domains. Permissions: kernel and administrator only.
-    - `enum_domains`: enum domain array. Permissions: kernel and administrator only.
-      - `enum_domains.count`: enum domain count. Permissions: kernel and administrator only.
-      - `enum_domains[n]`: enum domain value at index `n`. Permissions: kernel and administrator only.
-- `drivers`: Compatibility alias for `driver`.
+    - `enum_domain`: enum domain array. Permissions: kernel and administrator only.
+      - `enum_domain.count`: enum domain count. Permissions: kernel and administrator only.
+      - `enum_domain[n]`: enum domain value at index `n`. Permissions: kernel and administrator only.
 - `graphics`: Active graphics session state. Permissions: anyone.
   - `graphics.frontend`: active display frontend text (`console` or `desktop`).
   - `graphics.current_driver_index`: index of the active concrete graphics backend inside `driver[n]`.
@@ -714,6 +720,40 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `graphics.mode.width`: active mode width.
     - `graphics.mode.height`: active mode height.
     - `graphics.mode.bpp`: active mode bit depth.
+- `clock`: Clock exposure root. Permissions: anyone.
+  - `clock.uptime_ms`: milliseconds since clock initialization.
+  - `clock.boot_datetime`: local date-time captured during clock initialization.
+  - `clock.current_datetime`: local date-time maintained by the clock tick.
+  - Date-time objects expose `year`, `month`, `day`, `hour`, `minute`, `second`, and `milli`.
+- `memory_map`: Kernel address-space exposure root. Permissions: anyone.
+  - `memory_map.kernel_region`: kernel memory region list root.
+    - `memory_map.kernel_region.count`: number of kernel memory regions.
+    - `memory_map.kernel_region[n]`: kernel memory region view at index `n`.
+      - `tag`: region tag.
+      - `base_low`: lower 32 bits of the canonical base.
+      - `base_high`: upper 32 bits of the canonical base.
+      - `physical_low`: lower 32 bits of the physical base.
+      - `physical_high`: upper 32 bits of the physical base.
+      - `physical_known`: indicates whether a physical base is known.
+      - `size`: region size.
+      - `page_count`: region page count.
+      - `flags`: region flags.
+      - `attributes`: region attributes.
+      - `granularity`: region granularity.
+- `network`: Network exposure root. Permissions: anyone.
+  - `network.device`: network device list root.
+    - `network.device.count`: number of network devices.
+    - `network.device[n]`: network device view at index `n`.
+      - `name`: device name.
+      - `manufacturer`: device manufacturer text.
+      - `product`: device product text.
+      - `mac_0`..`mac_5`: MAC address bytes.
+      - `ip_0`..`ip_3`: IPv4 address bytes.
+      - `link_up`: link state.
+      - `speed_mbps`: link speed in Mbps.
+      - `duplex_full`: duplex mode flag.
+      - `mtu`: configured MTU.
+      - `initialized`: initialization state.
 - `storage`: Storage list root. provides indexed access to storage views. Permissions: anyone.
   - `storage.count`: number of storage objects. Permissions: anyone.
   - `storage[n]`: storage view at index `n`. Permissions: anyone.
@@ -749,9 +789,9 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
   - `mouse.x`: cursor X coordinate. Permissions: anyone.
   - `mouse.y`: cursor Y coordinate. Permissions: anyone.
   - `mouse.driver`: active mouse driver. Permissions: kernel and administrator only.
-- `usb.ports`: xHCI port list root. provides indexed access to USB ports. Permissions: kernel and administrator only.
-  - `usb.ports.count`: number of USB ports. Permissions: kernel and administrator only.
-  - `usb.ports[n]`: port view at index `n`. Permissions: kernel and administrator only.
+- `usb.port`: xHCI port list root. provides indexed access to USB ports. Permissions: kernel and administrator only.
+  - `usb.port.count`: number of USB ports. Permissions: kernel and administrator only.
+  - `usb.port[n]`: port view at index `n`. Permissions: kernel and administrator only.
     - `bus`: PCI bus number. Permissions: kernel and administrator only.
     - `device`: PCI device number. Permissions: kernel and administrator only.
     - `function`: PCI function number. Permissions: kernel and administrator only.
@@ -760,9 +800,9 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `speed_id`: link speed identifier. Permissions: kernel and administrator only.
     - `connected`: connection status. Permissions: kernel and administrator only.
     - `enabled`: port enable state. Permissions: kernel and administrator only.
-- `usb.devices`: USB device list root. provides indexed access to USB devices. Permissions: anyone.
-  - `usb.devices.count`: number of USB devices. Permissions: anyone.
-  - `usb.devices[n]`: device view at index `n`. Permissions: anyone.
+- `usb.device`: USB device list root. provides indexed access to USB devices. Permissions: anyone.
+  - `usb.device.count`: number of USB devices. Permissions: anyone.
+  - `usb.device[n]`: device view at index `n`. Permissions: anyone.
     - `bus`: PCI bus number. Permissions: anyone.
     - `device`: PCI device number. Permissions: anyone.
     - `function`: PCI function number. Permissions: anyone.
@@ -771,6 +811,42 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `speed_id`: link speed identifier. Permissions: anyone.
     - `vendor_id`: USB vendor ID. Permissions: anyone.
     - `product_id`: USB product ID. Permissions: anyone.
+- `usb.drive`: USB mass-storage list root. provides indexed access to USB storage devices. Permissions: anyone.
+  - `usb.drive.count`: number of USB mass-storage devices. Permissions: anyone.
+  - `usb.drive[n]`: storage device view at index `n`. Permissions: anyone.
+    - `address`: USB device address. Permissions: anyone.
+    - `vendor_id`: USB vendor ID. Permissions: anyone.
+    - `product_id`: USB product ID. Permissions: anyone.
+    - `block_count`: block count. Permissions: anyone.
+    - `block_size`: block size in bytes. Permissions: anyone.
+    - `present`: online state. Permissions: anyone.
+- `usb.node`: USB descriptor-tree list root. provides indexed access to discovered USB tree nodes. Permissions: anyone.
+  - `usb.node.count`: number of USB tree nodes. Permissions: anyone.
+  - `usb.node[n]`: tree node view at index `n`. Permissions: anyone.
+    - `node_type`: node kind.
+    - `bus`: PCI bus number.
+    - `device`: PCI device number.
+    - `function`: PCI function number.
+    - `port_number`: xHCI port index.
+    - `address`: USB device address.
+    - `speed_id`: link speed identifier.
+    - `device_class`: USB device class.
+    - `device_sub_class`: USB device subclass.
+    - `device_protocol`: USB device protocol.
+    - `config_value`: configuration value.
+    - `config_attributes`: configuration attributes.
+    - `config_max_power`: configuration max power.
+    - `interface_number`: interface number.
+    - `alternate_setting`: interface alternate setting.
+    - `interface_class`: interface class.
+    - `interface_sub_class`: interface subclass.
+    - `interface_protocol`: interface protocol.
+    - `endpoint_address`: endpoint address.
+    - `endpoint_attributes`: endpoint attributes.
+    - `endpoint_max_packet_size`: endpoint max packet size.
+    - `endpoint_interval`: endpoint interval.
+    - `vendor_id`: USB vendor ID.
+    - `product_id`: USB product ID.
 
 
 ## Hardware and Driver Stack
@@ -879,7 +955,7 @@ Console text output uses backend-dispatched text commands implemented in `kernel
 - `TEXT_SET_CURSOR`
 - `TEXT_SET_CURSOR_VISIBLE`
 
-When `set_graphics_driver(driver_alias, width, height, bpp)` applies a graphics mode while the shell is in the console frontend, display session routing uses the selected backend for console rendering and recomputes console cell geometry from the active pixel mode. Shell output stays visible across backend and mode transitions.
+When `setGraphicsDriver(driverAlias, width, height, bpp)` applies a graphics mode while the shell is in the console frontend, display session routing uses the selected backend for console rendering and recomputes console cell geometry from the active pixel mode. Shell output stays visible across backend and mode transitions.
 
 The console text dispatch path caches the active `GRAPHICSCONTEXT` while the console frontend is bound to the same graphics driver. That cache is invalidated when console mode or framebuffer mapping changes so boot log rendering does not repeatedly call `DF_GFX_GETCONTEXT`.
 
@@ -944,9 +1020,9 @@ Graphics backend selection is implemented in `kernel/source/drivers/graphics/com
 
 Boot-path capability gating is centralized in `utils/BootPath` (`kernel/include/utils/BootPath.h`, `kernel/source/utils/BootPath.c`). VESA probing is disabled on x86-64 boot paths and enabled on x86-32 boot paths. On x86-32, backend availability is decided by the VESA initialization and probe path.
 
-Explicit backend forcing through `set_graphics_driver(driver_alias, width, height, bpp)` uses a strict selector path: only the requested backend is loaded into selector state, and command forwarding targets that backend while forced mode is active.
+Explicit backend forcing through `setGraphicsDriver(driverAlias, width, height, bpp)` uses a strict selector path: only the requested backend is loaded into selector state, and command forwarding targets that backend while forced mode is active.
 
-Shell graphics switching crosses the user/kernel boundary through `SYSCALL_SetGraphicsDriver`. The syscall payload is `GRAPHICS_DRIVER_SELECTION_INFO`, which carries one inline `DriverAlias[MAX_NAME]` buffer and the requested width, height, and bits per pixel. The shell `set_graphics_driver(...)` host function only marshals arguments into that ABI payload and invokes the syscall.
+Shell graphics switching crosses the user/kernel boundary through `SYSCALL_SetGraphicsDriver`. The syscall payload is `GRAPHICS_DRIVER_SELECTION_INFO`, which carries one inline `DriverAlias[MAX_NAME]` buffer and the requested width, height, and bits per pixel. The shell `setGraphicsDriver(...)` host function only marshals arguments into that ABI payload and invokes the syscall.
 
 Generic driver diagnostics use `DF_DEBUG_INFO` with `DRIVER_DEBUG_INFO.Text`, a multi-line buffer sized with `MAX_STRING_BUFFER`. Graphics backends use that interface to expose backend alias and current resolution, and the graphics selector forwards the query to the active backend. Mouse drivers expose the selected manufacturer and product through the same pattern, and the mouse selector forwards that data as well.
 
@@ -1158,6 +1234,37 @@ Step-3 parser/validator behavior:
 - validates package hash (`SHA-256`) over package bytes excluding signature region,
 - optionally validates detached signature blob through `utils/Signature`,
 - returns stable validation status codes and logs explicit parse failures with function-tagged error messages.
+
+#### ELF executable module ABI
+
+The first EXOS userland loadable module ABI is defined in:
+- `doc/guides/binary-formats/executable-module-elf.md`
+
+The ABI freezes:
+- the accepted `ET_DYN` ELF subset for modules;
+- required and rejected program header combinations;
+- the narrow relocation and TLS contract for the first milestone;
+- deterministic kernel rejection categories for unsupported module binaries.
+
+#### Process user address space arenas
+
+User processes use `Process-Arena` (`kernel/include/process/Process-Arena.h`, `kernel/source/process/Process-Arena.c`) to keep virtual address space responsibilities separated:
+- `Image` covers the main executable image lane;
+- `Heap` remains the process general allocation lane and its growth is capped to the heap arena limit;
+- `Stack` remains the task stack lane and allocates from the top of its reserved range;
+- `Module` is a dedicated lane for runtime-loaded executable modules;
+- `Mmio` remains reserved for explicit device mappings;
+- `System` remains reserved for process-owned service mappings such as message queues.
+
+The module lane exists independently from the main executable and heap:
+- module mappings do not consume heap growth space;
+- module allocations stay below the `Mmio` and `System` reservations;
+- the initial process heap is reconfigured through `ProcessArenaConfigureMainHeap(...)` so `HeapInit(...)` growth stops before the stack/module lanes;
+- `ProcessArenaAllocateModule(...)` provides one entry point for module-related mappings and accepts explicit purposes for shared segments, private writable data, TLS storage, and bookkeeping pages.
+
+Executable modules are exposed to userland through `LoadModule(...)`, `GetModuleSymbol(...)`, and `ReleaseModule(...)` runtime wrappers backed by dedicated syscalls. The syscall layer owns path-based file opening and current-process handle export; `exec/ExecutableModule` owns the shared image cache; `process/Process-Module` owns process-local bindings, mapping, relocation, TLS registration, symbol lookup, and process teardown cleanup. Symbol lookup returns installed user addresses from a binding owned by the caller process only. General runtime unload is rejected with `DF_RETURN_NOT_IMPLEMENTED` until dependency tracking, constructor/destructor ordering, and in-module execution quiescence have a complete contract.
+
+Module TLS blocks are installed per task. The hardware user TLS selector/base exposes the compiler ABI thread pointer for the first module TLS block, while the user-visible module TLS control block remains mapped for kernel bookkeeping and future runtime enumeration. Initial-exec `TPOFF` relocations are resolved relative to the module TLS block size.
 
 #### PackageFS readonly mount
 
@@ -1608,7 +1715,6 @@ VFS integration is implemented in `NTFS-VFS.c` and dispatched from `NTFS-Base.c`
 
 Timestamp conversion from NTFS 100ns units to kernel `DATETIME` is implemented by `NtfsTimestampToDateTime` (`NTFS-Time.c`). UTF-16LE filename decoding and comparison support is provided by `kernel/source/utils/Unicode.c` (`Utf16LeNextCodePoint`, `Utf16LeToUtf8`, `Utf16LeCompareCaseInsensitiveAscii`).
 
-
 ## Interaction and Networking
 
 ### Shell scripting
@@ -1667,8 +1773,11 @@ The shell exposes host functions through that bridge:
 - `print(...)`: prints the stringified arguments joined with spaces.
 - `exec(...)`: rebuilds one command line from the stringified arguments and executes it through the normal shell command path.
 - `kill(handle)`: resolves one user-visible handle and routes to `SysCall_KillProcess()` or `SysCall_KillTask()` depending on the object type behind the handle.
-- `smoke_test_multi_args(a, b, c, d)`: reserved smoke helper that validates four serialized arguments and returns one deterministic marker value for automated regression checks.
-- `set_graphics_driver(driver_alias, width, height, bpp)`: forces one graphics backend alias and applies the requested mode through the selector path.
+- `smokeTestMultiArgs(a, b, c, d)`: reserved smoke helper that validates four serialized arguments and returns one deterministic marker value for automated regression checks.
+- `setGraphicsDriver(driverAlias, width, height, bpp)`: forces one graphics backend alias and applies the requested mode through the selector path.
+- `createAccount(userName, password, privilege)`: creates one account through `SYSCALL_CreateUser`.
+- `deleteAccount(userName)`: deletes one account through `SYSCALL_DeleteUser`.
+- `changePassword(oldPassword, newPassword)`: changes the current user password through `SYSCALL_ChangePassword`.
 
 Known host functions return `SCRIPT_FUNCTION_STATUS_UNKNOWN` when the symbol does not exist, and `SCRIPT_FUNCTION_STATUS_ERROR` when the function exists but rejects the call after setting an explicit script error.
 
@@ -1676,22 +1785,31 @@ Known host functions return `SCRIPT_FUNCTION_STATUS_UNKNOWN` when the symbol doe
 
 `AST_RETURN` stores a return value in the script context (`ScriptStoreReturnValue()`). The shell path (`RunScriptFile()`) prints the raw return value on its own line after successful execution.
 
-Supported stored return categories are scalar values (string, integer, float). Host handles and arrays are rejected as return values by the interpreter storage path.
+Supported stored return categories are string, integer, float, and native E0 object values. Host handles and arrays are rejected by the interpreter storage path.
 
 #### Host object exposure model
 
 The shell registers host symbols with `ScriptRegisterHostSymbol()` during context initialization. Registered roots include:
 
 - `process`
-- `drivers`
+- `task`
+- `driver`
+- `graphics`
+- `clock`
 - `storage`
+- `file_system`
+- `memory_map`
 - `pci_bus`
 - `pci_device`
+- `usb`
+- `network`
+- `keyboard`
+- `mouse`
+- `account`
 
 Each symbol is associated with a `SCRIPT_HOST_DESCRIPTOR` implemented under `kernel/source/expose/*`. Descriptor callbacks (`GetProperty`, `GetElement`) provide typed access to fields and arrays.
 
-Access control is enforced in exposure helpers through shared macros and checks (`EXPOSE_REQUIRE_ACCESS(...)`, `ExposeCanReadProcess(...)`) so scripts can inspect kernel state through controlled interfaces instead of raw object access.
-
+Access control is enforced in exposure helpers through shared macros and checks (`EXPOSE_REQUIRE_ACCESS(...)`, `ExposeCanReadProcess(...)`) so scripts can inspect kernel state through controlled interfaces instead of raw object access. `account.count` is public to support first-user bootstrap, while `account[n]` details remain restricted to administrator or kernel callers.
 
 ### Network Stack
 
@@ -1752,7 +1870,7 @@ typedef struct DeviceTag {
 
 #### Device Interrupt Infrastructure
 
-**Location:** `kernel/source/drivers/DeviceInterrupt.c`, `kernel/include/drivers/DeviceInterrupt.h`, `kernel/source/sync/DeferredWork.c`
+**Location:** `kernel/source/drivers/DeviceInterrupt.c`, `kernel/include/drivers/DeviceInterrupt.h`, `kernel/source/sync/DeferredWork.c`, `kernel/source/sync/DeferredWorkQueue.c`
 
 The device interrupt layer centralizes vector assignment, interrupt routing, and deferred work dispatching for hardware devices.
 
@@ -1760,8 +1878,10 @@ The device interrupt layer centralizes vector assignment, interrupt routing, and
 - Configurable interrupt vector slots shared across PCI/PIC paths (`General.DeviceInterruptSlots`, 1–32, default 32).
 - Slot bookkeeping is allocated dynamically from kernel memory so the table matches the configured slot count.
 - `DeviceInterruptRegister()` binds ISR top halves, deferred callbacks, and optional poll routines to a slot.
-- `DeferredWorkDispatcher` waits on a kernel event, running deferred callbacks when signaled and invoking poll routines on timeout or when global polling mode is forced.
-- `DeferredWorkUnregister()` first blocks new dispatches on the slot, waits for in-flight callbacks to finish, then clears the slot so driver teardown cannot race one copied callback frame.
+- `DeferredWorkQueue` owns the reusable queue mechanics: slot storage, callback registration, event signaling, callback dispatch, polling callbacks, and unregister quiescence.
+- `DeferredWork` instantiates the standard queue and a fast queue. The fast queue uses a 5 ms wait and polling cadence and is selected by mouse dispatch.
+- `DEFERRED_WORK_TOKEN` identifies a queue and slot explicitly. It is used instead of packing queue metadata into a scalar handle.
+- `DeferredWorkUnregister()` first blocks new dispatches on the token slot, waits for in-flight callbacks to finish, then clears the slot so driver teardown cannot race one copied callback frame.
 - Automatic spurious-interrupt suppression masks a slot after repeated suppressed top halves and relies on its poll routine until the driver re-arms the IRQ.
 - Graceful fallback to polling when hardware interrupts are unavailable.
 - The IOAPIC driver is optional; when ACPI is unavailable the kernel continues in PIC mode and boots without IOAPIC.
@@ -1772,7 +1892,7 @@ The device interrupt layer centralizes vector assignment, interrupt routing, and
 - `InitializeDeviceInterrupts()`: Reset slot bookkeeping at boot.
 - `DeviceInterruptRegister()/DeviceInterruptUnregister()`: Manage slot lifetime.
 - `DeviceInterruptHandler(slot)`: ASM entry point fan-out for interrupt vectors 0x30–0x37.
-- `InitializeDeferredWork()`: Start the dispatcher kernel task and supporting event.
+- `InitializeDeferredWork()`: Start the standard and fast dispatcher kernel tasks and supporting events.
 - PIC mode remaps IRQs to vectors 0x20–0x2F before interrupts are enabled.
 - PIC routing consults the IMCR presence flag set at initialization; if the register is not writable, the Local APIC LINT0 ExtINT path is enabled to keep legacy IRQs flowing.
 
@@ -1973,66 +2093,6 @@ TCP provides reliable connection-oriented communication using a state machine-ba
 - Reno-style congestion baseline (slow start and congestion avoidance)
 - Checksum validation with IPv4 pseudo-header
 
-**Connection Structure:**
-```c
-typedef struct TCPConnectionTag {
-    // Connection identification
-    U32 LocalIP;            // Local IP address (network byte order)
-    U16 LocalPort;          // Local port (network byte order)
-    U32 RemoteIP;           // Remote IP address (network byte order)
-    U16 RemotePort;         // Remote port (network byte order)
-
-    // Sequence numbers
-    U32 SendNext;           // Next sequence number to send
-    U32 SendUnacked;        // Oldest unacknowledged sequence number
-    U32 RecvNext;           // Next expected sequence number
-
-    // Window management
-    U16 SendWindow;         // Send window size
-    U16 RecvWindow;         // Receive window size
-
-    // Buffers
-    U8 SendBuffer[TCP_SEND_BUFFER_SIZE];
-    UINT SendBufferUsed;
-    UINT SendBufferCapacity;
-    U8 RecvBuffer[TCP_RECV_BUFFER_SIZE];
-    UINT RecvBufferUsed;
-    UINT RecvBufferCapacity;
-
-    // State machine
-    STATE_MACHINE StateMachine;
-
-    // Timers
-    U32 RetransmitTimer;
-    U32 TimeWaitTimer;
-    U32 RetransmitBaseTimeout;
-    U32 RetransmitCurrentTimeout;
-
-    // Retransmission and recovery
-    U32 RetransmitSequenceStart;
-    U32 RetransmitSequenceEnd;
-    U32 DuplicateAckCount;
-    BOOL RetransmitPending;
-    BOOL InFastRecovery;
-
-    // Congestion control
-    U32 CongestionWindow;
-    U32 SlowStartThreshold;
-} TCPConnection;
-```
-
-**API Functions:**
-- `TCP_Initialize()`: Initialize global TCP subsystem
-- `TCP_CreateConnection(LocalIP, LocalPort, RemoteIP, RemotePort)`: Create connection
-- `TCP_Connect(ConnectionID)`: Initiate active connection (SYN)
-- `TCP_Listen(ConnectionID)`: Set connection to listen state
-- `TCP_Send(ConnectionID, Data, Length)`: Send data
-- `TCP_Receive(ConnectionID, Buffer, BufferSize)`: Receive data
-- `TCP_Close(ConnectionID)`: Close connection
-- `TCP_GetState(ConnectionID)`: Get current connection state
-- `TCP_Update()`: Process timers and retransmissions
-- `TCP_OnIPv4Packet()`: Handle incoming TCP packets (IPv4 protocol handler)
-
 The buffer capacities default to 32768 bytes each when the configuration entries are absent.
 The retransmission tracker keeps one outstanding MSS-sized segment for fast retransmit.
 
@@ -2091,7 +2151,6 @@ IPv4_RegisterProtocolHandler(Device, IPV4_PROTOCOL_TCP, TCP_OnIPv4Packet);
 5. **Maintainability**: Clear separation of concerns and context management
 
 The network stack successfully handles real network traffic across multiple devices and provides a robust foundation for implementing network applications and services.
-
 
 ## Windowing
 
@@ -2430,9 +2489,9 @@ Path mapping (migration reference):
 |---|---|
 | `build/x86-32/kernel/exos.elf` | `build/core/x86-32-mbr-debug/kernel/exos.elf` |
 | `build/x86-64/kernel/exos.elf` | `build/core/x86-64-mbr-debug/kernel/exos.elf` |
-| `build/x86-32/boot-mbr/exos.img` | `build/image/x86-32-mbr-debug-ext2/boot-mbr/exos.img` |
-| `build/x86-64/boot-mbr/exos.img` | `build/image/x86-64-mbr-debug-ext2/boot-mbr/exos.img` |
-| `build/x86-64/boot-uefi/exos-uefi.img` | `build/image/x86-64-uefi-debug-ext2/boot-uefi/exos-uefi.img` |
+| `build/x86-32/boot-mbr/exos.img` | `build/image/x86-32-mbr-debug-ext2/exos.img` |
+| `build/x86-64/boot-mbr/exos.img` | `build/image/x86-64-mbr-debug-ext2/exos.img` |
+| `build/x86-64/boot-uefi/exos-uefi.img` | `build/image/x86-64-uefi-debug-ext2/exos-uefi.img` |
 | `build/x86-32/tools/cycle` | `build/core/x86-32-mbr-debug/tools/cycle` |
 | `build/x86-64/tools/cycle` | `build/core/x86-64-mbr-debug/tools/cycle` |
 

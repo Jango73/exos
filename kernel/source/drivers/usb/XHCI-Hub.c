@@ -239,13 +239,10 @@ static BOOL XHCI_SubmitHubStatusTransfer(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE
     Hub->HubStatusPending = FALSE;
     XHCI_ClearTransferCompletions(Device, Hub->SlotId, Hub->HubInterruptEndpoint->Dci);
 
-    if (!XHCI_RingEnqueue(Hub->HubInterruptEndpoint->TransferRingLinear,
-                          Hub->HubInterruptEndpoint->TransferRingPhysical,
-                          &Hub->HubInterruptEndpoint->TransferRingEnqueueIndex,
-                          &Hub->HubInterruptEndpoint->TransferRingCycleState,
-                          XHCI_TRANSFER_RING_TRBS,
-                          &Trb,
-                          &Hub->HubStatusTrbPhysical)) {
+    if (!XHCI_RingEnqueue(
+            Hub->HubInterruptEndpoint->TransferRingLinear, Hub->HubInterruptEndpoint->TransferRingPhysical,
+            &Hub->HubInterruptEndpoint->TransferRingEnqueueIndex, &Hub->HubInterruptEndpoint->TransferRingCycleState,
+            XHCI_TRANSFER_RING_TRBS, &Trb, &Hub->HubStatusTrbPhysical)) {
         return FALSE;
     }
 
@@ -264,14 +261,7 @@ static BOOL XHCI_SubmitHubStatusTransfer(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE
  * @return TRUE when completion was found.
  */
 BOOL XHCI_CheckTransferCompletion(LPXHCI_DEVICE Device, U64 TrbPhysical, U32* CompletionOut) {
-    return XHCI_CheckTransferCompletionRouted(Device,
-                                              TrbPhysical,
-                                              0,
-                                              0,
-                                              CompletionOut,
-                                              NULL,
-                                              NULL,
-                                              NULL);
+    return XHCI_CheckTransferCompletionRouted(Device, TrbPhysical, 0, 0, CompletionOut, NULL, NULL, NULL);
 }
 
 /************************************************************************/
@@ -285,12 +275,9 @@ BOOL XHCI_CheckTransferCompletion(LPXHCI_DEVICE Device, U64 TrbPhysical, U32* Co
  * @param ObservedTrbPhysicalOut Receives observed transfer-event pointer.
  * @return TRUE on success.
  */
-static BOOL XHCI_PopTransferCompletionByRoute(LPXHCI_DEVICE Device,
-                                              U8 SlotId,
-                                              U8 EndpointId,
-                                              U32* CompletionOut,
-                                              U32* TransferLengthOut,
-                                              U64* ObservedTrbPhysicalOut) {
+static BOOL XHCI_PopTransferCompletionByRoute(
+    LPXHCI_DEVICE Device, U8 SlotId, U8 EndpointId, U32* CompletionOut, U32* TransferLengthOut,
+    U64* ObservedTrbPhysicalOut) {
     U32 Index;
 
     if (Device == NULL || SlotId == 0 || EndpointId == 0) {
@@ -339,14 +326,9 @@ static BOOL XHCI_PopTransferCompletionByRoute(LPXHCI_DEVICE Device,
  * @param ObservedTrbPhysicalOut Receives observed transfer-event pointer when available.
  * @return TRUE when completion was found.
  */
-BOOL XHCI_CheckTransferCompletionRouted(LPXHCI_DEVICE Device,
-                                        U64 TrbPhysical,
-                                        U8 SlotId,
-                                        U8 EndpointId,
-                                        U32* CompletionOut,
-                                        U32* TransferLengthOut,
-                                        BOOL* UsedRouteFallbackOut,
-                                        U64* ObservedTrbPhysicalOut) {
+BOOL XHCI_CheckTransferCompletionRouted(
+    LPXHCI_DEVICE Device, U64 TrbPhysical, U8 SlotId, U8 EndpointId, U32* CompletionOut, U32* TransferLengthOut,
+    BOOL* UsedRouteFallbackOut, U64* ObservedTrbPhysicalOut) {
     if (Device == NULL) {
         return FALSE;
     }
@@ -357,14 +339,11 @@ BOOL XHCI_CheckTransferCompletionRouted(LPXHCI_DEVICE Device,
 
     LockMutex(&(Device->Mutex), INFINITY);
     XHCI_PollCompletions(Device);
-    Found = XHCI_PopCompletion(Device, XHCI_TRB_TYPE_TRANSFER_EVENT, TrbPhysical, NULL, CompletionOut, TransferLengthOut);
+    Found =
+        XHCI_PopCompletion(Device, XHCI_TRB_TYPE_TRANSFER_EVENT, TrbPhysical, NULL, CompletionOut, TransferLengthOut);
     if (!Found && SlotId != 0 && EndpointId != 0) {
-        Found = XHCI_PopTransferCompletionByRoute(Device,
-                                                  SlotId,
-                                                  EndpointId,
-                                                  CompletionOut,
-                                                  TransferLengthOut,
-                                                  &ObservedTrbPhysical);
+        Found = XHCI_PopTransferCompletionByRoute(
+            Device, SlotId, EndpointId, CompletionOut, TransferLengthOut, &ObservedTrbPhysical);
         UsedRouteFallback = Found ? TRUE : FALSE;
     }
     UnlockMutex(&(Device->Mutex));
@@ -694,12 +673,12 @@ void XHCI_RegisterHubPoll(LPXHCI_DEVICE Device) {
         return;
     }
 
-    if (Device->HubPollHandle != DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(Device->HubPollToken) != FALSE) {
         return;
     }
 
-    Device->HubPollHandle = DeferredWorkRegisterPollOnly(XHCI_PollHubs, (LPVOID)Device, TEXT("XHCIHub"));
-    if (Device->HubPollHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    Device->HubPollToken = DeferredWorkRegisterPollOnly(XHCI_PollHubs, (LPVOID)Device, TEXT("XHCIHub"));
+    if (DeferredWorkTokenIsValid(Device->HubPollToken) == FALSE) {
         WARNING(TEXT("[XHCI_RegisterHubPoll] Failed to register hub poll"));
     }
 }

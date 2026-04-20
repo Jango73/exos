@@ -67,7 +67,11 @@ This yields:
 - No kernel-space loadable driver format reuse in the first pass.
 - No support for copy relocation, symbol versioning, IFUNC, audit hooks, or GNU loader compatibility details unless they are explicitly required by the chosen toolchain output.
 
-## Step 1 - Define ABI, Binary Scope, and Acceptance Rules
+## [x] Step 1 - Define ABI, Binary Scope, and Acceptance Rules
+
+Implemented in:
+- `doc/guides/binary-formats/executable-module-elf.md`
+- `doc/guides/Kernel.md`
 
 - Define the supported ELF subset for executable modules:
   - `ET_DYN` only for modules;
@@ -92,7 +96,13 @@ This yields:
 Acceptance criteria:
 - One documentable module ABI exists and is narrow enough to validate deterministically in kernel code.
 
-## Step 2 - Generalize Executable Metadata Beyond Main Process Images
+## [x] Step 2 - Generalize Executable Metadata Beyond Main Process Images
+
+Implemented in:
+- `kernel/include/exec/Executable.h`
+- `kernel/include/exec/ExecutableELF.h`
+- `kernel/source/exec/Executable.c`
+- `kernel/source/exec/ExecutableELF.c`
 
 - Split existing executable metadata into:
   - image layout description;
@@ -114,7 +124,13 @@ Acceptance criteria:
 Acceptance criteria:
 - The loader can inspect one ELF module and obtain all information required for mapping, relocation, exports, and TLS without process-specific logic.
 
-## Step 3 - Introduce Kernel Module Image Objects
+## [x] Step 3 - Introduce Kernel Module Image Objects
+
+Implemented in:
+- `kernel/include/exec/ExecutableModule.h`
+- `kernel/source/exec/ExecutableModule.c`
+- `kernel/include/core/KernelData.h`
+- `kernel/source/core/KernelData.c`
 
 - Add a kernel object representing one validated module image in memory.
 - Store in that object:
@@ -133,7 +149,13 @@ Acceptance criteria:
 Acceptance criteria:
 - Loading the same module in two processes reuses one kernel module image object.
 
-## Step 4 - Extend Process Address Space Layout For Modules
+## [x] Step 4 - Extend Process Address Space Layout For Modules
+
+Implemented in:
+- `kernel/include/process/Process-Arena.h`
+- `kernel/source/process/Process-Arena.c`
+- `kernel/source/process/Process.c`
+- `doc/guides/Kernel.md`
 
 - Add a dedicated user arena for dynamically loaded module mappings instead of mixing them into the main image lane.
 - Keep separate sub-ranges or allocation tags for:
@@ -153,7 +175,14 @@ Acceptance criteria:
 Acceptance criteria:
 - Modules can be placed deterministically without colliding with heap growth, stacks, or the main image.
 
-## Step 5 - Add Process Module Binding Objects
+## [x] Step 5 - Add Process Module Binding Objects
+
+Implemented in:
+- `kernel/include/process/Process.h`
+- `kernel/include/process/Process-Module.h`
+- `kernel/source/process/Process.c`
+- `kernel/source/process/Process-Module.c`
+- `doc/guides/Kernel.md`
 
 - Add one process-owned binding object per loaded module.
 - Store in the binding:
@@ -170,7 +199,7 @@ Acceptance criteria:
 Acceptance criteria:
 - One process can load the same module once and share that binding across all its tasks.
 
-## Step 6 - Implement Shared Segment Mapping Policy
+## [x] Step 6 - Implement Shared Segment Mapping Policy
 
 - Split module segments by mapping semantics:
   - executable read-only segments: shared physical pages, mapped read/execute;
@@ -188,7 +217,8 @@ Acceptance criteria:
 Acceptance criteria:
 - Two processes loading the same module share executable physical pages while keeping writable state isolated.
 
-## Step 7 - Implement Symbol Resolution and Relocation Binding
+## [x] Step 7 - Implement Symbol Resolution and Relocation Binding
+
 
 - Introduce one reusable process symbol resolver with this search order:
   - main executable exports;
@@ -204,7 +234,7 @@ Acceptance criteria:
 Acceptance criteria:
 - A module can import symbols from the main executable and from another loaded module inside the same process.
 
-## Step 8 - Define Process-Global Module Data Policy
+## [x] Step 8 - Define Process-Global Module Data Policy
 
 - Treat module `.data` and `.bss` as process-global state:
   - one instance per process;
@@ -218,7 +248,7 @@ Acceptance criteria:
 Acceptance criteria:
 - Two tasks in the same process observe the same module global state; two different processes do not.
 
-## Step 9 - Define TLS Model and Per-Thread Lifetime
+## [x] Step 9 - Define TLS Model and Per-Thread Lifetime
 
 - Treat `PT_TLS` as the source of one TLS template per module.
 - On thread creation:
@@ -235,7 +265,7 @@ Acceptance criteria:
 Acceptance criteria:
 - Each task gets its own instance of module thread-local data, including for modules loaded after the task already existed.
 
-## Step 10 - Define `FS` / `GS` Register Policy
+## [x] Step 10 - Define `FS` / `GS` Register Policy
 
 - Choose one explicit policy and document it as ABI:
   - x86-64: dedicate `FS` base to user TLS pointer and reserve `GS` for kernel or future per-thread auxiliary usage;
@@ -288,7 +318,7 @@ Acceptance criteria:
 Acceptance criteria:
 - One documented TLS contract exists across kernel validation, task state, runtime ABI, and module build output.
 
-## Step 11 - Add Runtime and Syscall Surface
+## [x] Step 11 - Add Runtime and Syscall Surface
 
 - Add a syscall family for module operations:
   - load module by path;
@@ -305,7 +335,7 @@ Acceptance criteria:
 Acceptance criteria:
 - One user process can request module load on demand with a supported public API.
 
-## Step 12 - Constructors, Error Paths, and Unload Policy
+## [x] Step 12 - Constructors, Error Paths, and Unload Policy
 
 - Define constructor/destructor support explicitly:
   - process-global constructors;
@@ -321,7 +351,7 @@ Acceptance criteria:
 Acceptance criteria:
 - Failure during dependency load, relocation, or TLS expansion unwinds without leaking half-bound process module state.
 
-## Step 13 - Toolchain and Build Output
+## [x] Step 13 - Toolchain and Build Output
 
 - Add one module link mode in the userland build system:
   - produce `ET_DYN`;
@@ -337,25 +367,37 @@ Acceptance criteria:
 Acceptance criteria:
 - The repository can build one sample executable plus one loadable module without post-link patching.
 
-## Step 14 - Validation Matrix
+## [x] Step 14 - Userland Integration Validation
+
+- Add userland integration tests for:
+  - load one module and call exported functions;
+  - one module importing a symbol from another loaded module through the process resolver;
+  - module global data shared across tasks in one process;
+  - module global data isolated across separate processes;
+  - TLS isolation across two threads in one process;
+  - late module load after an additional thread already exists.
+- Add the integration module binaries to the build and boot images.
+- Validate the integration workflow on both x86-32 and x86-64.
+
+Acceptance criteria:
+- The smoke matrix proves process-global module state, per-thread TLS, late TLS expansion, and supported module-to-module imports.
+
+## [ ] Step 15 - Kernel-Side Validation Matrix
 
 - Add focused kernel-side tests for:
   - ELF module metadata parsing;
   - relocation validation and rejection cases;
   - TLS template parsing;
-  - process module binding lifetime.
-- Add userland integration tests for:
-  - load one module and call one exported function;
+  - process module binding lifetime;
+  - failure unwind during dependency load, relocation, and TLS expansion.
+- Add remaining integration coverage where useful for:
   - main executable symbol imported by module;
-  - two modules importing each other through the process resolver in a supported order;
-  - shared code pages across two processes;
-  - global data shared across tasks in one process;
-  - TLS isolation across two threads in one process;
-  - late module load after additional threads already exist.
+  - shared executable code pages across two processes;
+  - unsupported module import orders rejected deterministically.
 - Validate both x86-32 and x86-64 before considering the feature complete.
 
 Acceptance criteria:
-- The smoke matrix proves the separation between shared code, per-process globals, and per-thread TLS.
+- Kernel-side tests prove rejection and cleanup paths that the smoke workflow cannot cover deterministically.
 
 ## Suggested Implementation Order
 

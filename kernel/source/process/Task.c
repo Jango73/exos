@@ -276,6 +276,7 @@ void DeleteTask(LPTASK This) {
         //-------------------------------------
         // Delete the task's message queue
 
+        TaskReleaseModuleTlsBlocks(This);
         TaskReleaseMessageBuffer(This);
         DeleteMessageQueue(&(This->MessageQueue));
 
@@ -337,7 +338,7 @@ void DeleteTask(LPTASK This) {
 
                                     SAFE_USE_VALID_ID(ChildTask, KOID_TASK) {
                                         if (ChildTask->OwnerProcess == Current) {
-                                            KillTask(ChildTask);
+                                            KernelKillTask(ChildTask);
                                         }
                                     }
                                     ChildTask = NextChildTask;
@@ -397,7 +398,7 @@ void DeleteTask(LPTASK This) {
  * @param Info Task creation parameters including function, stack size, priority
  * @return Pointer to created task, or NULL on failure
  */
-LPTASK CreateTask(LPPROCESS Process, LPTASK_INFO Info) {
+LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     TRACED_FUNCTION;
 
     LPTASK Task = NULL;
@@ -410,7 +411,7 @@ LPTASK CreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     // Check parameters
 
     if (Info->Func == NULL) {
-        TRACED_EPILOGUE("CreateTask");
+        TRACED_EPILOGUE("KernelCreateTask");
         return NULL;
     }
 
@@ -424,7 +425,7 @@ LPTASK CreateTask(LPPROCESS Process, LPTASK_INFO Info) {
 
     if (IsValidMemory((LINEAR)Info->Func) == FALSE) {
 
-        TRACED_EPILOGUE("CreateTask");
+        TRACED_EPILOGUE("KernelCreateTask");
         return NULL;
     }
 
@@ -445,7 +446,7 @@ LPTASK CreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     Task = NewTask();
 
     if (Task == NULL) {
-        ERROR(TEXT("[CreateTask] NewTask failed"));
+        ERROR(TEXT("[KernelCreateTask] NewTask failed"));
         goto Out;
     }
 
@@ -486,14 +487,16 @@ LPTASK CreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         DeleteTask(Task);
         Task = NULL;
 
-        ERROR(TEXT("[CreateTask] Architecture-specific task setup failed"));
+        ERROR(TEXT("[KernelCreateTask] Architecture-specific task setup failed"));
         goto Out;
     }
 
-    if (TaskInitializeMessageBuffer(Task) == FALSE) {
+    if (TaskInitializeMessageBuffer(Task) == FALSE ||
+        InitializeTaskProcessModuleTlsBindings(Process, Task) == FALSE ||
+        TaskRefreshModuleTls(Task) == FALSE) {
         DeleteTask(Task);
         Task = NULL;
-        ERROR(TEXT("[CreateTask] Task message buffer setup failed"));
+        ERROR(TEXT("[KernelCreateTask] Task setup failed"));
         goto Out;
     }
 
@@ -536,11 +539,11 @@ Out:
  * @param Task Pointer to task to kill
  * @return TRUE if task was successfully killed, FALSE if invalid or main task
  */
-BOOL KillTask(LPTASK Task) {
+BOOL KernelKillTask(LPTASK Task) {
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
 
         if (Task->Type == TASK_TYPE_KERNEL_MAIN) {
-            ERROR(TEXT("[KillTask] Can't kill kernel task"));
+            ERROR(TEXT("[KernelKillTask] Can't kill kernel task"));
             ConsolePanic(TEXT("Can't kill kernel task"));
             return FALSE;
         }
@@ -650,7 +653,7 @@ BOOL SetTaskExitCode(LPTASK Task, UINT Code) {
  * @brief Removes and deallocates all tasks and processes marked as DEAD.
  *
  * Iterates through the global task list and deletes any tasks that have been
- * marked as dead by KillTask(). Also iterates through the process list and
+ * marked as dead by KernelKillTask(). Also iterates through the process list and
  * deletes any processes marked as DEAD. This function is called periodically
  * by the kernel monitor thread to clean up terminated tasks and processes.
  *

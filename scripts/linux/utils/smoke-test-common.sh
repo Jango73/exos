@@ -1264,16 +1264,16 @@ function SmokeTestMain() {
     EnsureLocalHttpServer
 
     if [ "$RUN_X86_32" -eq 1 ]; then
-        RunArchitecture "x86-32" "scripts/linux/build/build.sh --arch x86-32 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-32 --fs ext2 --debug" "log/kernel-x86-32-mbr-debug.log" "build/image/x86-32-mbr-debug-ext2/boot-mbr/exos.img" "1048576"
+        RunArchitecture "x86-32" "scripts/linux/build/build.sh --arch x86-32 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-32 --fs ext2 --debug" "log/kernel-x86-32-mbr-debug.log" "build/image/x86-32-mbr-debug-ext2/exos.img" "1048576"
     fi
     if [ "$RUN_X86_32_RTL8139" -eq 1 ]; then
-        RunArchitecture "x86-32 rtl8139" "scripts/linux/build/build.sh --arch x86-32 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-32 --fs ext2 --debug --net-card rtl8139" "log/kernel-x86-32-mbr-debug.log" "build/image/x86-32-mbr-debug-ext2/boot-mbr/exos.img" "1048576" "${SMOKE_TEST_X86_32_RTL8139_COMMANDS_FILE:-}"
+        RunArchitecture "x86-32 rtl8139" "scripts/linux/build/build.sh --arch x86-32 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-32 --fs ext2 --debug --net-card rtl8139" "log/kernel-x86-32-mbr-debug.log" "build/image/x86-32-mbr-debug-ext2/exos.img" "1048576" "${SMOKE_TEST_X86_32_RTL8139_COMMANDS_FILE:-}"
     fi
     if [ "$RUN_X86_64" -eq 1 ]; then
-        RunArchitecture "x86-64" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug" "log/kernel-x86-64-mbr-debug.log" "build/image/x86-64-mbr-debug-ext2/boot-mbr/exos.img" "1048576"
+        RunArchitecture "x86-64" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug" "log/kernel-x86-64-mbr-debug.log" "build/image/x86-64-mbr-debug-ext2/exos.img" "1048576"
     fi
     if [ "$RUN_X86_64_UEFI" -eq 1 ]; then
-        RunArchitecture "x86-64 UEFI" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --uefi --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug --uefi" "log/kernel-x86-64-uefi-debug.log" "build/image/x86-64-uefi-debug-ext2/boot-uefi/exos-uefi.img" "4194304"
+        RunArchitecture "x86-64 UEFI" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --uefi --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug --uefi" "log/kernel-x86-64-uefi-debug.log" "build/image/x86-64-uefi-debug-ext2/exos-uefi.img" "4194304"
     fi
 
     return 0

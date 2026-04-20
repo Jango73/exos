@@ -1445,6 +1445,165 @@ void TestScriptContinue(TEST_RESULTS* Results) {
 /************************************************************************/
 
 /**
+ * @brief Test script return value storage and visibility.
+ * @param Results Pointer to TEST_RESULTS structure to be filled with test results.
+ */
+void TestScriptReturnValues(TEST_RESULTS* Results) {
+    SCRIPT_ERROR Error = SCRIPT_OK;
+    SCRIPT_VAR_TYPE ReturnType = SCRIPT_VAR_INTEGER;
+    SCRIPT_VAR_VALUE ReturnValue;
+
+    MemorySet(&ReturnValue, 0, sizeof(ReturnValue));
+
+    Results->TestsRun = 0;
+    Results->TestsPassed = 0;
+
+    Results->TestsRun++;
+    LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptReturnValues] Failed to create context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("return 123;"));
+    if (Error == SCRIPT_OK &&
+        ScriptGetReturnValue(Context, &ReturnType, &ReturnValue) &&
+        ReturnType == SCRIPT_VAR_INTEGER &&
+        ReturnValue.Integer == 123) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptReturnValues] Test 1 failed: error = %d has_return = %d type = %d value = %d"),
+            Error,
+            ScriptHasReturnValue(Context),
+            ReturnType,
+            ReturnValue.Integer);
+    }
+
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptReturnValues] Failed to create second context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("value = 7;"));
+    if (Error == SCRIPT_OK && ScriptHasReturnValue(Context) == FALSE) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptReturnValues] Test 2 failed: error = %d has_return = %d"),
+            Error,
+            ScriptHasReturnValue(Context));
+    }
+
+    ScriptDestroyContext(Context);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Test logical operators, precedence, and short-circuit evaluation.
+ * @param Results Pointer to TEST_RESULTS structure to be filled with test results.
+ */
+void TestScriptLogicalOperators(TEST_RESULTS* Results) {
+    SCRIPT_ERROR Error = SCRIPT_OK;
+
+    Results->TestsRun = 0;
+    Results->TestsPassed = 0;
+
+    Results->TestsRun++;
+    LPSCRIPT_CONTEXT Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("value = 1 || 0 && 0;"));
+    if (Error == SCRIPT_OK) {
+        LPSCRIPT_VARIABLE Var = ScriptGetVariable(Context, TEXT("value"));
+        if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptLogicalOperators] Test 1 failed: value = %d (expected 1)"),
+                Var ? Var->Value.Integer : -1);
+        }
+    } else {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Test 1 failed with error %d"), Error);
+    }
+
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create second context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("value = !(0);"));
+    if (Error == SCRIPT_OK) {
+        LPSCRIPT_VARIABLE Var = ScriptGetVariable(Context, TEXT("value"));
+        if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptLogicalOperators] Test 2 failed: value = %d (expected 1)"),
+                Var ? Var->Value.Integer : -1);
+        }
+    } else {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Test 2 failed with error %d"), Error);
+    }
+
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create third context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("value = 0 && missing_value;"));
+    if (Error == SCRIPT_OK) {
+        LPSCRIPT_VARIABLE Var = ScriptGetVariable(Context, TEXT("value"));
+        if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 0) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptLogicalOperators] Test 3 failed: value = %d (expected 0)"),
+                Var ? Var->Value.Integer : -1);
+        }
+    } else {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Test 3 failed with error %d"), Error);
+    }
+
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Failed to create fourth context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("value = 1 || missing_value;"));
+    if (Error == SCRIPT_OK) {
+        LPSCRIPT_VARIABLE Var = ScriptGetVariable(Context, TEXT("value"));
+        if (Var && Var->Type == SCRIPT_VAR_INTEGER && Var->Value.Integer == 1) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptLogicalOperators] Test 4 failed: value = %d (expected 1)"),
+                Var ? Var->Value.Integer : -1);
+        }
+    } else {
+        DEBUG(TEXT("[TestScriptLogicalOperators] Test 4 failed with error %d"), Error);
+    }
+
+    ScriptDestroyContext(Context);
+}
+
+/************************************************************************/
+
+/**
  * @brief Test native-width integer semantics in parser, evaluator and callbacks.
  * @param Results Pointer to TEST_RESULTS structure to be filled with test results.
  */
@@ -1606,6 +1765,238 @@ void TestScriptIntegerSemantics(TEST_RESULTS* Results) {
 /************************************************************************/
 
 /**
+ * @brief Test native E0 object creation, reads, writes, and ownership semantics.
+ * @param Results Pointer to TEST_RESULTS structure to populate.
+ */
+void TestScriptObjects(TEST_RESULTS* Results) {
+    LPSCRIPT_CONTEXT Context;
+    LPSCRIPT_VARIABLE Variable;
+    SCRIPT_VALUE PropertyValue;
+    SCRIPT_ERROR Error;
+
+    Results->TestsRun = 0;
+    Results->TestsPassed = 0;
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {};"));
+    Variable = ScriptGetVariable(Context, TEXT("user"));
+    if (Error == SCRIPT_OK &&
+        Variable != NULL &&
+        Variable->Type == SCRIPT_VAR_OBJECT &&
+        Variable->Value.Object != NULL &&
+        Variable->Value.Object->PropertyCount == 0) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 1 failed: error=%d type=%d"), Error, Variable ? Variable->Type : -1);
+    }
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for property write"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; user.name = \"alice\";"));
+    Variable = ScriptGetVariable(Context, TEXT("user"));
+    ScriptValueInit(&PropertyValue);
+    if (Error == SCRIPT_OK &&
+        Variable != NULL &&
+        Variable->Type == SCRIPT_VAR_OBJECT &&
+        ScriptGetObjectProperty(Variable->Value.Object, TEXT("name"), &PropertyValue) == SCRIPT_OK &&
+        PropertyValue.Type == SCRIPT_VAR_STRING &&
+        STRINGS_EQUAL(PropertyValue.Value.String, TEXT("alice"))) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 2 failed: error=%d"), Error);
+    }
+    ScriptValueRelease(&PropertyValue);
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for overwrite"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; user.name = \"alice\"; user.name = \"bob\";"));
+    Variable = ScriptGetVariable(Context, TEXT("user"));
+    ScriptValueInit(&PropertyValue);
+    if (Error == SCRIPT_OK &&
+        Variable != NULL &&
+        Variable->Type == SCRIPT_VAR_OBJECT &&
+        ScriptGetObjectProperty(Variable->Value.Object, TEXT("name"), &PropertyValue) == SCRIPT_OK &&
+        PropertyValue.Type == SCRIPT_VAR_STRING &&
+        STRINGS_EQUAL(PropertyValue.Value.String, TEXT("bob"))) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 3 failed: error=%d"), Error);
+    }
+    ScriptValueRelease(&PropertyValue);
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for nested object"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; user.settings = {}; user.settings.theme = \"light\";"));
+    Variable = ScriptGetVariable(Context, TEXT("user"));
+    ScriptValueInit(&PropertyValue);
+    if (Error == SCRIPT_OK &&
+        Variable != NULL &&
+        Variable->Type == SCRIPT_VAR_OBJECT &&
+        ScriptGetObjectProperty(Variable->Value.Object, TEXT("settings"), &PropertyValue) == SCRIPT_OK &&
+        PropertyValue.Type == SCRIPT_VAR_OBJECT &&
+        PropertyValue.Value.Object != NULL) {
+        SCRIPT_VALUE ThemeValue;
+        ScriptValueInit(&ThemeValue);
+        if (ScriptGetObjectProperty(PropertyValue.Value.Object, TEXT("theme"), &ThemeValue) == SCRIPT_OK &&
+            ThemeValue.Type == SCRIPT_VAR_STRING &&
+            STRINGS_EQUAL(ThemeValue.Value.String, TEXT("light"))) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptObjects] Test 4 failed: nested theme lookup"));
+        }
+        ScriptValueRelease(&ThemeValue);
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 4 failed: error=%d"), Error);
+    }
+    ScriptValueRelease(&PropertyValue);
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for mixed types"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("item = {}; item.name = \"alpha\"; item.count = 7; item.ratio = 1.5;"));
+    Variable = ScriptGetVariable(Context, TEXT("item"));
+    if (Error == SCRIPT_OK && Variable != NULL && Variable->Type == SCRIPT_VAR_OBJECT) {
+        SCRIPT_VALUE NameValue;
+        SCRIPT_VALUE CountValue;
+        SCRIPT_VALUE RatioValue;
+        ScriptValueInit(&NameValue);
+        ScriptValueInit(&CountValue);
+        ScriptValueInit(&RatioValue);
+        if (ScriptGetObjectProperty(Variable->Value.Object, TEXT("name"), &NameValue) == SCRIPT_OK &&
+            ScriptGetObjectProperty(Variable->Value.Object, TEXT("count"), &CountValue) == SCRIPT_OK &&
+            ScriptGetObjectProperty(Variable->Value.Object, TEXT("ratio"), &RatioValue) == SCRIPT_OK &&
+            NameValue.Type == SCRIPT_VAR_STRING &&
+            STRINGS_EQUAL(NameValue.Value.String, TEXT("alpha")) &&
+            CountValue.Type == SCRIPT_VAR_INTEGER &&
+            CountValue.Value.Integer == 7 &&
+            RatioValue.Type == SCRIPT_VAR_FLOAT &&
+            RatioValue.Value.Float == 1.5f) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptObjects] Test 5 failed: mixed type checks"));
+        }
+        ScriptValueRelease(&NameValue);
+        ScriptValueRelease(&CountValue);
+        ScriptValueRelease(&RatioValue);
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 5 failed: error=%d"), Error);
+    }
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for missing property"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; name = user.name;"));
+    if (Error == SCRIPT_ERROR_UNDEFINED_VAR) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 6 failed: error=%d"), Error);
+    }
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for invalid intermediate"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; user.name = 7; user.name.value = 1;"));
+    if (Error == SCRIPT_ERROR_TYPE_MISMATCH) {
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 7 failed: error=%d"), Error);
+    }
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for reference semantics"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; alias = user; alias.name = \"shared\";"));
+    Variable = ScriptGetVariable(Context, TEXT("user"));
+    if (Error == SCRIPT_OK &&
+        Variable != NULL &&
+        Variable->Type == SCRIPT_VAR_OBJECT &&
+        Variable->Value.Object != NULL &&
+        Variable->Value.Object->RefCount == 2) {
+        SCRIPT_VALUE SharedValue;
+        ScriptValueInit(&SharedValue);
+        if (ScriptGetObjectProperty(Variable->Value.Object, TEXT("name"), &SharedValue) == SCRIPT_OK &&
+            SharedValue.Type == SCRIPT_VAR_STRING &&
+            STRINGS_EQUAL(SharedValue.Value.String, TEXT("shared"))) {
+            Results->TestsPassed++;
+        } else {
+            DEBUG(TEXT("[TestScriptObjects] Test 8 failed: shared property lookup"));
+        }
+        ScriptValueRelease(&SharedValue);
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 8 failed: error=%d refcount=%u"),
+            Error,
+            (Variable != NULL && Variable->Value.Object != NULL) ? Variable->Value.Object->RefCount : 0);
+    }
+    ScriptDestroyContext(Context);
+
+    Results->TestsRun++;
+    Context = ScriptCreateContext(NULL);
+    if (Context == NULL) {
+        DEBUG(TEXT("[TestScriptObjects] Failed to create context for destruction"));
+        return;
+    }
+
+    Error = ScriptExecute(Context, TEXT("user = {}; nested = {}; user.nested = nested; alias = user;"));
+    if (Error == SCRIPT_OK) {
+        ScriptDestroyContext(Context);
+        Context = NULL;
+        Results->TestsPassed++;
+    } else {
+        DEBUG(TEXT("[TestScriptObjects] Test 9 failed: error=%d"), Error);
+    }
+
+    if (Context != NULL) {
+        ScriptDestroyContext(Context);
+    }
+}
+
+/************************************************************************/
+
+/**
  * @brief Main Script test function that runs all Script unit tests.
  *
  * This function coordinates all Script unit tests and aggregates their results.
@@ -1680,8 +2071,23 @@ void TestScript(TEST_RESULTS* Results) {
     Results->TestsRun += SubResults.TestsRun;
     Results->TestsPassed += SubResults.TestsPassed;
 
+    // Run return value tests
+    TestScriptReturnValues(&SubResults);
+    Results->TestsRun += SubResults.TestsRun;
+    Results->TestsPassed += SubResults.TestsPassed;
+
+    // Run logical operator tests
+    TestScriptLogicalOperators(&SubResults);
+    Results->TestsRun += SubResults.TestsRun;
+    Results->TestsPassed += SubResults.TestsPassed;
+
     // Run native-width integer semantic tests
     TestScriptIntegerSemantics(&SubResults);
+    Results->TestsRun += SubResults.TestsRun;
+    Results->TestsPassed += SubResults.TestsPassed;
+
+    // Run native object tests
+    TestScriptObjects(&SubResults);
     Results->TestsRun += SubResults.TestsRun;
     Results->TestsPassed += SubResults.TestsPassed;
 }

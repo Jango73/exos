@@ -124,22 +124,54 @@ LPAST_NODE ScriptParseStatementAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) 
         // Could be assignment, expression statement (function call) or shell command
         U32 SavedPosition = Parser->Position;
         SCRIPT_TOKEN SavedToken = Parser->CurrentToken;
+        BOOL IsAssignment = FALSE;
 
         ScriptNextToken(Parser);
 
-        // Check if it's an assignment (= or [)
-        if (Parser->CurrentToken.Type == TOKEN_OPERATOR && Parser->CurrentToken.Value[0] == '=') {
-            Parser->Position = SavedPosition;
-            Parser->CurrentToken = SavedToken;
-            return ScriptParseAssignmentAST(Parser, Error);
-        } else if (Parser->CurrentToken.Type == TOKEN_LBRACKET) {
-            Parser->Position = SavedPosition;
-            Parser->CurrentToken = SavedToken;
-            return ScriptParseAssignmentAST(Parser, Error);
-        } else if (Parser->CurrentToken.Type == TOKEN_LPAREN) {
+        if (Parser->CurrentToken.Type == TOKEN_LPAREN) {
             Parser->Position = SavedPosition;
             Parser->CurrentToken = SavedToken;
             return ScriptParseComparisonAST(Parser, Error);
+        }
+
+        while (TRUE) {
+            if (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+                Parser->CurrentToken.Value[0] == '=') {
+                IsAssignment = TRUE;
+                break;
+            }
+
+            if (Parser->CurrentToken.Type == TOKEN_LBRACKET) {
+                ScriptNextToken(Parser);
+                while (Parser->CurrentToken.Type != TOKEN_RBRACKET &&
+                       Parser->CurrentToken.Type != TOKEN_EOF) {
+                    ScriptNextToken(Parser);
+                }
+
+                if (Parser->CurrentToken.Type == TOKEN_RBRACKET) {
+                    ScriptNextToken(Parser);
+                    continue;
+                }
+                break;
+            }
+
+            if (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+                Parser->CurrentToken.Value[0] == '.') {
+                ScriptNextToken(Parser);
+                if (Parser->CurrentToken.Type != TOKEN_IDENTIFIER) {
+                    break;
+                }
+                ScriptNextToken(Parser);
+                continue;
+            }
+
+            break;
+        }
+
+        if (IsAssignment) {
+            Parser->Position = SavedPosition;
+            Parser->CurrentToken = SavedToken;
+            return ScriptParseAssignmentAST(Parser, Error);
         }
 
         Parser->Position = SavedPosition;

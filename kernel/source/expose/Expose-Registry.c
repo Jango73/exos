@@ -96,19 +96,19 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("drivers"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetDriverList(),
-            &DriverArrayDescriptor)) {
+            TEXT("graphics"),
+            SCRIPT_HOST_SYMBOL_OBJECT,
+            GetGraphicsRootHandle(),
+            &GraphicsDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("graphics"),
+            TEXT("clock"),
             SCRIPT_HOST_SYMBOL_OBJECT,
-            GetGraphicsRootHandle(),
-            &GraphicsDescriptor)) {
+            GetClockRootHandle(),
+            &ClockDescriptor)) {
         return FALSE;
     }
 
@@ -190,6 +190,15 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
             SCRIPT_HOST_SYMBOL_OBJECT,
             GetMouseRootHandle(),
             GetMouseDescriptor())) {
+        return FALSE;
+    }
+
+    if (!ExposeRegisterDefaultHostSymbol(
+            Context,
+            TEXT("account"),
+            SCRIPT_HOST_SYMBOL_ARRAY,
+            GetAccountList(),
+            &AccountArrayDescriptor)) {
         return FALSE;
     }
 

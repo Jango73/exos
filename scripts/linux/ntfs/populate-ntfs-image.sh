@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-IMAGE_PATH="$ROOT_DIR/build/image/x86-64-mbr-debug-ext2/boot-mbr/fs-test-ntfs.img"
+IMAGE_PATH="$ROOT_DIR/build/image/x86-64-mbr-debug-ext2/fs-test-ntfs.img"
 FS_TEST_READ_SOURCE="$ROOT_DIR/boot-mbr/assets/fs-test-read.txt"
 PARTITION_INDEX=1
 LOOP_DEVICE=""
@@ -17,7 +17,7 @@ Usage: $0 [options]
 
 Options:
   --image <path>        Target NTFS image
-                        (default: build/image/x86-64-mbr-debug-ext2/boot-mbr/fs-test-ntfs.img)
+                        (default: build/image/x86-64-mbr-debug-ext2/fs-test-ntfs.img)
   --partition <index>   Partition index to mount (default: 1)
   --help                Show this help
 

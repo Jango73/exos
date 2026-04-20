@@ -185,7 +185,7 @@ BOOL DesktopTimerEnsureTask(LPDESKTOP Desktop) {
     TaskInfo.Flags = 0;
     StringCopy(TaskInfo.Name, DESKTOP_TIMER_TASK_NAME);
 
-    TimerTask = CreateTask(&KernelProcess, &TaskInfo);
+    TimerTask = KernelCreateTask(&KernelProcess, &TaskInfo);
     if (TimerTask == NULL) {
         WARNING(TEXT("[DesktopTimerEnsureTask] Unable to create desktop timer task"));
         return FALSE;

@@ -45,6 +45,23 @@ BOOL ScriptIsKeyword(LPCSTR Str) {
 
 /************************************************************************/
 
+BOOL ScriptValueIsTrue(const SCRIPT_VALUE* Value, BOOL* OutValue) {
+    F32 NumericValue = 0.0f;
+
+    if (Value == NULL || OutValue == NULL) {
+        return FALSE;
+    }
+
+    if (!ScriptValueToFloat(Value, &NumericValue)) {
+        return FALSE;
+    }
+
+    *OutValue = (NumericValue != 0.0f);
+    return TRUE;
+}
+
+/************************************************************************/
+
 /**
  * @brief Release one temporary function-call argument vector.
  * @param Context Script context that owns the temporary allocations.
@@ -231,6 +248,19 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 Result.Type = SCRIPT_VAR_FLOAT;
                 Result.Value.Float = Expr->Data.Expression.FloatValue;
             }
+            return Result;
+
+        case TOKEN_LBRACE:
+            Result.Type = SCRIPT_VAR_OBJECT;
+            Result.Value.Object = ScriptCreateObject(Parser->Context, 0);
+            if (Result.Value.Object == NULL) {
+                if (Error) {
+                    *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+                }
+                return Result;
+            }
+            Result.ContextOwner = Parser->Context;
+            Result.OwnsValue = TRUE;
             return Result;
 
         case TOKEN_STRING: {
@@ -534,6 +564,22 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 return Result;
             }
 
+            if (Variable->Type == SCRIPT_VAR_OBJECT) {
+                Result.Type = SCRIPT_VAR_OBJECT;
+                Result.Value.Object = Variable->Value.Object;
+                Result.ContextOwner = Parser->Context;
+                Result.OwnsValue = FALSE;
+                return Result;
+            }
+
+            if (Variable->Type == SCRIPT_VAR_ARRAY) {
+                Result.Type = SCRIPT_VAR_ARRAY;
+                Result.Value.Array = Variable->Value.Array;
+                Result.ContextOwner = Parser->Context;
+                Result.OwnsValue = FALSE;
+                return Result;
+            }
+
             if (Error) {
                 *Error = SCRIPT_ERROR_TYPE_MISMATCH;
             }
@@ -542,6 +588,130 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
 
         case TOKEN_OPERATOR:
         case TOKEN_COMPARISON: {
+            if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR &&
+                StringCompare(Expr->Data.Expression.Value, TEXT("!")) == 0) {
+                SCRIPT_VALUE RightValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Right, Error);
+                BOOL IsTrue = FALSE;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                if (!ScriptValueIsTrue(&RightValue, &IsTrue)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                Result.Type = SCRIPT_VAR_INTEGER;
+                Result.Value.Integer = IsTrue ? 0 : 1;
+                ScriptValueRelease(&RightValue);
+                return Result;
+            }
+
+            if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR &&
+                StringCompare(Expr->Data.Expression.Value, TEXT("&&")) == 0) {
+                SCRIPT_VALUE LeftValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Left, Error);
+                BOOL LeftIsTrue = FALSE;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                if (!ScriptValueIsTrue(&LeftValue, &LeftIsTrue)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                if (!LeftIsTrue) {
+                    Result.Type = SCRIPT_VAR_INTEGER;
+                    Result.Value.Integer = 0;
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                SCRIPT_VALUE RightValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Right, Error);
+                BOOL RightIsTrue = FALSE;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&LeftValue);
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                if (!ScriptValueIsTrue(&RightValue, &RightIsTrue)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&LeftValue);
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                Result.Type = SCRIPT_VAR_INTEGER;
+                Result.Value.Integer = RightIsTrue ? 1 : 0;
+                ScriptValueRelease(&LeftValue);
+                ScriptValueRelease(&RightValue);
+                return Result;
+            }
+
+            if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR &&
+                StringCompare(Expr->Data.Expression.Value, TEXT("||")) == 0) {
+                SCRIPT_VALUE LeftValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Left, Error);
+                BOOL LeftIsTrue = FALSE;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                if (!ScriptValueIsTrue(&LeftValue, &LeftIsTrue)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                if (LeftIsTrue) {
+                    Result.Type = SCRIPT_VAR_INTEGER;
+                    Result.Value.Integer = 1;
+                    ScriptValueRelease(&LeftValue);
+                    return Result;
+                }
+
+                SCRIPT_VALUE RightValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Right, Error);
+                BOOL RightIsTrue = FALSE;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&LeftValue);
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                if (!ScriptValueIsTrue(&RightValue, &RightIsTrue)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&LeftValue);
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                Result.Type = SCRIPT_VAR_INTEGER;
+                Result.Value.Integer = RightIsTrue ? 1 : 0;
+                ScriptValueRelease(&LeftValue);
+                ScriptValueRelease(&RightValue);
+                return Result;
+            }
+
             SCRIPT_VALUE LeftValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Left, Error);
             if (Error && *Error != SCRIPT_OK) {
                 ScriptValueRelease(&LeftValue);
@@ -736,6 +906,20 @@ SCRIPT_VALUE ScriptEvaluateHostProperty(LPSCRIPT_PARSER Parser, LPAST_NODE Expr,
 
     if (BaseValue.Type != SCRIPT_VAR_HOST_HANDLE || BaseValue.HostDescriptor == NULL ||
         BaseValue.HostDescriptor->GetProperty == NULL) {
+        if (BaseValue.Type == SCRIPT_VAR_OBJECT && BaseValue.Value.Object != NULL) {
+            SCRIPT_ERROR ObjectError = ScriptGetObjectProperty(
+                BaseValue.Value.Object,
+                Expr->Data.Expression.PropertyName,
+                &Result);
+            ScriptValueRelease(&BaseValue);
+            if (ObjectError != SCRIPT_OK) {
+                if (Error) {
+                    *Error = ObjectError;
+                }
+            }
+            return Result;
+        }
+
         if (Error) {
             *Error = SCRIPT_ERROR_TYPE_MISMATCH;
         }
@@ -858,6 +1042,31 @@ SCRIPT_VALUE ScriptEvaluateArrayAccess(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, 
         }
 
         return HostValue;
+    }
+
+    if (BaseValue.Type == SCRIPT_VAR_ARRAY && BaseValue.Value.Array != NULL) {
+        SCRIPT_VAR_TYPE ElementType;
+        SCRIPT_VAR_VALUE ElementValue;
+        SCRIPT_ERROR ArrayError = ScriptArrayGet(
+            BaseValue.Value.Array,
+            (U32)IndexNumeric,
+            &ElementType,
+            &ElementValue);
+
+        ScriptValueRelease(&BaseValue);
+
+        if (ArrayError != SCRIPT_OK) {
+            if (Error) {
+                *Error = ArrayError;
+            }
+            return Result;
+        }
+
+        Result.Type = ElementType;
+        Result.Value = ElementValue;
+        Result.ContextOwner = Parser->Context;
+        Result.OwnsValue = FALSE;
+        return Result;
     }
 
     ScriptValueRelease(&BaseValue);

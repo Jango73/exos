@@ -31,13 +31,16 @@
 
 /************************************************************************/
 
+#ifndef EXOS_MESSAGE_DEFINED
+#define EXOS_MESSAGE_DEFINED
 typedef struct tag_MESSAGE {
     HANDLE Target;
-    U32 Message;
     DATETIME Time;
+    U32 Message;
     U32 Param1;
     U32 Param2;
 } MESSAGE, *LPMESSAGE;
+#endif
 
 typedef const MESSAGE* LPCMESSAGE;
 

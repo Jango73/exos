@@ -94,7 +94,7 @@ void Die(void) {
 
         FreezeScheduler();
 
-        KillTask(Task);
+        KernelKillTask(Task);
 
         UnlockMutex(MUTEX_CONSOLE_STATE);
         UnlockMutex(MUTEX_MEMORY);

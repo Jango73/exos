@@ -22,18 +22,17 @@
 
 \************************************************************************/
 
-#include "drivers/storage/USBStorage-Private.h"
-
-#include "system/Clock.h"
-#include "sync/DeferredWork.h"
-#include "text/CoreString.h"
-#include "fs/FileSystem.h"
+#include "User.h"
+#include "console/Console.h"
 #include "core/Kernel.h"
+#include "drivers/storage/USBStorage-Private.h"
+#include "fs/FileSystem.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "console/Console.h"
-#include "User.h"
 #include "process/Task-Messaging.h"
+#include "sync/DeferredWork.h"
+#include "system/Clock.h"
+#include "text/CoreString.h"
 #include "utils/Helpers.h"
 
 /************************************************************************/
@@ -43,13 +42,11 @@
 
 UINT USBStorageCommands(UINT Function, UINT Parameter);
 
-
 static USB_MASS_STORAGE_STATE DATA_SECTION USBStorageState = {
     .Initialized = FALSE,
-    .PollHandle = DEFERRED_WORK_INVALID_HANDLE,
+    .PollToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT},
     .RetryDelay = 0,
-    .ScanLogLimiter = {0}
-};
+    .ScanLogLimiter = {0}};
 
 static DRIVER DATA_SECTION USBStorageDriver = {
     .TypeID = KOID_DRIVER,
@@ -65,8 +62,7 @@ static DRIVER DATA_SECTION USBStorageDriver = {
     .Alias = "usb_storage",
     .Flags = 0,
     .Command = USBStorageCommands,
-    .CustomData = &USBStorageState
-};
+    .CustomData = &USBStorageState};
 
 /************************************************************************/
 
@@ -87,15 +83,11 @@ static void USBStorageLogScan(LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE 
         return;
     }
 
-    WARNING(TEXT("[USBStorageScan] Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"),
-            (U32)UsbDevice->PortNumber,
-            (U32)UsbDevice->Address,
-            (U32)Interface->Number,
-            (U32)Interface->InterfaceClass,
-            (U32)Interface->InterfaceSubClass,
-            (U32)Interface->InterfaceProtocol,
-            (Reason != NULL) ? Reason : TEXT("?"),
-            Suppressed);
+    WARNING(
+        TEXT("[USBStorageScan] Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"),
+        (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)Interface->Number, (U32)Interface->InterfaceClass,
+        (U32)Interface->InterfaceSubClass, (U32)Interface->InterfaceProtocol, (Reason != NULL) ? Reason : TEXT("?"),
+        Suppressed);
 }
 
 /************************************************************************/
@@ -158,9 +150,7 @@ static UINT USBStorageTryMountPending(LPUSB_MASS_STORAGE_DEVICE Device) {
     if (MountedCount != 0) {
         Device->MountPending = FALSE;
         if (Device->ListEntry != NULL) {
-            BroadcastProcessMessage(ETM_USB_MASS_STORAGE_MOUNTED,
-                                    (U32)Device->ListEntry->Address,
-                                    Device->BlockCount);
+            BroadcastProcessMessage(ETM_USB_MASS_STORAGE_MOUNTED, (U32)Device->ListEntry->Address, Device->BlockCount);
         }
     }
 
@@ -263,20 +253,16 @@ static void USBStorageDetachDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
  * @brief Retrieve the USB mass storage driver descriptor.
  * @return Pointer to the USB mass storage driver.
  */
-LPDRIVER USBStorageGetDriver(void) {
-    return &USBStorageDriver;
-}
+LPDRIVER USBStorageGetDriver(void) { return &USBStorageDriver; }
 
 /************************************************************************/
-
 
 /**
  * @brief Allocate and initialize a USB mass storage device object.
  * @return Pointer to allocated device or NULL on failure.
  */
 static LPUSB_MASS_STORAGE_DEVICE USBStorageAllocateDevice(void) {
-    LPUSB_MASS_STORAGE_DEVICE Device =
-        (LPUSB_MASS_STORAGE_DEVICE)KernelHeapAlloc(sizeof(USB_MASS_STORAGE_DEVICE));
+    LPUSB_MASS_STORAGE_DEVICE Device = (LPUSB_MASS_STORAGE_DEVICE)KernelHeapAlloc(sizeof(USB_MASS_STORAGE_DEVICE));
     if (Device == NULL) {
         return NULL;
     }
@@ -372,13 +358,11 @@ static void USBStorageFreeDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
  * @param BulkOutEndpoint Bulk OUT endpoint.
  * @return TRUE on success.
  */
-static BOOL USBStorageStartDevice(LPXHCI_DEVICE Controller,
-                                      LPXHCI_USB_DEVICE UsbDevice,
-                                      LPXHCI_USB_INTERFACE Interface,
-                                      LPXHCI_USB_ENDPOINT BulkInEndpoint,
-                                      LPXHCI_USB_ENDPOINT BulkOutEndpoint) {
-    if (Controller == NULL || UsbDevice == NULL || Interface == NULL ||
-        BulkInEndpoint == NULL || BulkOutEndpoint == NULL) {
+static BOOL USBStorageStartDevice(
+    LPXHCI_DEVICE Controller, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE Interface,
+    LPXHCI_USB_ENDPOINT BulkInEndpoint, LPXHCI_USB_ENDPOINT BulkOutEndpoint) {
+    if (Controller == NULL || UsbDevice == NULL || Interface == NULL || BulkInEndpoint == NULL ||
+        BulkOutEndpoint == NULL) {
         return FALSE;
     }
 
@@ -396,39 +380,27 @@ static BOOL USBStorageStartDevice(LPXHCI_DEVICE Controller,
     Device->InterfaceNumber = Interface->Number;
     USBStorageAcquireReferences(Device);
 
-    DEBUG(TEXT("[USBStorageStartDevice] Begin Port=%u Addr=%u Slot=%x If=%u Class=%x/%x/%x Vid=%x Pid=%x BulkOut=%x Attr=%x MPS=%u BulkIn=%x Attr=%x MPS=%u"),
-          (U32)UsbDevice->PortNumber,
-          (U32)UsbDevice->Address,
-          (U32)UsbDevice->SlotId,
-          (U32)Interface->Number,
-          (U32)Interface->InterfaceClass,
-          (U32)Interface->InterfaceSubClass,
-          (U32)Interface->InterfaceProtocol,
-          (U32)UsbDevice->DeviceDescriptor.VendorID,
-          (U32)UsbDevice->DeviceDescriptor.ProductID,
-          (U32)BulkOutEndpoint->Address,
-          (U32)BulkOutEndpoint->Attributes,
-          (U32)BulkOutEndpoint->MaxPacketSize,
-          (U32)BulkInEndpoint->Address,
-          (U32)BulkInEndpoint->Attributes,
-          (U32)BulkInEndpoint->MaxPacketSize);
+    DEBUG(
+        TEXT("[USBStorageStartDevice] Begin Port=%u Addr=%u Slot=%x If=%u Class=%x/%x/%x Vid=%x Pid=%x BulkOut=%x "
+             "Attr=%x MPS=%u BulkIn=%x Attr=%x MPS=%u"),
+        (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)UsbDevice->SlotId, (U32)Interface->Number,
+        (U32)Interface->InterfaceClass, (U32)Interface->InterfaceSubClass, (U32)Interface->InterfaceProtocol,
+        (U32)UsbDevice->DeviceDescriptor.VendorID, (U32)UsbDevice->DeviceDescriptor.ProductID,
+        (U32)BulkOutEndpoint->Address, (U32)BulkOutEndpoint->Attributes, (U32)BulkOutEndpoint->MaxPacketSize,
+        (U32)BulkInEndpoint->Address, (U32)BulkInEndpoint->Attributes, (U32)BulkInEndpoint->MaxPacketSize);
 
     if (!XHCI_AddBulkEndpointPair(Controller, UsbDevice, BulkOutEndpoint, BulkInEndpoint)) {
-        ERROR(TEXT("[USBStorageStartDevice] Bulk endpoint pair setup failed Port=%u Addr=%u Slot=%x OutEp=%x MPS=%u InEp=%x MPS=%u"),
-              (U32)UsbDevice->PortNumber,
-              (U32)UsbDevice->Address,
-              (U32)UsbDevice->SlotId,
-              (U32)BulkOutEndpoint->Address,
-              (U32)BulkOutEndpoint->MaxPacketSize,
-              (U32)BulkInEndpoint->Address,
-              (U32)BulkInEndpoint->MaxPacketSize);
+        ERROR(
+            TEXT("[USBStorageStartDevice] Bulk endpoint pair setup failed Port=%u Addr=%u Slot=%x OutEp=%x MPS=%u "
+                 "InEp=%x MPS=%u"),
+            (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)UsbDevice->SlotId, (U32)BulkOutEndpoint->Address,
+            (U32)BulkOutEndpoint->MaxPacketSize, (U32)BulkInEndpoint->Address, (U32)BulkInEndpoint->MaxPacketSize);
         USBStorageFreeDevice(Device);
         return FALSE;
     }
 
-    if (!XHCI_AllocPage(TEXT("USBStorageInputOutput"),
-                        &Device->InputOutputBufferPhysical,
-                        &Device->InputOutputBufferLinear)) {
+    if (!XHCI_AllocPage(
+            TEXT("USBStorageInputOutput"), &Device->InputOutputBufferPhysical, &Device->InputOutputBufferLinear)) {
         ERROR(TEXT("[USBStorageStartDevice] IO buffer allocation failed"));
         USBStorageFreeDevice(Device);
         return FALSE;
@@ -454,15 +426,12 @@ static BOOL USBStorageStartDevice(LPXHCI_DEVICE Controller,
         }
     }
 
-    DEBUG(TEXT("[USBStorageStartDevice] Capacity blocks=%u block_size=%u"),
-          Device->BlockCount,
-          Device->BlockSize);
+    DEBUG(TEXT("[USBStorageStartDevice] Capacity blocks=%u block_size=%u"), Device->BlockCount, Device->BlockSize);
 
     Device->Ready = TRUE;
     Device->MountPending = TRUE;
 
-    LPUSB_STORAGE_ENTRY Entry =
-        (LPUSB_STORAGE_ENTRY)CreateKernelObject(sizeof(USB_STORAGE_ENTRY), KOID_USBSTORAGE);
+    LPUSB_STORAGE_ENTRY Entry = (LPUSB_STORAGE_ENTRY)CreateKernelObject(sizeof(USB_STORAGE_ENTRY), KOID_USBSTORAGE);
     if (Entry == NULL) {
         ERROR(TEXT("[USBStorageStartDevice] List entry allocation failed"));
         USBStorageFreeDevice(Device);
@@ -502,10 +471,9 @@ static BOOL USBStorageStartDevice(LPXHCI_DEVICE Controller,
         DEBUG(TEXT("[USBStorageStartDevice] Deferred partition mount (filesystem not ready)"));
     }
 
-    DEBUG(TEXT("[USBStorageStartDevice] USB disk addr=%x blocks=%u block_size=%u"),
-          (U32)UsbDevice->Address,
-          Device->BlockCount,
-          Device->BlockSize);
+    DEBUG(
+        TEXT("[USBStorageStartDevice] USB disk addr=%x blocks=%u block_size=%u"), (U32)UsbDevice->Address,
+        Device->BlockCount, Device->BlockSize);
 
     return TRUE;
 }
@@ -690,9 +658,7 @@ static void USBStoragePoll(LPVOID Context) {
  * @param TotalBytesOut Receives validated transfer length in bytes.
  * @return DF_RETURN_SUCCESS on success or error code.
  */
-static U32 USBStorageValidateIoControl(LPUSB_MASS_STORAGE_DEVICE* DeviceOut,
-                                       LPIOCONTROL Control,
-                                       UINT* TotalBytesOut) {
+static U32 USBStorageValidateIoControl(LPUSB_MASS_STORAGE_DEVICE* DeviceOut, LPIOCONTROL Control, UINT* TotalBytesOut) {
     LPUSB_MASS_STORAGE_DEVICE Device = NULL;
 
     if (DeviceOut == NULL || TotalBytesOut == NULL) {
@@ -850,9 +816,7 @@ static U32 USBStorageTransfer(LPIOCONTROL Control, BOOL DirectionIn) {
  * @param Control I/O control structure.
  * @return DF_RETURN_SUCCESS on success or error code.
  */
-static U32 USBStorageRead(LPIOCONTROL Control) {
-    return USBStorageTransfer(Control, TRUE);
-}
+static U32 USBStorageRead(LPIOCONTROL Control) { return USBStorageTransfer(Control, TRUE); }
 
 /************************************************************************/
 
@@ -861,9 +825,7 @@ static U32 USBStorageRead(LPIOCONTROL Control) {
  * @param Control I/O control structure.
  * @return DF_RETURN_SUCCESS on success or error code.
  */
-static U32 USBStorageWrite(LPIOCONTROL Control) {
-    return USBStorageTransfer(Control, FALSE);
-}
+static U32 USBStorageWrite(LPIOCONTROL Control) { return USBStorageTransfer(Control, FALSE); }
 
 /************************************************************************/
 
@@ -960,14 +922,13 @@ UINT USBStorageCommands(UINT Function, UINT Parameter) {
                 return DF_RETURN_SUCCESS;
             }
 
-            (void)RateLimiterInit(&USBStorageState.ScanLogLimiter,
-                                  USB_MASS_STORAGE_SCAN_LOG_IMMEDIATE_BUDGET,
-                                  USB_MASS_STORAGE_SCAN_LOG_INTERVAL_MS);
+            (void)RateLimiterInit(
+                &USBStorageState.ScanLogLimiter, USB_MASS_STORAGE_SCAN_LOG_IMMEDIATE_BUDGET,
+                USB_MASS_STORAGE_SCAN_LOG_INTERVAL_MS);
 
-            if (USBStorageState.PollHandle == DEFERRED_WORK_INVALID_HANDLE) {
-                USBStorageState.PollHandle =
-                    DeferredWorkRegisterPollOnly(USBStoragePoll, NULL, TEXT("USBStorage"));
-                if (USBStorageState.PollHandle == DEFERRED_WORK_INVALID_HANDLE) {
+            if (DeferredWorkTokenIsValid(USBStorageState.PollToken) == FALSE) {
+                USBStorageState.PollToken = DeferredWorkRegisterPollOnly(USBStoragePoll, NULL, TEXT("USBStorage"));
+                if (DeferredWorkTokenIsValid(USBStorageState.PollToken) == FALSE) {
                     return DF_RETURN_UNEXPECTED;
                 }
             }
@@ -981,9 +942,10 @@ UINT USBStorageCommands(UINT Function, UINT Parameter) {
                 return DF_RETURN_SUCCESS;
             }
 
-            if (USBStorageState.PollHandle != DEFERRED_WORK_INVALID_HANDLE) {
-                DeferredWorkUnregister(USBStorageState.PollHandle);
-                USBStorageState.PollHandle = DEFERRED_WORK_INVALID_HANDLE;
+            if (DeferredWorkTokenIsValid(USBStorageState.PollToken) != FALSE) {
+                DeferredWorkUnregister(USBStorageState.PollToken);
+                USBStorageState.PollToken =
+                    (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
             }
 
             USBStorageState.Initialized = FALSE;

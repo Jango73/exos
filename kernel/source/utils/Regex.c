@@ -143,8 +143,6 @@ static BOOL ParseClass(LPCSTR* P, CHAR_CLASS* Out) {
         ++S;
     }
 
-    BOOL First = TRUE;
-    U8 Prev = 0;
     while (*S && *S != ']') {
         U8 A = 0;
         if (*S == '\\') {
@@ -153,22 +151,17 @@ static BOOL ParseClass(LPCSTR* P, CHAR_CLASS* Out) {
             A = (U8)*S++;
         }
 
-        if (!First && *S == '-' && S[1] != ']' && S[1] != STR_NULL) {
-            /* range Prev-A..B */
-            ++S; /* skip '-' */
+        if (*S == '-' && S[1] != ']' && S[1] != STR_NULL) {
+            ++S;
             U8 B = 0;
             if (*S == '\\') {
                 if (!ReadEscapedChar(&S, &B)) return FALSE;
             } else {
                 B = (U8)*S++;
             }
-            ClassAddRange(Out, (U32)Prev, (U32)B);
-            Prev = 0;
-            First = TRUE; /* reset context */
+            ClassAddRange(Out, (U32)A, (U32)B);
         } else {
             ClassSet(Out, (U32)A);
-            Prev = A;
-            First = FALSE;
         }
     }
 

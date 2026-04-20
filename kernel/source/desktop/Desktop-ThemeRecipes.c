@@ -323,7 +323,7 @@ static BOOL ThemeDrawFilledRect(HANDLE GC, I32 X1, I32 Y1, I32 X2, I32 Y2, COLOR
 
     OldPen = SelectPen(GC, NULL);
     OldBrush = SelectBrush(GC, (HANDLE)&Brush);
-    (void)Rectangle(&RectInfo);
+    (void)KernelRectangle(&RectInfo);
     (void)SelectBrush(GC, OldBrush);
     (void)SelectPen(GC, OldPen);
 

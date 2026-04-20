@@ -34,8 +34,7 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice);
 /************************************************************************/
 
 static DRIVER_MATCH XHCI_MatchTable[] = {
-    {PCI_ANY_ID, PCI_ANY_ID, XHCI_CLASS_SERIAL_BUS, XHCI_SUBCLASS_USB, XHCI_PROGIF_XHCI}
-};
+    {PCI_ANY_ID, PCI_ANY_ID, XHCI_CLASS_SERIAL_BUS, XHCI_SUBCLASS_USB, XHCI_PROGIF_XHCI}};
 
 PCI_DRIVER DATA_SECTION XHCIDriver = {
     .TypeID = KOID_DRIVER,
@@ -54,8 +53,7 @@ PCI_DRIVER DATA_SECTION XHCIDriver = {
     .EnumDomains = {ENUM_DOMAIN_XHCI_PORT, ENUM_DOMAIN_USB_DEVICE, ENUM_DOMAIN_USB_NODE},
     .Matches = XHCI_MatchTable,
     .MatchCount = sizeof(XHCI_MatchTable) / sizeof(XHCI_MatchTable[0]),
-    .Attach = XHCI_Attach
-};
+    .Attach = XHCI_Attach};
 
 /************************************************************************/
 
@@ -63,9 +61,7 @@ PCI_DRIVER DATA_SECTION XHCIDriver = {
  * @brief Retrieve the xHCI driver descriptor.
  * @return Pointer to xHCI driver descriptor.
  */
-LPDRIVER XHCIGetDriver(void) {
-    return (LPDRIVER)&XHCIDriver;
-}
+LPDRIVER XHCIGetDriver(void) { return (LPDRIVER)&XHCIDriver; }
 
 /************************************************************************/
 
@@ -78,11 +74,8 @@ LPDRIVER XHCIGetDriver(void) {
  * @param ProgrammedErstba Programmed ERSTBA value.
  * @param ProgrammedErdp Programmed ERDP value.
  */
-static void XHCI_LogInitReadback(LPXHCI_DEVICE Device,
-    LPCSTR Step,
-    U64 ProgrammedDcbaap,
-    U64 ProgrammedCrcr,
-    U64 ProgrammedErstba,
+static void XHCI_LogInitReadback(
+    LPXHCI_DEVICE Device, LPCSTR Step, U64 ProgrammedDcbaap, U64 ProgrammedCrcr, U64 ProgrammedErstba,
     U64 ProgrammedErdp) {
     U32 Usbcmd = 0;
     U32 Usbsts = 0;
@@ -134,39 +127,18 @@ static void XHCI_LogInitReadback(LPXHCI_DEVICE Device,
     PciCommand = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_COMMAND);
     PciStatus = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_STATUS);
 
-    DEBUG(TEXT("[XHCI_LogInitReadback] step=%s prog-dcbaap=%x:%x rd-dcbaap=%x:%x prog-crcr=%x:%x rd-crcr=%x:%x"),
-        Step,
-        U64_High32(ProgrammedDcbaap),
-        U64_Low32(ProgrammedDcbaap),
-        DcbaapHigh,
-        DcbaapLow,
-        U64_High32(ProgrammedCrcr),
-        U64_Low32(ProgrammedCrcr),
-        CrcrHigh,
-        CrcrLow);
-    DEBUG(TEXT("[XHCI_LogInitReadback] step=%s prog-erstba=%x:%x rd-erstba=%x:%x prog-erdp=%x:%x rd-erdp=%x:%x"),
-        Step,
-        U64_High32(ProgrammedErstba),
-        U64_Low32(ProgrammedErstba),
-        ErstbaHigh,
-        ErstbaLow,
-        U64_High32(ProgrammedErdp),
-        U64_Low32(ProgrammedErdp),
-        ErdpHigh,
-        ErdpLow);
-    DEBUG(TEXT("[XHCI_LogInitReadback] step=%s usbcmd=%x usbsts=%x config=%x iman=%x imod=%x erstsz=%x dcbaa0=%x:%x pci-cmd=%x pci-sts=%x"),
-        Step,
-        Usbcmd,
-        Usbsts,
-        Config,
-        Iman,
-        Imod,
-        Erstsz,
-        DcbaaEntry0High,
-        DcbaaEntry0Low,
-        PciCommand,
-        PciStatus);
-
+    DEBUG(
+        TEXT("[XHCI_LogInitReadback] step=%s prog-dcbaap=%x:%x rd-dcbaap=%x:%x prog-crcr=%x:%x rd-crcr=%x:%x"), Step,
+        U64_High32(ProgrammedDcbaap), U64_Low32(ProgrammedDcbaap), DcbaapHigh, DcbaapLow, U64_High32(ProgrammedCrcr),
+        U64_Low32(ProgrammedCrcr), CrcrHigh, CrcrLow);
+    DEBUG(
+        TEXT("[XHCI_LogInitReadback] step=%s prog-erstba=%x:%x rd-erstba=%x:%x prog-erdp=%x:%x rd-erdp=%x:%x"), Step,
+        U64_High32(ProgrammedErstba), U64_Low32(ProgrammedErstba), ErstbaHigh, ErstbaLow, U64_High32(ProgrammedErdp),
+        U64_Low32(ProgrammedErdp), ErdpHigh, ErdpLow);
+    DEBUG(
+        TEXT("[XHCI_LogInitReadback] step=%s usbcmd=%x usbsts=%x config=%x iman=%x imod=%x erstsz=%x dcbaa0=%x:%x "
+             "pci-cmd=%x pci-sts=%x"),
+        Step, Usbcmd, Usbsts, Config, Iman, Imod, Erstsz, DcbaaEntry0High, DcbaaEntry0Low, PciCommand, PciStatus);
 }
 
 /************************************************************************/
@@ -301,8 +273,7 @@ static BOOL XHCI_RegisterInterrupts(LPXHCI_DEVICE Device) {
     };
 
     if (!DeviceInterruptRegister(&Registration, &Device->InterruptSlot)) {
-        WARNING(TEXT("[XHCI_RegisterInterrupts] Failed to register interrupt slot for IRQ %u"),
-                Device->Info.IRQLine);
+        WARNING(TEXT("[XHCI_RegisterInterrupts] Failed to register interrupt slot for IRQ %u"), Device->Info.IRQLine);
         Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
         return FALSE;
     }
@@ -310,7 +281,6 @@ static BOOL XHCI_RegisterInterrupts(LPXHCI_DEVICE Device) {
     Device->InterruptRegistered = TRUE;
     Device->InterruptEnabled = DeviceInterruptSlotIsEnabled(Device->InterruptSlot);
     XHCI_SetInterruptEnabled(Device, Device->InterruptEnabled);
-
 
     return TRUE;
 }
@@ -403,22 +373,19 @@ static BOOL XHCI_InitScratchpadBuffers(LPXHCI_DEVICE Device) {
     }
 
     if (Device->MaxScratchpadBuffers > (PAGE_SIZE / sizeof(U64))) {
-        ERROR(TEXT("[XHCI_InitScratchpadBuffers] Unsupported scratchpad count %u"),
-              (U32)Device->MaxScratchpadBuffers);
+        ERROR(TEXT("[XHCI_InitScratchpadBuffers] Unsupported scratchpad count %u"), (U32)Device->MaxScratchpadBuffers);
         return FALSE;
     }
 
-    Device->ScratchpadPages =
-        (PHYSICAL*)KernelHeapAlloc(sizeof(PHYSICAL) * (UINT)Device->MaxScratchpadBuffers);
+    Device->ScratchpadPages = (PHYSICAL*)KernelHeapAlloc(sizeof(PHYSICAL) * (UINT)Device->MaxScratchpadBuffers);
     if (Device->ScratchpadPages == NULL) {
         ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad list allocation failed"));
         return FALSE;
     }
     MemorySet(Device->ScratchpadPages, 0, sizeof(PHYSICAL) * (UINT)Device->MaxScratchpadBuffers);
 
-    if (!XHCI_AllocPage(TEXT("XHCI_ScratchpadArray"),
-                        &Device->ScratchpadArrayPhysical,
-                        &Device->ScratchpadArrayLinear)) {
+    if (!XHCI_AllocPage(
+            TEXT("XHCI_ScratchpadArray"), &Device->ScratchpadArrayPhysical, &Device->ScratchpadArrayLinear)) {
         ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad array allocation failed"));
         XHCI_FreeScratchpadBuffers(Device);
         return FALSE;
@@ -430,8 +397,7 @@ static BOOL XHCI_InitScratchpadBuffers(LPXHCI_DEVICE Device) {
     for (Index = 0; Index < Device->MaxScratchpadBuffers; Index++) {
         PHYSICAL ScratchpadPhysical = AllocPhysicalPage();
         if (ScratchpadPhysical == 0) {
-            ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad page allocation failed at %u"),
-                  (U32)Index);
+            ERROR(TEXT("[XHCI_InitScratchpadBuffers] Scratchpad page allocation failed at %u"), (U32)Index);
             XHCI_FreeScratchpadBuffers(Device);
             return FALSE;
         }
@@ -460,9 +426,10 @@ static BOOL XHCI_InitScratchpadBuffers(LPXHCI_DEVICE Device) {
 void XHCI_FreeResources(LPXHCI_DEVICE Device) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
         XHCI_UnregisterInterrupts(Device);
-        if (Device->HubPollHandle != DEFERRED_WORK_INVALID_HANDLE) {
-            DeferredWorkUnregister(Device->HubPollHandle);
-            Device->HubPollHandle = DEFERRED_WORK_INVALID_HANDLE;
+        if (DeferredWorkTokenIsValid(Device->HubPollToken) != FALSE) {
+            DeferredWorkUnregister(Device->HubPollToken);
+            Device->HubPollToken =
+                (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
         }
 
         if (Device->UsbDevices != NULL) {
@@ -617,12 +584,9 @@ static BOOL XHCI_InitEventRing(LPXHCI_DEVICE Device) {
     XHCI_Write64(InterrupterBase, XHCI_ERSTBA, U64_FromUINT(Device->EventRingTablePhysical));
     XHCI_Write64(InterrupterBase, XHCI_ERDP, U64_FromUINT(Device->EventRingPhysical));
 
-    XHCI_LogInitReadback(Device,
-        TEXT("InitEventRing"),
-        U64_FromUINT(Device->DcbaaPhysical),
-        U64_FromUINT(Device->CommandRingPhysical),
-        U64_FromUINT(Device->EventRingTablePhysical),
-        U64_FromUINT(Device->EventRingPhysical));
+    XHCI_LogInitReadback(
+        Device, TEXT("InitEventRing"), U64_FromUINT(Device->DcbaaPhysical), U64_FromUINT(Device->CommandRingPhysical),
+        U64_FromUINT(Device->EventRingTablePhysical), U64_FromUINT(Device->EventRingPhysical));
 
     Device->EventRingDequeueIndex = 0;
     Device->EventRingCycleState = 1;
@@ -643,12 +607,9 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
     XHCI_Write32(Device->OpBase, XHCI_OP_USBCMD, Command);
     XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-AfterStop"));
 
-    if (!XHCI_WaitForRegister(Device->OpBase,
-                              XHCI_OP_USBSTS,
-                              XHCI_USBSTS_HCH,
-                              XHCI_USBSTS_HCH,
-                              XHCI_CONTROLLER_HALT_TIMEOUT_MS,
-                              TEXT("Controller halt"))) {
+    if (!XHCI_WaitForRegister(
+            Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_HCH, XHCI_USBSTS_HCH, XHCI_CONTROLLER_HALT_TIMEOUT_MS,
+            TEXT("Controller halt"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-HaltTimeout"));
         ERROR(TEXT("[XHCI_ResetAndStart] Halt timeout"));
         return FALSE;
@@ -658,23 +619,17 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
     XHCI_Write32(Device->OpBase, XHCI_OP_USBCMD, Command);
     XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-AfterResetRequest"));
 
-    if (!XHCI_WaitForRegister(Device->OpBase,
-                              XHCI_OP_USBCMD,
-                              XHCI_USBCMD_HCRST,
-                              0,
-                              XHCI_CONTROLLER_RESET_TIMEOUT_MS,
-                              TEXT("Controller reset"))) {
+    if (!XHCI_WaitForRegister(
+            Device->OpBase, XHCI_OP_USBCMD, XHCI_USBCMD_HCRST, 0, XHCI_CONTROLLER_RESET_TIMEOUT_MS,
+            TEXT("Controller reset"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-ResetTimeout"));
         ERROR(TEXT("[XHCI_ResetAndStart] Reset bit timeout"));
         return FALSE;
     }
 
-    if (!XHCI_WaitForRegister(Device->OpBase,
-                              XHCI_OP_USBSTS,
-                              XHCI_USBSTS_CNR,
-                              0,
-                              XHCI_CONTROLLER_RESET_TIMEOUT_MS,
-                              TEXT("Controller ready"))) {
+    if (!XHCI_WaitForRegister(
+            Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_CNR, 0, XHCI_CONTROLLER_RESET_TIMEOUT_MS,
+            TEXT("Controller ready"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-ReadyTimeout"));
         ERROR(TEXT("[XHCI_ResetAndStart] Controller not ready"));
         return FALSE;
@@ -708,35 +663,28 @@ static BOOL XHCI_ResetAndStart(LPXHCI_DEVICE Device) {
     }
 
     XHCI_Write32(Device->OpBase, XHCI_OP_CONFIG, Device->MaxSlots);
-    XHCI_LogInitReadback(Device,
-        TEXT("ProgramCoreRegisters"),
-        U64_FromUINT(Device->DcbaaPhysical),
+    XHCI_LogInitReadback(
+        Device, TEXT("ProgramCoreRegisters"), U64_FromUINT(Device->DcbaaPhysical),
         U64_Add(U64_FromUINT(Device->CommandRingPhysical), U64_FromU32(XHCI_TRB_CYCLE)),
-        U64_FromUINT(Device->EventRingTablePhysical),
-        U64_FromUINT(Device->EventRingPhysical));
+        U64_FromUINT(Device->EventRingTablePhysical), U64_FromUINT(Device->EventRingPhysical));
 
     Command = XHCI_Read32(Device->OpBase, XHCI_OP_USBCMD);
     Command |= XHCI_USBCMD_RS;
     XHCI_Write32(Device->OpBase, XHCI_OP_USBCMD, Command);
     XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-AfterRunRequest"));
 
-    if (!XHCI_WaitForRegister(Device->OpBase,
-                              XHCI_OP_USBSTS,
-                              XHCI_USBSTS_HCH,
-                              0,
-                              XHCI_CONTROLLER_RUN_TIMEOUT_MS,
-                              TEXT("Controller run"))) {
+    if (!XHCI_WaitForRegister(
+            Device->OpBase, XHCI_OP_USBSTS, XHCI_USBSTS_HCH, 0, XHCI_CONTROLLER_RUN_TIMEOUT_MS,
+            TEXT("Controller run"))) {
         XHCI_LogHseTransitionIfNeeded(Device, TEXT("ResetAndStart-RunTimeout"));
         ERROR(TEXT("[XHCI_ResetAndStart] Run timeout"));
         return FALSE;
     }
 
-    XHCI_LogInitReadback(Device,
-        TEXT("ControllerRunning"),
-        U64_FromUINT(Device->DcbaaPhysical),
+    XHCI_LogInitReadback(
+        Device, TEXT("ControllerRunning"), U64_FromUINT(Device->DcbaaPhysical),
         U64_Add(U64_FromUINT(Device->CommandRingPhysical), U64_FromU32(XHCI_TRB_CYCLE)),
-        U64_FromUINT(Device->EventRingTablePhysical),
-        U64_FromUINT(Device->EventRingPhysical));
+        U64_FromUINT(Device->EventRingTablePhysical), U64_FromUINT(Device->EventRingPhysical));
 
     return TRUE;
 }
@@ -761,10 +709,8 @@ static BOOL XHCI_InitController(LPXHCI_DEVICE Device) {
     Device->MaxSlots = (U8)(HcsParams1 & XHCI_HCSPARAMS1_MAXSLOTS_MASK);
     Device->MaxInterrupters = (U16)((HcsParams1 & XHCI_HCSPARAMS1_MAXINTRS_MASK) >> XHCI_HCSPARAMS1_MAXINTRS_SHIFT);
     Device->MaxPorts = (U8)((HcsParams1 & XHCI_HCSPARAMS1_MAXPORTS_MASK) >> XHCI_HCSPARAMS1_MAXPORTS_SHIFT);
-    ScratchpadLow =
-        (HcsParams2 & XHCI_HCSPARAMS2_SCRATCHPAD_LOW_MASK) >> XHCI_HCSPARAMS2_SCRATCHPAD_LOW_SHIFT;
-    ScratchpadHigh =
-        (HcsParams2 & XHCI_HCSPARAMS2_SCRATCHPAD_HIGH_MASK) >> XHCI_HCSPARAMS2_SCRATCHPAD_HIGH_SHIFT;
+    ScratchpadLow = (HcsParams2 & XHCI_HCSPARAMS2_SCRATCHPAD_LOW_MASK) >> XHCI_HCSPARAMS2_SCRATCHPAD_LOW_SHIFT;
+    ScratchpadHigh = (HcsParams2 & XHCI_HCSPARAMS2_SCRATCHPAD_HIGH_MASK) >> XHCI_HCSPARAMS2_SCRATCHPAD_HIGH_SHIFT;
     Device->MaxScratchpadBuffers = (U16)(ScratchpadLow | (ScratchpadHigh << 5));
     Device->HcsParams2 = HcsParams2;
     Device->HccParams1 = XHCI_Read32(Device->MmioBase, XHCI_HCCPARAMS1);
@@ -776,7 +722,6 @@ static BOOL XHCI_InitController(LPXHCI_DEVICE Device) {
     U32 RtOff = XHCI_Read32(Device->MmioBase, XHCI_RTSOFF);
     Device->DoorbellBase = Device->MmioBase + (DbOff & 0xFFFFFFFC);
     Device->RuntimeBase = Device->MmioBase + (RtOff & 0xFFFFFFE0);
-
 
     if ((Device->HccParams1 & XHCI_HCCPARAMS1_AC64) == 0) {
         WARNING(TEXT("[XHCI_InitController] 64-bit addressing not supported"));
@@ -802,7 +747,7 @@ static BOOL XHCI_InitController(LPXHCI_DEVICE Device) {
  * @param PciInfo PCI device info.
  * @return DF_RETURN_SUCCESS when supported, DF_RETURN_NOT_IMPLEMENTED otherwise.
  */
-static U32 XHCI_OnProbe(const PCI_INFO *PciInfo) {
+static U32 XHCI_OnProbe(const PCI_INFO* PciInfo) {
     if (PciInfo == NULL) return DF_RETURN_BAD_PARAMETER;
     if (PciInfo->BaseClass != XHCI_CLASS_SERIAL_BUS) return DF_RETURN_NOT_IMPLEMENTED;
     if (PciInfo->SubClass != XHCI_SUBCLASS_USB) return DF_RETURN_NOT_IMPLEMENTED;
@@ -862,7 +807,6 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
         return NULL;
     }
 
-
     LPXHCI_DEVICE Device = (LPXHCI_DEVICE)KernelHeapAlloc(sizeof(XHCI_DEVICE));
     if (Device == NULL) {
         return NULL;
@@ -872,7 +816,8 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
     MemoryCopy(Device, PciDevice, sizeof(PCI_DEVICE));
     InitMutex(&(Device->Mutex));
     Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
-    Device->HubPollHandle = DEFERRED_WORK_INVALID_HANDLE;
+    Device->HubPollToken =
+        (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
     Device->CommandTimeoutMS = XHCI_DEFAULT_EVENT_TIMEOUT_MS;
     Device->TransferTimeoutMS = XHCI_DEFAULT_TRANSFER_TIMEOUT_MS;
 
@@ -936,8 +881,8 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
         }
         MemorySet(Device->UsbDevices, 0, sizeof(LPXHCI_USB_DEVICE) * PortCount);
         for (U32 PortIndex = 0; PortIndex < PortCount; PortIndex++) {
-            LPXHCI_USB_DEVICE UsbDevice = (LPXHCI_USB_DEVICE)CreateKernelObject(sizeof(XHCI_USB_DEVICE),
-                                                                                KOID_USBDEVICE);
+            LPXHCI_USB_DEVICE UsbDevice =
+                (LPXHCI_USB_DEVICE)CreateKernelObject(sizeof(XHCI_USB_DEVICE), KOID_USBDEVICE);
             if (UsbDevice == NULL) {
                 ERROR(TEXT("[XHCI_Attach] USB device object allocation failed"));
                 XHCI_FreeResources(Device);
@@ -957,7 +902,6 @@ static LPPCI_DEVICE XHCI_Attach(LPPCI_DEVICE PciDevice) {
 
     (void)XHCI_RegisterInterrupts(Device);
     XHCI_RegisterHubPoll(Device);
-
 
     return (LPPCI_DEVICE)Device;
 }
@@ -983,7 +927,7 @@ static UINT XHCI_Commands(UINT Function, UINT Param) {
         case DF_GET_LAST_FUNCTION:
             return XHCI_OnGetLastFunc();
         case DF_PROBE:
-            return XHCI_OnProbe((const PCI_INFO *)(LPVOID)Param);
+            return XHCI_OnProbe((const PCI_INFO*)(LPVOID)Param);
         case DF_ENUM_NEXT:
             return XHCI_EnumNext((LPDRIVER_ENUM_NEXT)(LPVOID)Param);
         case DF_ENUM_PRETTY:

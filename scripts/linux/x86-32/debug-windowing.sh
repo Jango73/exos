@@ -30,7 +30,7 @@ fi
 
 BUILD_CORE_NAME="${ARCH}-mbr-${CONFIG}"
 BUILD_IMAGE_NAME="${BUILD_CORE_NAME}-${FS}"
-IMG_PATH="build/image/${BUILD_IMAGE_NAME}/boot-mbr/exos.img"
+IMG_PATH="build/image/${BUILD_IMAGE_NAME}/exos.img"
 LOG_KERNEL="log/kernel-${BUILD_CORE_NAME}.log"
 RUN_LOG="/tmp/windowing-run-${BUILD_CORE_NAME}.log"
 QEMU_WRAPPER_PID=""

@@ -78,6 +78,16 @@ LPCSTR Quotes [] = {
     TEXT("\"Freedom is the freedom to say that two plus two make four.\" Nineteen Eighty-Four. George Orwell."),
     TEXT("\"Liberty lies in the rights of that person whose views you find most odious.\" H. L. Mencken."),
     TEXT("\"Between stimulus and response there is a space. In that space is our power to choose our response.\" Viktor Frankl."),
+    TEXT("\"Freedom is not worth having if it does not include the freedom to make mistakes.\" Mahatma Gandhi."),
+    TEXT("\"The price of freedom is eternal vigilance.\" Thomas Jefferson."),
+    TEXT("\"No man is free who is not master of himself.\" Epictetus."),
+    TEXT("\"Justice will not be served until those who are unaffected are as outraged as those who are.\" Benjamin Franklin."),
+    TEXT("\"The mind is everything. What you think you become.\" (Buddhist teaching). Gautama Buddha."),
+    TEXT("\"He who conquers himself is the mightiest warrior.\" Confucius."),
+    TEXT("\"To know what is right and not do it is the worst cowardice.\" Confucius."),
+    TEXT("\"Freedom lies in being bold.\" Robert Frost."),
+    TEXT("\"The quieter you become, the more you are able to hear.\" (Zen saying)."),
+    TEXT("\"Wisdom is the reward you get for a lifetime of listening when you would have preferred to talk.\" Mark Twain."),
 };
 
 /************************************************************************/

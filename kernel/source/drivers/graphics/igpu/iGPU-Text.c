@@ -21,25 +21,25 @@
 
 \************************************************************************/
 
-#include "iGPU-Internal.h"
-
-#include "system/Clock.h"
-#include "sync/DeferredWork.h"
-#include "log/Log.h"
 #include "drivers/graphics/common/Graphics-TextRenderer.h"
+#include "iGPU-Internal.h"
+#include "log/Log.h"
+#include "sync/DeferredWork.h"
+#include "system/Clock.h"
 #include "utils/Cooldown.h"
 
 /************************************************************************/
 
 typedef struct tag_INTEL_GFX_CURSOR_RUNTIME {
     COOLDOWN ShowCooldown;
-    U32 DeferredHandle;
+    DEFERRED_WORK_TOKEN DeferredToken;
     BOOL PendingShow;
 } INTEL_GFX_CURSOR_RUNTIME, *LPINTEL_GFX_CURSOR_RUNTIME;
 
 /************************************************************************/
 
-static INTEL_GFX_CURSOR_RUNTIME IntelGfxCursorRuntime = {.DeferredHandle = DEFERRED_WORK_INVALID_HANDLE};
+static INTEL_GFX_CURSOR_RUNTIME IntelGfxCursorRuntime = {
+    .DeferredToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}};
 
 /************************************************************************/
 
@@ -78,14 +78,14 @@ static void IntelGfxCursorDeferredPoll(LPVOID Context) {
 /************************************************************************/
 
 static void IntelGfxEnsureCursorDeferredRegistration(void) {
-    if (IntelGfxCursorRuntime.DeferredHandle != DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) != FALSE) {
         return;
     }
 
-    IntelGfxCursorRuntime.DeferredHandle =
+    IntelGfxCursorRuntime.DeferredToken =
         DeferredWorkRegisterPollOnly(IntelGfxCursorDeferredPoll, NULL, TEXT("IntelGfxCursor"));
 
-    if (IntelGfxCursorRuntime.DeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) == FALSE) {
         WARNING(TEXT("[IntelGfxEnsureCursorDeferredRegistration] DeferredWork registration failed"));
     }
 }
@@ -107,8 +107,8 @@ static void IntelGfxArmCursorShowCooldown(void) {
     IntelGfxCursorRuntime.ShowCooldown.NextAllowedTick = Now + INTEL_GFX_CURSOR_SHOW_DELAY_MS;
     IntelGfxCursorRuntime.PendingShow = TRUE;
 
-    if (IntelGfxCursorRuntime.DeferredHandle != DEFERRED_WORK_INVALID_HANDLE) {
-        DeferredWorkSignal(IntelGfxCursorRuntime.DeferredHandle);
+    if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) != FALSE) {
+        DeferredWorkSignal(IntelGfxCursorRuntime.DeferredToken);
     }
 }
 
@@ -130,11 +130,12 @@ static void IntelGfxHandleTextWriteActivity(LPGRAPHICSCONTEXT Context) {
 /************************************************************************/
 
 void IntelGfxTextShutdownRuntime(void) {
-    if (IntelGfxCursorRuntime.DeferredHandle != DEFERRED_WORK_INVALID_HANDLE) {
-        DeferredWorkUnregister(IntelGfxCursorRuntime.DeferredHandle);
+    if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) != FALSE) {
+        DeferredWorkUnregister(IntelGfxCursorRuntime.DeferredToken);
     }
 
-    IntelGfxCursorRuntime = (INTEL_GFX_CURSOR_RUNTIME){.DeferredHandle = DEFERRED_WORK_INVALID_HANDLE};
+    IntelGfxCursorRuntime = (INTEL_GFX_CURSOR_RUNTIME){
+        .DeferredToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}};
 }
 
 /************************************************************************/
@@ -250,7 +251,7 @@ UINT IntelGfxTextSetCursorVisible(LPGFX_TEXT_CURSOR_VISIBLE_INFO Info) {
 
     LockMutex(&(Context->Mutex), INFINITY);
     IntelGfxEnsureCursorDeferredRegistration();
-    if (IntelGfxCursorRuntime.DeferredHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(IntelGfxCursorRuntime.DeferredToken) == FALSE) {
         Result = GfxTextSetCursorVisible(Context, Info);
         UnlockMutex(&(Context->Mutex));
         return Result ? 1 : 0;
@@ -290,8 +291,7 @@ UINT IntelGfxTextDraw(LPGFX_TEXT_DRAW_INFO Info) {
         .Text = Info->Text,
         .Font = Info->Font,
         .Width = 0,
-        .Height = 0
-    };
+        .Height = 0};
 
     LockMutex(&(Context->Mutex), INFINITY);
     IntelGfxHandleTextWriteActivity(Context);

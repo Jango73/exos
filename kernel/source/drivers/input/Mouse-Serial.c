@@ -22,17 +22,17 @@
 
 \************************************************************************/
 
-#include "Base.h"
 #include "Arch.h"
+#include "Base.h"
 #include "GFX.h"
+#include "User.h"
 #include "drivers/interrupts/InterruptController.h"
-#include "log/Log.h"
 #include "input/Mouse.h"
 #include "input/MouseCommon.h"
-#include "sync/DeferredWork.h"
+#include "log/Log.h"
 #include "process/Process.h"
+#include "sync/DeferredWork.h"
 #include "text/CoreString.h"
-#include "User.h"
 
 /***************************************************************************/
 
@@ -53,9 +53,7 @@ static SERIAL_MOUSE_CUSTOM_DATA DATA_SECTION SerialMouseCustomData = {
         .DeltaY = 0,
         .Buttons = 0,
         .Packet = {.DeltaX = 0, .DeltaY = 0, .Buttons = 0, .Pending = FALSE},
-        .DeferredHandle = DEFERRED_WORK_INVALID_HANDLE
-    }
-};
+        .DeferredWorkToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}}};
 
 static DRIVER DATA_SECTION SerialMouseDriver = {
     .TypeID = KOID_DRIVER,
@@ -71,8 +69,7 @@ static DRIVER DATA_SECTION SerialMouseDriver = {
     .Alias = "serial_mouse",
     .Flags = 0,
     .Command = SerialMouseCommands,
-    .CustomData = &SerialMouseCustomData
-};
+    .CustomData = &SerialMouseCustomData};
 
 /***************************************************************************/
 
@@ -188,9 +185,7 @@ static void SendBreak(void) {
  * @brief Retrieve the serial mouse driver descriptor.
  * @return Pointer to the serial mouse driver.
  */
-LPDRIVER SerialMouseGetDriver(void) {
-    return &SerialMouseDriver;
-}
+LPDRIVER SerialMouseGetDriver(void) { return &SerialMouseDriver; }
 
 /***************************************************************************/
 
@@ -215,9 +210,7 @@ static void Delay(void) {
 static UINT SerialMouseDebugInfo(LPDRIVER_DEBUG_INFO Info) {
     SAFE_USE(Info) {
         StringPrintFormat(
-            Info->Text,
-            TEXT("Mouse manufacturer: %s\nMouse product: %s"),
-            SerialMouseDriver.Manufacturer,
+            Info->Text, TEXT("Mouse manufacturer: %s\nMouse product: %s"), SerialMouseDriver.Manufacturer,
             SerialMouseDriver.Product);
         return DF_RETURN_SUCCESS;
     }
@@ -265,7 +258,7 @@ static BOOL WaitMouseData(U32 TimeOut) {
 static BOOL InitializeMouse(void) {
     U32 Sig1, Sig2;
     U32 Byte, Index;
-    
+
     UNUSED(Sig1);
     UNUSED(Sig2);
 

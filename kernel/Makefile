@@ -2,7 +2,6 @@
 SHELL = /bin/bash
 
 include ../make/arch.mk
-BARE_METAL              ?= 0
 BUILD_CONFIGURATION     ?= release
 DEBUG_OUTPUT            ?= 0
 DEBUG_SPLIT             ?= 0
@@ -57,7 +56,7 @@ CFLAGS          = -D__KERNEL__ $(DEBUG_CFLAGS) -Wall -Wextra -O0 -falign-functio
                   -fno-asynchronous-unwind-tables -fno-exceptions -fno-unwind-tables \
                   -fvisibility=hidden -mno-red-zone \
                   -Werror-implicit-function-declaration -Wstrict-prototypes \
-                  -DBARE_METAL=$(BARE_METAL) -DDEBUG_OUTPUT=$(DEBUG_OUTPUT) -DDEBUG_SPLIT=$(DEBUG_SPLIT) -DFORCE_PIC=$(FORCE_PIC) -DSCHEDULING_DEBUG_OUTPUT=$(SCHEDULING_DEBUG_OUTPUT) -DTRACE_STACK_USAGE=$(TRACE_STACK_USAGE) -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) -DSYSTEM_DATA_VIEW=$(SYSTEM_DATA_VIEW) \
+                  -DDEBUG_OUTPUT=$(DEBUG_OUTPUT) -DDEBUG_SPLIT=$(DEBUG_SPLIT) -DFORCE_PIC=$(FORCE_PIC) -DSCHEDULING_DEBUG_OUTPUT=$(SCHEDULING_DEBUG_OUTPUT) -DTRACE_STACK_USAGE=$(TRACE_STACK_USAGE) -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) -DSYSTEM_DATA_VIEW=$(SYSTEM_DATA_VIEW) \
                   -DCONFIG_VMA_KERNEL=$(VMA_KERNEL) \
                   -DKERNEL_CONFIG_NAME=\"$(CONFIG_TOML_NAME)\" -DKERNEL_CONFIG_NAME_UPPER=\"$(CONFIG_TOML_NAME_UPPER)\" \
                   -Iinclude -Iinclude/desktop -I../third -I../third/include -I../runtime/include -I../third/bearssl/inc -I../third/bearssl/src -I../third/miniz -I../third/monocypher/src -I../third/monocypher/src/optional

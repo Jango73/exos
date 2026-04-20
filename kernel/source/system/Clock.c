@@ -27,6 +27,7 @@
 #include "Arch.h"
 #include "drivers/interrupts/InterruptController.h"
 #include "core/Kernel.h"
+#include "core/KernelData.h"
 #include "log/Log.h"
 #include "process/Schedule.h"
 #include "text/CoreString.h"
@@ -74,15 +75,33 @@ LPDRIVER ClockGetDriver(void) {
 
 /************************************************************************/
 
-static UINT DATA_SECTION SystemUpTime = 0;
-static UINT DATA_SECTION SchedulerTime = 0;
-static BOOL DATA_SECTION SystemTimeOperational = FALSE;
-static DATETIME DATA_SECTION CurrentTime;
-static const U8 DaysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+typedef struct tag_CLOCK_STATE {
+    UINT SystemUpTime;
+    UINT SchedulerTime;
+    UINT PreInterruptSystemTime;
+    BOOL SystemTimeOperational;
+    DATETIME CurrentTime;
+    U8 DaysInMonth[12];
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
-static logCount = 0;
+    UINT DebugLogCount;
 #endif
+} CLOCK_STATE, *LPCLOCK_STATE;
+
+/************************************************************************/
+
+static CLOCK_STATE DATA_SECTION ClockState = {
+    .SystemUpTime = 0,
+    .SchedulerTime = 0,
+    .PreInterruptSystemTime = 0,
+    .SystemTimeOperational = FALSE,
+    .CurrentTime = {0},
+    .DaysInMonth = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
+
+#if SCHEDULING_DEBUG_OUTPUT == 1
+    .DebugLogCount = 0,
+#endif
+};
 
 /************************************************************************/
 
@@ -93,6 +112,19 @@ static BOOL IsLeapYear(U32 Year) { return (Year % 400 == 0) || ((Year % 4 == 0) 
 static U32 BCDToInteger(U32 Value) { return ((Value >> 4) * 10) + (Value & 0x0F); }
 
 /************************************************************************/
+
+/**
+ * @brief Produce a monotonic timestamp before the first clock interrupt.
+ * @return Synthetic pre-interrupt system time in milliseconds.
+ */
+static UINT GetPreInterruptSystemTime(void) {
+    if (ClockState.PreInterruptSystemTime <= MAX_UINT - MILLIS) {
+        ClockState.PreInterruptSystemTime += MILLIS;
+        return ClockState.PreInterruptSystemTime;
+    }
+
+    return MAX_UINT;
+}
 
 /**
  * @brief Read a byte from the CMOS at the given address.
@@ -106,14 +138,25 @@ static U32 ReadCMOS(U32 Address) {
 
 /************************************************************************/
 
+/**
+ * @brief Program PIT channel 0 for the kernel clock period.
+ */
+static void ProgramPITChannel0(void) {
+    OutPortByte(CLOCK_COMMAND, 0x36);
+    OutPortByte(CLOCK_DATA, (U8)(DIVISOR >> 0));
+    OutPortByte(CLOCK_DATA, (U8)(DIVISOR >> 8));
+}
+
+/************************************************************************/
+
 static void InitializeLocalTime(void) {
-    CurrentTime.Year = 2000 + BCDToInteger(ReadCMOS(CMOS_YEAR));
-    CurrentTime.Month = BCDToInteger(ReadCMOS(CMOS_MONTH));
-    CurrentTime.Day = BCDToInteger(ReadCMOS(CMOS_DAY_OF_MONTH));
-    CurrentTime.Hour = BCDToInteger(ReadCMOS(CMOS_HOUR));
-    CurrentTime.Minute = BCDToInteger(ReadCMOS(CMOS_MINUTE));
-    CurrentTime.Second = BCDToInteger(ReadCMOS(CMOS_SECOND));
-    CurrentTime.Milli = 0;
+    ClockState.CurrentTime.Year = 2000 + BCDToInteger(ReadCMOS(CMOS_YEAR));
+    ClockState.CurrentTime.Month = BCDToInteger(ReadCMOS(CMOS_MONTH));
+    ClockState.CurrentTime.Day = BCDToInteger(ReadCMOS(CMOS_DAY_OF_MONTH));
+    ClockState.CurrentTime.Hour = BCDToInteger(ReadCMOS(CMOS_HOUR));
+    ClockState.CurrentTime.Minute = BCDToInteger(ReadCMOS(CMOS_MINUTE));
+    ClockState.CurrentTime.Second = BCDToInteger(ReadCMOS(CMOS_SECOND));
+    ClockState.CurrentTime.Milli = 0;
 }
 
 /************************************************************************/
@@ -131,45 +174,45 @@ void InitializeClock(void) {
 
     SaveFlags(&Flags);
 
-    OutPortByte(CLOCK_COMMAND, 0x36);
-    OutPortByte(CLOCK_DATA, (U8)(DIVISOR >> 0));
-    OutPortByte(CLOCK_DATA, (U8)(DIVISOR >> 8));
+    ProgramPITChannel0();
+    ClockState.PreInterruptSystemTime = 0;
 
     RestoreFlags(&Flags);
 
     EnableInterrupt(0);
     InitializeLocalTime();
+    SetKernelBootTime(&ClockState.CurrentTime);
 }
 
 /************************************************************************/
 
 void ManageLocalTime(void) {
-    CurrentTime.Milli -= 1000;
-    CurrentTime.Second++;
+    ClockState.CurrentTime.Milli -= 1000;
+    ClockState.CurrentTime.Second++;
 
-    if (CurrentTime.Second >= 60) {
-        CurrentTime.Second = 0;
-        CurrentTime.Minute++;
+    if (ClockState.CurrentTime.Second >= 60) {
+        ClockState.CurrentTime.Second = 0;
+        ClockState.CurrentTime.Minute++;
 
-        if (CurrentTime.Minute >= 60) {
-            CurrentTime.Minute = 0;
-            CurrentTime.Hour++;
+        if (ClockState.CurrentTime.Minute >= 60) {
+            ClockState.CurrentTime.Minute = 0;
+            ClockState.CurrentTime.Hour++;
 
-            if (CurrentTime.Hour >= 24) {
-                CurrentTime.Hour = 0;
-                CurrentTime.Day++;
-                U32 DaysInCurrentMonth = DaysInMonth[CurrentTime.Month - 1];
+            if (ClockState.CurrentTime.Hour >= 24) {
+                ClockState.CurrentTime.Hour = 0;
+                ClockState.CurrentTime.Day++;
+                U32 DaysInCurrentMonth = ClockState.DaysInMonth[ClockState.CurrentTime.Month - 1];
 
-                if (CurrentTime.Month == 2 && IsLeapYear(CurrentTime.Year)) {
+                if (ClockState.CurrentTime.Month == 2 && IsLeapYear(ClockState.CurrentTime.Year)) {
                     DaysInCurrentMonth++;
                 }
 
-                if (CurrentTime.Day > DaysInCurrentMonth) {
-                    CurrentTime.Day = 1;
-                    CurrentTime.Month++;
-                    if (CurrentTime.Month > 12) {
-                        CurrentTime.Month = 1;
-                        CurrentTime.Year++;
+                if (ClockState.CurrentTime.Day > DaysInCurrentMonth) {
+                    ClockState.CurrentTime.Day = 1;
+                    ClockState.CurrentTime.Month++;
+                    if (ClockState.CurrentTime.Month > 12) {
+                        ClockState.CurrentTime.Month = 1;
+                        ClockState.CurrentTime.Year++;
                     }
                 }
             }
@@ -184,25 +227,31 @@ void ManageLocalTime(void) {
  */
 void ClockHandler(void) {
 #if SCHEDULING_DEBUG_OUTPUT == 1
-    logCount++;
-    if (logCount > 20000) {
+    ClockState.DebugLogCount++;
+    if (ClockState.DebugLogCount > 20000) {
         DEBUG(TEXT("Too much flooding, halting system."));
         DO_THE_SLEEPING_BEAUTY;
     }
 #endif
 
-    SystemUpTime += MILLIS;
-    SchedulerTime += MILLIS;
-    CurrentTime.Milli += MILLIS;
+    if (ClockState.SystemUpTime == 0 &&
+        ClockState.SystemTimeOperational != FALSE &&
+        ClockState.PreInterruptSystemTime != 0) {
+        ClockState.SystemUpTime = ClockState.PreInterruptSystemTime;
+    }
 
-    if (CurrentTime.Milli >= 1000) {
+    ClockState.SystemUpTime += MILLIS;
+    ClockState.SchedulerTime += MILLIS;
+    ClockState.CurrentTime.Milli += MILLIS;
+
+    while (ClockState.CurrentTime.Milli >= 1000) {
         ManageLocalTime();
     }
 
     UINT MinimumQuantum = GetMinimumQuantum();
 
-    if (SchedulerTime >= (MinimumQuantum + SCHEDULING_PERIOD_MILLIS)) {
-        SchedulerTime = 0;
+    if (ClockState.SchedulerTime >= (MinimumQuantum + SCHEDULING_PERIOD_MILLIS)) {
+        ClockState.SchedulerTime = 0;
         Scheduler();
     }
 
@@ -219,7 +268,15 @@ void ClockHandler(void) {
  * @brief Retrieve the current system time in milliseconds.
  * @return Number of milliseconds since startup.
  */
-UINT GetSystemTime(void) { return SystemUpTime; }
+UINT GetSystemTime(void) {
+    if ((ClockDriver.Flags & DRIVER_FLAG_READY) != 0 &&
+        ClockState.SystemTimeOperational != FALSE &&
+        ClockState.SystemUpTime == 0) {
+        return GetPreInterruptSystemTime();
+    }
+
+    return ClockState.SystemUpTime;
+}
 
 /************************************************************************/
 
@@ -227,7 +284,7 @@ UINT GetSystemTime(void) { return SystemUpTime; }
  * @brief Mark time-based sleeping as operational after first interrupt enable.
  */
 void MarkSystemTimeOperational(void) {
-    SystemTimeOperational = TRUE;
+    ClockState.SystemTimeOperational = TRUE;
 }
 
 /************************************************************************/
@@ -238,7 +295,7 @@ void MarkSystemTimeOperational(void) {
  * @return TRUE once first interrupt enable has been executed.
  */
 BOOL IsSystemTimeOperational(void) {
-    return SystemTimeOperational;
+    return ClockState.SystemTimeOperational;
 }
 
 /************************************************************************/
@@ -302,6 +359,17 @@ void MilliSecondsToHMS(UINT MilliSeconds, LPSTR Text) {
 
 /************************************************************************/
 
+/**
+ * @brief Retrieve the recorded boot local time.
+ * @param Time Destination structure for the boot time.
+ * @return TRUE on success.
+ */
+BOOL GetBootLocalTime(LPDATETIME Time) {
+    return GetKernelBootTime(Time);
+}
+
+/************************************************************************/
+
 /*
 static void WriteCMOS(U32 Address, U32 Value) {
     OutPortByte(CMOS_COMMAND, Address);
@@ -318,10 +386,10 @@ static void WriteCMOS(U32 Address, U32 Value) {
  */
 BOOL GetLocalTime(LPDATETIME Time) {
     if (Time == NULL) return FALSE;
-    if (CurrentTime.Year == 0) {
+    if (ClockState.CurrentTime.Year == 0) {
         InitializeLocalTime();
     }
-    *Time = CurrentTime;
+    *Time = ClockState.CurrentTime;
     return TRUE;
 }
 
@@ -329,7 +397,7 @@ BOOL GetLocalTime(LPDATETIME Time) {
 
 BOOL SetLocalTime(LPDATETIME Time) {
     if (Time == NULL) return FALSE;
-    CurrentTime = *Time;
+    ClockState.CurrentTime = *Time;
     return TRUE;
 }
 

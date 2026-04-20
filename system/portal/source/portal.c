@@ -301,7 +301,7 @@ U32 DesktopTask(LPVOID Param) {
     MousePos.Y = 0;
     MouseButtons = 0;
 
-    FOREVER {
+    while(1) {
         GetMousePosition(&NewMousePos);
 
         if (NewMousePos.X != MousePos.X || NewMousePos.Y != MousePos.Y) {
@@ -374,7 +374,7 @@ BOOL InitApplication(void) {
     TaskInfo.Header.Flags = 0;
     TaskInfo.Func = DesktopTask;
     TaskInfo.Parameter = NULL;
-    TaskInfo.StackSize = N_64KB;
+    TaskInfo.StackSize = 65536;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
     TaskInfo.Flags = 0;
 

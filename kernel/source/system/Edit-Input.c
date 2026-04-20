@@ -812,7 +812,7 @@ I32 Loop(LPEDITCONTEXT Context) {
         Message.Header.Flags = 0;
         Message.Target = NULL;
 
-        if (GetMessage(&Message) == FALSE) {
+        if (KernelGetMessage(&Message) == FALSE) {
             continue;
         }
 

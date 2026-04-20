@@ -27,8 +27,8 @@
 
 /***************************************************************************/
 
-#include "../Base.h"
 #include "core/Driver.h"
+#include "sync/DeferredWorkQueue.h"
 
 /***************************************************************************/
 
@@ -36,31 +36,37 @@
 
 /***************************************************************************/
 
-typedef void (*DEFERRED_WORK_CALLBACK)(LPVOID Context);
-typedef void (*DEFERRED_WORK_POLL_CALLBACK)(LPVOID Context);
+#define DEFERRED_WORK_QUEUE_STANDARD 0
+#define DEFERRED_WORK_QUEUE_FAST 1
+#define DEFERRED_WORK_QUEUE_COUNT 2
+#define DEFERRED_WORK_QUEUE_INVALID 0xFFFFFFFF
+#define DEFERRED_WORK_FAST_DELAY_MS 5
 
-typedef struct tag_DEFERRED_WORK_REGISTRATION {
-    DEFERRED_WORK_CALLBACK WorkCallback;
-    DEFERRED_WORK_POLL_CALLBACK PollCallback;
-    LPVOID Context;
-    LPCSTR Name;
-} DEFERRED_WORK_REGISTRATION, *LPDEFERRED_WORK_REGISTRATION;
+/***************************************************************************/
 
-#define DEFERRED_WORK_INVALID_HANDLE 0xFFFFFFFFU
+typedef struct tag_DEFERRED_WORK_TOKEN {
+    U32 QueueID;
+    U32 SlotID;
+} DEFERRED_WORK_TOKEN, *LPDEFERRED_WORK_TOKEN;
 
 /***************************************************************************/
 
 BOOL InitializeDeferredWork(void);
 void ShutdownDeferredWork(void);
-U32 DeferredWorkRegister(const DEFERRED_WORK_REGISTRATION *Registration);
-U32 DeferredWorkRegisterPollOnly(DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name);
-void DeferredWorkUnregister(U32 Handle);
-void DeferredWorkSignal(U32 Handle);
+DEFERRED_WORK_TOKEN DeferredWorkRegister(const DEFERRED_WORK_REGISTRATION *Registration);
+DEFERRED_WORK_TOKEN DeferredWorkRegisterForQueue(U32 QueueID, const DEFERRED_WORK_REGISTRATION *Registration);
+DEFERRED_WORK_TOKEN DeferredWorkRegisterPollOnly(DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name);
+DEFERRED_WORK_TOKEN DeferredWorkRegisterPollOnlyForQueue(
+    U32 QueueID, DEFERRED_WORK_POLL_CALLBACK PollCallback, LPVOID Context, LPCSTR Name);
+void DeferredWorkUnregister(DEFERRED_WORK_TOKEN Token);
+void DeferredWorkSignal(DEFERRED_WORK_TOKEN Token);
 BOOL DeferredWorkIsPollingMode(void);
+BOOL DeferredWorkIsPollingModeForQueue(U32 QueueID);
+BOOL DeferredWorkTokenIsValid(DEFERRED_WORK_TOKEN Token);
 void DeferredWorkUpdateMode(void);
 
 /***************************************************************************/
 
 #pragma pack(pop)
 
-#endif // DEFERREDWORK_H_INCLUDED
+#endif  // DEFERREDWORK_H_INCLUDED

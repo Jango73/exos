@@ -39,6 +39,8 @@ void ScriptNextToken(LPSCRIPT_PARSER Parser);
 void ScriptParseStringToken(LPSCRIPT_PARSER Parser, LPCSTR Input, U32* Pos, STR QuoteChar);
 LPAST_NODE ScriptParseExpressionAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseComparisonAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseLogicalOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseLogicalAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseTermAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseFactorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseAssignmentAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
@@ -59,6 +61,7 @@ SCRIPT_ERROR ScriptPrepareHostValue(
     LPVOID DefaultContext);
 BOOL ScriptValueToFloat(const SCRIPT_VALUE* Value, F32* OutValue);
 BOOL ScriptValueToInteger(const SCRIPT_VALUE* Value, INT* OutValue);
+BOOL ScriptValueIsTrue(const SCRIPT_VALUE* Value, BOOL* OutValue);
 SCRIPT_ERROR ScriptValueToString(
     const SCRIPT_VALUE* Value,
     LPSCRIPT_CONTEXT Context,
@@ -76,6 +79,15 @@ BOOL IsInteger(F32 Value);
 void ScriptCalculateLineColumn(LPCSTR Input, U32 Position, U32* Line, U32* Column);
 void ScriptClearReturnValue(LPSCRIPT_CONTEXT Context);
 BOOL ScriptStoreReturnValue(LPSCRIPT_CONTEXT Context, const SCRIPT_VALUE* Value);
+SCRIPT_ERROR ScriptStoreObjectValue(
+    LPSCRIPT_CONTEXT Context,
+    SCRIPT_VAR_TYPE Type,
+    const SCRIPT_VAR_VALUE* SourceValue,
+    SCRIPT_VAR_VALUE* DestinationValue);
+void ScriptReleaseStoredValue(
+    LPSCRIPT_CONTEXT Context,
+    SCRIPT_VAR_TYPE Type,
+    SCRIPT_VAR_VALUE* Value);
 
 U32 ScriptHashHostSymbol(LPCSTR Name);
 BOOL ScriptInitHostRegistry(LPSCRIPT_CONTEXT Context, LPSCRIPT_HOST_REGISTRY Registry);

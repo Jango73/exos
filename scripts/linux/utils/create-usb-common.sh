@@ -190,9 +190,9 @@ parse_usb_flash_args() {
     fi
 
     if [ "$BOOT_MODE" = "uefi" ]; then
-        USB_IMAGE_PATH="build/image/${USB_BUILD_IMAGE_NAME}/boot-uefi/exos-uefi.img"
+        USB_IMAGE_PATH="build/image/${USB_BUILD_IMAGE_NAME}/exos-uefi.img"
     else
-        USB_IMAGE_PATH="build/image/${USB_BUILD_IMAGE_NAME}/boot-mbr/exos.img"
+        USB_IMAGE_PATH="build/image/${USB_BUILD_IMAGE_NAME}/exos.img"
     fi
 
     return 0

@@ -25,18 +25,18 @@
 #ifndef XHCI_INTERNAL_H_INCLUDED
 #define XHCI_INTERNAL_H_INCLUDED
 
-#include "drivers/usb/XHCI.h"
 #include "Base.h"
-#include "text/CoreString.h"
-#include "sync/DeferredWork.h"
+#include "User.h"
 #include "core/DriverEnum.h"
 #include "core/Kernel.h"
 #include "core/KernelData.h"
-#include "log/Log.h"
-#include "memory/Memory.h"
-#include "User.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
 #include "drivers/usb/USB.h"
+#include "drivers/usb/XHCI.h"
+#include "log/Log.h"
+#include "memory/Memory.h"
+#include "sync/DeferredWork.h"
+#include "text/CoreString.h"
 #include "utils/FailureGate.h"
 #include "utils/RateLimiter.h"
 
@@ -104,19 +104,19 @@
 #define XHCI_PORTSC_W1C_MASK 0x00FE0000
 #define XHCI_ROOT_PORT_PROBE_FAILURE_THRESHOLD 8
 
-#define XHCI_ENUM_ERROR_NONE            0u
-#define XHCI_ENUM_ERROR_BUSY            1u
-#define XHCI_ENUM_ERROR_RESET_TIMEOUT   2u
-#define XHCI_ENUM_ERROR_INVALID_SPEED   3u
-#define XHCI_ENUM_ERROR_INIT_STATE      4u
-#define XHCI_ENUM_ERROR_ENABLE_SLOT     5u
-#define XHCI_ENUM_ERROR_ADDRESS_DEVICE  6u
-#define XHCI_ENUM_ERROR_DEVICE_DESC     7u
-#define XHCI_ENUM_ERROR_CONFIG_DESC     8u
-#define XHCI_ENUM_ERROR_CONFIG_PARSE    9u
-#define XHCI_ENUM_ERROR_SET_CONFIG     10u
-#define XHCI_ENUM_ERROR_HUB_INIT       11u
-#define XHCI_ENUM_ERROR_BLACKLISTED    12u
+#define XHCI_ENUM_ERROR_NONE 0u
+#define XHCI_ENUM_ERROR_BUSY 1u
+#define XHCI_ENUM_ERROR_RESET_TIMEOUT 2u
+#define XHCI_ENUM_ERROR_INVALID_SPEED 3u
+#define XHCI_ENUM_ERROR_INIT_STATE 4u
+#define XHCI_ENUM_ERROR_ENABLE_SLOT 5u
+#define XHCI_ENUM_ERROR_ADDRESS_DEVICE 6u
+#define XHCI_ENUM_ERROR_DEVICE_DESC 7u
+#define XHCI_ENUM_ERROR_CONFIG_DESC 8u
+#define XHCI_ENUM_ERROR_CONFIG_PARSE 9u
+#define XHCI_ENUM_ERROR_SET_CONFIG 10u
+#define XHCI_ENUM_ERROR_HUB_INIT 11u
+#define XHCI_ENUM_ERROR_BLACKLISTED 12u
 
 /************************************************************************/
 // xHCI runtime registers
@@ -377,7 +377,7 @@ struct tag_XHCI_DEVICE {
 
     XHCI_COMPLETION CompletionQueue[XHCI_COMPLETION_QUEUE_MAX];
     U32 CompletionCount;
-    U32 HubPollHandle;
+    DEFERRED_WORK_TOKEN HubPollToken;
 
     U8 InterruptSlot;
     BOOL InterruptRegistered;
@@ -401,28 +401,21 @@ LPXHCI_CONTEXT_32 XHCI_GetContextPointer(LINEAR Base, U32 ContextSize, U32 Index
 LINEAR XHCI_GetInterrupterBase(LPXHCI_DEVICE Device);
 void XHCI_RingDoorbell(LPXHCI_DEVICE Device, U32 DoorbellIndex, U32 Target);
 void XHCI_InitUsbDeviceObject(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice);
-BOOL XHCI_PopCompletion(LPXHCI_DEVICE Device,
-                        U8 Type,
-                        U64 TrbPhysical,
-                        U8* SlotIdOut,
-                        U32* CompletionOut,
-                        U32* TransferLengthOut);
+BOOL XHCI_PopCompletion(
+    LPXHCI_DEVICE Device, U8 Type, U64 TrbPhysical, U8* SlotIdOut, U32* CompletionOut, U32* TransferLengthOut);
 void XHCI_ClearTransferCompletions(LPXHCI_DEVICE Device, U8 SlotId, U8 EndpointId);
-BOOL XHCI_PollForCompletion(LPXHCI_DEVICE Device,
-                            U8 Type,
-                            U64 TrbPhysical,
-                            U8* SlotIdOut,
-                            U32* CompletionOut,
-                            U32* TransferLengthOut);
+BOOL XHCI_PollForCompletion(
+    LPXHCI_DEVICE Device, U8 Type, U64 TrbPhysical, U8* SlotIdOut, U32* CompletionOut, U32* TransferLengthOut);
 BOOL XHCI_CommandRingEnqueue(LPXHCI_DEVICE Device, const XHCI_TRB* Trb, U64* PhysicalOut);
 BOOL XHCI_TransferRingEnqueue(LPXHCI_USB_DEVICE UsbDevice, const XHCI_TRB* Trb, U64* PhysicalOut);
-BOOL XHCI_RingEnqueue(LINEAR RingLinear, PHYSICAL RingPhysical, U32* EnqueueIndex, U32* CycleState,
-                      U32 RingTrbs, const XHCI_TRB* Trb, U64* PhysicalOut);
+BOOL XHCI_RingEnqueue(
+    LINEAR RingLinear, PHYSICAL RingPhysical, U32* EnqueueIndex, U32* CycleState, U32 RingTrbs, const XHCI_TRB* Trb,
+    U64* PhysicalOut);
 BOOL XHCI_DequeueEvent(LPXHCI_DEVICE Device, XHCI_TRB* EventOut);
 void XHCI_PollCompletions(LPXHCI_DEVICE Device);
 void XHCI_LogHseTransitionIfNeeded(LPXHCI_DEVICE Device, LPCSTR Source);
 BOOL XHCI_WaitForRegister(LINEAR Base, U32 Offset, U32 Mask, U32 Value, U32 Timeout, LPCSTR Name);
-BOOL XHCI_AllocPage(LPCSTR Tag, PHYSICAL *PhysicalOut, LINEAR *LinearOut);
+BOOL XHCI_AllocPage(LPCSTR Tag, PHYSICAL* PhysicalOut, LINEAR* LinearOut);
 void XHCI_FreeResources(LPXHCI_DEVICE Device);
 U32 XHCI_ReadPortStatus(LPXHCI_DEVICE Device, U32 PortIndex);
 void XHCI_AddDeviceToList(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice);
@@ -439,24 +432,18 @@ LPXHCI_USB_ENDPOINT XHCI_FindHubInterruptEndpoint(LPXHCI_USB_DEVICE UsbDevice);
 LPXHCI_USB_ENDPOINT XHCI_FindInterfaceEndpoint(LPXHCI_USB_INTERFACE Interface, U8 EndpointType, BOOL DirectionIn);
 BOOL XHCI_AddInterruptEndpoint(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_ENDPOINT Endpoint);
 BOOL XHCI_AddBulkEndpoint(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_ENDPOINT Endpoint);
-BOOL XHCI_AddBulkEndpointPair(LPXHCI_DEVICE Device,
-                              LPXHCI_USB_DEVICE UsbDevice,
-                              LPXHCI_USB_ENDPOINT BulkOutEndpoint,
-                              LPXHCI_USB_ENDPOINT BulkInEndpoint);
-BOOL XHCI_SubmitNormalTransfer(LPXHCI_DEVICE Device,
-                               LPXHCI_USB_DEVICE UsbDevice,
-                               LPXHCI_USB_ENDPOINT Endpoint,
-                               PHYSICAL BufferPhysical,
-                               U32 Length,
-                               BOOL InterruptOnShortPacket,
-                               U64* TrbPhysicalOut);
+BOOL XHCI_AddBulkEndpointPair(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_ENDPOINT BulkOutEndpoint,
+    LPXHCI_USB_ENDPOINT BulkInEndpoint);
+BOOL XHCI_SubmitNormalTransfer(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_ENDPOINT Endpoint, PHYSICAL BufferPhysical,
+    U32 Length, BOOL InterruptOnShortPacket, U64* TrbPhysicalOut);
 BOOL XHCI_UpdateHubSlotContext(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice);
-BOOL XHCI_ControlTransfer(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, const USB_SETUP_PACKET* Setup,
-                         PHYSICAL Physical, LPVOID Linear, U16 Length, BOOL DirectionIn);
-BOOL XHCI_ResetTransferEndpoint(LPXHCI_DEVICE Device,
-                                LPXHCI_USB_DEVICE UsbDevice,
-                                LPXHCI_USB_ENDPOINT Endpoint,
-                                BOOL EndpointHalted);
+BOOL XHCI_ControlTransfer(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, const USB_SETUP_PACKET* Setup, PHYSICAL Physical, LPVOID Linear,
+    U16 Length, BOOL DirectionIn);
+BOOL XHCI_ResetTransferEndpoint(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_ENDPOINT Endpoint, BOOL EndpointHalted);
 LPXHCI_USB_CONFIGURATION XHCI_GetSelectedConfig(LPXHCI_USB_DEVICE UsbDevice);
 BOOL XHCI_EnumerateDevice(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice);
 void XHCI_EnsureUsbDevices(LPXHCI_DEVICE Device);
@@ -464,14 +451,9 @@ void XHCI_EnsureUsbDevices(LPXHCI_DEVICE Device);
 BOOL XHCI_InitHub(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE Hub);
 void XHCI_RegisterHubPoll(LPXHCI_DEVICE Device);
 BOOL XHCI_CheckTransferCompletion(LPXHCI_DEVICE Device, U64 TrbPhysical, U32* CompletionOut);
-BOOL XHCI_CheckTransferCompletionRouted(LPXHCI_DEVICE Device,
-                                        U64 TrbPhysical,
-                                        U8 SlotId,
-                                        U8 EndpointId,
-                                        U32* CompletionOut,
-                                        U32* TransferLengthOut,
-                                        BOOL* UsedRouteFallbackOut,
-                                        U64* ObservedTrbPhysicalOut);
+BOOL XHCI_CheckTransferCompletionRouted(
+    LPXHCI_DEVICE Device, U64 TrbPhysical, U8 SlotId, U8 EndpointId, U32* CompletionOut, U32* TransferLengthOut,
+    BOOL* UsedRouteFallbackOut, U64* ObservedTrbPhysicalOut);
 
 U32 XHCI_EnumNext(LPDRIVER_ENUM_NEXT Next);
 U32 XHCI_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty);

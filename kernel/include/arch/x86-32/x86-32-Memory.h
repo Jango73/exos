@@ -56,8 +56,8 @@
 #define VMA_VIDEO 0x000A0000                       // Reserved for kernel
 #define VMA_CONSOLE 0x000B8000                     // Reserved for kernel
 #define VMA_USER 0x00400000                        // Start of user address space
-#define VMA_LIBRARY 0xA0000000                     // Dynamic Libraries
-#define VMA_TASK_RUNNER (VMA_LIBRARY - PAGE_SIZE)  // User alias for TaskRunner
+#define VMA_USER_LIMIT 0xA0000000                    // Upper user arena anchor
+#define VMA_TASK_RUNNER (VMA_USER_LIMIT - PAGE_SIZE)  // User alias for TaskRunner
 
 #ifndef CONFIG_VMA_KERNEL
 #error "CONFIG_VMA_KERNEL is not defined"

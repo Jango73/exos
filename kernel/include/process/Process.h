@@ -31,13 +31,14 @@
 #include "Base.h"
 #include "core/Driver.h"
 #include "core/ID.h"
+#include "exec/Executable.h"
 #include "utils/List.h"
 #include "memory/Memory.h"
 #include "sync/Mutex.h"
 #include "core/Security.h"
 #include "system/System.h"
 #include "User.h"
-#include "user/UserAccount.h"
+#include "user/Account.h"
 #include "user/UserSession.h"
 #include "process/Message.h"
 #include "process/Process-Arena.h"
@@ -62,7 +63,7 @@ typedef struct tag_GRAPHICSCONTEXT GRAPHICSCONTEXT, *LPGRAPHICSCONTEXT;
 // Scheduler-owned process state
 
 typedef struct tag_PROCESS_SCHEDULER_STATE {
-    BOOL Paused;
+    BOOL Paused;  // Process-wide scheduler pause state
 } PROCESS_SCHEDULER_STATE, *LPPROCESS_SCHEDULER_STATE;
 
 /************************************************************************/
@@ -171,28 +172,33 @@ struct tag_PROCESS {
     U32 Flags;                                              // Process creation flags
     U32 ControlFlags;                                       // Process control state (interrupt)
     PROCESS_SCHEDULER_STATE SchedulerState;                 // Scheduler-owned ISR-visible state
-    PHYSICAL PageDirectory;
-    LINEAR HeapBase;
-    UINT HeapSize;
-    UINT MaximumAllocatedMemory;
+    PHYSICAL PageDirectory;                                 // Physical address of this process' page directory
+    LINEAR HeapBase;                                        // Base virtual address of the process heap
+    UINT HeapSize;                                          // Process heap size in bytes
+    UINT MaximumAllocatedMemory;                            // Peak allocated heap memory in bytes
     UINT ExitCode;                                          // Exit code
-    STR FileName[MAX_PATH_NAME];
-    STR CommandLine[MAX_PATH_NAME];
-    STR WorkFolder[MAX_PATH_NAME];
+    STR FileName[MAX_PATH_NAME];                            // Executable file path
+    STR CommandLine[MAX_PATH_NAME];                         // Command line used to start this process
+    STR WorkFolder[MAX_PATH_NAME];                          // Process working folder
     UINT TaskCount;                                         // Number of active tasks in this process
     MESSAGEQUEUE MessageQueue;                              // Process-level message queue (input, etc.)
     U64 UserID;                                             // Owner user
     LPDESKTOP Desktop;                                      // This process' desktop
     LPUSER_SESSION Session;                                 // User session
     LPFILESYSTEM PackageFileSystem;                         // Mounted package filesystem tied to this process
-    MEMORY_REGION_LIST MemoryRegionList;
-    PROCESS_ADDRESS_SPACE AddressSpace;
+    EXECUTABLE_METADATA MainExecutableMetadata;              // Main executable metadata for module symbol resolution
+    LINEAR MainExecutableCodeBase;                           // Installed main executable code base
+    LINEAR MainExecutableDataBase;                           // Installed main executable data base
+    LPLIST ModuleBindings;                                  // Process-owned executable module bindings
+    UINT ModuleBindingCount;                                // Number of executable module bindings
+    MEMORY_REGION_LIST MemoryRegionList;                    // Memory region descriptors owned by this process
+    PROCESS_ADDRESS_SPACE AddressSpace;                      // Process virtual address space arena state
 };
 
 typedef struct tag_PROPERTY {
-    LISTNODE_FIELDS
-    STR Name[32];
-    UINT Value;
+    LISTNODE_FIELDS  // Standard EXOS object fields
+    STR Name[32];    // Property name
+    UINT Value;      // Property value
 } PROPERTY, *LPPROPERTY;
 
 struct tag_WINDOW {
@@ -205,22 +211,22 @@ struct tag_WINDOW {
     LPLIST Properties;                              // The user-defined properties of this window
     LPWINDOW_CLASS Class;                           // Window class metadata
     LPVOID ClassData;                               // Window class private data
-    U32 DrawContextFlags;
-    U32 WindowID;
-    U32 Style;
-    U32 Status;
-    U32 ContentTransparencyHint;
-    U32 Level;
-    I32 Order;
-    STR Caption[MAX_WINDOW_CAPTION];
-    POINT DrawOrigin;
+    U32 DrawContextFlags;                           // Active draw context state flags
+    U32 WindowID;                                   // Window identifier for handle-based lookup
+    U32 Style;                                      // Window style flags
+    U32 Status;                                     // Window status flags
+    U32 ContentTransparencyHint;                    // Declared content transparency policy
+    U32 Level;                                      // Window level within its desktop layer
+    I32 Order;                                      // Window ordering key within its level
+    STR Caption[MAX_WINDOW_CAPTION];                // Window caption text
+    POINT DrawOrigin;                               // Drawing origin in window coordinates
     RECT Rect;                                      // The rectangle of this window
-    RECT ScreenRect;
-    RECT WorkRect;
-    RECT DirtyRects[WINDOW_DIRTY_REGION_CAPACITY];
-    RECT_REGION DirtyRegion;
-    RECT DrawSurfaceRect;
-    RECT DrawClipRect;
+    RECT ScreenRect;                                // Cached window rectangle in screen coordinates
+    RECT WorkRect;                                  // Client work rectangle for child layout
+    RECT DirtyRects[WINDOW_DIRTY_REGION_CAPACITY];  // Pending dirty rectangles for redraw
+    RECT_REGION DirtyRegion;                        // Coalesced dirty region for redraw
+    RECT DrawSurfaceRect;                           // Active draw surface bounds
+    RECT DrawClipRect;                              // Active draw clipping bounds
 };
 
 typedef struct tag_WINDOW_CLASS {
@@ -233,20 +239,20 @@ typedef struct tag_WINDOW_CLASS {
 } WINDOW_CLASS, *LPWINDOW_CLASS;
 
 typedef struct tag_DESKTOP_THEME {
-    LPVOID Builtin;
-    LPVOID Active;
-    LPVOID Staged;
-    STR ActivePath[MAX_FILE_NAME];
-    STR StagedPath[MAX_FILE_NAME];
-    U32 LastStatus;
-    U32 LastFallbackReason;
-    BOOL ActiveFromFile;
+    LPVOID Builtin;                        // Built-in fallback theme runtime
+    LPVOID Active;                         // Active theme runtime
+    LPVOID Staged;                         // Candidate theme runtime pending activation
+    STR ActivePath[MAX_FILE_NAME];         // File path of the active file-backed theme
+    STR StagedPath[MAX_FILE_NAME];         // File path of the staged file-backed theme
+    U32 LastStatus;                        // Last theme load or activation status
+    U32 LastFallbackReason;                // Last theme fallback reason
+    BOOL ActiveFromFile;                   // Indicates whether the active theme came from a file
 } DESKTOP_THEME, *LPDESKTOP_THEME;
 
 typedef struct tag_DESKTOP_DISPLAY_SELECTION {
-    STR BackendAlias[MAX_NAME];
-    GRAPHICS_MODE_INFO ModeInfo;
-    BOOL IsAssigned;
+    STR BackendAlias[MAX_NAME];        // Selected graphics backend alias
+    GRAPHICS_MODE_INFO ModeInfo;       // Selected graphics mode information
+    BOOL IsAssigned;                   // Indicates whether a display selection is stored
 } DESKTOP_DISPLAY_SELECTION, *LPDESKTOP_DISPLAY_SELECTION;
 
 typedef struct tag_MOUSE_CURSOR {
@@ -279,12 +285,12 @@ struct tag_DESKTOP {
     LPWINDOW Focus;                 // Window that has focus
     U32 Mode;                       // Active desktop display mode
     I32 Order;                      // Desktop ordering key among active desktops
-    LPGRAPHICSCONTEXT GraphicsContext;
-    LINEAR GraphicsShadowBufferLinear;
-    UINT GraphicsShadowBufferSize;
+    LPGRAPHICSCONTEXT GraphicsContext;  // Desktop graphics context
+    LINEAR GraphicsShadowBufferLinear;  // Virtual base of the graphics shadow buffer
+    UINT GraphicsShadowBufferSize;      // Graphics shadow buffer size in bytes
     U32 PendingComponents;          // Pending desktop-owned component injection flags
     MOUSE_CURSOR Cursor;            // Desktop cursor runtime state
-    DESKTOP_DISPLAY_SELECTION DisplaySelection;
+    DESKTOP_DISPLAY_SELECTION DisplaySelection;  // Stored graphics backend and mode selection
 };
 
 /************************************************************************/

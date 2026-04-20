@@ -764,7 +764,7 @@ static BOOL MatchObject(LPVOID Data, LPVOID Context) {
     }
 
     SAFE_USE_VALID(KernelObject) {
-        return U64_EQUAL(State->ID, KernelObject->ID);
+        return U64_EQUAL(State->InstanceID, KernelObject->InstanceID);
     }
 
     return FALSE;

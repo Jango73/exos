@@ -69,6 +69,7 @@ global SetPixel24
 global EnterUnrealMode
 global LeaveUnrealMode
 global EnableA20
+global CheckA20Enabled
 global BootInPortByte
 global BootOutPortByte
 global BootIsKeyAvailable
@@ -83,7 +84,6 @@ global BootStoreGdt
 global BootClearScreen
 global BootEnableInterrupts
 global BootCpuRelax
-global CheckA20Enabled
 
 extern BootMain
 %ifdef ARCH_X86_64
@@ -626,6 +626,56 @@ EnableA20:
     ret
 
 ;-------------------------------------------------------------------------
+; CheckA20Enabled
+; Out: AL = 1 if enabled, 0 otherwise
+;-------------------------------------------------------------------------
+CheckA20Enabled:
+    pushf
+    cli
+    push    ds
+    push    es
+    push    eax
+    push    ebx
+    push    edi
+    push    esi
+
+    xor     eax, eax
+    mov     ds, ax
+    mov     ax, 0xFFFF
+    mov     es, ax
+    mov     edi, 0x0500
+    mov     esi, 0x0510
+
+    mov     al, [ds:di]
+    mov     ah, [es:si]
+    push    eax
+
+    mov     byte [ds:di], 0x00
+    mov     byte [es:si], 0xFF
+
+    cmp     byte [ds:di], 0xFF
+    jne     .enabled
+.disabled:
+    xor     ebx, ebx
+    jmp     .restore
+.enabled:
+    mov     ebx, 1
+.restore:
+    pop     eax
+    mov     [ds:di], al
+    mov     [es:si], ah
+
+    pop     esi
+    pop     edi
+    pop     ebx
+    pop     eax
+    pop     es
+    pop     ds
+    popf
+    mov     al, bl
+    ret
+
+;-------------------------------------------------------------------------
 ; BootInPortByte
 ; In : EBP+8 = port (U32, low 16 used)
 ; Out: AL = value
@@ -871,56 +921,6 @@ EnableA20_wait_8042_data:
     jnz     .done
     loop    .wait
 .done:
-    ret
-
-;-------------------------------------------------------------------------
-; CheckA20Enabled
-; Out: AL = 1 if enabled, 0 otherwise
-;-------------------------------------------------------------------------
-CheckA20Enabled:
-    pushf
-    cli
-    push    ds
-    push    es
-    push    eax
-    push    ebx
-    push    edi
-    push    esi
-
-    xor     eax, eax
-    mov     ds, ax
-    mov     ax, 0xFFFF
-    mov     es, ax
-    mov     edi, 0x0500
-    mov     esi, 0x0510
-
-    mov     al, [ds:di]
-    mov     ah, [es:si]
-    push    eax
-
-    mov     byte [ds:di], 0x00
-    mov     byte [es:si], 0xFF
-
-    cmp     byte [ds:di], 0xFF
-    jne     .enabled
-.disabled:
-    xor     ebx, ebx
-    jmp     .restore
-.enabled:
-    mov     ebx, 1
-.restore:
-    pop     eax
-    mov     [ds:di], al
-    mov     [es:si], ah
-
-    pop     esi
-    pop     edi
-    pop     ebx
-    pop     eax
-    pop     es
-    pop     ds
-    popf
-    mov     al, bl
     ret
 
 ;-------------------------------------------------------------------------

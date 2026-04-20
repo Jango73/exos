@@ -142,7 +142,7 @@ static void ReleaseRegionDescriptor(LPMEMORY_REGION_DESCRIPTOR Descriptor) {
 
     Descriptor->TypeID = KOID_NONE;
     Descriptor->References = 0;
-    Descriptor->ID = U64_Make(0, 0);
+    Descriptor->InstanceID = U64_Make(0, 0);
     Descriptor->OwnerProcess = NULL;
     Descriptor->Base = 0;
     Descriptor->CanonicalBase = 0;
@@ -346,7 +346,7 @@ BOOL RegisterRegionDescriptor(LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List,
 
     Descriptor->TypeID = KOID_MEMORY_REGION_DESCRIPTOR;
     Descriptor->References = 1;
-    Descriptor->ID = U64_Make(0, 0);
+    Descriptor->InstanceID = U64_Make(0, 0);
     MemoryRegionDescriptorAssignOwner(Descriptor, OwnerProcess);
     Descriptor->CanonicalBase = CanonicalizeLinearAddress(Base);
     Descriptor->Base = Descriptor->CanonicalBase;
@@ -362,6 +362,8 @@ BOOL RegisterRegionDescriptor(LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List,
     }
     if ((Flags & ALLOC_PAGES_IO) != 0) {
         Attributes |= MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_IO;
+    }
+    if ((Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) != 0) {
         Attributes |= MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_FIXED;
     }
     Descriptor->Attributes = Attributes;
@@ -472,7 +474,7 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
 
             Right->TypeID = KOID_MEMORY_REGION_DESCRIPTOR;
             Right->References = 1;
-            Right->ID = U64_Make(0, 0);
+            Right->InstanceID = U64_Make(0, 0);
             Right->OwnerProcess = Descriptor->OwnerProcess;
             Right->Base = FreeEnd;
             Right->CanonicalBase = FreeEnd;

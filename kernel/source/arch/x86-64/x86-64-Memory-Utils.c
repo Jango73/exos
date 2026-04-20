@@ -482,12 +482,7 @@ LINEAR MapTemporaryPhysicalPage6(PHYSICAL Physical) {
  * @return Canonical virtual address of the mapped table, or NULL on failure.
  */
 LINEAR AllocPageTable(LINEAR Base) {
-    PHYSICAL PMA_Table = AllocPhysicalPage();
-
-    if (PMA_Table == NULL) {
-        ERROR(TEXT("[AllocPageTable] Out of physical pages"));
-        return NULL;
-    }
+    PHYSICAL PMA_Table;
 
     Base = CanonicalizeLinearAddress(Base);
 
@@ -500,23 +495,64 @@ LINEAR AllocPageTable(LINEAR Base) {
     U64 Pml4EntryValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)Pml4, Pml4Index);
 
     if ((Pml4EntryValue & PAGE_FLAG_PRESENT) == 0) {
+        ERROR(TEXT("[AllocPageTable] Missing PML4 entry for base=%p"), Base);
         return NULL;
     }
 
     PHYSICAL PdptPhysical = (PHYSICAL)(Pml4EntryValue & PAGE_MASK);
     LPPAGE_DIRECTORY PdptLinear = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage1(PdptPhysical);
     U64 PdptEntryValue = ReadPageDirectoryEntryValue(PdptLinear, PdptIndex);
+    PHYSICAL DirectoryPhysical;
 
     if ((PdptEntryValue & PAGE_FLAG_PRESENT) == 0) {
-        return NULL;
+        DirectoryPhysical = AllocPhysicalPage();
+
+        if (DirectoryPhysical == NULL) {
+            ERROR(TEXT("[AllocPageTable] Out of physical pages for directory"));
+            return NULL;
+        }
+
+        LPPAGE_DIRECTORY NewDirectory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage2(DirectoryPhysical);
+        if (NewDirectory == NULL) {
+            FreePhysicalPage(DirectoryPhysical);
+            ERROR(TEXT("[AllocPageTable] Failed to map new directory"));
+            return NULL;
+        }
+
+        MemorySet(NewDirectory, 0, PAGE_SIZE);
+
+        WritePageDirectoryEntryValue(
+            PdptLinear,
+            PdptIndex,
+            MakePageDirectoryEntryValue(
+                DirectoryPhysical,
+                /*ReadWrite*/ 1,
+                PAGE_PRIVILEGE(Base),
+                /*WriteThrough*/ 0,
+                /*CacheDisabled*/ 0,
+                /*Global*/ 0,
+                /*Fixed*/ 1));
+    } else {
+        if ((PdptEntryValue & PAGE_FLAG_PAGE_SIZE) != 0) {
+            return NULL;
+        }
+
+        DirectoryPhysical = (PHYSICAL)(PdptEntryValue & PAGE_MASK);
     }
 
-    if ((PdptEntryValue & PAGE_FLAG_PAGE_SIZE) != 0) {
-        return NULL;
-    }
-
-    PHYSICAL DirectoryPhysical = (PHYSICAL)(PdptEntryValue & PAGE_MASK);
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage2(DirectoryPhysical);
+    U64 ExistingDirectoryEntryValue = ReadPageDirectoryEntryValue(Directory, DirEntry);
+
+    if ((ExistingDirectoryEntryValue & PAGE_FLAG_PRESENT) != 0) {
+        return (LINEAR)GetPageTableVAFor(Base);
+    }
+
+    PMA_Table = AllocPhysicalPage();
+
+    if (PMA_Table == NULL) {
+        ERROR(TEXT("[AllocPageTable] Out of physical pages"));
+        return NULL;
+    }
 
     U32 Privilege = PAGE_PRIVILEGE(Base);
     U64 DirectoryEntryValue = MakePageDirectoryEntryValue(
@@ -531,6 +567,13 @@ LINEAR AllocPageTable(LINEAR Base) {
     WritePageDirectoryEntryValue(Directory, DirEntry, DirectoryEntryValue);
 
     LINEAR VMA_PT = MapTemporaryPhysicalPage3(PMA_Table);
+    if (VMA_PT == NULL) {
+        ClearPageDirectoryEntry(Directory, DirEntry);
+        FreePhysicalPage(PMA_Table);
+        ERROR(TEXT("[AllocPageTable] Failed to map new page table"));
+        return NULL;
+    }
+
     MemorySet((LPVOID)VMA_PT, 0, PAGE_SIZE);
 
     FlushTLB();
@@ -564,6 +607,7 @@ BOOL TryGetPageTableForIterator(
 
     LINEAR Linear = (LINEAR)MemoryPageIteratorGetLinear(Iterator);
     UNUSED(Linear);
+
     UINT Pml4Index = MemoryPageIteratorGetPml4Index(Iterator);
     UINT PdptIndex = MemoryPageIteratorGetPdptIndex(Iterator);
     UINT DirEntry = MemoryPageIteratorGetDirectoryIndex(Iterator);

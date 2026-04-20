@@ -24,10 +24,95 @@
 
 #include "shell/Shell-Commands-Private.h"
 
+/************************************************************************/
+
+/**
+ * @brief Create one user account through the kernel syscall interface.
+ * @param UserName Target user name.
+ * @param Password Target password.
+ * @param Privilege Target privilege.
+ * @return `DF_RETURN_*` status code.
+ */
+UINT ShellCreateAccount(
+    LPCSTR UserName,
+    LPCSTR Password,
+    U32 Privilege) {
+    USER_CREATE_INFO CreateInfo;
+
+    if (UserName == NULL || Password == NULL) {
+        return DF_RETURN_BAD_PARAMETER;
+    }
+
+    MemorySet(&CreateInfo, 0, sizeof(CreateInfo));
+    CreateInfo.Header.Size = sizeof(CreateInfo);
+    CreateInfo.Header.Version = EXOS_ABI_VERSION;
+    CreateInfo.Header.Flags = 0;
+    StringCopyLimit(CreateInfo.UserName, UserName, MAX_USER_NAME);
+    StringCopyLimit(CreateInfo.Password, Password, MAX_USER_NAME);
+    CreateInfo.Privilege = Privilege;
+
+    return DoSystemCall(SYSCALL_CreateUser, SYSCALL_PARAM(&CreateInfo));
+}
+
+/************************************************************************/
+
+/**
+ * @brief Delete one user account through the kernel syscall interface.
+ * @param UserName Target user name.
+ * @return `DF_RETURN_*` status code.
+ */
+UINT ShellDeleteAccount(LPCSTR UserName) {
+    USER_DELETE_INFO DeleteInfo;
+
+    if (UserName == NULL) {
+        return DF_RETURN_BAD_PARAMETER;
+    }
+
+    MemorySet(&DeleteInfo, 0, sizeof(DeleteInfo));
+    DeleteInfo.Header.Size = sizeof(DeleteInfo);
+    DeleteInfo.Header.Version = EXOS_ABI_VERSION;
+    DeleteInfo.Header.Flags = 0;
+    StringCopyLimit(DeleteInfo.UserName, UserName, MAX_USER_NAME);
+
+    return DoSystemCall(SYSCALL_DeleteUser, SYSCALL_PARAM(&DeleteInfo));
+}
+
+/************************************************************************/
+
+/**
+ * @brief Change the current user password through the kernel syscall interface.
+ * @param OldPassword Current password.
+ * @param NewPassword New password.
+ * @return `DF_RETURN_*` status code.
+ */
+UINT ShellChangePassword(
+    LPCSTR OldPassword,
+    LPCSTR NewPassword) {
+    PASSWORD_CHANGE PasswordChange;
+
+    if (OldPassword == NULL || NewPassword == NULL) {
+        return DF_RETURN_BAD_PARAMETER;
+    }
+
+    MemorySet(&PasswordChange, 0, sizeof(PasswordChange));
+    PasswordChange.Header.Size = sizeof(PasswordChange);
+    PasswordChange.Header.Version = EXOS_ABI_VERSION;
+    PasswordChange.Header.Flags = 0;
+    StringCopyLimit(PasswordChange.OldPassword, OldPassword, MAX_USER_NAME);
+    StringCopyLimit(PasswordChange.NewPassword, NewPassword, MAX_USER_NAME);
+
+    return DoSystemCall(SYSCALL_ChangePassword, SYSCALL_PARAM(&PasswordChange));
+}
+
+/************************************************************************/
+
 U32 CMD_adduser(LPSHELLCONTEXT Context) {
     STR UserName[MAX_USER_NAME];
     STR Password[MAX_USER_NAME];
     STR PrivilegeStr[16];
+    UINT AccountCount = 0;
+    BOOL IsFirstUser = FALSE;
+    UINT Result;
     U32 Privilege = EXOS_PRIVILEGE_ADMIN;  // Default to admin for first user
 
 
@@ -47,10 +132,13 @@ U32 CMD_adduser(LPSHELLCONTEXT Context) {
     CommandLineEditorReadLine(&Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, TRUE);
     StringCopy(Password, Context->Input.CommandLine);
 
+    // Check if this is the first user through the scripting exposure layer.
+    if (!ShellGetAccountCount(Context, &AccountCount)) {
+        ConsolePrint(TEXT("ERROR: Failed to query accounts\n"));
+        return DF_RETURN_SUCCESS;
+    }
 
-    // Check if this is the first user (no users exist yet)
-    LPLIST UserAccountList = GetUserAccountList();
-    BOOL IsFirstUser = (UserAccountList == NULL || UserAccountList->First == NULL);
+    IsFirstUser = (AccountCount == 0);
     if (IsFirstUser) {
         Privilege = EXOS_PRIVILEGE_ADMIN;
     } else {
@@ -63,15 +151,10 @@ U32 CMD_adduser(LPSHELLCONTEXT Context) {
             Privilege = EXOS_PRIVILEGE_USER;
         }
     }
-
-
-    LPUSER_ACCOUNT Account = CreateUserAccount(UserName, Password, Privilege);
-
-    SAFE_USE(Account) {
-    } else {
+    Result = ShellCreateAccount(UserName, Password, Privilege);
+    if (Result != TRUE) {
         ConsolePrint(TEXT("ERROR: Failed to create user '%s'\n"), UserName);
     }
-
 
     return DF_RETURN_SUCCESS;
 }
@@ -82,31 +165,15 @@ U32 CMD_deluser(LPSHELLCONTEXT Context) {
     STR UserName[MAX_USER_NAME];
 
     ParseNextCommandLineComponent(Context);
-    if (StringLength(Context->Command) > 0) {
-        StringCopy(UserName, Context->Command);
-    } else {
-        ConsolePrint(TEXT("Username to delete: "));
-        ConsoleGetString(UserName, MAX_USER_NAME - 1);
-        if (StringLength(UserName) == 0) {
-            ConsolePrint(TEXT("Username cannot be empty\n"));
-            return DF_RETURN_SUCCESS;
-        }
+    if (StringLength(Context->Command) == 0) {
+        ConsolePrint(TEXT("ERROR: Missing username argument\n"));
+        ConsolePrint(TEXT("Usage: del_user <username>\n"));
+        return DF_RETURN_SUCCESS;
     }
+    StringCopy(UserName, Context->Command);
 
-    LPUSER_SESSION Session = GetCurrentSession();
-
-    SAFE_USE(Session) {
-        LPUSER_ACCOUNT CurrentAccount = FindUserAccountByID(Session->UserID);
-
-        if (CurrentAccount == NULL || CurrentAccount->Privilege != EXOS_PRIVILEGE_ADMIN) {
-            ConsolePrint(TEXT("Only admin users can delete accounts\n"));
-            return DF_RETURN_SUCCESS;
-        }
-    }
-
-    if (DeleteUserAccount(UserName)) {
+    if (ShellDeleteAccount(UserName) == TRUE) {
         ConsolePrint(TEXT("User '%s' deleted successfully\n"), UserName);
-        SaveUserDatabase();
     } else {
         ConsolePrint(TEXT("Failed to delete user '%s'\n"), UserName);
     }
@@ -142,7 +209,7 @@ U32 CMD_login(LPSHELLCONTEXT Context) {
     CommandLineEditorReadLine(&Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, TRUE);
     StringCopy(Password, Context->Input.CommandLine);
 
-    LPUSER_ACCOUNT Account = FindUserAccount(UserName);
+    LPUSER_ACCOUNT Account = FindAccount(UserName);
     if (Account == NULL) {
         Sleep(AUTH_POLICY_FAILURE_DELAY_MS);
         ConsolePrint(TEXT("ERROR: Invalid credentials\n"));
@@ -214,7 +281,7 @@ U32 CMD_whoami(LPSHELLCONTEXT Context) {
         return DF_RETURN_SUCCESS;
     }
 
-    LPUSER_ACCOUNT Account = FindUserAccountByID(Session->UserID);
+    LPUSER_ACCOUNT Account = FindAccountByID(Session->UserID);
     if (Account == NULL) {
         ConsolePrint(TEXT("Session user not found\n"));
         return DF_RETURN_SUCCESS;
@@ -233,31 +300,13 @@ U32 CMD_whoami(LPSHELLCONTEXT Context) {
 /***************************************************************************/
 
 U32 CMD_passwd(LPSHELLCONTEXT Context) {
-    UNUSED(Context);
     STR OldPassword[MAX_PASSWORD];
     STR NewPassword[MAX_PASSWORD];
     STR ConfirmPassword[MAX_PASSWORD];
 
-    LPUSER_SESSION Session = GetCurrentSession();
-    if (Session == NULL) {
-        ConsolePrint(TEXT("No active session\n"));
-        return DF_RETURN_SUCCESS;
-    }
-
-    LPUSER_ACCOUNT Account = FindUserAccountByID(Session->UserID);
-    if (Account == NULL) {
-        ConsolePrint(TEXT("Session user not found\n"));
-        return DF_RETURN_SUCCESS;
-    }
-
     ConsolePrint(TEXT("Password: "));
     CommandLineEditorReadLine(&Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, TRUE);
     StringCopy(OldPassword, Context->Input.CommandLine);
-
-    if (!VerifyPassword(OldPassword, Account->PasswordHash)) {
-        ConsolePrint(TEXT("Invalid current password\n"));
-        return DF_RETURN_SUCCESS;
-    }
 
     ConsolePrint(TEXT("New password: "));
     CommandLineEditorReadLine(&Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, TRUE);
@@ -272,9 +321,8 @@ U32 CMD_passwd(LPSHELLCONTEXT Context) {
         return DF_RETURN_SUCCESS;
     }
 
-    if (ChangeUserPassword(Account->UserName, OldPassword, NewPassword)) {
+    if (ShellChangePassword(OldPassword, NewPassword) == TRUE) {
         ConsolePrint(TEXT("Password changed successfully\n"));
-        SaveUserDatabase();
     } else {
         ConsolePrint(TEXT("Failed to change password\n"));
     }

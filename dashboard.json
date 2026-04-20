@@ -44,11 +44,11 @@
 
                 { "label": "x86-64 UEFI build--------" },
 
-                { "label": "Build 64 UEFI Rel", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --uefi --bare-metal --clean" },
-                { "label": "Build 64 UEFI Rel ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --uefi --bare-metal" },
-                { "label": "Build 64 UEFI Deb", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi --bare-metal --clean" },
-                { "label": "Build 64 UEFI Deb ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi --bare-metal" },
-                { "label": "Build 64 UEFI Deb Split", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --split --uefi --boot-stage-markers --bare-metal --clean" },
+                { "label": "Build 64 UEFI Rel", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --uefi --clean" },
+                { "label": "Build 64 UEFI Rel ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --uefi" },
+                { "label": "Build 64 UEFI Deb", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi --clean" },
+                { "label": "Build 64 UEFI Deb ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi" },
+                { "label": "Build 64 UEFI Deb Split", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --split --uefi --boot-stage-markers --clean" },
 
                 { "label": "x86-64 run----------" },
 

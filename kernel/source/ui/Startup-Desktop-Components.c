@@ -152,14 +152,14 @@ static BOOL EnsureCube3DWindow(LPDESKTOP Desktop) {
     I32 WindowWidth;
     I32 WindowHeight;
 
-    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) {
+    if (Desktop == NULL) {
         return FALSE;
     }
     if (Cube3DEnsureClassRegistered() == FALSE) {
         return FALSE;
     }
 
-    RootWindow = (HANDLE)Desktop->Window;
+    RootWindow = GetDesktopWindow((HANDLE)Desktop);
     if (RootWindow == NULL) {
         return FALSE;
     }
@@ -246,14 +246,14 @@ static BOOL EnsureLogViewerWindow(LPDESKTOP Desktop) {
     I32 WindowWidth;
     I32 WindowHeight;
 
-    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) {
+    if (Desktop == NULL) {
         return FALSE;
     }
     if (LogViewerEnsureClassRegistered() == FALSE) {
         return FALSE;
     }
 
-    RootWindow = (HANDLE)Desktop->Window;
+    RootWindow = GetDesktopWindow((HANDLE)Desktop);
     if (RootWindow == NULL) {
         return FALSE;
     }
@@ -331,11 +331,11 @@ static BOOL EnsureOnScreenDebugInfoWindow(LPDESKTOP Desktop) {
     I32 WindowWidth;
     I32 WindowHeight;
 
-    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) {
+    if (Desktop == NULL) {
         return FALSE;
     }
 
-    RootWindow = (HANDLE)Desktop->Window;
+    RootWindow = GetDesktopWindow((HANDLE)Desktop);
     if (RootWindow == NULL) {
         return FALSE;
     }
@@ -408,11 +408,11 @@ BOOL StartupDesktopComponentsInitialize(LPDESKTOP Desktop) {
     BOOL LogViewerResult;
     BOOL OnScreenDebugInfoResult;
 
-    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) {
+    if (Desktop == NULL) {
         return FALSE;
     }
 
-    RootWindow = (HANDLE)Desktop->Window;
+    RootWindow = GetDesktopWindow((HANDLE)Desktop);
     if (RootWindow == NULL) {
         return FALSE;
     }

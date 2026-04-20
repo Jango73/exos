@@ -41,7 +41,7 @@ BOOL KillTaskForCaller(LPPROCESS Caller, LPTASK Task, BOOL AllowAdminOverride) {
         return FALSE;
     }
 
-    return KillTask(Task);
+    return KernelKillTask(Task);
 }
 
 /************************************************************************/

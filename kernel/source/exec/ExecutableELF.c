@@ -22,7 +22,7 @@
 
 \************************************************************************/
 
-#include "exec/ExecutableELF.h"
+#include "ExecutableELF-Private.h"
 
 #include "log/Log.h"
 #include "text/CoreString.h"
@@ -86,38 +86,6 @@ typedef struct __attribute__((packed)) tag_EXOS_ELF64_PHDR {
     U64 p_align;
 } EXOS_ELF64_PHDR;
 
-/************************************************************************/
-// Type definitions
-
-typedef struct tag_ELF_FILE_HEADER {
-    UINT EntryPoint;
-    UINT ProgramHeaderOffset;
-    UINT ProgramHeaderEntrySize;
-    U16 ProgramHeaderCount;
-} ELF_FILE_HEADER, *LPELF_FILE_HEADER;
-
-typedef struct tag_ELF_PROGRAM_HEADER {
-    U32 Type;
-    U32 Flags;
-    UINT Offset;
-    UINT VirtualAddress;
-    UINT FileSize;
-    UINT MemorySize;
-} ELF_PROGRAM_HEADER, *LPELF_PROGRAM_HEADER;
-
-typedef struct tag_ELF_LAYOUT_INFO {
-    UINT CodeMin;
-    UINT CodeMax;
-    UINT DataMin;
-    UINT DataMax;
-    UINT BssMin;
-    UINT BssMax;
-    BOOL HasLoadable;
-    BOOL HasCode;
-    BOOL HasInterp;
-} ELF_LAYOUT_INFO, *LPELF_LAYOUT_INFO;
-
-/************************************************************************/
 // Local helpers
 
 static U32 ELFMakeSig(const U8 Ident[EI_NIDENT]) {
@@ -141,7 +109,7 @@ static BOOL ELFIsData(U32 Flags) { return (Flags & PF_W) != 0 || ((Flags & PF_X)
  * @param Out Receives the sum on success.
  * @return FALSE on overflow.
  */
-static BOOL AddUIntOverflow(UINT Left, UINT Right, UINT* Out) {
+BOOL AddUIntOverflow(UINT Left, UINT Right, UINT* Out) {
     UINT Result = Left + Right;
 
     if (Result < Left) return FALSE;
@@ -156,7 +124,7 @@ static BOOL AddUIntOverflow(UINT Left, UINT Right, UINT* Out) {
  * @param File Source file.
  * @param FileOperation Receives initialized operation state.
  */
-static void ELFInitializeFileOperation(LPFILE File, LPFILE_OPERATION FileOperation) {
+void ELFInitializeFileOperation(LPFILE File, LPFILE_OPERATION FileOperation) {
     FileOperation->Header.Size = sizeof(FILE_OPERATION);
     FileOperation->Header.Version = EXOS_ABI_VERSION;
     FileOperation->Header.Flags = 0;
@@ -175,7 +143,7 @@ static void ELFInitializeFileOperation(LPFILE File, LPFILE_OPERATION FileOperati
  * @param Size Number of bytes to read.
  * @return TRUE on success.
  */
-static BOOL ELFReadBytes(LPFILE_OPERATION FileOperation, UINT Offset, LPVOID Buffer, UINT Size) {
+BOOL ELFReadBytes(LPFILE_OPERATION FileOperation, UINT Offset, LPVOID Buffer, UINT Size) {
     if (Offset > 0xFFFFFFFF) return FALSE;
     if (Size > 0xFFFFFFFF) return FALSE;
 
@@ -196,7 +164,7 @@ static BOOL ELFReadBytes(LPFILE_OPERATION FileOperation, UINT Offset, LPVOID Buf
  * @param Ident Receives EI_NIDENT bytes.
  * @return TRUE when the file starts with a supported ELF signature.
  */
-static BOOL ELFReadIdent(LPFILE_OPERATION FileOperation, U32 FileSize, U8 Ident[EI_NIDENT]) {
+BOOL ELFReadIdent(LPFILE_OPERATION FileOperation, U32 FileSize, U8 Ident[EI_NIDENT]) {
     if (FileSize < EI_NIDENT) return FALSE;
     if (!ELFReadBytes(FileOperation, 0, Ident, EI_NIDENT)) return FALSE;
     return ELFMakeSig(Ident) == ELF_SIGNATURE;
@@ -213,7 +181,7 @@ static BOOL ELFReadIdent(LPFILE_OPERATION FileOperation, U32 FileSize, U8 Ident[
  * @param Header Receives normalized header values.
  * @return TRUE on success.
  */
-static BOOL ELFReadHeader(
+BOOL ELFReadHeader(
     LPFILE_OPERATION FileOperation,
     U32 FileSize,
     U8 Class,
@@ -238,11 +206,13 @@ static BOOL ELFReadHeader(
 
         if (RawHeader.e_ident[EI_DATA] != ELFDATA2LSB) return FALSE;
         if (RawHeader.e_version != EV_CURRENT) return FALSE;
-        if (RawHeader.e_type != ET_EXEC) return FALSE;
         if (RawHeader.e_machine != EM_386) return FALSE;
         if (RawHeader.e_phnum == 0) return FALSE;
         if (RawHeader.e_phentsize < sizeof(EXOS_ELF32_PHDR)) return FALSE;
 
+        Header->Type = RawHeader.e_type;
+        Header->Machine = RawHeader.e_machine;
+        Header->Class = Class;
         Header->EntryPoint = (UINT)RawHeader.e_entry;
         Header->ProgramHeaderOffset = (UINT)RawHeader.e_phoff;
         Header->ProgramHeaderEntrySize = (UINT)RawHeader.e_phentsize;
@@ -267,13 +237,15 @@ static BOOL ELFReadHeader(
 
         if (RawHeader.e_ident[EI_DATA] != ELFDATA2LSB) return FALSE;
         if (RawHeader.e_version != EV_CURRENT) return FALSE;
-        if (RawHeader.e_type != ET_EXEC) return FALSE;
         if (RawHeader.e_machine != EM_X86_64) return FALSE;
         if (RawHeader.e_phnum == 0) return FALSE;
         if (RawHeader.e_phentsize < sizeof(EXOS_ELF64_PHDR)) return FALSE;
         if (RawHeader.e_phoff > 0xFFFFFFFF) return FALSE;
         if (RawHeader.e_entry > 0xFFFFFFFF) return FALSE;
 
+        Header->Type = RawHeader.e_type;
+        Header->Machine = RawHeader.e_machine;
+        Header->Class = Class;
         Header->EntryPoint = (UINT)RawHeader.e_entry;
         Header->ProgramHeaderOffset = (UINT)RawHeader.e_phoff;
         Header->ProgramHeaderEntrySize = (UINT)RawHeader.e_phentsize;
@@ -295,7 +267,7 @@ static BOOL ELFReadHeader(
  * @param Header Normalized ELF header.
  * @return TRUE when the program header table is fully readable.
  */
-static BOOL ELFValidateProgramHeaderTable(U32 FileSize, const ELF_FILE_HEADER* Header) {
+BOOL ELFValidateProgramHeaderTable(U32 FileSize, const ELF_FILE_HEADER* Header) {
     UINT ProgramHeaderTableSize;
     UINT ProgramHeaderTableEnd;
 
@@ -318,7 +290,7 @@ static BOOL ELFValidateProgramHeaderTable(U32 FileSize, const ELF_FILE_HEADER* H
  * @param ProgramHeader Receives normalized program header values.
  * @return TRUE on success.
  */
-static BOOL ELFReadProgramHeader(
+BOOL ELFReadProgramHeader(
     LPFILE_OPERATION FileOperation,
     const ELF_FILE_HEADER* Header,
     U8 Class,
@@ -346,6 +318,7 @@ static BOOL ELFReadProgramHeader(
         ProgramHeader->VirtualAddress = (UINT)RawHeader.p_vaddr;
         ProgramHeader->FileSize = (UINT)RawHeader.p_filesz;
         ProgramHeader->MemorySize = (UINT)RawHeader.p_memsz;
+        ProgramHeader->Alignment = (UINT)RawHeader.p_align;
         return TRUE;
     }
 
@@ -365,6 +338,7 @@ static BOOL ELFReadProgramHeader(
         ProgramHeader->VirtualAddress = (UINT)RawHeader.p_vaddr;
         ProgramHeader->FileSize = (UINT)RawHeader.p_filesz;
         ProgramHeader->MemorySize = (UINT)RawHeader.p_memsz;
+        ProgramHeader->Alignment = (UINT)RawHeader.p_align;
         return TRUE;
     }
 #endif
@@ -401,7 +375,7 @@ static void ELFResetLayout(LPELF_LAYOUT_INFO Layout) {
  * @param Layout Receives computed ranges and flags.
  * @return TRUE on success.
  */
-static BOOL ELFAnalyzeLayout(
+BOOL ELFAnalyzeLayout(
     LPFILE_OPERATION FileOperation,
     U32 FileSize,
     const ELF_FILE_HEADER* Header,
@@ -479,7 +453,7 @@ static BOOL ELFAnalyzeLayout(
  * @param Layout Computed layout ranges.
  * @param Info Receives executable information.
  */
-static void ELFStoreExecutableInfo(
+void ELFStoreExecutableInfo(
     const ELF_FILE_HEADER* Header,
     const ELF_LAYOUT_INFO* Layout,
     LPEXECUTABLE_INFO Info
@@ -597,45 +571,6 @@ static BOOL ELFLoadSegments(
     return FALSE;
 }
 
-/************************************************************************/
-// GetExecutableInfo_ELF
-// Reads ELF header and program headers, classifies segments, computes layout.
-// COMMENTS & LOGS IN ENGLISH (per coding guideline)
-
-BOOL GetExecutableInfo_ELF(LPFILE File, LPEXECUTABLE_INFO Info) {
-    FILE_OPERATION FileOperation;
-    ELF_FILE_HEADER Header;
-    ELF_LAYOUT_INFO Layout;
-    U32 FileSize;
-    U8 Ident[EI_NIDENT];
-    U8 Class;
-
-    if (File == NULL) return FALSE;
-    if (Info == NULL) return FALSE;
-
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Enter"));
-
-    ELFInitializeFileOperation(File, &FileOperation);
-
-    FileSize = GetFileSize(File);
-    if (!ELFReadIdent(&FileOperation, FileSize, Ident)) goto Out_Error;
-
-    Class = Ident[EI_CLASS];
-    if (!ELFReadHeader(&FileOperation, FileSize, Class, Ident, &Header)) goto Out_Error;
-    if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
-    if (!ELFAnalyzeLayout(&FileOperation, FileSize, &Header, Class, &Layout)) goto Out_Error;
-
-    ELFStoreExecutableInfo(&Header, &Layout, Info);
-
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Exit (success)"));
-    return TRUE;
-
-Out_Error:
-    DEBUG(TEXT("[GetExecutableInfo_ELF] Exit (error)"));
-    return FALSE;
-}
-
-/************************************************************************/
 // LoadExecutable_ELF
 // Loads PT_LOAD segments into the provided base addresses, zero-fills BSS,
 // and fixes up the effective entry point.
@@ -664,6 +599,7 @@ BOOL LoadExecutable_ELF(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LI
     Class = Ident[EI_CLASS];
     if (!ELFReadHeader(&FileOperation, FileSize, Class, Ident, &Header)) goto Out_Error;
     if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
+    if (Header.Type != ET_EXEC) goto Out_Error;
     if (!ELFAnalyzeLayout(&FileOperation, FileSize, &Header, Class, &Layout)) goto Out_Error;
     if (!ELFLoadSegments(&FileOperation, FileSize, &Header, &Layout, Class, Info, CodeBase, DataBase)) goto Out_Error;
 

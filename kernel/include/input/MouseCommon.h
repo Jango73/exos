@@ -28,8 +28,9 @@
 /************************************************************************/
 
 #include "Base.h"
-#include "sync/Mutex.h"
 #include "input/Mouse.h"
+#include "sync/DeferredWork.h"
+#include "sync/Mutex.h"
 
 /************************************************************************/
 // Typedefs
@@ -48,7 +49,7 @@ typedef struct tag_MOUSE_COMMON_CONTEXT {
     I32 DeltaY;
     U32 Buttons;
     MOUSE_PACKET_BUFFER Packet;
-    U32 DeferredHandle;
+    DEFERRED_WORK_TOKEN DeferredWorkToken;
 } MOUSE_COMMON_CONTEXT, *LPMOUSE_COMMON_CONTEXT;
 
 /************************************************************************/

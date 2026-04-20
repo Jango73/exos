@@ -43,6 +43,7 @@ Runtime types:
 - **int** (tracked when integer-valued)
 - **string**
 - **array** (sparse, auto-grown)
+- **object** (dynamic name/value container, reference semantics)
 - **host-handle** (opaque reference provided by the host)
 
 Numeric coercion:
@@ -50,7 +51,7 @@ Numeric coercion:
 - `0` is **false**, nonzero is **true**.
 - Comparisons yield `1.0` or `0.0`.
 
-Strings are immutable. Arrays can contain mixed values.
+Strings are immutable. Arrays can contain mixed values. Objects can contain mixed values and nested objects.
 
 String operators:
 - `+`: text concatenation when either operand is a string
@@ -61,6 +62,7 @@ String operators:
 ## 3) Variables and assignment
 
 - `x = expression;`
+- `obj.property = expression;`
 - Variables auto-declare in current scope.
 - Lookups search upward through scopes.
 - Host-registered symbols cannot be reassigned.
@@ -95,7 +97,36 @@ val = a[0];
 
 ---
 
-## 5) Expressions
+## 5) Objects
+
+- `{}` creates an empty native E0 object.
+- Properties are created on first assignment.
+- Property reads require the property to exist.
+- Property writes require every intermediate value in the dotted path to already be an object.
+- Objects use reference semantics: assigning one object to another variable copies the reference, not the whole content.
+
+```text
+user = {};
+user.name = "alice";
+user.settings = {};
+user.settings.theme = "light";
+alias = user;
+alias.name = "shared";
+```
+
+Reading `user.missing` raises `UNDEFINED_VAR`.
+
+Writing through a non-object intermediate raises `TYPE_MISMATCH`:
+
+```text
+user = {};
+user.name = 7;
+user.name.value = 1;
+```
+
+---
+
+## 6) Expressions
 
 Operator precedence (high → low):
 1. Parentheses
@@ -119,7 +150,7 @@ trimmed = "foobarfoo" - "foo";
 
 ---
 
-## 6) Host interop: functions, properties, and commands
+## 7) Host interop: functions, properties, and commands
 
 ### Function calls
 Syntax: `name(expr1, expr2, ...)`
@@ -134,7 +165,9 @@ kill(task[0].handle);
 ```
 
 ### Property access
-`base.property` resolves through the host’s descriptor.
+`base.property` resolves in two branches:
+- native E0 objects use their internal dynamic property table
+- host handles resolve through the host descriptor callbacks
 
 ```text
 user.name;
@@ -155,7 +188,7 @@ echo hello
 
 ---
 
-## 7) Control flow
+## 8) Control flow
 
 ### If / Else
 ```text
@@ -181,7 +214,7 @@ Capped at 1000 iterations.
 
 ---
 
-## 8) Errors
+## 9) Errors
 
 - `SYNTAX_ERROR`
 - `UNMATCHED_BRACE`
@@ -198,7 +231,7 @@ ScriptGetErrorMessage(ctx);
 
 ---
 
-## 9) Embedding API (C/C++)
+## 10) Embedding API (C/C++)
 
 ### Context
 ```c
@@ -223,8 +256,8 @@ Shell host functions exposed in the kernel integration include:
 - `print(...)`
 - `exec(...)`
 - `kill(handle)`
-- `smoke_test_multi_args(a, b, c, d)` for automated smoke validation of multi-argument host calls
-- `set_graphics_driver(driver_alias, width, height, bpp)`
+- `smokeTestMultiArgs(a, b, c, d)` for automated smoke validation of multi-argument host calls
+- `setGraphicsDriver(driverAlias, width, height, bpp)`
 
 ### Variables
 ```c
@@ -240,6 +273,13 @@ ScriptSetArrayElement(...);
 ScriptGetArrayElement(...);
 ```
 
+### Objects
+```c
+ScriptCreateObject(...);
+ScriptSetObjectProperty(...);
+ScriptGetObjectProperty(...);
+```
+
 ### Host symbols
 ```c
 ScriptRegisterHostSymbol(...);
@@ -248,7 +288,7 @@ ScriptUnregisterHostSymbol(...);
 
 ---
 
-## 10) Example embedding
+## 11) Example embedding
 
 ```c
 static U32 Exec(const char* cmd, void* u) {

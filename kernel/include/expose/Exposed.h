@@ -147,6 +147,27 @@ SCRIPT_ERROR ProcessArrayGetProperty(
 extern const SCRIPT_HOST_DESCRIPTOR ProcessDescriptor;
 extern const SCRIPT_HOST_DESCRIPTOR ProcessArrayDescriptor;
 
+SCRIPT_ERROR AccountGetProperty(
+    LPVOID Context,
+    SCRIPT_HOST_HANDLE Parent,
+    LPCSTR Property,
+    LPSCRIPT_VALUE OutValue);
+
+SCRIPT_ERROR AccountArrayGetProperty(
+    LPVOID Context,
+    SCRIPT_HOST_HANDLE Parent,
+    LPCSTR Property,
+    LPSCRIPT_VALUE OutValue);
+
+SCRIPT_ERROR AccountArrayGetElement(
+    LPVOID Context,
+    SCRIPT_HOST_HANDLE Parent,
+    U32 Index,
+    LPSCRIPT_VALUE OutValue);
+
+extern const SCRIPT_HOST_DESCRIPTOR AccountDescriptor;
+extern const SCRIPT_HOST_DESCRIPTOR AccountArrayDescriptor;
+
 SCRIPT_ERROR TaskGetProperty(
     LPVOID Context,
     SCRIPT_HOST_HANDLE Parent,
@@ -400,6 +421,25 @@ SCRIPT_ERROR GraphicsModeGetProperty(
 extern const SCRIPT_HOST_DESCRIPTOR GraphicsDescriptor;
 extern const SCRIPT_HOST_DESCRIPTOR GraphicsModeDescriptor;
 SCRIPT_HOST_HANDLE GetGraphicsRootHandle(void);
+
+/************************************************************************/
+
+SCRIPT_ERROR ClockGetProperty(
+    LPVOID Context,
+    SCRIPT_HOST_HANDLE Parent,
+    LPCSTR Property,
+    LPSCRIPT_VALUE OutValue);
+
+SCRIPT_ERROR ClockDateTimeGetProperty(
+    LPVOID Context,
+    SCRIPT_HOST_HANDLE Parent,
+    LPCSTR Property,
+    LPSCRIPT_VALUE OutValue);
+
+extern const SCRIPT_HOST_DESCRIPTOR ClockDescriptor;
+extern const SCRIPT_HOST_DESCRIPTOR ClockBootDateTimeDescriptor;
+extern const SCRIPT_HOST_DESCRIPTOR ClockCurrentDateTimeDescriptor;
+SCRIPT_HOST_HANDLE GetClockRootHandle(void);
 
 /************************************************************************/
 

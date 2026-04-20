@@ -60,6 +60,8 @@ static void ShellPrintScriptReturnValue(SCRIPT_VAR_TYPE ReturnType, SCRIPT_VAR_V
         StringPrintFormat(ReturnText, TEXT("%d"), ReturnValue.Integer);
     } else if (ReturnType == SCRIPT_VAR_FLOAT) {
         StringPrintFormat(ReturnText, TEXT("%f"), ReturnValue.Float);
+    } else if (ReturnType == SCRIPT_VAR_OBJECT) {
+        StringCopy(ReturnText, TEXT("[object]"));
     } else {
         StringCopy(ReturnText, TEXT("unsupported"));
     }
@@ -68,6 +70,14 @@ static void ShellPrintScriptReturnValue(SCRIPT_VAR_TYPE ReturnType, SCRIPT_VAR_V
     TEST(TEXT("[CMD_script] %s"), ReturnText);
 }
 
+/***************************************************************************/
+
+/**
+ * @brief Run one script file and print its returned value when present.
+ * @param Context Shell context.
+ * @param ScriptFileName Qualified script file name.
+ * @return TRUE when the script completed successfully, FALSE otherwise.
+ */
 BOOL RunScriptFile(LPSHELLCONTEXT Context, LPCSTR ScriptFileName) {
     FILE_OPEN_INFO FileOpenInfo;
     FILE_OPERATION FileOperation;
@@ -156,28 +166,30 @@ Out:
  * @brief Run one embedded E0 script from a static kernel string.
  * @param Context Shell context.
  * @param ScriptText E0 source text.
- * @return TRUE on success.
+ * @return `DF_RETURN_*` status code. When the script returns an integer,
+ * that integer becomes the command status.
  */
-BOOL RunEmbeddedScript(LPSHELLCONTEXT Context, LPCSTR ScriptText) {
+UINT RunEmbeddedScript(LPSHELLCONTEXT Context, LPCSTR ScriptText) {
     SCRIPT_VAR_TYPE ReturnType;
     SCRIPT_VAR_VALUE ReturnValue;
     SCRIPT_ERROR Error = SCRIPT_OK;
 
     if (Context == NULL || ScriptText == NULL || Context->ScriptContext == NULL) {
-        return FALSE;
+        return DF_RETURN_BAD_PARAMETER;
     }
 
     Error = ScriptExecute(Context->ScriptContext, ScriptText);
     if (Error != SCRIPT_OK) {
-        ConsolePrint(TEXT("Error: %s\n"), ScriptGetErrorMessage(Context->ScriptContext));
-        return FALSE;
+        return DF_RETURN_GENERIC;
     }
 
     if (ScriptGetReturnValue(Context->ScriptContext, &ReturnType, &ReturnValue)) {
-        ShellPrintScriptReturnValue(ReturnType, ReturnValue);
+        if (ReturnType == SCRIPT_VAR_INTEGER) {
+            return (UINT)ReturnValue.Integer;
+        }
     }
 
-    return TRUE;
+    return DF_RETURN_SUCCESS;
 }
 
 /***************************************************************************/

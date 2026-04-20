@@ -407,6 +407,9 @@ void ScriptDestroyAST(LPAST_NODE Node) {
             if (Node->Data.Assignment.ArrayIndexExpr) {
                 ScriptDestroyAST(Node->Data.Assignment.ArrayIndexExpr);
             }
+            if (Node->Data.Assignment.PropertyBaseExpression) {
+                ScriptDestroyAST(Node->Data.Assignment.PropertyBaseExpression);
+            }
             break;
 
         case AST_IF:
@@ -524,11 +527,7 @@ void ScriptClearReturnValue(LPSCRIPT_CONTEXT Context) {
     }
 
     if (Context->HasReturnValue) {
-        if (Context->ReturnType == SCRIPT_VAR_STRING && Context->ReturnValue.String != NULL) {
-            ScriptFree(Context, Context->ReturnValue.String);
-        } else if (Context->ReturnType == SCRIPT_VAR_ARRAY && Context->ReturnValue.Array != NULL) {
-            ScriptDestroyArray(Context->ReturnValue.Array);
-        }
+        ScriptReleaseStoredValue(Context, Context->ReturnType, &Context->ReturnValue);
     }
 
     Context->HasReturnValue = FALSE;
@@ -555,26 +554,14 @@ BOOL ScriptStoreReturnValue(LPSCRIPT_CONTEXT Context, const SCRIPT_VALUE* Value)
     Context->HasReturnValue = TRUE;
     Context->ReturnTriggered = TRUE;
 
-    if (Value->Type == SCRIPT_VAR_STRING) {
-        U32 Length;
-
-        if (Value->Value.String == NULL) {
-            Context->ReturnValue.String = NULL;
-            return TRUE;
-        }
-
-        Length = StringLength(Value->Value.String) + 1;
-        Context->ReturnValue.String = (LPSTR)ScriptAlloc(Context, Length);
-        if (Context->ReturnValue.String == NULL) {
-            ScriptClearReturnValue(Context);
-            return FALSE;
-        }
-
-        StringCopy(Context->ReturnValue.String, Value->Value.String);
-        return TRUE;
+    if (ScriptStoreObjectValue(
+            Context,
+            Value->Type,
+            &Value->Value,
+            &Context->ReturnValue) != SCRIPT_OK) {
+        ScriptClearReturnValue(Context);
+        return FALSE;
     }
-
-    Context->ReturnValue = Value->Value;
     return TRUE;
 }
 
@@ -610,12 +597,19 @@ void ScriptCalculateLineColumn(LPCSTR Input, U32 Position, U32* Line, U32* Colum
  * @return Script error code
  */
 SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
+    SCRIPT_VAR_VALUE VarValue;
+    SCRIPT_VAR_TYPE VarType;
+    LPSCRIPT_CONTEXT Context;
+
     if (Node == NULL || Node->Type != AST_ASSIGNMENT) {
         return SCRIPT_ERROR_SYNTAX;
     }
 
+    Context = Parser->Context;
+
     // Prevent assignment to host-exposed identifiers
-    if (ScriptFindHostSymbol(&Parser->Context->HostRegistry, Node->Data.Assignment.VarName)) {
+    if (!Node->Data.Assignment.IsPropertyAccess &&
+        ScriptFindHostSymbol(&Context->HostRegistry, Node->Data.Assignment.VarName)) {
         return SCRIPT_ERROR_SYNTAX;
     }
 
@@ -632,15 +626,15 @@ SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
         return SCRIPT_ERROR_TYPE_MISMATCH;
     }
 
-    SCRIPT_VAR_VALUE VarValue;
-    SCRIPT_VAR_TYPE VarType;
-
     if (EvaluatedValue.Type == SCRIPT_VAR_STRING) {
         VarType = SCRIPT_VAR_STRING;
         VarValue.String = EvaluatedValue.Value.String;
     } else if (EvaluatedValue.Type == SCRIPT_VAR_INTEGER) {
         VarType = SCRIPT_VAR_INTEGER;
         VarValue.Integer = EvaluatedValue.Value.Integer;
+    } else if (EvaluatedValue.Type == SCRIPT_VAR_OBJECT) {
+        VarType = SCRIPT_VAR_OBJECT;
+        VarValue.Object = EvaluatedValue.Value.Object;
     } else {
         F32 Numeric = (EvaluatedValue.Type == SCRIPT_VAR_FLOAT) ? EvaluatedValue.Value.Float : 0.0f;
         if (IsInteger(Numeric)) {
@@ -651,8 +645,6 @@ SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
             VarValue.Float = Numeric;
         }
     }
-
-    LPSCRIPT_CONTEXT Context = Parser->Context;
 
     if (Node->Data.Assignment.IsArrayAccess) {
         // Evaluate array index
@@ -677,6 +669,32 @@ SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
         if (ScriptSetArrayElement(Context, Node->Data.Assignment.VarName, ArrayIndex, VarType, VarValue) == NULL) {
             ScriptValueRelease(&EvaluatedValue);
             return SCRIPT_ERROR_SYNTAX;
+        }
+    } else if (Node->Data.Assignment.IsPropertyAccess) {
+        SCRIPT_VALUE BaseValue = ScriptEvaluateExpression(
+            Parser,
+            Node->Data.Assignment.PropertyBaseExpression,
+            &Error);
+        if (Error != SCRIPT_OK) {
+            ScriptValueRelease(&EvaluatedValue);
+            ScriptValueRelease(&BaseValue);
+            return Error;
+        }
+
+        if (BaseValue.Type != SCRIPT_VAR_OBJECT || BaseValue.Value.Object == NULL) {
+            ScriptValueRelease(&EvaluatedValue);
+            ScriptValueRelease(&BaseValue);
+            return SCRIPT_ERROR_TYPE_MISMATCH;
+        }
+
+        Error = ScriptSetObjectProperty(
+            BaseValue.Value.Object,
+            Node->Data.Assignment.PropertyName,
+            &EvaluatedValue);
+        ScriptValueRelease(&BaseValue);
+        if (Error != SCRIPT_OK) {
+            ScriptValueRelease(&EvaluatedValue);
+            return Error;
         }
     } else {
         // Set regular variable in current scope

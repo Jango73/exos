@@ -28,6 +28,7 @@
 #include "memory/Memory.h"
 #include "console/Console.h"
 #include "process/Process.h"
+#include "process/Schedule.h"
 #include "arch/x86-32/x86-32-Log.h"
 #include "process/Stack.h"
 #include "text/CoreString.h"
@@ -212,6 +213,8 @@ DRIVER DATA_SECTION InterruptsDriver = {
     .Command = InterruptsDriverCommands};
 
 /************************************************************************/
+
+#define GDT_USER_TLS_FIRST_INDEX (GDT_TSS_INDEX + 1)
 
 /**
  * @brief Retrieves the interrupts driver descriptor.
@@ -435,6 +438,122 @@ BOOL SegmentInfoToString(LPSEGMENT_INFO This, LPSTR Text) {
     return FALSE;
 }
 
+/************************************************************************/
+
+/**
+ * @brief Find a free GDT descriptor for one user TLS anchor.
+ *
+ * @return Free descriptor index or zero.
+ */
+static UINT FindFreeUserTlsDescriptorIndex(void) {
+    if (Kernel_x86_32.GDT == NULL) {
+        return 0;
+    }
+
+    for (UINT Index = GDT_USER_TLS_FIRST_INDEX; Index < GDT_NUM_DESCRIPTORS; Index++) {
+        if (Kernel_x86_32.GDT[Index].Present == 0) {
+            return Index;
+        }
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Release the GDT descriptor used by a task TLS anchor.
+ *
+ * @param Task Target task.
+ */
+static void ReleaseUserTlsDescriptor(struct tag_TASK* Task) {
+    if (Task == NULL || Task->Arch.UserTlsDescriptorIndex == 0 || Kernel_x86_32.GDT == NULL) {
+        return;
+    }
+
+    MemorySet(Kernel_x86_32.GDT + Task->Arch.UserTlsDescriptorIndex, 0, sizeof(SEGMENT_DESCRIPTOR));
+    Task->Arch.UserTlsDescriptorIndex = 0;
+    Task->Arch.UserTlsSelector = SELECTOR_NULL;
+    Task->Arch.Context.Registers.FS = SELECTOR_NULL;
+    Task->Arch.Context.Registers.GS = SELECTOR_NULL;
+    if (Task == GetCurrentTask()) {
+        SetFS(Task->Arch.Context.Registers.FS);
+        SetGS(Task->Arch.Context.Registers.GS);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Synchronize syscall return segment registers with the current task.
+ *
+ * @param StackPointer System call stack pointer at the saved GS slot.
+ */
+void TaskSynchronizeCurrentSystemCallSegments(LINEAR StackPointer) {
+    LPTASK Task;
+    U32* Stack;
+
+    Task = GetCurrentTask();
+    Stack = (U32*)StackPointer;
+
+    if (Task == NULL || Stack == NULL) {
+        return;
+    }
+
+    Stack[0] = Task->Arch.Context.Registers.GS;
+    Stack[1] = Task->Arch.Context.Registers.FS;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Set the x86-32 user TLS anchor for a task.
+ *
+ * @param Task Target task.
+ * @param Anchor User thread control block base, or zero.
+ * @return TRUE when the task architecture state was updated.
+ */
+BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
+    UINT DescriptorIndex;
+    LPSEGMENT_DESCRIPTOR Descriptor;
+    SELECTOR Selector;
+
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        if (Task->OwnerProcess == NULL || Task->OwnerProcess->Privilege != CPU_PRIVILEGE_USER || Anchor == 0) {
+            ReleaseUserTlsDescriptor(Task);
+            return TRUE;
+        }
+
+        DescriptorIndex = Task->Arch.UserTlsDescriptorIndex;
+        if (DescriptorIndex == 0) {
+            DescriptorIndex = FindFreeUserTlsDescriptorIndex();
+            if (DescriptorIndex == 0) {
+                ERROR(TEXT("[TaskSetUserTlsAnchor] No free user TLS descriptor task=%p"), Task);
+                return FALSE;
+            }
+        }
+
+        Descriptor = Kernel_x86_32.GDT + DescriptorIndex;
+        InitSegmentDescriptor(Descriptor, GDT_TYPE_DATA);
+        Descriptor->Privilege = GDT_PRIVILEGE_USER;
+        SetSegmentDescriptorBase(Descriptor, (U32)Anchor);
+        SetSegmentDescriptorLimit(Descriptor, N_4GB);
+
+        Selector = MAKE_GDT_SELECTOR(DescriptorIndex, GDT_PRIVILEGE_USER);
+        Task->Arch.UserTlsDescriptorIndex = DescriptorIndex;
+        Task->Arch.UserTlsSelector = Selector;
+        Task->Arch.Context.Registers.FS = SELECTOR_NULL;
+        Task->Arch.Context.Registers.GS = Selector;
+        if (Task == GetCurrentTask()) {
+            SetFS(Task->Arch.Context.Registers.FS);
+            SetGS(Task->Arch.Context.Registers.GS);
+        }
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 /***************************************************************************/
 
 /**
@@ -442,7 +561,7 @@ BOOL SegmentInfoToString(LPSEGMENT_INFO This, LPSTR Text) {
  *
  * Allocates and clears the user and system stacks, seeds the interrupt frame
  * with the correct segment selectors, and configures the boot-time stack when
- * creating the main kernel task. The generic CreateTask routine handles the
+ * creating the main kernel task. The generic KernelCreateTask routine handles the
  * architecture-neutral bookkeeping and delegates the hardware specific work to
  * this helper.
  */
@@ -510,12 +629,14 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     Task->Arch.Context.Registers.CS = CodeSelector;
     Task->Arch.Context.Registers.DS = DataSelector;
     Task->Arch.Context.Registers.ES = DataSelector;
-    Task->Arch.Context.Registers.FS = DataSelector;
-    Task->Arch.Context.Registers.GS = DataSelector;
+    Task->Arch.Context.Registers.FS = (Process->Privilege == CPU_PRIVILEGE_USER) ? SELECTOR_NULL : DataSelector;
+    Task->Arch.Context.Registers.GS = (Process->Privilege == CPU_PRIVILEGE_USER) ? SELECTOR_NULL : DataSelector;
     Task->Arch.Context.Registers.SS = DataSelector;
     Task->Arch.Context.Registers.EFlags = EFLAGS_IF | EFLAGS_A1;
     Task->Arch.Context.Registers.CR3 = Process->PageDirectory;
     Task->Arch.Context.Registers.CR4 = CR4;
+    Task->Arch.UserTlsDescriptorIndex = 0;
+    Task->Arch.UserTlsSelector = SELECTOR_NULL;
 
     StackTop = Task->Arch.Stack.Base + Task->Arch.Stack.Size;
     SysStackTop = Task->Arch.SystemStack.Base + Task->Arch.SystemStack.Size;

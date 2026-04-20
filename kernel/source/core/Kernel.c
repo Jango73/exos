@@ -292,26 +292,20 @@ static void InitializeFocusState(void) {
 /************************************************************************/
 
 /**
- * @brief Initializes the kernel minimum quantum time based on environment.
+ * @brief Initializes the kernel minimum quantum time.
  *
- * Uses BARE_METAL compile-time flag to determine quantum time.
- * Also accounts for debug output overhead which slows execution.
+ * Accounts for debug output overhead which slows execution.
  * Sets Kernel.MinimumQuantum and Kernel.MaximumQuantum to appropriate value.
  */
 void InitializeQuantumTime(void) {
-    // Set base quantum time based on environment
-#if BARE_METAL == 1
-    SetMinimumQuantum(2);  // Shorter quantum for bare-metal
-#else
-    SetMinimumQuantum(10);  // Longer quantum for emulation/virtualization
-#endif
+    SetMinimumQuantum(1);
 
     if (SCHEDULING_DEBUG_OUTPUT == 1) {
         // Double quantum when scheduling debug is enabled (logs slow down execution)
         SetMinimumQuantum(GetMinimumQuantum() * 2);
     }
 
-    SetMaximumQuantum(GetMinimumQuantum() * 4);
+    SetMaximumQuantum(GetMinimumQuantum() * 8);
 }
 
 /************************************************************************/
@@ -380,7 +374,7 @@ void DumpCriticalInformation(void) {
     DEBUG(TEXT("  VMA_VIDEO = %p"), VMA_VIDEO);
     DEBUG(TEXT("  VMA_CONSOLE = %p"), VMA_CONSOLE);
     DEBUG(TEXT("  VMA_USER = %p"), VMA_USER);
-    DEBUG(TEXT("  VMA_LIBRARY = %p"), VMA_LIBRARY);
+    DEBUG(TEXT("  VMA_USER_LIMIT = %p"), VMA_USER_LIMIT);
     DEBUG(TEXT("  VMA_KERNEL = %p"), VMA_KERNEL);
 
     DEBUG(TEXT("Kernel startup info:"));
@@ -423,10 +417,11 @@ static void Welcome(void) {
     ConsolePrint(
         TEXT(
             "Extensible Operating System for %s computers\n"
-            "Version %u.%u.%u - Copyright (c) 1999-2025 Jango73\n"
+            "Version %u.%u.%u - Copyright (c) %u-%u Jango73\n"
             ),
         Text_Architecture,
-        EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH
+        EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH,
+        EXOS_COPYRIGHT_FROM, EXOS_COPYRIGHT_TO
         );
 
     ConsolePrint(TEXT("\n%s\n\n"), GetRandomQuote());
@@ -458,17 +453,6 @@ static void Welcome(void) {
 
 /************************************************************************/
 
-void KernelObjectDestructor(LPVOID Object) {
-    SAFE_USE_VALID(Object) {
-        LPLISTNODE Node = (LPLISTNODE)Object;
-        switch (Node->TypeID) {
-        case KOID_MUTEX: DeleteMutex((LPMUTEX)Node);
-        }
-    }
-}
-
-/************************************************************************/
-
 /**
  * @brief Create a kernel object with standard LISTNODE_FIELDS initialization.
  *
@@ -483,7 +467,7 @@ void KernelObjectDestructor(LPVOID Object) {
 LPVOID CreateKernelObject(UINT Size, U32 ObjectTypeID) {
     LPLISTNODE Object;
     U8 Identifier[UUID_BINARY_SIZE];
-    U64 ObjectID = U64_0;
+    U64 ObjectInstanceID = U64_0;
 
     Object = (LPLISTNODE)KernelHeapAlloc(Size);
 
@@ -496,17 +480,57 @@ LPVOID CreateKernelObject(UINT Size, U32 ObjectTypeID) {
 
     // Initialize LISTNODE_FIELDS
     UUID_Generate(Identifier);
-    ObjectID = UUID_ToU64(Identifier);
+    ObjectInstanceID = UUID_ToU64(Identifier);
 
     Object->TypeID = ObjectTypeID;
     Object->References = 1;
     Object->OwnerProcess = GetCurrentProcess();
-    Object->ID = ObjectID;
+    Object->InstanceID = ObjectInstanceID;
+    Object->Destructor = NULL;
     Object->Next = NULL;
     Object->Prev = NULL;
     Object->Parent = NULL;
 
     return Object;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Store one type-specific destructor on one kernel object.
+ *
+ * @param Object Target kernel object.
+ * @param Destructor Destructor function called when the object is purged.
+ */
+void SetKernelObjectDestructor(LPVOID Object, OBJECTDESTRUCTOR Destructor) {
+    LPLISTNODE Node = (LPLISTNODE)Object;
+
+    SAFE_USE(Node) {
+        Node->Destructor = Destructor;
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Destroy one kernel object through its registered destructor.
+ *
+ * @param Object Kernel object to destroy.
+ */
+void DestroyKernelObject(LPVOID Object) {
+    LPLISTNODE Node = (LPLISTNODE)Object;
+    OBJECTDESTRUCTOR Destructor = NULL;
+
+    SAFE_USE_VALID(Node) {
+        Destructor = Node->Destructor;
+
+        if (Destructor != NULL) {
+            Destructor(Node);
+        } else {
+            Node->TypeID = KOID_NONE;
+            KernelHeapFree(Node);
+        }
+    }
 }
 
 /************************************************************************/
@@ -553,10 +577,7 @@ void DeleteUnreferencedObjects(void) {
             if (Current->References == 0) {
                 // Remove from list first
                 ListRemove(List, Current);
-
-                // Mark as deleted and free memory
-                Current->TypeID = KOID_NONE;
-                KernelHeapFree(Current);
+                DestroyKernelObject(Current);
 
                 DeletedCount++;
             }
@@ -582,6 +603,7 @@ void DeleteUnreferencedObjects(void) {
     ProcessList(GetEventList(), TEXT("KernelEvent"));
     ProcessList(GetFileSystemList(), TEXT("FileSystem"));
     ProcessList(GetFileList(), TEXT("File"));
+    ProcessList(GetExecutableModuleImageList(), TEXT("ExecutableModuleImage"));
     ProcessList(GetTCPConnectionList(), TEXT("TCPConnection"));
     ProcessList(GetSocketList(), TEXT("Socket"));
 
@@ -659,16 +681,16 @@ void StoreObjectTerminationState(LPVOID Object, UINT ExitCode) {
             KernelHeapAlloc(sizeof(OBJECT_TERMINATION_STATE));
 
         SAFE_USE(TermState) {
-            U32 IdHigh = U64_High32(KernelObject->ID);
-            U32 IdLow = U64_Low32(KernelObject->ID);
+            U32 InstanceIDHigh = U64_High32(KernelObject->InstanceID);
+            U32 InstanceIDLow = U64_Low32(KernelObject->InstanceID);
 
             TermState->Object = KernelObject;
             TermState->ExitCode = ExitCode;
-            TermState->ID = KernelObject->ID;
+            TermState->InstanceID = KernelObject->InstanceID;
             CacheAdd(GetObjectTerminationCache(), TermState, OBJECT_TERMINATION_TTL_MS);
 
-            UNUSED(IdHigh);
-            UNUSED(IdLow);
+            UNUSED(InstanceIDHigh);
+            UNUSED(InstanceIDLow);
         }
 
         return;
@@ -736,14 +758,6 @@ static void UseConfiguration(void) {
 
         if (GetDoLogin() == FALSE) {
             ConsolePrint(TEXT("WARNING : Login sequence disabled\n"));
-        }
-
-        if (GetShowDesktop() == FALSE) {
-            ConsolePrint(TEXT("WARNING : Automatic desktop activation disabled\n"));
-        }
-
-        if (GetUseDeadlockMonitor() != FALSE) {
-            ConsolePrint(TEXT("WARNING : Mutex deadlock diagnostics enabled\n"));
         }
     }
 
@@ -984,7 +998,7 @@ static void KillActiveUserlandProcesses(void) {
  * @brief Terminates all kernel tasks except the main kernel task.
  *
  * Collects tasks attached to the kernel process and flags them dead
- * through KillTask(). The main kernel task is left running.
+ * through KernelKillTask(). The main kernel task is left running.
  */
 static void KillActiveKernelTasks(void) {
     LPLIST TasksToKill = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
@@ -1013,7 +1027,7 @@ static void KillActiveKernelTasks(void) {
         LPTASK Task = (LPTASK)Node;
         SAFE_USE_VALID_ID(Task, KOID_TASK) {
             DEBUG(TEXT("[KillActiveKernelTasks] Killing task %s"), Task->Name);
-            KillTask(Task);
+            KernelKillTask(Task);
         }
     }
 
@@ -1124,7 +1138,7 @@ void InitializeKernel(void) {
         TaskInfo.Flags = 0;
         StringCopy(TaskInfo.Name, TEXT("KernelMonitor"));
 
-        CreateTask(&KernelProcess, &TaskInfo);
+        KernelCreateTask(&KernelProcess, &TaskInfo);
         DEBUG(TEXT("[InitializeKernel] KernelMonitor task created"));
 
         //-------------------------------------
@@ -1144,7 +1158,7 @@ void InitializeKernel(void) {
         StringCopy(TaskInfo.Name, TEXT("ClockTestTask"));
 
         TaskInfo.Parameter = (LPVOID)(((Console.Width - 8) << 16) | 0);
-        CreateTask(&KernelProcess, &TaskInfo);
+        KernelCreateTask(&KernelProcess, &TaskInfo);
         */
 
         //-------------------------------------
@@ -1156,11 +1170,11 @@ void InitializeKernel(void) {
         TaskInfo.Func = Shell;
         TaskInfo.Parameter = NULL;
         TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
-        TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
+        TaskInfo.Priority = TASK_PRIORITY_HIGHER;
         TaskInfo.Flags = 0;
         StringCopy(TaskInfo.Name, TEXT("Shell"));
 
-        CreateTask(&KernelProcess, &TaskInfo);
+        KernelCreateTask(&KernelProcess, &TaskInfo);
         DEBUG(TEXT("[InitializeKernel] Shell task created"));
     }
 

@@ -25,7 +25,7 @@
 #ifndef USER_H_INCLUDED
 #define USER_H_INCLUDED
 
-#include "Base.h"
+#include "Types.h"
 
 /************************************************************************/
 
@@ -53,6 +53,9 @@ extern "C" {
 #define EXOS_VERSION_MAJOR 0
 #define EXOS_VERSION_MINOR 73
 #define EXOS_VERSION_PATCH 0
+
+#define EXOS_COPYRIGHT_FROM 1999
+#define EXOS_COPYRIGHT_TO 2026
 
 #define EXOS_VERSION MAKE_VERSION(EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR)
 
@@ -101,6 +104,13 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_GetProcessInfo 0x0000000A
 #define SYSCALL_GetProcessMemoryInfo 0x00000087
 #define SYSCALL_GetProfileInfo 0x00000089
+
+/************************************************************************/
+// Executable Module Services
+
+#define SYSCALL_LoadModule 0x00000091
+#define SYSCALL_GetModuleSymbol 0x00000092
+#define SYSCALL_ReleaseModule 0x00000093
 
 /************************************************************************/
 // Threading Services
@@ -196,11 +206,6 @@ typedef struct PACKED tag_ABI_HEADER {
 #define KEYMOD_ALT              0x00000004
 
 /************************************************************************/
-// Public userland API declarations
-
-BOOL GetLocalTime(LPDATETIME Time);
-
-/************************************************************************/
 // Authentication Services
 
 #define SYSCALL_Login 0x00000035
@@ -243,14 +248,14 @@ BOOL GetLocalTime(LPDATETIME Time);
 #define SYSCALL_GetWindowProp 0x00000051
 #define SYSCALL_GetWindowRect 0x00000052
 #define SYSCALL_GetWindowClientRect 0x0000007C
-#define SYSCALL_GetWindowParent 0x00000077
-#define SYSCALL_GetWindowChildCount 0x00000078
-#define SYSCALL_GetWindowChild 0x00000079
-#define SYSCALL_GetNextWindowSibling 0x0000007A
-#define SYSCALL_GetPreviousWindowSibling 0x0000007B
+#define SYSCALL_GetWindowParent 0x0000008B
+#define SYSCALL_GetWindowChildCount 0x0000008C
+#define SYSCALL_GetWindowChild 0x0000008D
+#define SYSCALL_GetNextWindowSibling 0x0000008E
+#define SYSCALL_GetPreviousWindowSibling 0x0000008F
 #define SYSCALL_RegisterWindowClass 0x0000007D
 #define SYSCALL_UnregisterWindowClass 0x0000007E
-#define SYSCALL_FindWindowClass 0x0000007F
+#define SYSCALL_FindWindowClass 0x00000090
 #define SYSCALL_WindowInheritsClass 0x00000083
 #define SYSCALL_ClearWindowStyle 0x00000084
 #define SYSCALL_ScreenPointToWindowPoint 0x00000085
@@ -301,7 +306,7 @@ BOOL GetLocalTime(LPDATETIME Time);
 
 /************************************************************************/
 
-#define SYSCALL_Last 0x0000008B
+#define SYSCALL_Last 0x00000094
 
 /************************************************************************/
 // Structure limits
@@ -321,6 +326,19 @@ typedef U32 (*WINDOWFUNC)(HANDLE, U32, U32, U32);
 
 // A function for volume enumeration
 typedef BOOL (*ENUMVOLUMESFUNC)(HANDLE, LPVOID);
+
+/************************************************************************/
+// A datetime
+
+typedef struct tag_DATETIME {
+    U32 Year : 26;              // 67 108 863
+    U32 Month : 4;              // 15
+    U32 Day : 6;                // 63
+    U32 Hour : 6;               // 63
+    U32 Minute : 6;             // 63
+    U32 Second : 6;             // 63
+    U32 Milli : 10;             // 1023
+} DATETIME, *LPDATETIME;
 
 typedef struct PACKED tag_SYSTEM_INFO {
     ABI_HEADER Header;
@@ -390,6 +408,22 @@ typedef struct PACKED tag_PROFILE_QUERY_INFO {
     UINT DroppedCount;
     LPPROFILE_ENTRY_INFO Entries;
 } PROFILE_QUERY_INFO, *LPPROFILE_QUERY_INFO;
+
+typedef struct PACKED tag_MODULE_LOAD_INFO {
+    ABI_HEADER Header;
+    LPCSTR Path;
+    HANDLE Module;
+    U32 Flags;
+    U32 ModuleIdentifierHigh;
+    U32 ModuleIdentifierLow;
+} MODULE_LOAD_INFO, *LPMODULE_LOAD_INFO;
+
+typedef struct PACKED tag_MODULE_SYMBOL_INFO {
+    ABI_HEADER Header;
+    HANDLE Module;
+    LPCSTR Name;
+    LINEAR Address;
+} MODULE_SYMBOL_INFO, *LPMODULE_SYMBOL_INFO;
 
 typedef struct PACKED tag_CONSOLE_BLIT_BUFFER {
     UINT X;
@@ -834,62 +868,8 @@ typedef struct PACKED tag_SOCKET_ADDRESS_INET {
     U8  Zero[8];            // Padding to 16 bytes
 } SOCKET_ADDRESS_INET, *LPSOCKET_ADDRESS_INET;
 
-/************************************************************************/
-// Public userland windowing API declarations
-
-HANDLE RegisterWindowClass(LPCSTR ClassName, HANDLE BaseClass, LPCSTR BaseClassName, WINDOWFUNC Function, U32 ClassDataSize);
-BOOL UnregisterWindowClass(HANDLE WindowClass, LPCSTR ClassName);
-HANDLE FindWindowClass(LPCSTR ClassName);
-BOOL WindowInheritsClass(HANDLE Window, HANDLE WindowClass, LPCSTR ClassName);
-HANDLE CreateWindow(LPWINDOW_INFO Info);
-BOOL DeleteWindow(HANDLE Window);
-HANDLE FindWindow(HANDLE StartWindow, U32 WindowID);
-HANDLE ContainsWindow(HANDLE StartWindow, HANDLE TargetWindow);
-HANDLE GetWindowDesktop(HANDLE Window);
-BOOL PostMessage(HANDLE Target, U32 Message, U32 Param1, U32 Param2);
-BOOL InvalidateClientRect(HANDLE Window, LPRECT Rect);
-BOOL InvalidateWindowRect(HANDLE Window, LPRECT Rect);
-UINT SetWindowProp(HANDLE Window, LPCSTR Name, UINT Value);
-UINT GetWindowProp(HANDLE Window, LPCSTR Name);
-BOOL GetWindowRect(HANDLE Window, LPRECT Rect);
-BOOL GetWindowClientRect(HANDLE Window, LPRECT Rect);
-BOOL ScreenPointToWindowPoint(HANDLE Window, LPPOINT ScreenPoint, LPPOINT WindowPoint);
-BOOL MoveWindow(HANDLE Window, LPRECT Rect);
-BOOL ShowWindow(HANDLE Window);
-BOOL HideWindow(HANDLE Window);
-BOOL SetWindowStyle(HANDLE Window, U32 Style);
-BOOL ClearWindowStyle(HANDLE Window, U32 Style);
-BOOL GetWindowStyle(HANDLE Window, U32* StyleOut);
-BOOL SetWindowCaption(HANDLE Window, LPCSTR Caption);
-BOOL GetWindowCaption(HANDLE Window, LPSTR Caption, UINT CaptionLength);
-HANDLE GetWindowParent(HANDLE Window);
-U32 GetWindowChildCount(HANDLE Window);
-HANDLE GetWindowChild(HANDLE Window, U32 ChildIndex);
-HANDLE GetNextWindowSibling(HANDLE Window);
-HANDLE GetPreviousWindowSibling(HANDLE Window);
-HANDLE BeginWindowDraw(HANDLE Window);
-BOOL EndWindowDraw(HANDLE Window);
-HANDLE GetSystemBrush(U32 Index);
-HANDLE GetSystemPen(U32 Index);
-HANDLE CreateBrush(LPBRUSH_INFO BrushInfo);
-HANDLE CreatePen(LPPEN_INFO PenInfo);
-HANDLE SelectBrush(HANDLE GC, HANDLE Brush);
-HANDLE SelectPen(HANDLE GC, HANDLE Pen);
-BOOL Line(LPLINE_INFO LineInfo);
-BOOL Arc(LPARC_INFO ArcInfo);
-BOOL Triangle(LPTRIANGLE_INFO TriangleInfo);
-BOOL DrawText(LPTEXT_DRAW_INFO DrawInfo);
-BOOL MeasureText(LPTEXT_MEASURE_INFO MeasureInfo);
-BOOL DrawWindowBackground(HANDLE Window, HANDLE GC, LPRECT Rect, U32 ThemeToken);
-BOOL GetMousePosition(LPPOINT Point);
-HANDLE CaptureMouse(HANDLE Window);
-BOOL ReleaseMouse(void);
-BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info);
-BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info);
-BOOL SetWindowTimer(HANDLE Window, U32 TimerID, U32 IntervalMilliseconds);
-BOOL KillWindowTimer(HANDLE Window, U32 TimerID);
-U32 BaseWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2);
-BOOL DeleteObject(HANDLE Object);
+#define ROOT "/"
+#define PATH_SEP ((STR)'/')
 
 /************************************************************************/
 // Flags
@@ -916,6 +896,7 @@ BOOL DeleteObject(HANDLE Object);
 #define ALLOC_PAGES_WC 0x00000008          // Write-combining (rare; mostly for framebuffers)
 #define ALLOC_PAGES_IO 0x00000010          // Exact PMA mapping for IO (BAR) -> do not touch RAM bitmap
 #define ALLOC_PAGES_AT_OR_OVER 0x00000020  // If a linear address is specified, can allocate anywhere above it
+#define ALLOC_PAGES_FIXED 0x00000040       // Exact PMA mapping owned by another kernel object
 
 #define FILE_OPEN_READ 0x00000001
 #define FILE_OPEN_WRITE 0x00000002

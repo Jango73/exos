@@ -30,6 +30,7 @@
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Process-Arena.h"
+#include "process/Schedule.h"
 #include "process/Stack.h"
 #include "text/CoreString.h"
 #include "system/System.h"
@@ -171,7 +172,6 @@ extern void Interrupt_SystemCall(void);
  * @param Msr Model-specific register index to read.
  * @return Combined 64-bit value of the MSR contents.
  */
-/*
 static U64 ReadMSR64Local(U32 Msr) {
     U32 Low;
     U32 High;
@@ -180,7 +180,6 @@ static U64 ReadMSR64Local(U32 Msr) {
 
     return (((U64)High) << 32) | (U64)Low;
 }
-*/
 
 /************************************************************************/
 
@@ -446,12 +445,13 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     Task->Arch.Context.Registers.CS = CodeSelector;
     Task->Arch.Context.Registers.DS = DataSelector;
     Task->Arch.Context.Registers.ES = DataSelector;
-    Task->Arch.Context.Registers.FS = DataSelector;
-    Task->Arch.Context.Registers.GS = DataSelector;
+    Task->Arch.Context.Registers.FS = (Process->Privilege == CPU_PRIVILEGE_USER) ? SELECTOR_NULL : DataSelector;
+    Task->Arch.Context.Registers.GS = (Process->Privilege == CPU_PRIVILEGE_USER) ? SELECTOR_NULL : DataSelector;
     Task->Arch.Context.Registers.SS = DataSelector;
     Task->Arch.Context.Registers.RFlags = RFLAGS_IF | RFLAGS_ALWAYS_1;
     Task->Arch.Context.Registers.CR3 = Process->PageDirectory;
     Task->Arch.Context.Registers.CR4 = CR4;
+    Task->Arch.UserTlsBase = 0;
 
     StackTop = Task->Arch.Stack.Base + Task->Arch.Stack.Size;
     SysStackTop = Task->Arch.SystemStack.Base + Task->Arch.SystemStack.Size;
@@ -523,6 +523,7 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         SAFE_USE(CurrentTask) {
             GetFS(CurrentTask->Arch.Context.Registers.FS);
             GetGS(CurrentTask->Arch.Context.Registers.GS);
+            CurrentTask->Arch.UserTlsBase = (LINEAR)ReadMSR64Local(IA32_FS_BASE_MSR);
             SaveFPU(&(CurrentTask->Arch.Context.FPURegisters));
         }
 
@@ -531,9 +532,45 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         // SetES(NextTask->Arch.Context.Registers.ES);
         SetFS(NextTask->Arch.Context.Registers.FS);
         SetGS(NextTask->Arch.Context.Registers.GS);
+        WriteMSR64(IA32_FS_BASE_MSR,
+                   (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
+                   (U32)(((U64)NextTask->Arch.UserTlsBase) >> 32));
+        WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
 
         RestoreFPU(&(NextTask->Arch.Context.FPURegisters));
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Set the x86-64 user TLS anchor for a task.
+ *
+ * @param Task Target task.
+ * @param Anchor User thread control block base, or zero.
+ * @return TRUE when the task architecture state was updated.
+ */
+BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        if (Task->OwnerProcess == NULL || Task->OwnerProcess->Privilege != CPU_PRIVILEGE_USER) {
+            return Anchor == 0;
+        }
+
+        Task->Arch.UserTlsBase = Anchor;
+        Task->Arch.Context.Registers.FS = SELECTOR_NULL;
+        Task->Arch.Context.Registers.GS = SELECTOR_NULL;
+        if (Task == GetCurrentTask()) {
+            SetFS(Task->Arch.Context.Registers.FS);
+            SetGS(Task->Arch.Context.Registers.GS);
+            WriteMSR64(IA32_FS_BASE_MSR,
+                       (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+                       (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
+            WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
+        }
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 /***************************************************************************/

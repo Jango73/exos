@@ -41,8 +41,7 @@
 #include "log/Profile.h"
 #include "process/Process.h"
 #include "process/Schedule.h"
-#include "User.h"
-#include "user/UserAccount.h"
+#include "user/Account.h"
 #include "user/UserSession.h"
 #include "core/Security.h"
 #include "network/Socket.h"
@@ -414,7 +413,7 @@ UINT SysCall_CreateTask(UINT Parameter) {
     LPTASK_INFO TaskInfo = (LPTASK_INFO)Parameter;
 
     SAFE_USE_INPUT_POINTER(TaskInfo, TASK_INFO) {
-        LPTASK Task = CreateTask(GetCurrentProcess(), TaskInfo);
+        LPTASK Task = KernelCreateTask(GetCurrentProcess(), TaskInfo);
         return PointerToHandle((LINEAR)Task);
     }
 
@@ -427,7 +426,7 @@ UINT SysCall_CreateTask(UINT Parameter) {
  * @brief Terminate a task referenced by a handle.
  *
  * Resolves the provided task handle (or uses the current task when the handle
- * is zero) and forwards the request to KillTask. Releases the handle upon
+ * is zero) and forwards the request to KernelKillTask. Releases the handle upon
  * successful termination.
  *
  * @param Parameter Handle identifying the task to terminate, or 0 for the current task.
@@ -447,7 +446,7 @@ UINT SysCall_KillTask(UINT Parameter) {
             return 0;
         }
 
-        Result = (UINT)KillTask(Task);
+        Result = (UINT)KernelKillTask(Task);
         if (Parameter && Result) ReleaseHandle(Parameter);
     }
 
@@ -460,10 +459,10 @@ UINT SysCall_KillTask(UINT Parameter) {
  * @brief Terminate the current task with the provided exit code.
  *
  * Converts the running task pointer into a verified kernel object prior to
- * delegating to KillTask().
+ * delegating to KernelKillTask().
  *
  * @param Parameter Exit code stored in the task object.
- * @return UINT Result of KillTask().
+ * @return UINT Result of KernelKillTask().
  */
 UINT SysCall_Exit(UINT Parameter) {
     DEBUG(TEXT("[SysCall_Exit] Enter, Parameter=%x"), Parameter);
@@ -473,7 +472,7 @@ UINT SysCall_Exit(UINT Parameter) {
 
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
         SetTaskExitCode(Task, Parameter);
-        ReturnValue = KillTask(Task);
+        ReturnValue = KernelKillTask(Task);
     }
 
     DEBUG(TEXT("[SysCall_Exit] Exit"));
@@ -680,7 +679,7 @@ UINT SysCall_PeekMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)PeekMessage(Message);
+        UINT Result = (UINT)KernelPeekMessage(Message);
         Message->Target = PointerToHandle((LINEAR)Message->Target);
         if (Message->Target == 0) {
             Message->Target = Filter;
@@ -698,7 +697,7 @@ UINT SysCall_PeekMessage(UINT Parameter) {
  * @brief Retrieve the next message, translating handles as needed.
  *
  * Accepts an optional handle filter in MESSAGE_INFO.Target, resolves it to a
- * kernel pointer before invoking GetMessage(), then converts the returned
+ * kernel pointer before invoking KernelGetMessage(), then converts the returned
  * pointer back into a handle.
  *
  * @param Parameter Pointer to MESSAGE_INFO supplied by userland.
@@ -716,7 +715,7 @@ UINT SysCall_GetMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)GetMessage(Message);
+        UINT Result = (UINT)KernelGetMessage(Message);
         Message->Target = PointerToHandle((LINEAR)Message->Target);
         if (Message->Target == 0) {
             Message->Target = Filter;
@@ -751,7 +750,7 @@ UINT SysCall_DispatchMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)DispatchMessage(Message);
+        UINT Result = (UINT)KernelDispatchMessage(Message);
 
         Message->Target = Original;
         return Result;
@@ -1404,70 +1403,7 @@ UINT SysCall_ConsolePrint(UINT Parameter) {
  */
 UINT SysCall_ConsoleBlitBuffer(UINT Parameter) {
     LPCONSOLE_BLIT_BUFFER Info = (LPCONSOLE_BLIT_BUFFER)Parameter;
-
-    if (Info != NULL && IsValidMemory((LINEAR)Info) && IsValidMemory((LINEAR)Info->Text)) {
-        UINT maxWidth = Console.Width;
-        UINT maxHeight = Console.Height;
-        UINT baseX = Console.Regions[0].X;
-        UINT baseY = Console.Regions[0].Y;
-        UINT row;
-        UINT width = Info->Width;
-        UINT height = Info->Height;
-        UINT x = Info->X;
-        UINT y = Info->Y;
-        UINT textPitch = (Info->TextPitch != 0) ? Info->TextPitch : (Info->Width + 1);
-        UINT attrPitch = (Info->AttrPitch != 0) ? Info->AttrPitch : Info->Width;
-        BOOL useAttr = (Info->Attr != NULL) && IsValidMemory((LINEAR)Info->Attr);
-        U32 savedFore = Console.ForeColor;
-        U32 savedBack = Console.BackColor;
-        U32 fore = Info->ForeColor;
-        U32 back = Info->BackColor;
-
-        if (fore > 15) fore = savedFore;
-        if (back > 15) back = savedBack;
-
-        if (width > maxWidth) width = maxWidth;
-        if (height > maxHeight) height = maxHeight;
-        if (x >= maxWidth || y >= maxHeight) return 0;
-        if (x + width > maxWidth) width = maxWidth - x;
-        if (y + height > maxHeight) height = maxHeight - y;
-
-        if (!useAttr) {
-            SetConsoleForeColor(fore);
-            SetConsoleBackColor(back);
-        }
-
-        for (row = 0; row < height; row++) {
-            const U8* attrRow = useAttr ? (Info->Attr + (row * attrPitch)) : NULL;
-            UINT col;
-
-            if (!useAttr) {
-                ConsolePrintLine(y + row, x, Info->Text + (row * textPitch), width);
-                continue;
-            }
-
-            /* Per-cell attributes */
-            for (col = 0; col < width; col++) {
-                U8 attr = attrRow[col];
-                U32 cellFore = attr & 0x0F;
-                U32 cellBack = (attr >> 4) & 0x0F;
-                U16 attribute = (U16)(cellFore | (cellBack << 0x04) | (Console.Blink << 0x07));
-                attribute = (U16)(attribute << 0x08);
-                if (x + col < maxWidth && y + row < maxHeight) {
-                    UINT offset = ((baseY + y + row) * Console.ScreenWidth) + (baseX + x + col);
-                    STR character = Info->Text[(row * textPitch) + col];
-                    Console.Memory[offset] = (U16)character | attribute;
-                }
-            }
-        }
-
-        if (!useAttr) {
-            SetConsoleForeColor(savedFore);
-            SetConsoleBackColor(savedBack);
-        }
-    }
-
-    return 0;
+    return ConsoleBlitBuffer(Info);
 }
 
 /************************************************************************/
@@ -1591,7 +1527,7 @@ UINT SysCall_ConsoleGetCurrentMode(UINT Parameter) {
 UINT SysCall_CreateDesktop(UINT Parameter) {
     UNUSED(Parameter);
 
-    LPDESKTOP Desktop = CreateDesktop();
+    LPDESKTOP Desktop = KernelCreateDesktop();
     SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
         HANDLE Handle = PointerToHandle((LINEAR)Desktop);
 
@@ -1611,13 +1547,13 @@ UINT SysCall_CreateDesktop(UINT Parameter) {
  * @brief Show the desktop associated with the provided handle.
  *
  * @param Parameter Desktop handle.
- * @return UINT Result of ShowDesktop or 0 on error.
+ * @return UINT Result of KernelShowDesktop or 0 on error.
  */
 UINT SysCall_ShowDesktop(UINT Parameter) {
     LPDESKTOP Desktop = (LPDESKTOP)HandleToPointer(Parameter);
 
     SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Desktop, KOID_DESKTOP, TRUE) {
-        return (UINT)ShowDesktop(Desktop);
+        return (UINT)KernelShowDesktop(Desktop);
     }
     return 0;
 }
@@ -2597,7 +2533,7 @@ UINT SysCall_SetPixel(UINT Parameter) {
             }
 
             PixelInfo->GC = (HANDLE)Context;
-            UINT Result = (UINT)SetPixel(PixelInfo);
+            UINT Result = (UINT)KernelSetPixel(PixelInfo);
             PixelInfo->GC = OriginalGC;
             return Result;
         }
@@ -2630,7 +2566,7 @@ UINT SysCall_GetPixel(UINT Parameter) {
             }
 
             PixelInfo->GC = (HANDLE)Context;
-            UINT Result = (UINT)GetPixel(PixelInfo);
+            UINT Result = (UINT)KernelGetPixel(PixelInfo);
             PixelInfo->GC = OriginalGC;
             return Result;
         }
@@ -2696,7 +2632,7 @@ UINT SysCall_Rectangle(UINT Parameter) {
             }
 
             RectInfo->GC = (HANDLE)Context;
-            UINT Result = (UINT)Rectangle(RectInfo);
+            UINT Result = (UINT)KernelRectangle(RectInfo);
             RectInfo->GC = OriginalGC;
             return Result;
         }
@@ -2966,7 +2902,7 @@ UINT SysCall_Login(UINT Parameter) {
     UINT WaitRemaining;
 
     SAFE_USE_INPUT_POINTER(LoginInfo, LOGIN_INFO) {
-        LPUSER_ACCOUNT Account = FindUserAccount(LoginInfo->UserName);
+        LPUSER_ACCOUNT Account = FindAccount(LoginInfo->UserName);
         if (Account == NULL) return FALSE;
 
         WaitRemaining = 0;
@@ -3077,14 +3013,21 @@ UINT SysCall_ChangePassword(UINT Parameter) {
  */
 UINT SysCall_CreateUser(UINT Parameter) {
     LPUSER_CREATE_INFO CreateInfo = (LPUSER_CREATE_INFO)Parameter;
+    UINT AccountCount;
 
     SAFE_USE_INPUT_POINTER(CreateInfo, USER_CREATE_INFO) {
         LPUSER_ACCOUNT CurrentAccount = GetCurrentUser();
-        if (CurrentAccount == NULL || CurrentAccount->Privilege != EXOS_PRIVILEGE_ADMIN) {
+        AccountCount = GetAccountCount();
+
+        if (AccountCount == 0) {
+            if (CreateInfo->Privilege != EXOS_PRIVILEGE_ADMIN) {
+                return FALSE;
+            }
+        } else if (CurrentAccount == NULL || CurrentAccount->Privilege != EXOS_PRIVILEGE_ADMIN) {
             return FALSE;
         }
 
-        LPUSER_ACCOUNT NewAccount = CreateUserAccount(CreateInfo->UserName, CreateInfo->Password, CreateInfo->Privilege);
+        LPUSER_ACCOUNT NewAccount = CreateAccount(CreateInfo->UserName, CreateInfo->Password, CreateInfo->Privilege);
         return (NewAccount != NULL) ? TRUE : FALSE;
     }
 
@@ -3108,7 +3051,7 @@ UINT SysCall_DeleteUser(UINT Parameter) {
             return FALSE;
         }
 
-        return DeleteUserAccount(DeleteInfo->UserName);
+        return DeleteAccount(DeleteInfo->UserName);
     }
 
     return FALSE;
@@ -3132,9 +3075,9 @@ UINT SysCall_ListUsers(UINT Parameter) {
         }
 
         ListInfo->UserCount = 0;
-        LPLIST UserAccountList = GetUserAccountList();
+        LPLIST AccountList = GetAccountList();
         LPUSER_ACCOUNT Account =
-            (LPUSER_ACCOUNT)(UserAccountList != NULL ? UserAccountList->First : NULL);
+            (LPUSER_ACCOUNT)(AccountList != NULL ? AccountList->First : NULL);
 
         while (Account != NULL && ListInfo->UserCount < ListInfo->MaxUsers) {
             StringCopy(ListInfo->UserNames[ListInfo->UserCount], Account->UserName);

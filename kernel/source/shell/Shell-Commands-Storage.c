@@ -206,36 +206,29 @@ U32 CMD_edit(LPSHELLCONTEXT Context) {
 /***************************************************************************/
 
 U32 CMD_disk(LPSHELLCONTEXT Context) {
-    if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DISK_LIST))) {
-        ConsolePrint(TEXT("Unable to run embedded disk list script\n"));
+    ParseNextCommandLineComponent(Context);
+
+    if (StringLength(Context->Command) == 0 ||
+        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+        ConsolePrint(TEXT("Usage: disk list\n"));
+        return DF_RETURN_SUCCESS;
     }
-    return DF_RETURN_SUCCESS;
+
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DISK_LIST));
 }
 
 /***************************************************************************/
 
 U32 CMD_filesystem(LPSHELLCONTEXT Context) {
-    BOOL LongMode;
-
     ParseNextCommandLineComponent(Context);
-    LongMode = HasOption(Context, TEXT("l"), TEXT("long"));
 
-    if (StringLength(Context->Command) != 0) {
-        ConsolePrint(TEXT("Usage: fs [--long]\n"));
+    if (StringLength(Context->Command) == 0 ||
+        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+        ConsolePrint(TEXT("Usage: fs list\n"));
         return DF_RETURN_SUCCESS;
     }
 
-    if (LongMode) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_FILE_SYSTEM_LIST_LONG))) {
-            ConsolePrint(TEXT("Unable to run embedded file system long list script\n"));
-        }
-    } else {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_FILE_SYSTEM_LIST))) {
-            ConsolePrint(TEXT("Unable to run embedded file system list script\n"));
-        }
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_FILE_SYSTEM_LIST));
 }
 
 /***************************************************************************/

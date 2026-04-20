@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,21 +27,21 @@
 #include "autotest/Autotest.h"
 #include "utils/SizeFormat.h"
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Run the embedded driver detail script for one alias.
  * @param Context Shell context.
  * @param Alias Driver alias.
- * @return TRUE on success.
+ * @return `DF_RETURN_*` status code.
  */
-static BOOL RunEmbeddedDriverDetailsScript(
+static UINT RunEmbeddedDriverDetailsScript(
     LPSHELLCONTEXT Context,
     LPCSTR Alias) {
     STR ScriptText[4096];
 
     if (Context == NULL || Alias == NULL || StringLength(Alias) == 0) {
-        return FALSE;
+        return DF_RETURN_BAD_PARAMETER;
     }
 
     StringPrintFormat(
@@ -52,7 +52,7 @@ static BOOL RunEmbeddedDriverDetailsScript(
     return RunEmbeddedScript(Context, ScriptText);
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Print one driver detail view selected by alias.
@@ -69,18 +69,13 @@ U32 CMD_driver(LPSHELLCONTEXT Context) {
     }
 
     if (StringCompareNC(Context->Command, TEXT("list")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DRIVER_LIST))) {
-            ConsolePrint(TEXT("Unable to run embedded driver list script\n"));
-        }
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DRIVER_LIST));
     }
 
-    if (!RunEmbeddedDriverDetailsScript(Context, Context->Command)) {
-        ConsolePrint(TEXT("Unable to run embedded driver detail script\n"));
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedDriverDetailsScript(Context, Context->Command);
 }
+
+/************************************************************************/
 
 /**
  * @brief List the tasks visible to the current shell caller.
@@ -96,14 +91,10 @@ U32 CMD_task(LPSHELLCONTEXT Context) {
         return DF_RETURN_SUCCESS;
     }
 
-    if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_TASK_LIST))) {
-        ConsolePrint(TEXT("Unable to run embedded task list script\n"));
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_TASK_LIST));
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_memedit(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
@@ -112,17 +103,13 @@ U32 CMD_memedit(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_memorymap(LPSHELLCONTEXT Context) {
-    if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_MEMORY_MAP))) {
-        ConsolePrint(TEXT("Unable to run embedded memory-map script\n"));
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_MEMORY_MAP));
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_disasm(LPSHELLCONTEXT Context) {
 
@@ -154,7 +141,7 @@ U32 CMD_disasm(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_network(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
@@ -165,14 +152,10 @@ U32 CMD_network(LPSHELLCONTEXT Context) {
         return DF_RETURN_SUCCESS;
     }
 
-    if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_NETWORK_DEVICES))) {
-        ConsolePrint(TEXT("Unable to run embedded network device list script\n"));
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_NETWORK_DEVICES));
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_pic(LPSHELLCONTEXT Context) {
     UNUSED(Context);
@@ -214,6 +197,24 @@ U32 CMD_shutdown(LPSHELLCONTEXT Context) {
 /************************************************************************/
 
 /**
+ * @brief Print one profiling dump line to the console and debug log.
+ * @param Format Line format string.
+ */
+static void PrintProfileDumpLine(LPCSTR Format, ...) {
+    STR Buffer[MAX_STRING_BUFFER];
+    VarArgList Args;
+
+    VarArgStart(Args, Format);
+    StringPrintFormatArgs(Buffer, Format, Args);
+    VarArgEnd(Args);
+
+    ConsolePrint(TEXT("%s\n"), Buffer);
+    DEBUG(TEXT("[CMD_prof] %s"), Buffer);
+}
+
+/************************************************************************/
+
+/**
  * @brief Print one profiling snapshot entry.
  * @param Entry Snapshot entry to print.
  */
@@ -228,8 +229,8 @@ static void PrintProfileEntry(LPPROFILE_ENTRY_INFO Entry) {
         Average = Entry->TotalTicks / Entry->TimedCallCount;
     }
 
-    ConsolePrint(
-        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us\n"),
+    PrintProfileDumpLine(
+        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us"),
         Entry->Name,
         Entry->CallCount,
         Entry->TimedCallCount,
@@ -274,7 +275,7 @@ U32 CMD_prof(LPSHELLCONTEXT Context) {
     }
 
     if (Query.EntryCount == 0) {
-        ConsolePrint(TEXT("No profiling samples available.\n"));
+        PrintProfileDumpLine(TEXT("No profiling samples available."));
         return DF_RETURN_SUCCESS;
     }
 
@@ -282,16 +283,16 @@ U32 CMD_prof(LPSHELLCONTEXT Context) {
         PrintProfileEntry(&Entries[Index]);
     }
 
-    ConsolePrint(TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s\n"),
-                 Query.EntryCount,
-                 Query.TotalEntryCount,
-                 Query.SampleCount,
-                 Query.DroppedCount,
-                 (Query.Flags & PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
+    PrintProfileDumpLine(TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s"),
+                         Query.EntryCount,
+                         Query.TotalEntryCount,
+                         Query.SampleCount,
+                         Query.DroppedCount,
+                         (Query.Flags & PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Run one on-demand autotest module.
@@ -319,7 +320,7 @@ U32 CMD_autotest(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Run the System Data View mode from the shell.
@@ -332,7 +333,7 @@ U32 CMD_dataview(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief USB control command (xHCI port report).
@@ -353,36 +354,21 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
     }
 
     if (StringCompareNC(Context->Command, TEXT("drives")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DRIVES))) {
-            ConsolePrint(TEXT("Unable to run embedded USB drive list script\n"));
-        }
-
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DRIVES));
     } else if (StringCompareNC(Context->Command, TEXT("probe")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PROBE))) {
-            ConsolePrint(TEXT("Unable to run embedded USB probe script\n"));
-        }
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PROBE));
     } else if (StringCompareNC(Context->Command, TEXT("devices")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICES))) {
-            ConsolePrint(TEXT("Unable to run embedded USB device list script\n"));
-        }
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICES));
     } else if (StringCompareNC(Context->Command, TEXT("ports")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PORTS))) {
-            ConsolePrint(TEXT("Unable to run embedded USB port list script\n"));
-        }
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PORTS));
     } else if (StringCompareNC(Context->Command, TEXT("device-tree")) == 0) {
-        if (!RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICE_TREE))) {
-            ConsolePrint(TEXT("Unable to run embedded USB device tree script\n"));
-        }
-        return DF_RETURN_SUCCESS;
+        return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICE_TREE));
     }
+
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief NVMe control command (device list).
@@ -397,65 +383,5 @@ U32 CMD_nvme(LPSHELLCONTEXT Context) {
         ConsolePrint(TEXT("Usage: nvme list\n"));
         return DF_RETURN_SUCCESS;
     }
-
-    DRIVER_ENUM_QUERY Query;
-    MemorySet(&Query, 0, sizeof(Query));
-    Query.Header.Size = sizeof(Query);
-    Query.Header.Version = EXOS_ABI_VERSION;
-    Query.Domain = ENUM_DOMAIN_PCI_DEVICE;
-    Query.Flags = 0;
-
-    UINT ProviderIndex = 0;
-    BOOL Found = FALSE;
-    BOOL Printed = FALSE;
-    DRIVER_ENUM_PROVIDER Provider = NULL;
-    UINT Index = 0;
-
-    while (KernelEnumGetProvider(&Query, ProviderIndex, &Provider) == DF_RETURN_SUCCESS) {
-        DRIVER_ENUM_ITEM Item;
-
-        Found = TRUE;
-        Query.Index = 0;
-
-        MemorySet(&Item, 0, sizeof(Item));
-        Item.Header.Size = sizeof(Item);
-        Item.Header.Version = EXOS_ABI_VERSION;
-
-        while (KernelEnumNext(Provider, &Query, &Item) == DF_RETURN_SUCCESS) {
-            if (Item.DataSize < sizeof(DRIVER_ENUM_PCI_DEVICE)) {
-                break;
-            }
-
-            const DRIVER_ENUM_PCI_DEVICE* Data = (const DRIVER_ENUM_PCI_DEVICE*)Item.Data;
-            if (Data->BaseClass != NVME_PCI_CLASS ||
-                Data->SubClass != NVME_PCI_SUBCLASS ||
-                Data->ProgIF != NVME_PCI_PROG_IF) {
-                continue;
-            }
-
-            ConsolePrint(TEXT("nvme%u: bus=%x device=%x function=%x vendor_identifier=%x device_identifier=%x revision=%x\n"),
-                         Index,
-                         (U32)Data->Bus,
-                         (U32)Data->Dev,
-                         (U32)Data->Func,
-                         (U32)Data->VendorID,
-                         (U32)Data->DeviceID,
-                         (U32)Data->Revision);
-            Index++;
-            Printed = TRUE;
-        }
-
-        ProviderIndex++;
-    }
-
-    if (!Found) {
-        ConsolePrint(TEXT("No PCI device provider detected\n"));
-        return DF_RETURN_SUCCESS;
-    }
-
-    if (!Printed) {
-        ConsolePrint(TEXT("No NVMe device detected\n"));
-    }
-
-    return DF_RETURN_SUCCESS;
+    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_NVME_LIST));
 }

@@ -674,37 +674,39 @@ BOOL SetupKernelRegion(REGION_SETUP* Region, UINT TableCountRequired) {
 /************************************************************************/
 
 /**
- * @brief Map the user-mode task runner trampoline into the new address space.
+ * @brief Prepare the high user paging root and map the task runner trampoline.
  * @param Region Region descriptor to populate.
  * @param TaskRunnerPhysical Physical address of the task runner code.
  * @param TaskRunnerTableIndex Page table index that contains the trampoline.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL SetupTaskRunnerRegion(
+BOOL SetupHighUserRegion(
     REGION_SETUP* Region,
     PHYSICAL TaskRunnerPhysical,
     UINT TaskRunnerTableIndex) {
+    UINT TaskRunnerPdptIndex;
     ResetRegionSetup(Region);
 
-    Region->Label = TEXT("TaskRunner");
+    Region->Label = TEXT("HighUser");
     Region->PdptIndex = GetPdptEntry((U64)VMA_TASK_RUNNER);
     Region->ReadWrite = 1;
     Region->Privilege = PAGE_PRIVILEGE_USER;
     Region->Global = 0;
+    TaskRunnerPdptIndex = Region->PdptIndex;
 
     Region->PdptPhysical = AllocPhysicalPage();
     Region->DirectoryPhysical = AllocPhysicalPage();
 
 
     if (Region->PdptPhysical == NULL || Region->DirectoryPhysical == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] TaskRunner region out of physical pages"));
+        ERROR(TEXT("[AllocPageDirectory] High user region out of physical pages"));
         return FALSE;
     }
 
     LPPAGE_DIRECTORY Pdpt = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage4(Region->PdptPhysical);
 
     if (Pdpt == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed for TaskRunner PDPT"));
+        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage1 failed for high user PDPT"));
         return FALSE;
     }
 
@@ -713,7 +715,7 @@ BOOL SetupTaskRunnerRegion(
     LPPAGE_DIRECTORY Directory = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage5(Region->DirectoryPhysical);
 
     if (Directory == NULL) {
-        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage2 failed for TaskRunner directory"));
+        ERROR(TEXT("[AllocPageDirectory] MapTemporaryPhysicalPage2 failed for high user directory"));
         return FALSE;
     }
 
@@ -721,7 +723,7 @@ BOOL SetupTaskRunnerRegion(
 
     WritePageDirectoryEntryValue(
         Pdpt,
-        Region->PdptIndex,
+        TaskRunnerPdptIndex,
         MakePageDirectoryEntryValue(
             Region->DirectoryPhysical,
             Region->ReadWrite,
@@ -781,7 +783,7 @@ U64 ReadTableEntrySnapshot(PHYSICAL TablePhysical, UINT Index) {
 PHYSICAL AllocPageDirectory(void) {
     REGION_SETUP LowRegion;
     REGION_SETUP KernelRegion;
-    REGION_SETUP TaskRunnerRegion;
+    REGION_SETUP HighUserRegion;
     PHYSICAL Pml4Physical = NULL;
     BOOL Success = FALSE;
     if (EnsureCurrentStackSpace(N_32KB) == FALSE) {
@@ -791,7 +793,7 @@ PHYSICAL AllocPageDirectory(void) {
 
     ResetRegionSetup(&LowRegion);
     ResetRegionSetup(&KernelRegion);
-    ResetRegionSetup(&TaskRunnerRegion);
+    ResetRegionSetup(&HighUserRegion);
 
     UINT LowPml4Index = GetPml4Entry(0);
     UINT KernelPml4Index = GetPml4Entry((U64)VMA_KERNEL);
@@ -811,7 +813,7 @@ PHYSICAL AllocPageDirectory(void) {
     PHYSICAL TaskRunnerPhysical = KernelToPhysical(TaskRunnerLinear);
 
 
-    if (SetupTaskRunnerRegion(&TaskRunnerRegion, TaskRunnerPhysical, TaskRunnerTableIndex) == FALSE) goto Out;
+    if (SetupHighUserRegion(&HighUserRegion, TaskRunnerPhysical, TaskRunnerTableIndex) == FALSE) goto Out;
 
     Pml4Physical = AllocPhysicalPage();
 
@@ -858,7 +860,7 @@ PHYSICAL AllocPageDirectory(void) {
         Pml4,
         TaskRunnerPml4Index,
         MakePageDirectoryEntryValue(
-            TaskRunnerRegion.PdptPhysical,
+            HighUserRegion.PdptPhysical,
             /*ReadWrite*/ 1,
             PAGE_PRIVILEGE_USER,
             /*WriteThrough*/ 0,
@@ -891,7 +893,7 @@ Out:
         }
         ReleaseRegionSetup(&LowRegion);
         ReleaseRegionSetup(&KernelRegion);
-        ReleaseRegionSetup(&TaskRunnerRegion);
+        ReleaseRegionSetup(&HighUserRegion);
         return NULL;
     }
 
@@ -912,10 +914,9 @@ Out:
 PHYSICAL AllocUserPageDirectory(void) {
     REGION_SETUP LowRegion;
     REGION_SETUP KernelRegion;
-    REGION_SETUP TaskRunnerRegion;
+    REGION_SETUP HighUserRegion;
     PHYSICAL Pml4Physical = NULL;
     BOOL Success = FALSE;
-    BOOL TaskRunnerReused = FALSE;
 
     if (EnsureCurrentStackSpace(N_32KB) == FALSE) {
         ERROR(TEXT("[AllocUserPageDirectory] Unable to ensure stack availability"));
@@ -924,7 +925,7 @@ PHYSICAL AllocUserPageDirectory(void) {
 
     ResetRegionSetup(&LowRegion);
     ResetRegionSetup(&KernelRegion);
-    ResetRegionSetup(&TaskRunnerRegion);
+    ResetRegionSetup(&HighUserRegion);
 
     UINT LowPml4Index = GetPml4Entry(0);
     UINT KernelPml4Index = GetPml4Entry((U64)VMA_KERNEL);
@@ -1023,45 +1024,30 @@ PHYSICAL AllocUserPageDirectory(void) {
     }
 
 
-    U64 TaskRunnerEntryValue = ReadPageDirectoryEntryValue(CurrentPml4, TaskRunnerPml4Index);
-    if ((TaskRunnerEntryValue & PAGE_FLAG_PRESENT) != 0 && (TaskRunnerEntryValue & PAGE_FLAG_USER) != 0) {
-        TaskRunnerReused = TRUE;
-    } else {
-        LINEAR TaskRunnerLinear = (LINEAR)&__task_runner_start;
-        PHYSICAL TaskRunnerPhysical = KernelToPhysical(TaskRunnerLinear);
+    LINEAR TaskRunnerLinear = (LINEAR)&__task_runner_start;
+    PHYSICAL TaskRunnerPhysical = KernelToPhysical(TaskRunnerLinear);
 
+    if (SetupHighUserRegion(&HighUserRegion, TaskRunnerPhysical, TaskRunnerTableIndex) == FALSE) goto Out;
 
-        if (SetupTaskRunnerRegion(&TaskRunnerRegion, TaskRunnerPhysical, TaskRunnerTableIndex) == FALSE) goto Out;
+    Pml4Linear = MapTemporaryPhysicalPage4(Pml4Physical);
 
-        TaskRunnerEntryValue = MakePageDirectoryEntryValue(
-            TaskRunnerRegion.PdptPhysical,
-            /*ReadWrite*/ 1,
-            PAGE_PRIVILEGE_USER,
-            /*WriteThrough*/ 0,
-            /*CacheDisabled*/ 0,
-            /*Global*/ 0,
-            /*Fixed*/ 1);
+    if (Pml4Linear == NULL) {
+        ERROR(TEXT("[AllocUserPageDirectory] MapTemporaryPhysicalPage4 failed on PML4"));
+        goto Out;
     }
+
+    Pml4 = (LPPAGE_DIRECTORY)Pml4Linear;
+
+    U64 TaskRunnerEntryValue = MakePageDirectoryEntryValue(
+        HighUserRegion.PdptPhysical,
+        /*ReadWrite*/ 1,
+        PAGE_PRIVILEGE_USER,
+        /*WriteThrough*/ 0,
+        /*CacheDisabled*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     WritePageDirectoryEntryValue(Pml4, TaskRunnerPml4Index, TaskRunnerEntryValue);
-
-    if (!TaskRunnerReused) {
-        LINEAR TaskRunnerDirectoryLinear = MapTemporaryPhysicalPage5(TaskRunnerRegion.DirectoryPhysical);
-        LINEAR TaskRunnerTableLinear = MapTemporaryPhysicalPage6(TaskRunnerRegion.Tables[0].Physical);
-
-        if (TaskRunnerDirectoryLinear != NULL && TaskRunnerTableLinear != NULL) {
-            UINT TaskRunnerDirectoryIndex = GetDirectoryEntry((U64)VMA_TASK_RUNNER);
-            U64 TaskDirectoryEntry =
-                ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)TaskRunnerDirectoryLinear, TaskRunnerDirectoryIndex);
-            U64 TaskTableEntry = ReadPageTableEntryValue((LPPAGE_TABLE)TaskRunnerTableLinear, TaskRunnerTableIndex);
-            UNUSED(TaskDirectoryEntry);
-            UNUSED(TaskTableEntry);
-
-        } else {
-            ERROR(TEXT("[AllocUserPageDirectory] Unable to map TaskRunner directory/table snapshot"));
-        }
-    } else {
-    }
 
     WritePageDirectoryEntryValue(
         Pml4,
@@ -1088,7 +1074,7 @@ Out:
         }
         ReleaseRegionSetup(&LowRegion);
         ReleaseRegionSetup(&KernelRegion);
-        ReleaseRegionSetup(&TaskRunnerRegion);
+        ReleaseRegionSetup(&HighUserRegion);
         return NULL;
     }
 
@@ -1458,7 +1444,7 @@ BOOL PopulateRegionPagesLegacy(LINEAR Base,
         }
 
         U32 Privilege = PAGE_PRIVILEGE(CurrentLinear);
-        U32 FixedFlag = (Flags & ALLOC_PAGES_IO) ? 1u : 0u;
+        U32 FixedFlag = (Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) ? 1u : 0u;
         U32 BaseFlags = BuildPageFlags(ReadWrite, Privilege, PteWriteThrough, PteCacheDisabled, 0, FixedFlag);
         U32 ReservedFlags = BaseFlags & ~PAGE_FLAG_PRESENT;
         PHYSICAL ReservedPhysical = (PHYSICAL)(MAX_U32 & ~(PAGE_SIZE - 1));
@@ -1475,7 +1461,7 @@ BOOL PopulateRegionPagesLegacy(LINEAR Base,
                 if (BootstrapTrace) {
                 }
 
-                if (Flags & ALLOC_PAGES_IO) {
+                if (FixedFlag != 0u) {
                     WritePageTableEntryValue(
                         Table,
                         TabEntry,
@@ -1564,6 +1550,8 @@ BOOL PopulateRegionPagesLegacy(LINEAR Base,
  *              - ALLOC_PAGES_UC / ALLOC_PAGES_WC: control cache attributes
  *                (UC has priority over WC).
  *              - ALLOC_PAGES_IO: keep physical pages marked fixed for MMIO.
+ *              - ALLOC_PAGES_FIXED: keep exact physical pages owned by another
+ *                kernel object marked fixed.
  * @return Allocated linear base address or 0 on failure.
  */
 LINEAR AllocRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag) {

@@ -27,13 +27,23 @@
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
+#include "memory/Heap.h"
 #include "text/CoreString.h"
 #include "process/Process.h"
 
 /************************************************************************/
 
-#define PROCESS_ARENA_SYSTEM_RESERVED N_16MB
-#define PROCESS_ARENA_MMIO_RESERVED N_16MB
+#ifdef __EXOS_32__
+#define PROCESS_ARENA_SYSTEM_RESERVED N_64MB
+#define PROCESS_ARENA_MMIO_RESERVED N_64MB
+#define PROCESS_ARENA_STACK_RESERVED (N_128MB + N_128MB)
+#define PROCESS_ARENA_MODULE_RESERVED N_1GB
+#else
+#define PROCESS_ARENA_SYSTEM_RESERVED N_1GB
+#define PROCESS_ARENA_MMIO_RESERVED N_1GB
+#define PROCESS_ARENA_STACK_RESERVED (N_1GB * 4)
+#define PROCESS_ARENA_MODULE_RESERVED (N_1GB * 64)
+#endif
 #define PROCESS_ARENA(Process, Id) (&((Process)->AddressSpace.Ranges[(Id)]))
 
 /************************************************************************/
@@ -93,6 +103,112 @@ static BOOL ProcessArenaRangeContains(LPPROCESS_ARENA_RANGE Range, LINEAR Addres
 
 /************************************************************************/
 
+static LPCSTR ProcessArenaGetModuleAllocationTag(UINT Purpose) {
+    switch (Purpose) {
+        case PROCESS_MODULE_ALLOCATION_SHARED:
+            return TEXT("ModuleShared");
+        case PROCESS_MODULE_ALLOCATION_PRIVATE:
+            return TEXT("ModulePrivate");
+        case PROCESS_MODULE_ALLOCATION_TLS:
+            return TEXT("ModuleTls");
+        case PROCESS_MODULE_ALLOCATION_BOOKKEEPING:
+            return TEXT("ModuleBookkeeping");
+        default:
+            return NULL;
+    }
+}
+
+/************************************************************************/
+
+static LINEAR ProcessArenaAllocateLow(
+    LPPROCESS Process,
+    UINT ArenaID,
+    UINT Size,
+    U32 Flags,
+    LPCSTR Tag,
+    LPCSTR FunctionName) {
+    LINEAR AllocationBase;
+    LINEAR Result;
+    UINT AlignedSize;
+    LPPROCESS_ARENA_RANGE Range;
+
+    if (Process == NULL || FunctionName == NULL || Size == 0) {
+        return 0;
+    }
+
+    Range = PROCESS_ARENA(Process, ArenaID);
+    AlignedSize = ProcessArenaAlignUp(Size);
+    AllocationBase = ProcessArenaAlignUp(Range->NextLow);
+
+    if (Range->Limit != 0 && AllocationBase + AlignedSize > Range->Limit) {
+        ERROR(TEXT("[%s] Arena exhausted for process %p"), FunctionName, Process);
+        return 0;
+    }
+
+    Result = AllocRegion(AllocationBase,
+                         0,
+                         AlignedSize,
+                         Flags | ALLOC_PAGES_AT_OR_OVER,
+                         Tag);
+    if (Result == 0) {
+        ERROR(TEXT("[%s] AllocRegion failed for process %p (Base=%p Size=%u)"),
+              FunctionName,
+              Process,
+              AllocationBase,
+              AlignedSize);
+        return 0;
+    }
+
+    if (ProcessArenaRangeContains(Range, Result, AlignedSize) == FALSE) {
+        ERROR(TEXT("[%s] Out-of-range allocation %p (size=%u) for process %p"),
+              FunctionName,
+              Result,
+              AlignedSize,
+              Process);
+        FreeRegion(Result, AlignedSize);
+        return 0;
+    }
+
+    Range->NextLow = ProcessArenaAlignUp(Result + AlignedSize);
+    return Result;
+}
+
+/************************************************************************/
+
+static BOOL ProcessArenaResizeMainHeap(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags) {
+    LPPROCESS Process = (LPPROCESS)Context;
+    LINEAR HeapLimit;
+    LINEAR HeapStart;
+    UINT MaximumSize;
+
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        if (Process->AddressSpace.Initialized == FALSE || Process->HeapBase != HeapBase) {
+            return FALSE;
+        }
+
+        HeapStart = ProcessArenaAlignDown(Process->HeapBase);
+        HeapLimit = PROCESS_ARENA(Process, PROCESS_ARENA_HEAP)->Limit;
+        if (HeapLimit <= HeapStart) {
+            return FALSE;
+        }
+
+        MaximumSize = (UINT)(HeapLimit - HeapStart);
+        if (NewSize > MaximumSize) {
+            WARNING(TEXT("[ProcessArenaResizeMainHeap] Heap growth exceeds arena limit process=%p requested=%u limit=%u"),
+                    Process,
+                    NewSize,
+                    MaximumSize);
+            return FALSE;
+        }
+
+        return ResizeRegion(HeapBase, 0, OldSize, NewSize, Flags);
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
 /**
  * @brief Reset all process arena descriptors.
  */
@@ -114,6 +230,7 @@ BOOL ProcessArenaInitializeKernel(LPPROCESS Process) {
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_IMAGE), 0, 0);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_HEAP), Process->HeapBase, 0);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_STACK), 0, 0);
+        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_MODULE), 0, 0);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM), VMA_KERNEL, 0);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_MMIO), VMA_KERNEL, 0);
 
@@ -139,9 +256,11 @@ BOOL ProcessArenaInitializeUser(
     LINEAR ImageLimit;
     LINEAR HeapStart;
     LINEAR HeapInitialEnd;
+    LINEAR StackBase;
+    LINEAR ModuleBase;
     LINEAR SystemBase;
     LINEAR MmioBase;
-    LINEAR StackBase;
+    LINEAR ReservedSpace;
 
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
         if (ImageSize == 0 || InitialHeapSize == 0) {
@@ -167,18 +286,25 @@ BOOL ProcessArenaInitializeUser(
             return FALSE;
         }
 
-        if (UserLimit <= PROCESS_ARENA_SYSTEM_RESERVED + PROCESS_ARENA_MMIO_RESERVED) {
+        ReservedSpace = PROCESS_ARENA_SYSTEM_RESERVED +
+                        PROCESS_ARENA_MMIO_RESERVED +
+                        PROCESS_ARENA_STACK_RESERVED +
+                        PROCESS_ARENA_MODULE_RESERVED;
+        if (UserLimit <= ReservedSpace) {
             ERROR(TEXT("[ProcessArenaInitializeUser] User linear space too small"));
             return FALSE;
         }
 
         SystemBase = ProcessArenaAlignDown(UserLimit - PROCESS_ARENA_SYSTEM_RESERVED);
         MmioBase = ProcessArenaAlignDown(SystemBase - PROCESS_ARENA_MMIO_RESERVED);
-        StackBase = HeapInitialEnd;
+        ModuleBase = ProcessArenaAlignDown(MmioBase - PROCESS_ARENA_MODULE_RESERVED);
+        StackBase = ProcessArenaAlignDown(ModuleBase - PROCESS_ARENA_STACK_RESERVED);
 
-        if (MmioBase <= StackBase) {
-            ERROR(TEXT("[ProcessArenaInitializeUser] Not enough stack/system room (StackBase=%p MmioBase=%p)"),
+        if (StackBase <= HeapInitialEnd || ModuleBase <= StackBase || MmioBase <= ModuleBase) {
+            ERROR(TEXT("[ProcessArenaInitializeUser] Not enough user arena room (HeapEnd=%p StackBase=%p ModuleBase=%p MmioBase=%p)"),
+                  HeapInitialEnd,
                   StackBase,
+                  ModuleBase,
                   MmioBase);
             return FALSE;
         }
@@ -186,8 +312,9 @@ BOOL ProcessArenaInitializeUser(
         ProcessArenaReset(Process);
 
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_IMAGE), ImageBase, HeapStart);
-        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_HEAP), HeapStart, MmioBase);
-        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_STACK), StackBase, MmioBase);
+        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_HEAP), HeapStart, StackBase);
+        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_STACK), StackBase, ModuleBase);
+        ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_MODULE), ModuleBase, MmioBase);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_MMIO), MmioBase, SystemBase);
         ProcessArenaRangeInitialize(PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM), SystemBase, UserLimit);
 
@@ -201,51 +328,52 @@ BOOL ProcessArenaInitializeUser(
 /************************************************************************/
 
 /**
+ * @brief Configure the process main heap growth policy from arena limits.
+ */
+void ProcessArenaConfigureMainHeap(LPPROCESS Process) {
+    UINT MaximumSize;
+    LINEAR HeapStart;
+    LINEAR HeapLimit;
+
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        if (Process->HeapBase == 0 || Process->HeapSize == 0 || Process->AddressSpace.Initialized == FALSE) {
+            return;
+        }
+
+        HeapStart = ProcessArenaAlignDown(Process->HeapBase);
+        HeapLimit = PROCESS_ARENA(Process, PROCESS_ARENA_HEAP)->Limit;
+        if (HeapLimit <= HeapStart) {
+            ERROR(TEXT("[ProcessArenaConfigureMainHeap] Invalid heap arena for process %p"), Process);
+            return;
+        }
+
+        MaximumSize = (UINT)(HeapLimit - HeapStart);
+        HeapConfigureGrowth(Process->HeapBase,
+                            Process,
+                            ProcessArenaResizeMainHeap,
+                            MaximumSize,
+                            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE);
+    }
+}
+
+/************************************************************************/
+
+/**
  * @brief Allocate a block in the process system arena.
  */
 LINEAR ProcessArenaAllocateSystem(LPPROCESS Process, UINT Size, U32 Flags, LPCSTR Tag) {
-    LINEAR AllocationBase;
-    LINEAR Result;
-    UINT AlignedSize;
-
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
         if (Process->AddressSpace.Initialized == FALSE || Size == 0) {
             return 0;
         }
 
-        AlignedSize = ProcessArenaAlignUp(Size);
-        AllocationBase = ProcessArenaAlignUp(PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM)->NextLow);
-
-        if (PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM)->Limit != 0 &&
-            AllocationBase + AlignedSize > PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM)->Limit) {
-            ERROR(TEXT("[ProcessArenaAllocateSystem] Arena exhausted for process %p"), Process);
-            return 0;
-        }
-
-        Result = AllocRegion(AllocationBase,
-                             0,
-                             AlignedSize,
-                             Flags | ALLOC_PAGES_AT_OR_OVER,
-                             Tag);
-        if (Result == 0) {
-            ERROR(TEXT("[ProcessArenaAllocateSystem] AllocRegion failed for process %p (Base=%p Size=%u)"),
-                  Process,
-                  AllocationBase,
-                  AlignedSize);
-            return 0;
-        }
-
-        if (ProcessArenaRangeContains(PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM), Result, AlignedSize) == FALSE) {
-            ERROR(TEXT("[ProcessArenaAllocateSystem] Out-of-range allocation %p (size=%u) for process %p"),
-                  Result,
-                  AlignedSize,
-                  Process);
-            FreeRegion(Result, AlignedSize);
-            return 0;
-        }
-
-        PROCESS_ARENA(Process, PROCESS_ARENA_SYSTEM)->NextLow = ProcessArenaAlignUp(Result + AlignedSize);
-        return Result;
+        return ProcessArenaAllocateLow(
+            Process,
+            PROCESS_ARENA_SYSTEM,
+            Size,
+            Flags,
+            Tag,
+            TEXT("ProcessArenaAllocateSystem"));
     }
 
     return 0;
@@ -300,6 +428,122 @@ LINEAR ProcessArenaAllocateMmio(LPPROCESS Process, PHYSICAL Target, UINT Size, U
 
         PROCESS_ARENA(Process, PROCESS_ARENA_MMIO)->NextLow = ProcessArenaAlignUp(Result + AlignedSize);
         return Result;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Allocate a block in the process module arena.
+ */
+LINEAR ProcessArenaAllocateModule(LPPROCESS Process, UINT Purpose, UINT Size, U32 Flags, LPCSTR Tag) {
+    LPCSTR EffectiveTag = Tag;
+
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        if (Process->AddressSpace.Initialized == FALSE || Size == 0) {
+            return 0;
+        }
+
+        if (Purpose >= PROCESS_MODULE_ALLOCATION_COUNT) {
+            ERROR(TEXT("[ProcessArenaAllocateModule] Invalid module allocation purpose=%u"), Purpose);
+            return 0;
+        }
+
+        if (EffectiveTag == NULL) {
+            EffectiveTag = ProcessArenaGetModuleAllocationTag(Purpose);
+        }
+
+        return ProcessArenaAllocateLow(
+            Process,
+            PROCESS_ARENA_MODULE,
+            Size,
+            Flags,
+            EffectiveTag,
+            TEXT("ProcessArenaAllocateModule"));
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Map fixed physical pages into the process module arena.
+ *
+ * @param Process Target process whose page directory is active.
+ * @param Purpose Module allocation purpose.
+ * @param PhysicalPages Physical page array owned by another kernel object.
+ * @param PageCount Number of pages to map.
+ * @param Flags Mapping flags, excluding ownership flags.
+ * @param Tag Optional memory descriptor tag.
+ * @return Linear base of the contiguous virtual mapping or 0.
+ */
+LINEAR ProcessArenaMapModulePages(
+    LPPROCESS Process,
+    UINT Purpose,
+    PHYSICAL* PhysicalPages,
+    UINT PageCount,
+    U32 Flags,
+    LPCSTR Tag) {
+    LINEAR AllocationBase;
+    LINEAR PageBase;
+    UINT AlignedSize;
+    LPCSTR EffectiveTag = Tag;
+
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        if (Process->AddressSpace.Initialized == FALSE || PhysicalPages == NULL || PageCount == 0) {
+            return 0;
+        }
+
+        if (Purpose >= PROCESS_MODULE_ALLOCATION_COUNT) {
+            ERROR(TEXT("[ProcessArenaMapModulePages] Invalid module allocation purpose=%u"), Purpose);
+            return 0;
+        }
+
+        if (EffectiveTag == NULL) {
+            EffectiveTag = ProcessArenaGetModuleAllocationTag(Purpose);
+        }
+
+        AlignedSize = PageCount << PAGE_SIZE_MUL;
+        AllocationBase = ProcessArenaAlignUp(PROCESS_ARENA(Process, PROCESS_ARENA_MODULE)->NextLow);
+
+        if (PROCESS_ARENA(Process, PROCESS_ARENA_MODULE)->Limit != 0 &&
+            AllocationBase + AlignedSize > PROCESS_ARENA(Process, PROCESS_ARENA_MODULE)->Limit) {
+            ERROR(TEXT("[ProcessArenaMapModulePages] Arena exhausted for process %p"), Process);
+            return 0;
+        }
+
+        for (UINT PageIndex = 0; PageIndex < PageCount; PageIndex++) {
+            if (PhysicalPages[PageIndex] == 0) {
+                ERROR(TEXT("[ProcessArenaMapModulePages] Invalid physical page index=%u"), PageIndex);
+                if (PageIndex != 0) {
+                    FreeRegionForProcess(Process, AllocationBase, PageIndex << PAGE_SIZE_MUL);
+                }
+                return 0;
+            }
+
+            PageBase = AllocationBase + (PageIndex << PAGE_SIZE_MUL);
+            if (AllocRegionForProcess(Process,
+                                      PageBase,
+                                      PhysicalPages[PageIndex],
+                                      PAGE_SIZE,
+                                      Flags | ALLOC_PAGES_COMMIT | ALLOC_PAGES_FIXED,
+                                      EffectiveTag) == 0) {
+                ERROR(TEXT("[ProcessArenaMapModulePages] AllocRegion failed process=%p base=%p page=%u"),
+                      Process,
+                      PageBase,
+                      PageIndex);
+                if (PageIndex != 0) {
+                    FreeRegionForProcess(Process, AllocationBase, PageIndex << PAGE_SIZE_MUL);
+                }
+                return 0;
+            }
+        }
+
+        PROCESS_ARENA(Process, PROCESS_ARENA_MODULE)->NextLow = ProcessArenaAlignUp(AllocationBase + AlignedSize);
+        return AllocationBase;
     }
 
     return 0;

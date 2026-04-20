@@ -22,17 +22,16 @@
 
 \************************************************************************/
 
+#include "Base.h"
+#include "DisplaySession.h"
+#include "console/Console.h"
+#include "core/Kernel.h"
 #include "drivers/input/Keyboard.h"
 #include "drivers/usb/XHCI-Internal.h"
-
-#include "Base.h"
-#include "system/Clock.h"
-#include "console/Console.h"
-#include "DisplaySession.h"
-#include "sync/DeferredWork.h"
-#include "core/Kernel.h"
-#include "log/Log.h"
 #include "input/VKey.h"
+#include "log/Log.h"
+#include "sync/DeferredWork.h"
+#include "system/Clock.h"
 #include "utils/HIDReport.h"
 #include "utils/RateLimiter.h"
 
@@ -81,7 +80,7 @@ typedef struct tag_USB_KEYBOARD_STATE {
     U64 ReportTrbPhysical;
     BOOL ReportPending;
     U32 RetryDelay;
-    U32 PollHandle;
+    DEFERRED_WORK_TOKEN PollToken;
     U8 PrevModifiers;
     U8 PrevKeys[USB_KEYBOARD_BOOT_KEYS];
     LPXHCI_USB_INTERFACE ConsumerInterface;
@@ -119,7 +118,7 @@ static USB_KEYBOARD_STATE DATA_SECTION USBKeyboardState = {
     .ReportTrbPhysical = U64_0,
     .ReportPending = FALSE,
     .RetryDelay = 0,
-    .PollHandle = DEFERRED_WORK_INVALID_HANDLE,
+    .PollToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT},
     .PrevModifiers = 0,
     .PrevKeys = {0},
     .ConsumerInterface = NULL,
@@ -131,8 +130,7 @@ static USB_KEYBOARD_STATE DATA_SECTION USBKeyboardState = {
     .ConsumerReportPending = FALSE,
     .ConsumerReportDescriptorLength = 0,
     .ConsumerLayout = {.Fields = NULL, .FieldCount = 0, .FieldCapacity = 0},
-    .ReferencesHeld = FALSE
-};
+    .ReferencesHeld = FALSE};
 
 static DRIVER DATA_SECTION USBKeyboardDriver = {
     .TypeID = KOID_DRIVER,
@@ -148,8 +146,7 @@ static DRIVER DATA_SECTION USBKeyboardDriver = {
     .Alias = "usb_keyboard",
     .Flags = 0,
     .Command = USBKeyboardCommands,
-    .CustomData = &USBKeyboardState
-};
+    .CustomData = &USBKeyboardState};
 
 /***************************************************************************/
 
@@ -171,8 +168,7 @@ static const USB_MEDIA_USAGE_MAP USBKeyboardMediaUsageMap[] = {
     {0x006F, VK_MEDIA_BRIGHTNESS_UP},
     {0x0070, VK_MEDIA_BRIGHTNESS_DOWN},
     {0x0032, VK_MEDIA_SLEEP},
-    {0x00B8, VK_MEDIA_EJECT}
-};
+    {0x00B8, VK_MEDIA_EJECT}};
 
 /***************************************************************************/
 
@@ -180,9 +176,7 @@ static const USB_MEDIA_USAGE_MAP USBKeyboardMediaUsageMap[] = {
  * @brief Retrieve the USB keyboard driver descriptor.
  * @return Pointer to the USB keyboard driver.
  */
-LPDRIVER USBKeyboardGetDriver(void) {
-    return &USBKeyboardDriver;
-}
+LPDRIVER USBKeyboardGetDriver(void) { return &USBKeyboardDriver; }
 
 /***************************************************************************/
 
@@ -196,9 +190,9 @@ static BOOL USBKeyboardIsHidKeyboardInterface(LPXHCI_USB_INTERFACE Interface) {
         return FALSE;
     }
 
-    return (Interface->InterfaceClass == USB_CLASS_HID &&
-            Interface->InterfaceSubClass == USB_HID_SUBCLASS_BOOT &&
-            Interface->InterfaceProtocol == USB_HID_PROTOCOL_KEYBOARD);
+    return (
+        Interface->InterfaceClass == USB_CLASS_HID && Interface->InterfaceSubClass == USB_HID_SUBCLASS_BOOT &&
+        Interface->InterfaceProtocol == USB_HID_PROTOCOL_KEYBOARD);
 }
 
 /***************************************************************************/
@@ -269,11 +263,8 @@ static BOOL USBKeyboardSetIdle(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice
  * @param BufferLength Output buffer length.
  * @return TRUE on success.
  */
-static BOOL USBKeyboardGetHidDescriptor(LPXHCI_DEVICE Device,
-                                        LPXHCI_USB_DEVICE UsbDevice,
-                                        U8 InterfaceNumber,
-                                        U8* Buffer,
-                                        U16 BufferLength) {
+static BOOL USBKeyboardGetHidDescriptor(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U8 InterfaceNumber, U8* Buffer, U16 BufferLength) {
     USB_SETUP_PACKET Setup;
 
     if (Device == NULL || UsbDevice == NULL || Buffer == NULL || BufferLength < USB_KEYBOARD_HID_DESCRIPTOR_LENGTH) {
@@ -302,11 +293,8 @@ static BOOL USBKeyboardGetHidDescriptor(LPXHCI_DEVICE Device,
  * @param BufferLength Output buffer length.
  * @return TRUE on success.
  */
-static BOOL USBKeyboardGetReportDescriptor(LPXHCI_DEVICE Device,
-                                           LPXHCI_USB_DEVICE UsbDevice,
-                                           U8 InterfaceNumber,
-                                           U8* Buffer,
-                                           U16 BufferLength) {
+static BOOL USBKeyboardGetReportDescriptor(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, U8 InterfaceNumber, U8* Buffer, U16 BufferLength) {
     USB_SETUP_PACKET Setup;
 
     if (Device == NULL || UsbDevice == NULL || Buffer == NULL || BufferLength == 0) {
@@ -357,10 +345,9 @@ static BOOL USBKeyboardIsHidConsumerInterface(LPXHCI_USB_INTERFACE Interface) {
  * @param EndpointOut Receives interrupt IN endpoint when found.
  * @return TRUE when a consumer interface is found.
  */
-static BOOL USBKeyboardFindConsumerInterface(LPXHCI_USB_DEVICE UsbDevice,
-                                             LPXHCI_USB_CONFIGURATION Config,
-                                             LPXHCI_USB_INTERFACE* InterfaceOut,
-                                             LPXHCI_USB_ENDPOINT* EndpointOut) {
+static BOOL USBKeyboardFindConsumerInterface(
+    LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_CONFIGURATION Config, LPXHCI_USB_INTERFACE* InterfaceOut,
+    LPXHCI_USB_ENDPOINT* EndpointOut) {
     LPLIST InterfaceList = NULL;
 
     if (UsbDevice == NULL || Config == NULL || InterfaceOut == NULL || EndpointOut == NULL) {
@@ -512,12 +499,10 @@ static BOOL USBKeyboardIsDevicePresent(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE U
  * @param EndpointOut Receives endpoint.
  * @return TRUE if a keyboard device was found.
  */
-static BOOL USBKeyboardFindDevice(LPXHCI_DEVICE* DeviceOut,
-                                  LPXHCI_USB_DEVICE* UsbDeviceOut,
-                                  LPXHCI_USB_INTERFACE* InterfaceOut,
-                                  LPXHCI_USB_ENDPOINT* EndpointOut,
-                                  LPXHCI_USB_INTERFACE* ConsumerInterfaceOut,
-                                  LPXHCI_USB_ENDPOINT* ConsumerEndpointOut) {
+static BOOL USBKeyboardFindDevice(
+    LPXHCI_DEVICE* DeviceOut, LPXHCI_USB_DEVICE* UsbDeviceOut, LPXHCI_USB_INTERFACE* InterfaceOut,
+    LPXHCI_USB_ENDPOINT* EndpointOut, LPXHCI_USB_INTERFACE* ConsumerInterfaceOut,
+    LPXHCI_USB_ENDPOINT* ConsumerEndpointOut) {
     if (DeviceOut == NULL || UsbDeviceOut == NULL || InterfaceOut == NULL || EndpointOut == NULL ||
         ConsumerInterfaceOut == NULL || ConsumerEndpointOut == NULL) {
         return FALSE;
@@ -585,7 +570,8 @@ static BOOL USBKeyboardFindDevice(LPXHCI_DEVICE* DeviceOut,
                     *UsbDeviceOut = UsbDevice;
                     *InterfaceOut = Interface;
                     *EndpointOut = Endpoint;
-                    (void)USBKeyboardFindConsumerInterface(UsbDevice, Config, ConsumerInterfaceOut, ConsumerEndpointOut);
+                    (void)USBKeyboardFindConsumerInterface(
+                        UsbDevice, Config, ConsumerInterfaceOut, ConsumerEndpointOut);
                     return TRUE;
                 }
             }
@@ -602,14 +588,11 @@ static BOOL USBKeyboardFindDevice(LPXHCI_DEVICE* DeviceOut,
  * @param Device xHCI device.
  * @return TRUE on success.
  */
-static BOOL USBKeyboardSubmitInterruptReport(LPXHCI_DEVICE Device,
-                                             LPXHCI_USB_ENDPOINT Endpoint,
-                                             U16 ReportLength,
-                                             PHYSICAL ReportPhysical,
-                                             U64* ReportTrbPhysical,
-                                             BOOL* ReportPending) {
-    if (Device == NULL || Endpoint == NULL || ReportPhysical == 0 || ReportTrbPhysical == NULL || ReportPending == NULL ||
-        ReportLength == 0) {
+static BOOL USBKeyboardSubmitInterruptReport(
+    LPXHCI_DEVICE Device, LPXHCI_USB_ENDPOINT Endpoint, U16 ReportLength, PHYSICAL ReportPhysical,
+    U64* ReportTrbPhysical, BOOL* ReportPending) {
+    if (Device == NULL || Endpoint == NULL || ReportPhysical == 0 || ReportTrbPhysical == NULL ||
+        ReportPending == NULL || ReportLength == 0) {
         return FALSE;
     }
 
@@ -620,13 +603,9 @@ static BOOL USBKeyboardSubmitInterruptReport(LPXHCI_DEVICE Device,
     Trb.Dword2 = ReportLength;
     Trb.Dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_IOC;
 
-    if (!XHCI_RingEnqueue(Endpoint->TransferRingLinear,
-                          Endpoint->TransferRingPhysical,
-                          &Endpoint->TransferRingEnqueueIndex,
-                          &Endpoint->TransferRingCycleState,
-                          XHCI_TRANSFER_RING_TRBS,
-                          &Trb,
-                          ReportTrbPhysical)) {
+    if (!XHCI_RingEnqueue(
+            Endpoint->TransferRingLinear, Endpoint->TransferRingPhysical, &Endpoint->TransferRingEnqueueIndex,
+            &Endpoint->TransferRingCycleState, XHCI_TRANSFER_RING_TRBS, &Trb, ReportTrbPhysical)) {
         return FALSE;
     }
 
@@ -670,14 +649,15 @@ static void USBKeyboardHandleSpecialUsage(U8 Usage) {
         TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
         TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
         TaskInfo.Flags = 0;
-        CreateTask(&KernelProcess, &TaskInfo);
+        KernelCreateTask(&KernelProcess, &TaskInfo);
     }
 }
 
 /***************************************************************************/
 
 static UINT USBKeyboardFindMediaUsageIndex(U16 Usage) {
-    for (UINT Index = 0; Index < (UINT)(sizeof(USBKeyboardMediaUsageMap) / sizeof(USBKeyboardMediaUsageMap[0])); Index++) {
+    for (UINT Index = 0; Index < (UINT)(sizeof(USBKeyboardMediaUsageMap) / sizeof(USBKeyboardMediaUsageMap[0]));
+         Index++) {
         if (USBKeyboardMediaUsageMap[Index].Usage == Usage) {
             return Index;
         }
@@ -695,9 +675,8 @@ static void USBKeyboardLogUnknownConsumerUsage(U16 Usage) {
         return;
     }
 
-    WARNING(TEXT("[USBKeyboardLogUnknownConsumerUsage] Unmapped consumer usage=%x suppressed=%u"),
-            (U32)Usage,
-            Suppressed);
+    WARNING(
+        TEXT("[USBKeyboardLogUnknownConsumerUsage] Unmapped consumer usage=%x suppressed=%u"), (U32)Usage, Suppressed);
 }
 
 /***************************************************************************/
@@ -721,7 +700,8 @@ static void USBKeyboardLogUnknownConsumerUsages(const U8* Report, U16 ReportLeng
 
         if (!Field->IsArray) {
             U32 Value = 0;
-            if (!HidReportReadUnsignedValue(Report, ReportLength, Field->ReportId, Field->BitOffset, Field->BitSize, &Value)) {
+            if (!HidReportReadUnsignedValue(
+                    Report, ReportLength, Field->ReportId, Field->BitOffset, Field->BitSize, &Value)) {
                 continue;
             }
             if (Value == 0 || Field->Usage == 0 || USBKeyboardFindMediaUsageIndex(Field->Usage) != (UINT)-1) {
@@ -746,7 +726,8 @@ static void USBKeyboardLogUnknownConsumerUsages(const U8* Report, U16 ReportLeng
             U32 Value = 0;
             U16 Usage = 0;
             BOOL Exists = FALSE;
-            if (!HidReportReadUnsignedValue(Report, ReportLength, Field->ReportId, ElementOffset, Field->BitSize, &Value)) {
+            if (!HidReportReadUnsignedValue(
+                    Report, ReportLength, Field->ReportId, ElementOffset, Field->BitSize, &Value)) {
                 continue;
             }
             if (Value == 0 || Value > 0xFFFF || USBKeyboardFindMediaUsageIndex((U16)Value) != (UINT)-1) {
@@ -777,16 +758,9 @@ static void USBKeyboardHandleModifiers(U8 NewModifiers) {
     static const struct {
         U8 Mask;
         KEY_USAGE Usage;
-    } ModifierMap[] = {
-        {BIT_0, KEY_USAGE_LEFT_CTRL},
-        {BIT_1, KEY_USAGE_LEFT_SHIFT},
-        {BIT_2, KEY_USAGE_LEFT_ALT},
-        {BIT_3, KEY_USAGE_LEFT_GUI},
-        {BIT_4, KEY_USAGE_RIGHT_CTRL},
-        {BIT_5, KEY_USAGE_RIGHT_SHIFT},
-        {BIT_6, KEY_USAGE_RIGHT_ALT},
-        {BIT_7, KEY_USAGE_RIGHT_GUI}
-    };
+    } ModifierMap[] = {{BIT_0, KEY_USAGE_LEFT_CTRL}, {BIT_1, KEY_USAGE_LEFT_SHIFT}, {BIT_2, KEY_USAGE_LEFT_ALT},
+                       {BIT_3, KEY_USAGE_LEFT_GUI},  {BIT_4, KEY_USAGE_RIGHT_CTRL}, {BIT_5, KEY_USAGE_RIGHT_SHIFT},
+                       {BIT_6, KEY_USAGE_RIGHT_ALT}, {BIT_7, KEY_USAGE_RIGHT_GUI}};
 
     U8 OldModifiers = USBKeyboardState.PrevModifiers;
 
@@ -880,11 +854,9 @@ static void USBKeyboardHandleConsumerReport(void) {
     USBKeyboardLogUnknownConsumerUsages(Report, USBKeyboardState.ConsumerReportLength);
 
     for (Index = 0; Index < (UINT)(sizeof(USBKeyboardMediaUsageMap) / sizeof(USBKeyboardMediaUsageMap[0])); Index++) {
-        BOOL IsPressed = HidReportIsUsageActive(&USBKeyboardState.ConsumerLayout,
-                                                Report,
-                                                USBKeyboardState.ConsumerReportLength,
-                                                USB_KEYBOARD_USAGE_PAGE_CONSUMER,
-                                                USBKeyboardMediaUsageMap[Index].Usage);
+        BOOL IsPressed = HidReportIsUsageActive(
+            &USBKeyboardState.ConsumerLayout, Report, USBKeyboardState.ConsumerReportLength,
+            USB_KEYBOARD_USAGE_PAGE_CONSUMER, USBKeyboardMediaUsageMap[Index].Usage);
         BOOL WasPressed = USBKeyboardState.ConsumerPressed[Index] != 0;
         if (IsPressed == WasPressed) {
             continue;
@@ -908,18 +880,13 @@ static void USBKeyboardProcessBootReports(void) {
     }
 
     if (!USBKeyboardState.ReportPending) {
-        (void)USBKeyboardSubmitInterruptReport(USBKeyboardState.Controller,
-                                               USBKeyboardState.Endpoint,
-                                               USBKeyboardState.ReportLength,
-                                               USBKeyboardState.ReportPhysical,
-                                               &USBKeyboardState.ReportTrbPhysical,
-                                               &USBKeyboardState.ReportPending);
+        (void)USBKeyboardSubmitInterruptReport(
+            USBKeyboardState.Controller, USBKeyboardState.Endpoint, USBKeyboardState.ReportLength,
+            USBKeyboardState.ReportPhysical, &USBKeyboardState.ReportTrbPhysical, &USBKeyboardState.ReportPending);
         return;
     }
 
-    if (!XHCI_CheckTransferCompletion(USBKeyboardState.Controller,
-                                       USBKeyboardState.ReportTrbPhysical,
-                                       &Completion)) {
+    if (!XHCI_CheckTransferCompletion(USBKeyboardState.Controller, USBKeyboardState.ReportTrbPhysical, &Completion)) {
         return;
     }
 
@@ -930,12 +897,9 @@ static void USBKeyboardProcessBootReports(void) {
         WARNING(TEXT("[USBKeyboardProcessBootReports] Completion %x"), Completion);
     }
 
-    (void)USBKeyboardSubmitInterruptReport(USBKeyboardState.Controller,
-                                           USBKeyboardState.Endpoint,
-                                           USBKeyboardState.ReportLength,
-                                           USBKeyboardState.ReportPhysical,
-                                           &USBKeyboardState.ReportTrbPhysical,
-                                           &USBKeyboardState.ReportPending);
+    (void)USBKeyboardSubmitInterruptReport(
+        USBKeyboardState.Controller, USBKeyboardState.Endpoint, USBKeyboardState.ReportLength,
+        USBKeyboardState.ReportPhysical, &USBKeyboardState.ReportTrbPhysical, &USBKeyboardState.ReportPending);
 }
 
 /***************************************************************************/
@@ -952,18 +916,15 @@ static void USBKeyboardProcessConsumerReports(void) {
     }
 
     if (!USBKeyboardState.ConsumerReportPending) {
-        (void)USBKeyboardSubmitInterruptReport(USBKeyboardState.Controller,
-                                               USBKeyboardState.ConsumerEndpoint,
-                                               USBKeyboardState.ConsumerReportLength,
-                                               USBKeyboardState.ConsumerReportPhysical,
-                                               &USBKeyboardState.ConsumerReportTrbPhysical,
-                                               &USBKeyboardState.ConsumerReportPending);
+        (void)USBKeyboardSubmitInterruptReport(
+            USBKeyboardState.Controller, USBKeyboardState.ConsumerEndpoint, USBKeyboardState.ConsumerReportLength,
+            USBKeyboardState.ConsumerReportPhysical, &USBKeyboardState.ConsumerReportTrbPhysical,
+            &USBKeyboardState.ConsumerReportPending);
         return;
     }
 
-    if (!XHCI_CheckTransferCompletion(USBKeyboardState.Controller,
-                                      USBKeyboardState.ConsumerReportTrbPhysical,
-                                      &Completion)) {
+    if (!XHCI_CheckTransferCompletion(
+            USBKeyboardState.Controller, USBKeyboardState.ConsumerReportTrbPhysical, &Completion)) {
         return;
     }
 
@@ -974,12 +935,10 @@ static void USBKeyboardProcessConsumerReports(void) {
         WARNING(TEXT("[USBKeyboardProcessConsumerReports] Completion %x"), Completion);
     }
 
-    (void)USBKeyboardSubmitInterruptReport(USBKeyboardState.Controller,
-                                           USBKeyboardState.ConsumerEndpoint,
-                                           USBKeyboardState.ConsumerReportLength,
-                                           USBKeyboardState.ConsumerReportPhysical,
-                                           &USBKeyboardState.ConsumerReportTrbPhysical,
-                                           &USBKeyboardState.ConsumerReportPending);
+    (void)USBKeyboardSubmitInterruptReport(
+        USBKeyboardState.Controller, USBKeyboardState.ConsumerEndpoint, USBKeyboardState.ConsumerReportLength,
+        USBKeyboardState.ConsumerReportPhysical, &USBKeyboardState.ConsumerReportTrbPhysical,
+        &USBKeyboardState.ConsumerReportPending);
 }
 
 /***************************************************************************/
@@ -1002,10 +961,8 @@ static void USBKeyboardProcessReports(void) {
  * @param Endpoint Interrupt IN endpoint.
  * @return TRUE on success.
  */
-static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
-                                                 LPXHCI_USB_DEVICE UsbDevice,
-                                                 LPXHCI_USB_INTERFACE Interface,
-                                                 LPXHCI_USB_ENDPOINT Endpoint) {
+static BOOL USBKeyboardInitializeConsumerControl(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE Interface, LPXHCI_USB_ENDPOINT Endpoint) {
     U8 HidDescriptor[USB_KEYBOARD_HID_DESCRIPTOR_LENGTH];
     U16 DescriptorLength = 0;
 
@@ -1013,11 +970,7 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
         return FALSE;
     }
 
-    if (!USBKeyboardGetHidDescriptor(Device,
-                                     UsbDevice,
-                                     Interface->Number,
-                                     HidDescriptor,
-                                     sizeof(HidDescriptor))) {
+    if (!USBKeyboardGetHidDescriptor(Device, UsbDevice, Interface->Number, HidDescriptor, sizeof(HidDescriptor))) {
         WARNING(TEXT("[USBKeyboardInitializeConsumerControl] HID descriptor fetch failed"));
         return FALSE;
     }
@@ -1028,11 +981,8 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
         return FALSE;
     }
 
-    if (!USBKeyboardGetReportDescriptor(Device,
-                                        UsbDevice,
-                                        Interface->Number,
-                                        USBKeyboardState.ConsumerReportDescriptor,
-                                        DescriptorLength)) {
+    if (!USBKeyboardGetReportDescriptor(
+            Device, UsbDevice, Interface->Number, USBKeyboardState.ConsumerReportDescriptor, DescriptorLength)) {
         WARNING(TEXT("[USBKeyboardInitializeConsumerControl] Report descriptor fetch failed"));
         return FALSE;
     }
@@ -1042,9 +992,8 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
         sizeof(USBKeyboardState.ConsumerFields) / sizeof(USBKeyboardState.ConsumerFields[0]);
     USBKeyboardState.ConsumerLayout.FieldCount = 0;
 
-    if (!HidReportParseInputLayout(USBKeyboardState.ConsumerReportDescriptor,
-                                   DescriptorLength,
-                                   &USBKeyboardState.ConsumerLayout)) {
+    if (!HidReportParseInputLayout(
+            USBKeyboardState.ConsumerReportDescriptor, DescriptorLength, &USBKeyboardState.ConsumerLayout)) {
         WARNING(TEXT("[USBKeyboardInitializeConsumerControl] Report descriptor parse failed"));
         return FALSE;
     }
@@ -1067,9 +1016,9 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
         USBKeyboardState.ConsumerReportLength = PAGE_SIZE;
     }
 
-    if (!XHCI_AllocPage(TEXT("USBKeyboardConsumerReport"),
-                        &USBKeyboardState.ConsumerReportPhysical,
-                        &USBKeyboardState.ConsumerReportLinear)) {
+    if (!XHCI_AllocPage(
+            TEXT("USBKeyboardConsumerReport"), &USBKeyboardState.ConsumerReportPhysical,
+            &USBKeyboardState.ConsumerReportLinear)) {
         WARNING(TEXT("[USBKeyboardInitializeConsumerControl] Report buffer alloc failed"));
         USBKeyboardState.ConsumerInterface = NULL;
         USBKeyboardState.ConsumerEndpoint = NULL;
@@ -1085,10 +1034,9 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
     XHCI_ReferenceUsbInterface(Interface);
     XHCI_ReferenceUsbEndpoint(Endpoint);
 
-    DEBUG(TEXT("[USBKeyboardInitializeConsumerControl] Consumer if=%u ep=%x fields=%u"),
-          (U32)Interface->Number,
-          (U32)Endpoint->Address,
-          (U32)USBKeyboardState.ConsumerLayout.FieldCount);
+    DEBUG(
+        TEXT("[USBKeyboardInitializeConsumerControl] Consumer if=%u ep=%x fields=%u"), (U32)Interface->Number,
+        (U32)Endpoint->Address, (U32)USBKeyboardState.ConsumerLayout.FieldCount);
 
     return TRUE;
 }
@@ -1105,12 +1053,9 @@ static BOOL USBKeyboardInitializeConsumerControl(LPXHCI_DEVICE Device,
  * @param ConsumerEndpoint Optional HID consumer endpoint.
  * @return TRUE on success.
  */
-static BOOL USBKeyboardStartDevice(LPXHCI_DEVICE Device,
-                                   LPXHCI_USB_DEVICE UsbDevice,
-                                   LPXHCI_USB_INTERFACE Interface,
-                                   LPXHCI_USB_ENDPOINT Endpoint,
-                                   LPXHCI_USB_INTERFACE ConsumerInterface,
-                                   LPXHCI_USB_ENDPOINT ConsumerEndpoint) {
+static BOOL USBKeyboardStartDevice(
+    LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE Interface, LPXHCI_USB_ENDPOINT Endpoint,
+    LPXHCI_USB_INTERFACE ConsumerInterface, LPXHCI_USB_ENDPOINT ConsumerEndpoint) {
     if (Device == NULL || UsbDevice == NULL || Interface == NULL || Endpoint == NULL) {
         return FALSE;
     }
@@ -1137,9 +1082,7 @@ static BOOL USBKeyboardStartDevice(LPXHCI_DEVICE Device,
         ReportLength = PAGE_SIZE;
     }
 
-    if (!XHCI_AllocPage(TEXT("USBKeyboardReport"),
-                        &USBKeyboardState.ReportPhysical,
-                        &USBKeyboardState.ReportLinear)) {
+    if (!XHCI_AllocPage(TEXT("USBKeyboardReport"), &USBKeyboardState.ReportPhysical, &USBKeyboardState.ReportLinear)) {
         ERROR(TEXT("[USBKeyboardStartDevice] Report buffer alloc failed"));
         return FALSE;
     }
@@ -1169,24 +1112,18 @@ static BOOL USBKeyboardStartDevice(LPXHCI_DEVICE Device,
 
     USBKeyboardState.ReferencesHeld = TRUE;
 
-    DEBUG(TEXT("[USBKeyboardStartDevice] Keyboard addr=%x if=%u ep=%x"),
-          UsbDevice->Address,
-          (U32)Interface->Number,
-          (U32)Endpoint->Address);
+    DEBUG(
+        TEXT("[USBKeyboardStartDevice] Keyboard addr=%x if=%u ep=%x"), UsbDevice->Address, (U32)Interface->Number,
+        (U32)Endpoint->Address);
 
-    (void)USBKeyboardSubmitInterruptReport(Device,
-                                           USBKeyboardState.Endpoint,
-                                           USBKeyboardState.ReportLength,
-                                           USBKeyboardState.ReportPhysical,
-                                           &USBKeyboardState.ReportTrbPhysical,
-                                           &USBKeyboardState.ReportPending);
+    (void)USBKeyboardSubmitInterruptReport(
+        Device, USBKeyboardState.Endpoint, USBKeyboardState.ReportLength, USBKeyboardState.ReportPhysical,
+        &USBKeyboardState.ReportTrbPhysical, &USBKeyboardState.ReportPending);
     if (USBKeyboardState.ConsumerEndpoint != NULL) {
-        (void)USBKeyboardSubmitInterruptReport(Device,
-                                               USBKeyboardState.ConsumerEndpoint,
-                                               USBKeyboardState.ConsumerReportLength,
-                                               USBKeyboardState.ConsumerReportPhysical,
-                                               &USBKeyboardState.ConsumerReportTrbPhysical,
-                                               &USBKeyboardState.ConsumerReportPending);
+        (void)USBKeyboardSubmitInterruptReport(
+            Device, USBKeyboardState.ConsumerEndpoint, USBKeyboardState.ConsumerReportLength,
+            USBKeyboardState.ConsumerReportPhysical, &USBKeyboardState.ConsumerReportTrbPhysical,
+            &USBKeyboardState.ConsumerReportPending);
     }
     return TRUE;
 }
@@ -1225,12 +1162,7 @@ static void USBKeyboardPoll(LPVOID Context) {
         LPXHCI_USB_INTERFACE ConsumerInterface = NULL;
         LPXHCI_USB_ENDPOINT ConsumerEndpoint = NULL;
 
-        if (USBKeyboardFindDevice(&Device,
-                                  &UsbDevice,
-                                  &Interface,
-                                  &Endpoint,
-                                  &ConsumerInterface,
-                                  &ConsumerEndpoint)) {
+        if (USBKeyboardFindDevice(&Device, &UsbDevice, &Interface, &Endpoint, &ConsumerInterface, &ConsumerEndpoint)) {
             if (!USBKeyboardStartDevice(Device, UsbDevice, Interface, Endpoint, ConsumerInterface, ConsumerEndpoint)) {
                 USBKeyboardClearState();
                 USBKeyboardState.RetryDelay = USB_KEYBOARD_DISCOVERY_RETRY_DELAY_POLLS;
@@ -1284,10 +1216,9 @@ UINT USBKeyboardCommands(UINT Function, UINT Parameter) {
 
             KeyboardCommonInitialize();
 
-            if (USBKeyboardState.PollHandle == DEFERRED_WORK_INVALID_HANDLE) {
-                USBKeyboardState.PollHandle =
-                    DeferredWorkRegisterPollOnly(USBKeyboardPoll, NULL, TEXT("USBKeyboard"));
-                if (USBKeyboardState.PollHandle == DEFERRED_WORK_INVALID_HANDLE) {
+            if (DeferredWorkTokenIsValid(USBKeyboardState.PollToken) == FALSE) {
+                USBKeyboardState.PollToken = DeferredWorkRegisterPollOnly(USBKeyboardPoll, NULL, TEXT("USBKeyboard"));
+                if (DeferredWorkTokenIsValid(USBKeyboardState.PollToken) == FALSE) {
                     return DF_RETURN_UNEXPECTED;
                 }
             }
@@ -1301,9 +1232,10 @@ UINT USBKeyboardCommands(UINT Function, UINT Parameter) {
                 return DF_RETURN_SUCCESS;
             }
 
-            if (USBKeyboardState.PollHandle != DEFERRED_WORK_INVALID_HANDLE) {
-                DeferredWorkUnregister(USBKeyboardState.PollHandle);
-                USBKeyboardState.PollHandle = DEFERRED_WORK_INVALID_HANDLE;
+            if (DeferredWorkTokenIsValid(USBKeyboardState.PollToken) != FALSE) {
+                DeferredWorkUnregister(USBKeyboardState.PollToken);
+                USBKeyboardState.PollToken =
+                    (DEFERRED_WORK_TOKEN){.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT};
             }
 
             USBKeyboardClearState();

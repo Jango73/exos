@@ -123,7 +123,7 @@ static BOOL DrawSolidRect(HANDLE GC, I32 X1, I32 Y1, I32 X2, I32 Y2, COLOR Color
 
     OldPen = SelectPen(GC, NULL);
     OldBrush = SelectBrush(GC, (HANDLE)&Brush);
-    (void)Rectangle(&RectInfo);
+    (void)KernelRectangle(&RectInfo);
     (void)SelectBrush(GC, OldBrush);
     (void)SelectPen(GC, OldPen);
 
@@ -164,7 +164,7 @@ static BOOL DrawVerticalGradientRect(
     RectInfo.CornerRadius = (I32)CornerRadius;
     RectInfo.CornerStyle = CornerStyle;
 
-    return Rectangle(&RectInfo);
+    return KernelRectangle(&RectInfo);
 }
 
 /***************************************************************************/

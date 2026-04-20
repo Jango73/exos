@@ -1,14 +1,35 @@
 name: Build
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  entrypoint:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [debug]
 
     steps:
-      - name: Explain purpose
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
         run: |
-          echo "This workflow exists on the default branch to expose manual runs."
-          echo "Use the Branch selector in GitHub Actions to run the real workflow from another branch."
+          sudo apt-get update
+          sudo apt-get install -y nasm
+
+      - name: Build EXOS x86-64 UEFI ext2
+        run: ./scripts/linux/build/build --arch x86-64 --fs ext2 --uefi --${{ matrix.config }} --no-images
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exos-x86-64-uefi-${{ matrix.config }}
+          path: |
+            build/
+            log/
+          retention-days: 5

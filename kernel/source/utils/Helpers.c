@@ -26,7 +26,7 @@
 #include "core/Kernel.h"
 #include "fs/SystemFS.h"
 #include "process/Schedule.h"
-#include "user/UserAccount.h"
+#include "user/Account.h"
 
 /***************************************************************************/
 
@@ -36,7 +36,7 @@ LPUSER_ACCOUNT GetCurrentUser(void) {
         return NULL;
     }
 
-    return FindUserAccountByID(CurrentProcess->Session->UserID);
+    return FindAccountByID(CurrentProcess->Session->UserID);
 }
 
 /***************************************************************************/

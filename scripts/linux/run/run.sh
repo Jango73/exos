@@ -230,13 +230,13 @@ case "$ARCH" in
         ;;
 esac
 
-IMG_PATH="$IMAGE_BUILD_DIR/boot-mbr/exos.img"
-USB_3_PATH="$IMAGE_BUILD_DIR/boot-mbr/usb-3.img"
-FS_TEST_EXT2_IMG_PATH="$IMAGE_BUILD_DIR/boot-mbr/fs-test-ext2.img"
-FS_TEST_FAT32_IMG_PATH="$IMAGE_BUILD_DIR/boot-mbr/fs-test-fat32.img"
-FS_TEST_NTFS_IMG_PATH="$IMAGE_BUILD_DIR/boot-mbr/fs-test-ntfs.img"
+IMG_PATH="$IMAGE_BUILD_DIR/exos.img"
+USB_3_PATH="$IMAGE_BUILD_DIR/usb-3.img"
+FS_TEST_EXT2_IMG_PATH="$IMAGE_BUILD_DIR/fs-test-ext2.img"
+FS_TEST_FAT32_IMG_PATH="$IMAGE_BUILD_DIR/fs-test-fat32.img"
+FS_TEST_NTFS_IMG_PATH="$IMAGE_BUILD_DIR/fs-test-ntfs.img"
 NTFS_LIVE_IMG_PATH="build/test-images/ntfs-live.img"
-FLOPPY_35_PATH="${FLOPPY_35_PATH:-$IMAGE_BUILD_DIR/boot-mbr/floppy-3.5.img}"
+FLOPPY_35_PATH="${FLOPPY_35_PATH:-$IMAGE_BUILD_DIR/floppy-3.5.img}"
 CYCLE_BIN="$CORE_BUILD_DIR/tools/cycle"
 DEBUG_ELF="$CORE_BUILD_DIR/kernel/exos.elf"
 
@@ -245,7 +245,7 @@ WaitForBuildIfNeeded
 QEMU_BIN="${QEMU_BIN:-$QEMU_BIN_DEFAULT}"
 
 if [ "$USE_UEFI" -eq 1 ]; then
-    IMG_PATH="$IMAGE_BUILD_DIR/boot-uefi/exos-uefi.img"
+    IMG_PATH="$IMAGE_BUILD_DIR/exos-uefi.img"
 fi
 
 if [ ! -f "$IMG_PATH" ]; then
@@ -412,8 +412,8 @@ function BuildUefiArguments() {
         exit 1
     }
 
-    OVMF_VARS_COPY="$IMAGE_BUILD_DIR/boot-uefi/ovmf-vars.fd"
-    mkdir -p "$IMAGE_BUILD_DIR/boot-uefi"
+    OVMF_VARS_COPY="$IMAGE_BUILD_DIR/work-uefi/ovmf-vars.fd"
+    mkdir -p "$IMAGE_BUILD_DIR/work-uefi"
     cp -f "$OVMF_VARS_PATH" "$OVMF_VARS_COPY"
 
     UEFI_ARGUMENTS=(

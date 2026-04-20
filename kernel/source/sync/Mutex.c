@@ -168,7 +168,6 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
 
     UseDeadlockMonitor = GetUseDeadlockMonitor();
 
-
     //-------------------------------------
     // Check validity of parameters
 

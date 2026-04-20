@@ -449,7 +449,7 @@ static void HandleScanCode(U32 ScanCode) {
                         TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
                         TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
                         TaskInfo.Flags = 0;
-                        CreateTask(&KernelProcess, &TaskInfo);
+                        KernelCreateTask(&KernelProcess, &TaskInfo);
                     }
                 }
             } break;

@@ -73,7 +73,7 @@ if ! command -v rsync >/dev/null 2>&1; then
 fi
 
 if [ -z "$SOURCE_DIR" ]; then
-    SOURCE_DIR="build/image/${ARCH}-uefi-debug-split-ext2/boot-uefi/esp-root"
+    SOURCE_DIR="build/image/${ARCH}-uefi-debug-split-ext2/work-uefi/esp-root"
 fi
 
 if [ ! -d "$SOURCE_DIR" ]; then

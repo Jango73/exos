@@ -177,21 +177,12 @@ LPSCRIPT_VARIABLE ScriptSetVariableInScope(LPSCRIPT_SCOPE Scope, LPCSTR Name, SC
 
     SAFE_USE(ExistingVar) {
         // Update existing variable in whichever scope it was found
-        if (ExistingVar->Type == SCRIPT_VAR_STRING && ExistingVar->Value.String) {
-            ScriptFree(Scope->Context, ExistingVar->Value.String);
-            ExistingVar->Value.String = NULL;
-        }
+        ScriptReleaseStoredValue(Scope->Context, ExistingVar->Type, &ExistingVar->Value);
 
         ExistingVar->Type = Type;
-        ExistingVar->Value = Value;
-
-        // Duplicate string value
-        if (Type == SCRIPT_VAR_STRING && Value.String) {
-            U32 Len = StringLength(Value.String) + 1;
-            ExistingVar->Value.String = (LPSTR)ScriptAlloc(Scope->Context, Len);
-            if (ExistingVar->Value.String) {
-                StringCopy(ExistingVar->Value.String, Value.String);
-            }
+        if (ScriptStoreObjectValue(Scope->Context, Type, &Value, &ExistingVar->Value) != SCRIPT_OK) {
+            MemorySet(&ExistingVar->Value, 0, sizeof(SCRIPT_VAR_VALUE));
+            return NULL;
         }
 
         return ExistingVar;
@@ -208,19 +199,10 @@ LPSCRIPT_VARIABLE ScriptSetVariableInScope(LPSCRIPT_SCOPE Scope, LPCSTR Name, SC
     Variable->Context = Scope->Context;
     StringCopy(Variable->Name, Name);
     Variable->Type = Type;
-    Variable->Value = Value;
     Variable->RefCount = 1;
-
-    // Duplicate string value
-    if (Type == SCRIPT_VAR_STRING && Value.String) {
-        U32 Len = StringLength(Value.String) + 1;
-        Variable->Value.String = (LPSTR)ScriptAlloc(Scope->Context, Len);
-        if (Variable->Value.String) {
-            StringCopy(Variable->Value.String, Value.String);
-        } else {
-            ScriptFree(Scope->Context, Variable);
-            return NULL;
-        }
+    if (ScriptStoreObjectValue(Scope->Context, Type, &Value, &Variable->Value) != SCRIPT_OK) {
+        ScriptFree(Scope->Context, Variable);
+        return NULL;
     }
 
     ListAddItem(Bucket, Variable);

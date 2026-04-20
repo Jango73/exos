@@ -37,11 +37,7 @@
 void ScriptFreeVariable(LPSCRIPT_VARIABLE Variable) {
     if (Variable == NULL) return;
 
-    if (Variable->Type == SCRIPT_VAR_STRING && Variable->Value.String) {
-        ScriptFree(Variable->Context, Variable->Value.String);
-    } else if (Variable->Type == SCRIPT_VAR_ARRAY && Variable->Value.Array) {
-        ScriptDestroyArray(Variable->Value.Array);
-    }
+    ScriptReleaseStoredValue(Variable->Context, Variable->Type, &Variable->Value);
 
     ScriptFree(Variable->Context, Variable);
 }
@@ -73,6 +69,8 @@ void ScriptValueRelease(SCRIPT_VALUE* Value) {
         ScriptFree(Value->ContextOwner, Value->Value.String);
     } else if (Value->Type == SCRIPT_VAR_ARRAY && Value->OwnsValue && Value->Value.Array) {
         ScriptDestroyArray(Value->Value.Array);
+    } else if (Value->Type == SCRIPT_VAR_OBJECT && Value->OwnsValue && Value->Value.Object) {
+        ScriptReleaseObject(Value->Value.Object);
     } else if (Value->Type == SCRIPT_VAR_HOST_HANDLE && Value->OwnsValue &&
                Value->Value.HostHandle && Value->HostDescriptor &&
                Value->HostDescriptor->ReleaseHandle) {
@@ -86,6 +84,86 @@ void ScriptValueRelease(SCRIPT_VALUE* Value) {
     Value->OwnsValue = FALSE;
     Value->HostDescriptor = NULL;
     Value->HostContext = NULL;
+}
+
+/************************************************************************/
+/**
+ * @brief Release one stored script value owned by a variable, array, or return slot.
+ * @param Context Owning script context.
+ * @param Type Stored value type.
+ * @param Value Stored value payload.
+ */
+void ScriptReleaseStoredValue(
+    LPSCRIPT_CONTEXT Context,
+    SCRIPT_VAR_TYPE Type,
+    SCRIPT_VAR_VALUE* Value) {
+    if (Value == NULL) {
+        return;
+    }
+
+    if (Type == SCRIPT_VAR_STRING && Value->String != NULL) {
+        ScriptFree(Context, Value->String);
+    } else if (Type == SCRIPT_VAR_ARRAY && Value->Array != NULL) {
+        ScriptDestroyArray(Value->Array);
+    } else if (Type == SCRIPT_VAR_OBJECT && Value->Object != NULL) {
+        ScriptReleaseObject(Value->Object);
+    }
+
+    MemorySet(Value, 0, sizeof(SCRIPT_VAR_VALUE));
+}
+
+/************************************************************************/
+/**
+ * @brief Copy one runtime value into owned variable-style storage.
+ * @param Context Owning script context.
+ * @param Type Source value type.
+ * @param SourceValue Source value payload.
+ * @param DestinationValue Destination owned payload.
+ * @return SCRIPT_OK on success, otherwise an error code.
+ */
+SCRIPT_ERROR ScriptStoreObjectValue(
+    LPSCRIPT_CONTEXT Context,
+    SCRIPT_VAR_TYPE Type,
+    const SCRIPT_VAR_VALUE* SourceValue,
+    SCRIPT_VAR_VALUE* DestinationValue) {
+    if (Context == NULL || SourceValue == NULL || DestinationValue == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    MemorySet(DestinationValue, 0, sizeof(SCRIPT_VAR_VALUE));
+
+    if (Type == SCRIPT_VAR_STRING) {
+        U32 Length;
+
+        if (SourceValue->String == NULL) {
+            DestinationValue->String = NULL;
+            return SCRIPT_OK;
+        }
+
+        Length = StringLength(SourceValue->String) + 1;
+        DestinationValue->String = (LPSTR)ScriptAlloc(Context, Length);
+        if (DestinationValue->String == NULL) {
+            return SCRIPT_ERROR_OUT_OF_MEMORY;
+        }
+
+        StringCopy(DestinationValue->String, SourceValue->String);
+        return SCRIPT_OK;
+    }
+
+    if (Type == SCRIPT_VAR_OBJECT) {
+        DestinationValue->Object = SourceValue->Object;
+        if (DestinationValue->Object != NULL) {
+            ScriptRetainObject(DestinationValue->Object);
+        }
+        return SCRIPT_OK;
+    }
+
+    if (Type == SCRIPT_VAR_HOST_HANDLE) {
+        return SCRIPT_ERROR_TYPE_MISMATCH;
+    }
+
+    *DestinationValue = *SourceValue;
+    return SCRIPT_OK;
 }
 
 /************************************************************************/
@@ -398,6 +476,282 @@ SCRIPT_ERROR ScriptGetHostElementValue(
 
     return SCRIPT_OK;
 }
+
+/************************************************************************/
+/**
+ * @brief Create one native E0 object container.
+ * @param Context Owning script context.
+ * @param InitialCapacity Initial property capacity.
+ * @return Allocated object, or NULL on failure.
+ */
+LPSCRIPT_OBJECT ScriptCreateObject(LPSCRIPT_CONTEXT Context, U32 InitialCapacity) {
+    LPSCRIPT_OBJECT Object;
+
+    if (Context == NULL) {
+        return NULL;
+    }
+
+    if (InitialCapacity == 0) {
+        InitialCapacity = 4;
+    }
+
+    Object = (LPSCRIPT_OBJECT)ScriptAlloc(Context, sizeof(SCRIPT_OBJECT));
+    if (Object == NULL) {
+        return NULL;
+    }
+
+    MemorySet(Object, 0, sizeof(SCRIPT_OBJECT));
+    Object->Context = Context;
+    Object->RefCount = 1;
+    Object->PropertyCapacity = InitialCapacity;
+    Object->Properties = (LPSCRIPT_OBJECT_PROPERTY)ScriptAlloc(
+        Context,
+        sizeof(SCRIPT_OBJECT_PROPERTY) * InitialCapacity);
+    if (Object->Properties == NULL) {
+        ScriptFree(Context, Object);
+        return NULL;
+    }
+
+    MemorySet(
+        Object->Properties,
+        0,
+        sizeof(SCRIPT_OBJECT_PROPERTY) * InitialCapacity);
+    return Object;
+}
+
+/************************************************************************/
+/**
+ * @brief Increment one native object reference count.
+ * @param Object Object to retain.
+ */
+void ScriptRetainObject(LPSCRIPT_OBJECT Object) {
+    if (Object == NULL) {
+        return;
+    }
+
+    Object->RefCount++;
+}
+
+/************************************************************************/
+/**
+ * @brief Release one native object reference.
+ * @param Object Object to release.
+ */
+void ScriptReleaseObject(LPSCRIPT_OBJECT Object) {
+    if (Object == NULL) {
+        return;
+    }
+
+    if (Object->RefCount > 1) {
+        Object->RefCount--;
+        return;
+    }
+
+    for (U32 Index = 0; Index < Object->PropertyCount; Index++) {
+        ScriptValueRelease(&Object->Properties[Index].Value);
+    }
+
+    ScriptFree(Object->Context, Object->Properties);
+    ScriptFree(Object->Context, Object);
+}
+
+/************************************************************************/
+/**
+ * @brief Find one native object property by name.
+ * @param Object Native object to inspect.
+ * @param Name Property name.
+ * @return Matching property, or NULL when absent.
+ */
+static LPSCRIPT_OBJECT_PROPERTY ScriptFindObjectProperty(
+    LPSCRIPT_OBJECT Object,
+    LPCSTR Name) {
+    if (Object == NULL || Name == NULL) {
+        return NULL;
+    }
+
+    for (U32 Index = 0; Index < Object->PropertyCount; Index++) {
+        if (STRINGS_EQUAL(Object->Properties[Index].Name, Name)) {
+            return &Object->Properties[Index];
+        }
+    }
+
+    return NULL;
+}
+
+/************************************************************************/
+/**
+ * @brief Ensure one native object can store at least one more property.
+ * @param Object Native object to grow.
+ * @return SCRIPT_OK on success, otherwise an allocation error.
+ */
+static SCRIPT_ERROR ScriptEnsureObjectPropertyCapacity(LPSCRIPT_OBJECT Object) {
+    LPSCRIPT_OBJECT_PROPERTY NewProperties;
+    U32 NewCapacity;
+
+    if (Object == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    if (Object->PropertyCount < Object->PropertyCapacity) {
+        return SCRIPT_OK;
+    }
+
+    NewCapacity = Object->PropertyCapacity == 0 ? 4 : (Object->PropertyCapacity * 2);
+    NewProperties = (LPSCRIPT_OBJECT_PROPERTY)ScriptAlloc(
+        Object->Context,
+        sizeof(SCRIPT_OBJECT_PROPERTY) * NewCapacity);
+    if (NewProperties == NULL) {
+        return SCRIPT_ERROR_OUT_OF_MEMORY;
+    }
+
+    MemorySet(NewProperties, 0, sizeof(SCRIPT_OBJECT_PROPERTY) * NewCapacity);
+    for (U32 Index = 0; Index < Object->PropertyCount; Index++) {
+        NewProperties[Index] = Object->Properties[Index];
+    }
+
+    ScriptFree(Object->Context, Object->Properties);
+    Object->Properties = NewProperties;
+    Object->PropertyCapacity = NewCapacity;
+    return SCRIPT_OK;
+}
+
+/************************************************************************/
+/**
+ * @brief Copy one runtime value into one object property slot.
+ * @param Object Native object that will own the stored value.
+ * @param TargetValue Property storage slot.
+ * @param SourceValue Source runtime value.
+ * @return SCRIPT_OK on success, otherwise an error code.
+ */
+static SCRIPT_ERROR ScriptStoreValueInObjectProperty(
+    LPSCRIPT_OBJECT Object,
+    LPSCRIPT_VALUE TargetValue,
+    const SCRIPT_VALUE* SourceValue) {
+    SCRIPT_VAR_VALUE StoredValue;
+    SCRIPT_ERROR Result;
+
+    if (Object == NULL || TargetValue == NULL || SourceValue == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    if (SourceValue->Type == SCRIPT_VAR_HOST_HANDLE) {
+        return SCRIPT_ERROR_TYPE_MISMATCH;
+    }
+
+    Result = ScriptStoreObjectValue(
+        Object->Context,
+        SourceValue->Type,
+        &SourceValue->Value,
+        &StoredValue);
+    if (Result != SCRIPT_OK) {
+        return Result;
+    }
+
+    ScriptValueRelease(TargetValue);
+    ScriptValueInit(TargetValue);
+    TargetValue->Type = SourceValue->Type;
+    TargetValue->Value = StoredValue;
+    TargetValue->ContextOwner = Object->Context;
+    TargetValue->OwnsValue = (
+        SourceValue->Type == SCRIPT_VAR_STRING ||
+        SourceValue->Type == SCRIPT_VAR_ARRAY ||
+        SourceValue->Type == SCRIPT_VAR_OBJECT);
+    return SCRIPT_OK;
+}
+
+/************************************************************************/
+/**
+ * @brief Set or create one native object property.
+ * @param Object Native object to mutate.
+ * @param Name Property name.
+ * @param Value Source runtime value.
+ * @return SCRIPT_OK on success, otherwise an error code.
+ */
+SCRIPT_ERROR ScriptSetObjectProperty(
+    LPSCRIPT_OBJECT Object,
+    LPCSTR Name,
+    const SCRIPT_VALUE* Value) {
+    LPSCRIPT_OBJECT_PROPERTY Property;
+    SCRIPT_ERROR Result;
+
+    if (Object == NULL || Name == NULL || Value == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    Property = ScriptFindObjectProperty(Object, Name);
+    if (Property == NULL) {
+        Result = ScriptEnsureObjectPropertyCapacity(Object);
+        if (Result != SCRIPT_OK) {
+            return Result;
+        }
+
+        Property = &Object->Properties[Object->PropertyCount++];
+        MemorySet(Property, 0, sizeof(SCRIPT_OBJECT_PROPERTY));
+        StringCopy(Property->Name, Name);
+        ScriptValueInit(&Property->Value);
+    }
+
+    return ScriptStoreValueInObjectProperty(Object, &Property->Value, Value);
+}
+
+/************************************************************************/
+/**
+ * @brief Read one native object property by reference.
+ * @param Object Native object to inspect.
+ * @param Name Property name.
+ * @param OutValue Destination runtime value.
+ * @return SCRIPT_OK on success, otherwise an error code.
+ */
+SCRIPT_ERROR ScriptGetObjectProperty(
+    LPSCRIPT_OBJECT Object,
+    LPCSTR Name,
+    LPSCRIPT_VALUE OutValue) {
+    LPSCRIPT_OBJECT_PROPERTY Property;
+
+    if (Object == NULL || Name == NULL || OutValue == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    Property = ScriptFindObjectProperty(Object, Name);
+    if (Property == NULL) {
+        return SCRIPT_ERROR_UNDEFINED_VAR;
+    }
+
+    ScriptValueInit(OutValue);
+    OutValue->Type = Property->Value.Type;
+    OutValue->Value = Property->Value.Value;
+    OutValue->ContextOwner = Object->Context;
+    OutValue->HostDescriptor = Property->Value.HostDescriptor;
+    OutValue->HostContext = Property->Value.HostContext;
+    OutValue->OwnsValue = FALSE;
+    return SCRIPT_OK;
+}
+
+/************************************************************************/
+/**
+ * @brief Release one array element payload.
+ * @param Array Array that owns the element.
+ * @param Index Element index to release.
+ */
+static void ScriptArrayReleaseElement(LPSCRIPT_ARRAY Array, U32 Index) {
+    if (Array == NULL || Index >= Array->Size) {
+        return;
+    }
+
+    if (Array->Elements[Index] == NULL) {
+        return;
+    }
+
+    if (Array->ElementTypes[Index] == SCRIPT_VAR_STRING ||
+        Array->ElementTypes[Index] == SCRIPT_VAR_INTEGER ||
+        Array->ElementTypes[Index] == SCRIPT_VAR_FLOAT) {
+        ScriptFree(Array->Context, Array->Elements[Index]);
+    } else if (Array->ElementTypes[Index] == SCRIPT_VAR_OBJECT) {
+        ScriptReleaseObject((LPSCRIPT_OBJECT)Array->Elements[Index]);
+    }
+
+    Array->Elements[Index] = NULL;
+}
 /**
  * @brief Create a new array with initial capacity.
  * @param InitialCapacity Initial capacity of the array
@@ -438,11 +792,8 @@ LPSCRIPT_ARRAY ScriptCreateArray(LPSCRIPT_CONTEXT Context, U32 InitialCapacity) 
 void ScriptDestroyArray(LPSCRIPT_ARRAY Array) {
     if (Array == NULL) return;
 
-    // Free all string elements
     for (U32 i = 0; i < Array->Size; i++) {
-        if (Array->ElementTypes[i] == SCRIPT_VAR_STRING && Array->Elements[i]) {
-            ScriptFree(Array->Context, Array->Elements[i]);
-        }
+        ScriptArrayReleaseElement(Array, i);
     }
 
     ScriptFree(Array->Context, Array->Elements);
@@ -490,14 +841,12 @@ SCRIPT_ERROR ScriptArraySet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE Typ
         Array->Capacity = NewCapacity;
     }
 
-    // Free existing string value if overwriting
-    if (Index < Array->Size && Array->ElementTypes[Index] == SCRIPT_VAR_STRING && Array->Elements[Index]) {
-        ScriptFree(Array->Context, Array->Elements[Index]);
+    if (Index < Array->Size) {
+        ScriptArrayReleaseElement(Array, Index);
     }
 
     Array->ElementTypes[Index] = Type;
 
-    // Copy value based on type
     if (Type == SCRIPT_VAR_STRING && Value.String) {
         U32 Len = StringLength(Value.String) + 1;
         Array->Elements[Index] = ScriptAlloc(Array->Context, Len);
@@ -513,6 +862,11 @@ SCRIPT_ERROR ScriptArraySet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE Typ
         if (FloatPtr == NULL) return SCRIPT_ERROR_OUT_OF_MEMORY;
         *FloatPtr = Value.Float;
         Array->Elements[Index] = FloatPtr;
+    } else if (Type == SCRIPT_VAR_OBJECT) {
+        Array->Elements[Index] = Value.Object;
+        if (Value.Object != NULL) {
+            ScriptRetainObject(Value.Object);
+        }
     } else {
         Array->Elements[Index] = NULL;
     }
@@ -544,6 +898,8 @@ SCRIPT_ERROR ScriptArrayGet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE* Ty
         Value->Integer = *(INT*)Array->Elements[Index];
     } else if (*Type == SCRIPT_VAR_FLOAT) {
         Value->Float = *(F32*)Array->Elements[Index];
+    } else if (*Type == SCRIPT_VAR_OBJECT) {
+        Value->Object = (LPSCRIPT_OBJECT)Array->Elements[Index];
     } else {
         return SCRIPT_ERROR_TYPE_MISMATCH;
     }

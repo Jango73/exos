@@ -40,7 +40,7 @@ sudo scripts/linux/net/setup-local-netboot.sh \
 sudo scripts/linux/net/deploy-local-netboot.sh --arch x86-64 --slot latest --rotate
 ```
 
-Default source is `build/<arch>/boot-uefi/esp-root`.
+Default source is `build/image/<build-image-name>/work-uefi/esp-root`.
 
 ## 4) Configure Predator boot order
 

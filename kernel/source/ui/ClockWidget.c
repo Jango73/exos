@@ -24,7 +24,7 @@
 #include "ui/ClockWidget.h"
 #include "text/CoreString.h"
 #include "memory/Heap.h"
-#include "User.h"
+#include "exos.h"
 
 /***************************************************************************/
 

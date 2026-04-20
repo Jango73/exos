@@ -2,7 +2,7 @@
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    Copyright (c) 1999-2026 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,10 +28,14 @@
 
 #define DIR_RECURSIVE_STRESS_ENTRY_COUNT 1200
 
+/************************************************************************/
+
 static BOOL ShellCommandLineCompletion(
     const COMMANDLINE_COMPLETION_CONTEXT* CompletionContext,
     LPSTR Output,
     U32 OutputSize);
+
+/************************************************************************/
 
 static U32 DirStressNext(U32* State) {
     if (State == NULL) return 0;
@@ -39,6 +43,8 @@ static U32 DirStressNext(U32* State) {
     *State = (*State * 1664525) + 1013904223;
     return *State;
 }
+
+/************************************************************************/
 
 static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
     U32 Seed = 0x6D2B79F5;
@@ -107,6 +113,8 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
     }
 }
 
+/************************************************************************/
+
 void InitShellContext(LPSHELLCONTEXT This) {
     U32 Index;
 
@@ -161,7 +169,7 @@ void InitShellContext(LPSHELLCONTEXT This) {
 
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 void DeinitShellContext(LPSHELLCONTEXT This) {
     U32 Index;
@@ -185,7 +193,7 @@ void DeinitShellContext(LPSHELLCONTEXT This) {
 
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 void ClearOptions(LPSHELLCONTEXT Context) {
     U32 Index;
@@ -195,7 +203,7 @@ void ClearOptions(LPSHELLCONTEXT Context) {
     Context->Options.Count = 0;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /*
 static void RotateBuffers(LPSHELLCONTEXT This) {
@@ -212,14 +220,14 @@ static void RotateBuffers(LPSHELLCONTEXT This) {
 }
 */
 
-/***************************************************************************/
+/************************************************************************/
 
 BOOL ShowPrompt(LPSHELLCONTEXT Context) {
     ConsolePrint(TEXT("%s>"), Context->CurrentFolder);
     return TRUE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 BOOL ParseNextCommandLineComponent(LPSHELLCONTEXT Context) {
     U32 Quotes = 0;
@@ -276,7 +284,7 @@ BOOL ParseNextCommandLineComponent(LPSHELLCONTEXT Context) {
     return TRUE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 BOOL HasOption(LPSHELLCONTEXT Context, LPCSTR ShortName, LPCSTR LongName) {
     U32 Index;
@@ -289,7 +297,7 @@ BOOL HasOption(LPSHELLCONTEXT Context, LPCSTR ShortName, LPCSTR LongName) {
     return FALSE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Provide path-based completion for the command line editor.
@@ -355,7 +363,7 @@ static BOOL ShellCommandLineCompletion(
     return TRUE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 BOOL QualifyFileName(LPSHELLCONTEXT Context, LPCSTR RawName, LPSTR FileName) {
     STR Sep[2] = {PATH_SEP, STR_NULL};
@@ -409,7 +417,7 @@ BOOL QualifyFileName(LPSHELLCONTEXT Context, LPCSTR RawName, LPSTR FileName) {
     return TRUE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 BOOL QualifyCommandLine(LPSHELLCONTEXT Context, LPCSTR RawCommandLine, LPSTR QualifiedCommandLine) {
     U32 Quotes = 0;
@@ -472,7 +480,7 @@ BOOL QualifyCommandLine(LPSHELLCONTEXT Context, LPCSTR RawCommandLine, LPSTR Qua
     return TRUE;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 static void ChangeFolder(LPSHELLCONTEXT Context) {
     FILESYSTEM_PATHCHECK Control;
@@ -497,7 +505,7 @@ static void ChangeFolder(LPSHELLCONTEXT Context) {
     }
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 static BOOL MakeFolder(LPSHELLCONTEXT Context, LPSTR QualifiedName) {
     LPFILESYSTEM FileSystem;
@@ -530,6 +538,8 @@ static BOOL MakeFolder(LPSHELLCONTEXT Context, LPSTR QualifiedName) {
 
     return FALSE;
 }
+
+/************************************************************************/
 
 static void ListFile(LPFILE File, U32 Indent) {
     STR Name[MAX_FILE_NAME];
@@ -599,7 +609,7 @@ static void ListFile(LPFILE File, U32 Indent) {
     ConsolePrint(Text_NewLine);
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, BOOL Recurse, U32* NumListed) {
     FILE_INFO Find;
@@ -792,7 +802,7 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 /**
  * @brief Update or display the active keyboard layout.
@@ -818,7 +828,7 @@ U32 CMD_keyboard(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_pause(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
@@ -844,7 +854,7 @@ U32 CMD_pause(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_dir(LPSHELLCONTEXT Context) {
 
@@ -914,14 +924,14 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_cd(LPSHELLCONTEXT Context) {
     ChangeFolder(Context);
     return DF_RETURN_SUCCESS;
 }
 
-/***************************************************************************/
+/************************************************************************/
 
 U32 CMD_md(LPSHELLCONTEXT Context) {
     STR FolderName[MAX_PATH_NAME];
@@ -936,13 +946,3 @@ U32 CMD_md(LPSHELLCONTEXT Context) {
 
     return DF_RETURN_SUCCESS;
 }
-
-/***************************************************************************/
-
-/**
- * @brief Load and execute an E0 script file.
- *
- * @param Context Shell context containing the script interpreter instance.
- * @param ScriptFileName Qualified script path.
- * @return TRUE on successful execution, FALSE otherwise.
- */

@@ -22,19 +22,18 @@
 
 \************************************************************************/
 
-#include "drivers/input/Keyboard.h"
-
-#include "system/Clock.h"
+#include "User.h"
 #include "console/Console.h"
-#include "text/CoreString.h"
-#include "sync/DeferredWork.h"
-#include "log/Log.h"
-#include "memory/Memory.h"
+#include "drivers/input/Keyboard.h"
 #include "input/Hotkey.h"
 #include "input/VKey.h"
+#include "log/Log.h"
+#include "memory/Memory.h"
 #include "process/Process.h"
 #include "process/Task.h"
-#include "User.h"
+#include "sync/DeferredWork.h"
+#include "system/Clock.h"
+#include "text/CoreString.h"
 
 /***************************************************************************/
 
@@ -59,7 +58,7 @@ KEYBOARDSTRUCT Keyboard = {
     .RepeatUsage = 0,
     .RepeatStartTick = 0,
     .RepeatLastTick = 0,
-    .RepeatHandle = DEFERRED_WORK_INVALID_HANDLE};
+    .RepeatToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}};
 
 /***************************************************************************/
 
@@ -105,11 +104,11 @@ void KeyboardCommonInitialize(void) {
 
     InitMutex(&(Keyboard.Mutex));
 
-    if (Keyboard.RepeatHandle == DEFERRED_WORK_INVALID_HANDLE) {
-        Keyboard.RepeatHandle = DeferredWorkRegisterPollOnly(KeyboardRepeatPoll, NULL, TEXT("KeyboardRepeat"));
+    if (DeferredWorkTokenIsValid(Keyboard.RepeatToken) == FALSE) {
+        Keyboard.RepeatToken = DeferredWorkRegisterPollOnly(KeyboardRepeatPoll, NULL, TEXT("KeyboardRepeat"));
     }
 
-    if (Keyboard.RepeatHandle == DEFERRED_WORK_INVALID_HANDLE) {
+    if (DeferredWorkTokenIsValid(Keyboard.RepeatToken) == FALSE) {
         ERROR(TEXT("[KeyboardCommonInitialize] Repeat poll registration failed"));
     }
 
@@ -169,9 +168,7 @@ void RouteKeyCode(LPKEYCODE KeyCode, BOOL Repeat) {
 
 /***************************************************************************/
 
-void RouteKeyUp(U8 VirtualKey) {
-    (void)DispatchKeyUpMessage(VirtualKey);
-}
+void RouteKeyUp(U8 VirtualKey) { (void)DispatchKeyUpMessage(VirtualKey); }
 
 /***************************************************************************/
 
@@ -181,8 +178,7 @@ static LPPROCESS LockCurrentProcessMessageQueue(void) {
 
     SAFE_USE_VALID_ID(Task, KOID_TASK) { Process = Task->OwnerProcess; }
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
-        if (Process->MessageQueue.MessageBuffer.Entries == NULL ||
-            Process->MessageQueue.MessageBuffer.Capacity == 0) {
+        if (Process->MessageQueue.MessageBuffer.Entries == NULL || Process->MessageQueue.MessageBuffer.Capacity == 0) {
             return NULL;
         }
     }

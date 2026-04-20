@@ -128,7 +128,7 @@ void Disassemble(LPSTR Buffer, LINEAR InstructionPointer, U32 NumInstructions, U
     U8* BasePtr = (U8*)VMA_USER;
     U8* CodePtr = (U8*)InstructionPointer;
 
-    if (InstructionPointer >= VMA_LIBRARY) BasePtr = (U8*)VMA_LIBRARY;
+    if (InstructionPointer >= VMA_USER_LIMIT) BasePtr = (U8*)VMA_USER_LIMIT;
     if (InstructionPointer >= VMA_KERNEL) BasePtr = (U8*)VMA_KERNEL;
 
     if (IsValidMemory(InstructionPointer) && IsValidMemory(InstructionPointer + NumInstructions - 1)) {

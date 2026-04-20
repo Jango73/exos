@@ -26,6 +26,7 @@
 
 /************************************************************************/
 
+#include "exos.h"
 #include "ui/WindowDockHost.h"
 
 typedef struct tag_WINDOW_DOCKABLE_CLASS_DATA {

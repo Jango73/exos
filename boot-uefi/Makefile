@@ -1,3 +1,6 @@
+SHELL = /bin/bash
+.DEFAULT_GOAL := all
+
 include ../make/arch.mk
 
 ifeq ($(strip $(BUILD_CORE_NAME)),)
@@ -9,10 +12,10 @@ ifeq ($(strip $(BUILD_IMAGE_NAME)),)
 $(error BUILD_IMAGE_NAME is required)
 endif
 IMAGE_BUILD_DIR := ../build/image/$(BUILD_IMAGE_NAME)
-
-UEFI_BUILD_DIR := $(IMAGE_BUILD_DIR)/boot-uefi
+UEFI_BUILD_DIR := $(IMAGE_BUILD_DIR)/work-uefi
 IMG_SIZE_MB ?= 16
 ESP_SIZE_MB ?= 4
+FS_TEST_IMG_SIZE_MB ?= 80
 EXT2_BLOCK_SIZE ?= 4096
 EXT2_LABEL ?= exos
 CONFIG_TOML_NAME ?= exos.toml
@@ -35,9 +38,18 @@ UEFI_LOG_UDP_DEST_PORT ?= 18194
 UEFI_LOG_UDP_SOURCE_PORT ?= 18195
 
 KERNEL_BIN := $(CORE_BUILD_DIR)/kernel/exos.bin
-UEFI_IMAGE := $(UEFI_BUILD_DIR)/exos-uefi.img
+UEFI_IMAGE := $(IMAGE_BUILD_DIR)/exos-uefi.img
 UEFI_STAGING_DIR := $(UEFI_BUILD_DIR)/esp-root
 EXT2_STAGING_DIR := $(UEFI_BUILD_DIR)/ext2-root
+USB3_IMG := $(IMAGE_BUILD_DIR)/usb-3.img
+FLOPPY_IMG := $(IMAGE_BUILD_DIR)/floppy-3.5.img
+FS_TEST_EXT2_IMG := $(IMAGE_BUILD_DIR)/fs-test-ext2.img
+FS_TEST_FAT32_IMG := $(IMAGE_BUILD_DIR)/fs-test-fat32.img
+FS_TEST_NTFS_IMG := $(IMAGE_BUILD_DIR)/fs-test-ntfs.img
+USB3_STAGING_DIR := $(UEFI_BUILD_DIR)/usb-3-root
+FS_TEST_EXT2_STAGING_DIR := $(UEFI_BUILD_DIR)/fs-test-ext2-root
+FS_TEST_READ_FILE := read.txt
+FS_TEST_READ_SOURCE := ../boot-mbr/assets/fs-test-read.txt
 
 KERNEL_CFG_EXT2 := ../kernel/configuration/exos.ext2.toml
 KERNEL_CFG_REF  := ../kernel/configuration/exos.ref.toml
@@ -52,12 +64,16 @@ INPUTINFO_ELF   := $(CORE_BUILD_DIR)/system/input-info/input-info
 MEMORY_SMOKE_ELF := $(CORE_BUILD_DIR)/system/memory-stress/memory-stress
 MASTER_ELF      := $(CORE_BUILD_DIR)/system/test/master/master
 SLAVE_ELF       := $(CORE_BUILD_DIR)/system/test/slave/slave
+MODULE_HOST_ELF := $(CORE_BUILD_DIR)/system/test/module-host/module-host
+MODULE_SAMPLE_ELF := $(CORE_BUILD_DIR)/system/test/module-sample/module-sample
+MODULE_IMPORT_ELF := $(CORE_BUILD_DIR)/system/test/module-import/module-import
 SYSTEM_SCRIPT_FILES := $(wildcard ../system/scripts/*)
 EXOS_VERSION_MAJOR = $(shell awk '/#define EXOS_VERSION_MAJOR/ {print $$3; exit}' ../kernel/include/User.h)
 EXOS_VERSION_MINOR = $(shell awk '/#define EXOS_VERSION_MINOR/ {print $$3; exit}' ../kernel/include/User.h)
 EPK_PACK_BIN    := $(CORE_BUILD_DIR)/tools/epk-pack
 SYSTEM_TEST_EPK_STAGING_DIR := $(UEFI_BUILD_DIR)/system-test-epk-root
 SYSTEM_TEST_EPK := $(UEFI_BUILD_DIR)/test.epk
+MTOOLS_CONF := .mtoolsrc.tmp
 
 ifeq ($(ARCH),x86-32)
 UEFI_TARGET := i686-unknown-windows
@@ -130,11 +146,15 @@ else
 UEFI_ASM_OBJ := $(UEFI_BUILD_DIR)/uefi-jump-$(ARCH).o
 endif
 
-.PHONY: all clean check_tools image
+AUXILIARY_BUILD_DIR := $(UEFI_BUILD_DIR)
 
-all: check_tools $(UEFI_BOOT_FILE_PATH) $(UEFI_IMAGE)
+include ../make/image-artifacts.mk
 
-image: $(UEFI_IMAGE)
+.PHONY: all clean check_tools image usb-3-image floppy-image normalize-partition-flags
+
+all: image
+
+image: check_tools normalize-partition-flags $(FLOPPY_IMG) $(UEFI_IMAGE)
 
 check_tools:
 	@command -v $(CC) >/dev/null 2>&1 || { echo "clang is not installed."; exit 1; }
@@ -144,6 +164,15 @@ check_tools:
 	@command -v mcopy >/dev/null 2>&1 || { echo "mtools is not installed."; exit 1; }
 	@command -v parted >/dev/null 2>&1 || { echo "parted is not installed."; exit 1; }
 	@command -v mke2fs >/dev/null 2>&1 || { echo "mke2fs is not installed. Please run: sudo apt install e2fsprogs"; exit 1; }
+	@command -v mkfs.fat >/dev/null 2>&1 || { echo "mkfs.fat is not installed."; exit 1; }
+
+normalize-partition-flags: $(UEFI_IMAGE) $(USB3_IMG) $(FS_TEST_EXT2_IMG) $(FS_TEST_FAT32_IMG) $(FS_TEST_NTFS_IMG)
+	@echo "Normalizing partition active flags..."
+	@if [ -f "$(UEFI_IMAGE)" ]; then parted -s "$(UEFI_IMAGE)" set 1 esp on; fi
+	@if [ -f "$(USB3_IMG)" ]; then parted -s "$(USB3_IMG)" set 1 boot off; fi
+	@if [ -f "$(FS_TEST_EXT2_IMG)" ]; then parted -s "$(FS_TEST_EXT2_IMG)" set 1 boot off; fi
+	@if [ -f "$(FS_TEST_FAT32_IMG)" ]; then parted -s "$(FS_TEST_FAT32_IMG)" set 1 boot off; fi
+	@if [ -f "$(FS_TEST_NTFS_IMG)" ]; then parted -s "$(FS_TEST_NTFS_IMG)" set 1 boot off; fi
 
 $(UEFI_BUILD_DIR):
 	@mkdir -p $(UEFI_BUILD_DIR)
@@ -199,7 +228,7 @@ $(SYSTEM_TEST_EPK): $(EPK_PACK_BIN) $(MASTER_ELF) $(SLAVE_ELF)
 		> $(SYSTEM_TEST_EPK_STAGING_DIR)/manifest.toml
 	@$(EPK_PACK_BIN) pack --input $(SYSTEM_TEST_EPK_STAGING_DIR) --output $(SYSTEM_TEST_EPK)
 
-$(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(KERNEL_BIN) $(SYSTEM_SCRIPT_FILES) $(SYSTEM_TEST_EPK)
+$(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(KERNEL_BIN) $(SYSTEM_SCRIPT_FILES) $(SYSTEM_TEST_EPK) $(MODULE_HOST_ELF) $(MODULE_SAMPLE_ELF) $(MODULE_IMPORT_ELF) $(USB3_IMG) $(FS_TEST_EXT2_IMG) $(FS_TEST_FAT32_IMG) $(FS_TEST_NTFS_IMG)
 	@mkdir -p $(UEFI_BUILD_DIR)
 	@rm -rf $(UEFI_STAGING_DIR)
 	@mkdir -p $(UEFI_STAGING_DIR)/EFI/BOOT
@@ -233,6 +262,9 @@ $(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(KERNEL_BIN) $(SYSTEM_SCRIPT_FILES) $(SYS
 	@cp $(MEMORY_SMOKE_ELF) $(EXT2_STAGING_DIR)/exos/apps/memory-growth
 	@cp $(MASTER_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/master
 	@cp $(SLAVE_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/slave
+	@cp $(MODULE_HOST_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-host
+	@cp $(MODULE_SAMPLE_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-sample
+	@cp $(MODULE_IMPORT_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-import
 	@cp $(SYSTEM_TEST_EPK) $(EXT2_STAGING_DIR)/exos/apps/test.epk
 	@for f in $(SYSTEM_SCRIPT_FILES); do \
 		if [ -f "$$f" ]; then \
@@ -265,4 +297,4 @@ $(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(KERNEL_BIN) $(SYSTEM_SCRIPT_FILES) $(SYS
 
 clean:
 	@echo "[ Cleaning UEFI build ]"
-	@rm -rf $(UEFI_BUILD_DIR)
+	@rm -rf $(MTOOLS_CONF) $(UEFI_BUILD_DIR) $(UEFI_IMAGE) $(USB3_IMG) $(FLOPPY_IMG) $(FS_TEST_EXT2_IMG) $(FS_TEST_FAT32_IMG) $(FS_TEST_NTFS_IMG)

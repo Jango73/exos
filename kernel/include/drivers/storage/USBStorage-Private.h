@@ -26,9 +26,10 @@
 
 /************************************************************************/
 
-#include "fs/Disk.h"
 #include "drivers/storage/USBStorage.h"
 #include "drivers/usb/XHCI-Internal.h"
+#include "fs/Disk.h"
+#include "sync/DeferredWork.h"
 #include "utils/RateLimiter.h"
 
 /************************************************************************/
@@ -120,7 +121,7 @@ typedef struct tag_USB_MASS_STORAGE_DEVICE {
 
 typedef struct tag_USB_MASS_STORAGE_STATE {
     BOOL Initialized;
-    U32 PollHandle;
+    DEFERRED_WORK_TOKEN PollToken;
     UINT RetryDelay;
     RATE_LIMITER ScanLogLimiter;
 } USB_MASS_STORAGE_STATE, *LPUSB_MASS_STORAGE_STATE;
@@ -133,34 +134,25 @@ typedef struct tag_USB_STORAGE_SENSE_DATA {
 } USB_STORAGE_SENSE_DATA, *LPUSB_STORAGE_SENSE_DATA;
 
 BOOL USBStorageResetRecovery(LPUSB_MASS_STORAGE_DEVICE Device);
-BOOL USBStorageBotCommand(LPUSB_MASS_STORAGE_DEVICE Device,
-                          const U8* CommandBlock,
-                          U8 CommandBlockLength,
-                          UINT DataLength,
-                          BOOL DirectionIn,
-                          LPVOID DataBuffer);
+BOOL USBStorageBotCommand(
+    LPUSB_MASS_STORAGE_DEVICE Device, const U8* CommandBlock, U8 CommandBlockLength, UINT DataLength, BOOL DirectionIn,
+    LPVOID DataBuffer);
 BOOL USBStorageInquiry(LPUSB_MASS_STORAGE_DEVICE Device);
 BOOL USBStorageRequestSense(LPUSB_MASS_STORAGE_DEVICE Device);
-BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
-                                LPUSB_STORAGE_SENSE_DATA SenseDataOut,
-                                BOOL LogResult);
+BOOL USBStorageRequestSenseData(
+    LPUSB_MASS_STORAGE_DEVICE Device, LPUSB_STORAGE_SENSE_DATA SenseDataOut, BOOL LogResult);
 BOOL USBStorageReadCapacity(LPUSB_MASS_STORAGE_DEVICE Device);
-BOOL USBStorageReadBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
-                          UINT LogicalBlockAddress,
-                          UINT TransferBlocks,
-                          LPVOID Output);
-BOOL USBStorageWriteBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
-                           UINT LogicalBlockAddress,
-                           UINT TransferBlocks,
-                           LPCVOID Input);
+BOOL USBStorageReadBlocks(
+    LPUSB_MASS_STORAGE_DEVICE Device, UINT LogicalBlockAddress, UINT TransferBlocks, LPVOID Output);
+BOOL USBStorageWriteBlocks(
+    LPUSB_MASS_STORAGE_DEVICE Device, UINT LogicalBlockAddress, UINT TransferBlocks, LPCVOID Input);
 BOOL USBStorageTestUnitReady(LPUSB_MASS_STORAGE_DEVICE Device);
 BOOL USBStorageSynchronizeCache(LPUSB_MASS_STORAGE_DEVICE Device);
 BOOL USBStorageReinitializeDevice(LPUSB_MASS_STORAGE_DEVICE Device);
 BOOL USBStorageRecoverCommandFailure(LPUSB_MASS_STORAGE_DEVICE Device, U8 FailedOperation);
 BOOL USBStorageIsMassStorageInterface(LPXHCI_USB_INTERFACE Interface);
-BOOL USBStorageFindBulkEndpoints(LPXHCI_USB_INTERFACE Interface,
-                                 LPXHCI_USB_ENDPOINT* BulkInOut,
-                                 LPXHCI_USB_ENDPOINT* BulkOutOut);
+BOOL USBStorageFindBulkEndpoints(
+    LPXHCI_USB_INTERFACE Interface, LPXHCI_USB_ENDPOINT* BulkInOut, LPXHCI_USB_ENDPOINT* BulkOutOut);
 BOOL USBStorageIsDevicePresent(LPXHCI_DEVICE Device, LPXHCI_USB_DEVICE UsbDevice);
 BOOL USBStorageIsTracked(LPXHCI_USB_DEVICE UsbDevice);
 

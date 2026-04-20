@@ -126,6 +126,7 @@ BOOL ConsoleCaptureActiveRegionSnapshot(LPVOID* OutSnapshot);
 BOOL ConsoleRestoreActiveRegionSnapshot(LPVOID Snapshot);
 void ConsoleReleaseActiveRegionSnapshot(LPVOID Snapshot);
 void ConsolePrintLine(U32 Row, U32 Column, LPCSTR Text, U32 Length);
+U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Info);
 int SetConsoleBackColor(U32 Color);
 int SetConsoleForeColor(U32 Color);
 BOOL ConsoleGetString(LPSTR, U32);

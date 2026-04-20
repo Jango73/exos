@@ -50,6 +50,7 @@ typedef enum {
     SCRIPT_VAR_INTEGER,
     SCRIPT_VAR_FLOAT,
     SCRIPT_VAR_ARRAY,
+    SCRIPT_VAR_OBJECT,
     SCRIPT_VAR_HOST_HANDLE
 } SCRIPT_VAR_TYPE;
 
@@ -111,9 +112,12 @@ typedef LPVOID SCRIPT_HOST_HANDLE;
 struct tag_SCRIPT_VALUE;
 struct tag_SCRIPT_HOST_DESCRIPTOR;
 struct tag_SCRIPT_CONTEXT;
+struct tag_SCRIPT_OBJECT;
 
 typedef struct tag_SCRIPT_CONTEXT SCRIPT_CONTEXT;
 typedef struct tag_SCRIPT_CONTEXT* LPSCRIPT_CONTEXT;
+typedef struct tag_SCRIPT_OBJECT SCRIPT_OBJECT;
+typedef struct tag_SCRIPT_OBJECT* LPSCRIPT_OBJECT;
 
 /************************************************************************/
 
@@ -130,6 +134,7 @@ typedef union tag_SCRIPT_VAR_VALUE {
     INT Integer;
     F32 Float;
     LPSCRIPT_ARRAY Array;
+    LPSCRIPT_OBJECT Object;
     LPVOID HostHandle;
 } SCRIPT_VAR_VALUE;
 
@@ -174,6 +179,19 @@ typedef struct tag_SCRIPT_VALUE {
     BOOL OwnsValue;
     LPVOID HostContext;
 } SCRIPT_VALUE, *LPSCRIPT_VALUE;
+
+typedef struct tag_SCRIPT_OBJECT_PROPERTY {
+    STR Name[MAX_TOKEN_LENGTH];
+    SCRIPT_VALUE Value;
+} SCRIPT_OBJECT_PROPERTY, *LPSCRIPT_OBJECT_PROPERTY;
+
+typedef struct tag_SCRIPT_OBJECT {
+    struct tag_SCRIPT_CONTEXT* Context;
+    LPSCRIPT_OBJECT_PROPERTY Properties;
+    U32 PropertyCount;
+    U32 PropertyCapacity;
+    U32 RefCount;
+} SCRIPT_OBJECT, *LPSCRIPT_OBJECT;
 
 typedef struct tag_SCRIPT_HOST_SYMBOL {
     LISTNODE_FIELDS;
@@ -235,6 +253,9 @@ typedef struct tag_AST_NODE {
             BOOL IsArrayAccess;
             U32 ArrayIndex;
             struct tag_AST_NODE* ArrayIndexExpr;
+            BOOL IsPropertyAccess;
+            struct tag_AST_NODE* PropertyBaseExpression;
+            STR PropertyName[MAX_TOKEN_LENGTH];
         } Assignment;
         struct {
             struct tag_AST_NODE* Condition;
@@ -335,6 +356,13 @@ SCRIPT_ERROR ScriptArraySet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE Typ
 SCRIPT_ERROR ScriptArrayGet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE* Type, SCRIPT_VAR_VALUE* Value);
 LPSCRIPT_VARIABLE ScriptSetArrayElement(LPSCRIPT_CONTEXT Context, LPCSTR Name, U32 Index, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
 LPSCRIPT_VARIABLE ScriptGetArrayElement(LPSCRIPT_CONTEXT Context, LPCSTR Name, U32 Index);
+
+// Object support functions
+LPSCRIPT_OBJECT ScriptCreateObject(LPSCRIPT_CONTEXT Context, U32 InitialCapacity);
+void ScriptRetainObject(LPSCRIPT_OBJECT Object);
+void ScriptReleaseObject(LPSCRIPT_OBJECT Object);
+SCRIPT_ERROR ScriptSetObjectProperty(LPSCRIPT_OBJECT Object, LPCSTR Name, const SCRIPT_VALUE* Value);
+SCRIPT_ERROR ScriptGetObjectProperty(LPSCRIPT_OBJECT Object, LPCSTR Name, LPSCRIPT_VALUE OutValue);
 
 // Host object registration
 BOOL ScriptRegisterHostSymbol(LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_HOST_SYMBOL_KIND Kind, SCRIPT_HOST_HANDLE Handle, const SCRIPT_HOST_DESCRIPTOR* Descriptor, LPVOID ContextPointer);

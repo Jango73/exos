@@ -558,6 +558,147 @@ Out:
 
 /***************************************************************************/
 
+/**
+ * @brief Blit a text buffer into the console, with optional per-cell attributes.
+ * @param Info Source buffer descriptor.
+ * @return 0 when the request has been consumed.
+ */
+U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Info) {
+    CONSOLE_REGION_STATE State;
+    U32 SavedFore;
+    U32 SavedBack;
+    U32 MaxWidth;
+    U32 MaxHeight;
+    U32 BaseX;
+    U32 BaseY;
+    U32 Width;
+    U32 Height;
+    U32 X;
+    U32 Y;
+    U32 TextPitch;
+    U32 AttrPitch;
+    U32 Row;
+    BOOL UseAttr;
+    U32 DefaultFore;
+    U32 DefaultBack;
+    BOOL UseBackendPath;
+
+    if (Info == NULL || !IsValidMemory((LINEAR)Info) || !IsValidMemory((LINEAR)Info->Text)) {
+        return 0;
+    }
+
+    LockMutex(MUTEX_CONSOLE_STATE, INFINITY);
+
+    if (ConsoleResolveRegionState(0, &State) == FALSE) {
+        goto Out;
+    }
+
+    MaxWidth = State.Width;
+    MaxHeight = State.Height;
+    BaseX = State.X;
+    BaseY = State.Y;
+    Width = Info->Width;
+    Height = Info->Height;
+    X = Info->X;
+    Y = Info->Y;
+    TextPitch = (Info->TextPitch != 0) ? Info->TextPitch : (Info->Width + 1);
+    AttrPitch = (Info->AttrPitch != 0) ? Info->AttrPitch : Info->Width;
+    UseAttr = (Info->Attr != NULL) && IsValidMemory((LINEAR)Info->Attr);
+    SavedFore = Console.ForeColor;
+    SavedBack = Console.BackColor;
+    DefaultFore = (Info->ForeColor <= 15) ? Info->ForeColor : SavedFore;
+    DefaultBack = (Info->BackColor <= 15) ? Info->BackColor : SavedBack;
+    UseBackendPath = (Console.Memory == NULL || ConsoleUsesTextBackend() != FALSE) ? TRUE : FALSE;
+
+    if (Width > MaxWidth) Width = MaxWidth;
+    if (Height > MaxHeight) Height = MaxHeight;
+    if (X >= MaxWidth || Y >= MaxHeight) goto RestoreColors;
+    if (X + Width > MaxWidth) Width = MaxWidth - X;
+    if (Y + Height > MaxHeight) Height = MaxHeight - Y;
+
+    if (UseAttr == FALSE) {
+        SetConsoleForeColor(DefaultFore);
+        SetConsoleBackColor(DefaultBack);
+    }
+
+    if (UseBackendPath != FALSE) {
+        U32 CellWidth = 0;
+        U32 CellHeight = 0;
+
+        if (ConsoleEnsureFramebufferMapped() == FALSE) {
+            goto RestoreColors;
+        }
+
+        CellWidth = ConsoleGetCellWidth();
+        CellHeight = ConsoleGetCellHeight();
+        ConsoleHideFramebufferCursor();
+
+        for (Row = 0; Row < Height; Row++) {
+            const U8* AttrRow = UseAttr ? (Info->Attr + (Row * AttrPitch)) : NULL;
+            U32 Column;
+
+            for (Column = 0; Column < Width; Column++) {
+                U32 CellFore = DefaultFore;
+                U32 CellBack = DefaultBack;
+                U32 PixelX;
+                U32 PixelY;
+                STR Character;
+
+                if (AttrRow != NULL) {
+                    U8 Attr = AttrRow[Column];
+
+                    CellFore = Attr & 0x0F;
+                    CellBack = (Attr >> 0x04) & 0x0F;
+                }
+
+                PixelX = (BaseX + X + Column) * CellWidth;
+                PixelY = (BaseY + Y + Row) * CellHeight;
+                Character = Info->Text[(Row * TextPitch) + Column];
+
+                Console.ForeColor = CellFore;
+                Console.BackColor = CellBack;
+                ConsoleShadowWriteRegionCell(0, X + Column, Y + Row, Character, CellFore, CellBack, Console.Blink);
+                ConsoleDrawGlyph(PixelX, PixelY, Character);
+            }
+        }
+
+        ConsoleShowFramebufferCursor();
+        goto RestoreColors;
+    }
+
+    for (Row = 0; Row < Height; Row++) {
+        const U8* AttrRow = UseAttr ? (Info->Attr + (Row * AttrPitch)) : NULL;
+        U32 Column;
+
+        if (AttrRow == NULL) {
+            ConsolePrintLine(Y + Row, X, Info->Text + (Row * TextPitch), Width);
+            continue;
+        }
+
+        for (Column = 0; Column < Width; Column++) {
+            U8 Attr = AttrRow[Column];
+            U32 CellFore = Attr & 0x0F;
+            U32 CellBack = (Attr >> 0x04) & 0x0F;
+            U16 Attribute = (U16)(CellFore | (CellBack << 0x04) | (Console.Blink << 0x07));
+            UINT Offset;
+
+            Attribute = (U16)(Attribute << 0x08);
+            Offset = ((BaseY + Y + Row) * Console.ScreenWidth) + (BaseX + X + Column);
+            Console.Memory[Offset] = (U16)Info->Text[(Row * TextPitch) + Column] | Attribute;
+        }
+    }
+
+RestoreColors:
+    Console.ForeColor = SavedFore;
+    Console.BackColor = SavedBack;
+
+Out:
+    UnlockMutex(MUTEX_CONSOLE_STATE);
+    return 0;
+}
+
+/***************************************************************************/
+
 int SetConsoleBackColor(U32 Color) {
     Console.BackColor = Color;
     return 1;

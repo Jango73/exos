@@ -32,6 +32,7 @@ $(error APP_SOURCES is not set)
 endif
 
 APP_HEADERS ?=
+APP_TYPE ?= executable
 
 ifeq ($(ARCH),x86-32)
 TOOLCHAIN_PREFIX = i686-elf
@@ -50,10 +51,28 @@ else
 $(error Unsupported architecture $(ARCH))
 endif
 
-CFLAGS  = -ffreestanding -Wall -Wextra -O0 -fno-pic -fno-stack-protector -fno-builtin \
-          $(ARCH_CFLAGS)
+COMMON_CFLAGS  = -ffreestanding -Wall -Wextra -O0 -fno-stack-protector -fno-builtin \
+                 $(ARCH_CFLAGS)
+EXECUTABLE_CFLAGS = -fno-pic
+MODULE_CFLAGS = -fPIC -fvisibility=hidden -ftls-model=initial-exec
 
-LDFLAGS = -T $(EXOS_MAKE_DIR)exos.ld -nostdlib -Map=$(APP_OUT_DIR)/$(APP_NAME).map $(ARCH_LDFLAGS)
+EXECUTABLE_LDFLAGS = -T $(EXOS_MAKE_DIR)exos.ld -nostdlib -Map=$(APP_OUT_DIR)/$(APP_NAME).map $(ARCH_LDFLAGS)
+MODULE_LDFLAGS = -shared -T $(EXOS_MAKE_DIR)exos-module.ld -nostdlib --hash-style=sysv -z noexecstack -z text \
+                 -Map=$(APP_OUT_DIR)/$(APP_NAME).map $(ARCH_LDFLAGS)
+
+ifeq ($(APP_TYPE),executable)
+CFLAGS = $(COMMON_CFLAGS) $(EXECUTABLE_CFLAGS)
+LDFLAGS = $(EXECUTABLE_LDFLAGS)
+LINK_INPUTS = $(OBJS) $(LIB_EXOS)
+LINK_SCRIPT = $(EXOS_MAKE_DIR)exos.ld
+else ifeq ($(APP_TYPE),module)
+CFLAGS = $(COMMON_CFLAGS) $(MODULE_CFLAGS)
+LDFLAGS = $(MODULE_LDFLAGS)
+LINK_INPUTS = $(OBJS)
+LINK_SCRIPT = $(EXOS_MAKE_DIR)exos-module.ld
+else
+$(error Unsupported APP_TYPE $(APP_TYPE))
+endif
 
 TARGET   = $(APP_OUT_DIR)/$(APP_NAME)
 TARGET_SYMBOLS = $(APP_OUT_DIR)/$(APP_NAME).sym
@@ -65,8 +84,8 @@ OBJS   = $(OBJ_C)
 
 all: $(TARGET) $(TARGET_SYMBOLS)
 
-$(TARGET): $(OBJS) $(LIB_EXOS) $(EXOS_MAKE_DIR)exos.ld
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIB_EXOS)
+$(TARGET): $(LINK_INPUTS) $(LINK_SCRIPT)
+	$(LD) $(LDFLAGS) -o $@ $(LINK_INPUTS)
 
 $(APP_OUT_DIR)/%.o: source/%.c $(APP_HEADERS)
 	@mkdir -p $(dir $@)

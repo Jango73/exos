@@ -22,7 +22,7 @@
 
 \************************************************************************/
 
-#include "user/UserAccount.h"
+#include "user/Account.h"
 
 #include "system/Clock.h"
 #include "core/Driver.h"
@@ -87,7 +87,7 @@ DRIVER DATA_SECTION UserAccountDriver = {
     .Designer = "Jango73",
     .Manufacturer = "N/A",
     .Product = "UserSystem",
-    .Alias = "user_account",
+    .Alias = "account",
     .Flags = DRIVER_FLAG_CRITICAL,
     .Command = UserAccountDriverCommands};
 
@@ -108,8 +108,8 @@ LPDRIVER UserAccountGetDriver(void) {
  * @return TRUE on success, FALSE on failure.
  */
 BOOL InitializeUserSystem(void) {
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserAccountList == NULL) {
+    LPLIST AccountList = GetAccountList();
+    if (AccountList == NULL) {
         ERROR(TEXT("User account list not initialized in kernel"));
         return FALSE;
     }
@@ -134,11 +134,56 @@ BOOL InitializeUserSystem(void) {
  * @brief Shutdown the user account system.
  */
 void ShutdownUserSystem(void) {
-    LPLIST UserAccountList = GetUserAccountList();
-    SAFE_USE(UserAccountList) {
+    LPLIST AccountList = GetAccountList();
+    SAFE_USE(AccountList) {
         SaveUserDatabase();
-        ListReset(UserAccountList);
+        ListReset(AccountList);
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Count registered user accounts through the owner-side account API.
+ * @return Number of user accounts.
+ */
+UINT GetAccountCount(void) {
+    UINT Count = 0;
+    LPLIST AccountList = GetAccountList();
+
+    if (AccountList == NULL) {
+        return 0;
+    }
+
+    LockMutex(MUTEX_ACCOUNTS, INFINITY);
+    Count = ListGetSize(AccountList);
+    UnlockMutex(MUTEX_ACCOUNTS);
+
+    return Count;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve one user account by zero-based index.
+ * @param Index Zero-based account index.
+ * @return User account pointer or NULL when out of range.
+ */
+LPUSER_ACCOUNT GetAccountByIndex(UINT Index) {
+    LPUSER_ACCOUNT Account = NULL;
+    LPLIST AccountList = GetAccountList();
+
+    if (AccountList == NULL) {
+        return NULL;
+    }
+
+    LockMutex(MUTEX_ACCOUNTS, INFINITY);
+    if (Index < ListGetSize(AccountList)) {
+        Account = (LPUSER_ACCOUNT)ListGetItem(AccountList, Index);
+    }
+    UnlockMutex(MUTEX_ACCOUNTS);
+
+    return Account;
 }
 
 /************************************************************************/
@@ -187,37 +232,37 @@ static UINT UserAccountDriverCommands(UINT Function, UINT Parameter) {
  * @param Privilege Privilege level (EXOS_PRIVILEGE_USER or EXOS_PRIVILEGE_ADMIN).
  * @return Pointer to created user account or NULL on failure.
  */
-LPUSER_ACCOUNT CreateUserAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege) {
-    DEBUG(TEXT("[CreateUserAccount] Enter - UserName=%s"), UserName ? UserName : TEXT("NULL"));
+LPUSER_ACCOUNT CreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege) {
+    DEBUG(TEXT("[CreateAccount] Enter - UserName=%s"), UserName ? UserName : TEXT("NULL"));
 
     if (UserName == NULL || Password == NULL) {
-        DEBUG(TEXT("[CreateUserAccount] NULL parameters - UserName=%p, Password=%p"), UserName, Password);
+        DEBUG(TEXT("[CreateAccount] NULL parameters - UserName=%p, Password=%p"), UserName, Password);
         return NULL;
     }
 
     U32 UserNameLen = StringLength(UserName);
     if (UserNameLen == 0 || UserNameLen >= 32) {
-        DEBUG(TEXT("[CreateUserAccount] Invalid username length: %d"), UserNameLen);
+        DEBUG(TEXT("[CreateAccount] Invalid username length: %d"), UserNameLen);
         return NULL;
     }
 
-    DEBUG(TEXT("[CreateUserAccount] Attempting to lock mutex"));
+    DEBUG(TEXT("[CreateAccount] Attempting to lock mutex"));
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
     // Check if user already exists
-    DEBUG(TEXT("[CreateUserAccount] Checking if user exists"));
+    DEBUG(TEXT("[CreateAccount] Checking if user exists"));
 
-    if (FindUserAccount(UserName) != NULL) {
-        DEBUG(TEXT("[CreateUserAccount] User already exists"));
+    if (FindAccount(UserName) != NULL) {
+        DEBUG(TEXT("[CreateAccount] User already exists"));
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
     }
 
     // Allocate new user account
-    DEBUG(TEXT("[CreateUserAccount] Allocating memory for new user"));
+    DEBUG(TEXT("[CreateAccount] Allocating memory for new user"));
     LPUSER_ACCOUNT NewUser = (LPUSER_ACCOUNT)KernelHeapAlloc(sizeof(USER_ACCOUNT));
     if (NewUser == NULL) {
-        DEBUG(TEXT("[CreateUserAccount] Memory allocation failed"));
+        DEBUG(TEXT("[CreateAccount] Memory allocation failed"));
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
     }
@@ -238,10 +283,10 @@ LPUSER_ACCOUNT CreateUserAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege
     InitializeUserAuthenticationPolicy(NewUser);
 
     // Add to list and database
-    DEBUG(TEXT("[CreateUserAccount] Adding to user list"));
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserAccountList == NULL || ListAddTail(UserAccountList, NewUser) == 0) {
-        DEBUG(TEXT("[CreateUserAccount] Failed to add to user list"));
+    DEBUG(TEXT("[CreateAccount] Adding to user list"));
+    LPLIST AccountList = GetAccountList();
+    if (AccountList == NULL || ListAddTail(AccountList, NewUser) == 0) {
+        DEBUG(TEXT("[CreateAccount] Failed to add to user list"));
         KernelHeapFree(NewUser);
         UnlockMutex(MUTEX_ACCOUNTS);
         return NULL;
@@ -250,10 +295,10 @@ LPUSER_ACCOUNT CreateUserAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege
     UnlockMutex(MUTEX_ACCOUNTS);
 
     if (!SaveUserDatabase()) {
-        ERROR(TEXT("[CreateUserAccount] Failed to save user database after creating user %s"), UserName);
+        ERROR(TEXT("[CreateAccount] Failed to save user database after creating user %s"), UserName);
     }
 
-    DEBUG(TEXT("[CreateUserAccount] User created successfully"));
+    DEBUG(TEXT("[CreateAccount] User created successfully"));
     VERBOSE(TEXT("Created user account: %s"), UserName);
     return NewUser;
 }
@@ -265,7 +310,7 @@ LPUSER_ACCOUNT CreateUserAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege
  * @param UserName Username to delete.
  * @return TRUE on success, FALSE on failure.
  */
-BOOL DeleteUserAccount(LPCSTR UserName) {
+BOOL DeleteAccount(LPCSTR UserName) {
     if (UserName == NULL) {
         return FALSE;
     }
@@ -277,16 +322,20 @@ BOOL DeleteUserAccount(LPCSTR UserName) {
 
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
-    LPUSER_ACCOUNT User = FindUserAccount(UserName);
+    LPUSER_ACCOUNT User = FindAccount(UserName);
     if (User == NULL) {
         UnlockMutex(MUTEX_ACCOUNTS);
         return FALSE;
     }
 
-    LPLIST UserAccountList = GetUserAccountList();
-    ListErase(UserAccountList, User);
+    LPLIST AccountList = GetAccountList();
+    ListErase(AccountList, User);
 
     UnlockMutex(MUTEX_ACCOUNTS);
+
+    if (!SaveUserDatabase()) {
+        ERROR(TEXT("[DeleteAccount] Failed to save user database after deleting user %s"), UserName);
+    }
 
     VERBOSE(TEXT("Deleted user account: %s"), UserName);
     return TRUE;
@@ -299,15 +348,15 @@ BOOL DeleteUserAccount(LPCSTR UserName) {
  * @param UserName Username to search for.
  * @return Pointer to user account or NULL if not found.
  */
-LPUSER_ACCOUNT FindUserAccount(LPCSTR UserName) {
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserName == NULL || UserAccountList == NULL) {
+LPUSER_ACCOUNT FindAccount(LPCSTR UserName) {
+    LPLIST AccountList = GetAccountList();
+    if (UserName == NULL || AccountList == NULL) {
         return NULL;
     }
 
-    U32 Count = ListGetSize(UserAccountList);
+    U32 Count = ListGetSize(AccountList);
     for (U32 i = 0; i < Count; i++) {
-        LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(UserAccountList, i);
+        LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(AccountList, i);
         if (User != NULL && STRINGS_EQUAL(User->UserName, UserName)) {
             return User;
         }
@@ -323,15 +372,15 @@ LPUSER_ACCOUNT FindUserAccount(LPCSTR UserName) {
  * @param UserID User ID hash to search for.
  * @return Pointer to user account or NULL if not found.
  */
-LPUSER_ACCOUNT FindUserAccountByID(U64 UserID) {
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserAccountList == NULL) {
+LPUSER_ACCOUNT FindAccountByID(U64 UserID) {
+    LPLIST AccountList = GetAccountList();
+    if (AccountList == NULL) {
         return NULL;
     }
 
-    U32 Count = ListGetSize(UserAccountList);
+    U32 Count = ListGetSize(AccountList);
     for (U32 i = 0; i < Count; i++) {
-        LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(UserAccountList, i);
+        LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(AccountList, i);
         if (User != NULL && U64_Cmp(User->UserID, UserID) == 0) {
             return User;
         }
@@ -356,7 +405,7 @@ BOOL ChangeUserPassword(LPCSTR UserName, LPCSTR OldPassword, LPCSTR NewPassword)
 
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
-    LPUSER_ACCOUNT User = FindUserAccount(UserName);
+    LPUSER_ACCOUNT User = FindAccount(UserName);
     if (User == NULL) {
         UnlockMutex(MUTEX_ACCOUNTS);
         return FALSE;
@@ -406,15 +455,15 @@ BOOL LoadUserDatabase(void) {
         return FALSE;
     }
 
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserAccountList == NULL) {
+    LPLIST AccountList = GetAccountList();
+    if (AccountList == NULL) {
         DatabaseFree(Database);
         return FALSE;
     }
 
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
-    ListReset(UserAccountList);
+    ListReset(AccountList);
 
     for (U32 i = 0; i < Database->Count; i++) {
         LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)((U8*)Database->Records + i * Database->RecordSize);
@@ -428,7 +477,7 @@ BOOL LoadUserDatabase(void) {
             NewUser->TypeID = KOID_USER_ACCOUNT;
             InitializeUserAuthenticationPolicy(NewUser);
 
-            if (ListAddTail(UserAccountList, NewUser) == 0) {
+            if (ListAddTail(AccountList, NewUser) == 0) {
                 KernelHeapFree(NewUser);
             }
         }
@@ -456,18 +505,18 @@ BOOL SaveUserDatabase(void) {
         return FALSE;
     }
 
-    LPLIST UserAccountList = GetUserAccountList();
-    if (UserAccountList == NULL) {
+    LPLIST AccountList = GetAccountList();
+    if (AccountList == NULL) {
         DatabaseFree(Database);
         return FALSE;
     }
 
     LockMutex(MUTEX_ACCOUNTS, INFINITY);
 
-    SAFE_USE(UserAccountList) {
-        U32 Count = ListGetSize(UserAccountList);
+    SAFE_USE(AccountList) {
+        U32 Count = ListGetSize(AccountList);
         for (U32 i = 0; i < Count && Database->Count < Database->Capacity; i++) {
-            LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(UserAccountList, i);
+            LPUSER_ACCOUNT User = (LPUSER_ACCOUNT)ListGetItem(AccountList, i);
 
             SAFE_USE(User) {
                 USER_ACCOUNT PersistentUser = *User;
