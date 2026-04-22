@@ -123,7 +123,7 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("file_system"),
+            TEXT("fileSystem"),
             SCRIPT_HOST_SYMBOL_OBJECT,
             FileSystemRootHandle,
             &FileSystemRootDescriptor)) {
@@ -132,7 +132,7 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("memory_map"),
+            TEXT("memoryMap"),
             SCRIPT_HOST_SYMBOL_OBJECT,
             MemoryMapRootHandle,
             &MemoryMapRootDescriptor)) {
@@ -141,7 +141,7 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("pci_bus"),
+            TEXT("pciBus"),
             SCRIPT_HOST_SYMBOL_ARRAY,
             GetPCIDeviceList(),
             &PciBusArrayDescriptor)) {
@@ -150,7 +150,7 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
 
     if (!ExposeRegisterDefaultHostSymbol(
             Context,
-            TEXT("pci_device"),
+            TEXT("pciDevice"),
             SCRIPT_HOST_SYMBOL_ARRAY,
             GetPCIDeviceList(),
             &PciDeviceArrayDescriptor)) {

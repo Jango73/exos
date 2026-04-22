@@ -53,7 +53,8 @@
 ### Naming
 
 - [x] Make all script exposed function camelCase instead of snake_case.
-- [x] Add a comment for every member of every structure in Process.h
+- [x] Add a comment for every member of every structure in Process.h.
+- [x] Rename all script exposed object/member using camelCase.
 
 ### Clock
 
@@ -66,7 +67,7 @@
 
 ### Building
 
-- [ ] Implement Native-C-Compiler.md
+- [x] Implement Native-C-Compiler.md
 
 ### Scheduling
 

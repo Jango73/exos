@@ -53,7 +53,7 @@ SCRIPT_ERROR FileSystemRootGetProperty(
 
     EXPOSE_PROPERTY_GUARD();
 
-    EXPOSE_BIND_STRING("active_partition_name", GetFileSystemGlobalInfo()->ActivePartitionName);
+    EXPOSE_BIND_STRING("activePartitionName", GetFileSystemGlobalInfo()->ActivePartitionName);
     EXPOSE_BIND_HOST_HANDLE("mounted", GetFileSystemList(), &FileSystemArrayDescriptor, NULL);
     EXPOSE_BIND_HOST_HANDLE("unused", GetUnusedFileSystemList(), &FileSystemArrayDescriptor, NULL);
 
@@ -90,60 +90,60 @@ SCRIPT_ERROR FileSystemGetProperty(
 
         EXPOSE_BIND_STRING("name", FileSystem->Name);
         EXPOSE_BIND_INTEGER("mounted", FileSystem->Mounted);
-        EXPOSE_BIND_STRING("scheme_name", FileSystemGetPartitionSchemeName(FileSystem->Partition.Scheme));
-        EXPOSE_BIND_STRING("type_name", FileSystemGetPartitionTypeName(&FileSystem->Partition));
-        EXPOSE_BIND_STRING("format_name", FileSystemGetPartitionFormatName(FileSystem->Partition.Format));
+        EXPOSE_BIND_STRING("schemeName", FileSystemGetPartitionSchemeName(FileSystem->Partition.Scheme));
+        EXPOSE_BIND_STRING("typeName", FileSystemGetPartitionTypeName(&FileSystem->Partition));
+        EXPOSE_BIND_STRING("formatName", FileSystemGetPartitionFormatName(FileSystem->Partition.Format));
         EXPOSE_BIND_INTEGER("scheme", FileSystem->Partition.Scheme);
         EXPOSE_BIND_INTEGER("type", FileSystem->Partition.Type);
         EXPOSE_BIND_INTEGER("format", FileSystem->Partition.Format);
         EXPOSE_BIND_INTEGER("index", FileSystem->Partition.Index);
         EXPOSE_BIND_INTEGER("flags", FileSystem->Partition.Flags);
-        EXPOSE_BIND_INTEGER("start_sector", FileSystem->Partition.StartSector);
-        EXPOSE_BIND_INTEGER("num_sectors", FileSystem->Partition.NumSectors);
-        EXPOSE_BIND_INTEGER("type_guid_0", FileSystem->Partition.TypeGuid[0]);
-        EXPOSE_BIND_INTEGER("type_guid_1", FileSystem->Partition.TypeGuid[1]);
-        EXPOSE_BIND_INTEGER("type_guid_2", FileSystem->Partition.TypeGuid[2]);
-        EXPOSE_BIND_INTEGER("type_guid_3", FileSystem->Partition.TypeGuid[3]);
-        EXPOSE_BIND_INTEGER("type_guid_4", FileSystem->Partition.TypeGuid[4]);
-        EXPOSE_BIND_INTEGER("type_guid_5", FileSystem->Partition.TypeGuid[5]);
-        EXPOSE_BIND_INTEGER("type_guid_6", FileSystem->Partition.TypeGuid[6]);
-        EXPOSE_BIND_INTEGER("type_guid_7", FileSystem->Partition.TypeGuid[7]);
-        EXPOSE_BIND_INTEGER("type_guid_8", FileSystem->Partition.TypeGuid[8]);
-        EXPOSE_BIND_INTEGER("type_guid_9", FileSystem->Partition.TypeGuid[9]);
-        EXPOSE_BIND_INTEGER("type_guid_10", FileSystem->Partition.TypeGuid[10]);
-        EXPOSE_BIND_INTEGER("type_guid_11", FileSystem->Partition.TypeGuid[11]);
-        EXPOSE_BIND_INTEGER("type_guid_12", FileSystem->Partition.TypeGuid[12]);
-        EXPOSE_BIND_INTEGER("type_guid_13", FileSystem->Partition.TypeGuid[13]);
-        EXPOSE_BIND_INTEGER("type_guid_14", FileSystem->Partition.TypeGuid[14]);
-        EXPOSE_BIND_INTEGER("type_guid_15", FileSystem->Partition.TypeGuid[15]);
+        EXPOSE_BIND_INTEGER("startSector", FileSystem->Partition.StartSector);
+        EXPOSE_BIND_INTEGER("numSectors", FileSystem->Partition.NumSectors);
+        EXPOSE_BIND_INTEGER("typeGuid0", FileSystem->Partition.TypeGuid[0]);
+        EXPOSE_BIND_INTEGER("typeGuid1", FileSystem->Partition.TypeGuid[1]);
+        EXPOSE_BIND_INTEGER("typeGuid2", FileSystem->Partition.TypeGuid[2]);
+        EXPOSE_BIND_INTEGER("typeGuid3", FileSystem->Partition.TypeGuid[3]);
+        EXPOSE_BIND_INTEGER("typeGuid4", FileSystem->Partition.TypeGuid[4]);
+        EXPOSE_BIND_INTEGER("typeGuid5", FileSystem->Partition.TypeGuid[5]);
+        EXPOSE_BIND_INTEGER("typeGuid6", FileSystem->Partition.TypeGuid[6]);
+        EXPOSE_BIND_INTEGER("typeGuid7", FileSystem->Partition.TypeGuid[7]);
+        EXPOSE_BIND_INTEGER("typeGuid8", FileSystem->Partition.TypeGuid[8]);
+        EXPOSE_BIND_INTEGER("typeGuid9", FileSystem->Partition.TypeGuid[9]);
+        EXPOSE_BIND_INTEGER("typeGuid10", FileSystem->Partition.TypeGuid[10]);
+        EXPOSE_BIND_INTEGER("typeGuid11", FileSystem->Partition.TypeGuid[11]);
+        EXPOSE_BIND_INTEGER("typeGuid12", FileSystem->Partition.TypeGuid[12]);
+        EXPOSE_BIND_INTEGER("typeGuid13", FileSystem->Partition.TypeGuid[13]);
+        EXPOSE_BIND_INTEGER("typeGuid14", FileSystem->Partition.TypeGuid[14]);
+        EXPOSE_BIND_INTEGER("typeGuid15", FileSystem->Partition.TypeGuid[15]);
 
         if (FileSystem->Driver != NULL) {
-            EXPOSE_BIND_STRING("driver_manufacturer", FileSystem->Driver->Manufacturer);
-            EXPOSE_BIND_STRING("driver_product", FileSystem->Driver->Product);
+            EXPOSE_BIND_STRING("driverManufacturer", FileSystem->Driver->Manufacturer);
+            EXPOSE_BIND_STRING("driverProduct", FileSystem->Driver->Product);
         } else {
-            EXPOSE_BIND_STRING("driver_manufacturer", TEXT(""));
-            EXPOSE_BIND_STRING("driver_product", TEXT(""));
+            EXPOSE_BIND_STRING("driverManufacturer", TEXT(""));
+            EXPOSE_BIND_STRING("driverProduct", TEXT(""));
         }
 
-        EXPOSE_BIND_INTEGER("has_storage", StorageUnit != NULL);
+        EXPOSE_BIND_INTEGER("hasStorage", StorageUnit != NULL);
         if (StorageUnit != NULL && StorageUnit->Driver != NULL) {
             MemorySet(&DiskInfo, 0, sizeof(DiskInfo));
             DiskInfo.Disk = StorageUnit;
             DiskInfoValid = (StorageUnit->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo) == DF_RETURN_SUCCESS);
 
-            EXPOSE_BIND_STRING("storage_manufacturer", StorageUnit->Driver->Manufacturer);
-            EXPOSE_BIND_STRING("storage_product", StorageUnit->Driver->Product);
+            EXPOSE_BIND_STRING("storageManufacturer", StorageUnit->Driver->Manufacturer);
+            EXPOSE_BIND_STRING("storageProduct", StorageUnit->Driver->Product);
             EXPOSE_BIND_INTEGER("removable", DiskInfoValid ? DiskInfo.Removable : 0);
-            EXPOSE_BIND_INTEGER("read_only", DiskInfoValid ? ((DiskInfo.Access & DISK_ACCESS_READONLY) != 0) : 0);
-            EXPOSE_BIND_INTEGER("disk_num_sectors_low", DiskInfoValid ? (U32)U64_Low32(DiskInfo.NumSectors) : 0);
-            EXPOSE_BIND_INTEGER("disk_num_sectors_high", DiskInfoValid ? (U32)U64_High32(DiskInfo.NumSectors) : 0);
+            EXPOSE_BIND_INTEGER("readOnly", DiskInfoValid ? ((DiskInfo.Access & DISK_ACCESS_READONLY) != 0) : 0);
+            EXPOSE_BIND_INTEGER("diskNumSectorsLow", DiskInfoValid ? (U32)U64_Low32(DiskInfo.NumSectors) : 0);
+            EXPOSE_BIND_INTEGER("diskNumSectorsHigh", DiskInfoValid ? (U32)U64_High32(DiskInfo.NumSectors) : 0);
         } else {
-            EXPOSE_BIND_STRING("storage_manufacturer", TEXT(""));
-            EXPOSE_BIND_STRING("storage_product", TEXT(""));
+            EXPOSE_BIND_STRING("storageManufacturer", TEXT(""));
+            EXPOSE_BIND_STRING("storageProduct", TEXT(""));
             EXPOSE_BIND_INTEGER("removable", 0);
-            EXPOSE_BIND_INTEGER("read_only", 0);
-            EXPOSE_BIND_INTEGER("disk_num_sectors_low", 0);
-            EXPOSE_BIND_INTEGER("disk_num_sectors_high", 0);
+            EXPOSE_BIND_INTEGER("readOnly", 0);
+            EXPOSE_BIND_INTEGER("diskNumSectorsLow", 0);
+            EXPOSE_BIND_INTEGER("diskNumSectorsHigh", 0);
         }
 
         return SCRIPT_ERROR_UNDEFINED_VAR;

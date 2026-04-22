@@ -2,20 +2,10 @@
 ;-------------------------------------------------------------------------
 ;
 ;   EXOS Kernel / Runtime
-;   Copyright (c) 1999-2025 Jango73
+;   Copyright (c) 1999-2026 Jango73
 ;
-;   This program is free software: you can redistribute it and/or modify
-;   it under the terms of the GNU General Public License as published by
-;   the Free Software Foundation, either version 3 of the License, or
-;   (at your option) any later version.
-;
-;   This program is distributed in the hope that it will be useful,
-;   but WITHOUT ANY WARRANTY; without even the implied warranty of
-;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;   GNU General Public License for more details.
-;
-;   You should have received a copy of the GNU General Public License
-;   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;   SPDX-License-Identifier: MIT
+;   See runtime/LICENSE for license terms.
 ;
 ;
 ;   EXOS Runtime
@@ -33,7 +23,7 @@ EXOS_USER_CALL equ 0x70
 ; Runtime symbols (only required outside of the kernel build)
 
 %ifndef __KERNEL__
-extern  exosmain
+extern  main
 extern  _argc
 extern  _argv
 extern  _SetupArguments
@@ -57,6 +47,7 @@ _TaskArgument   : dq 0
 section .text
 
 %ifndef __KERNEL__
+    global  _start
     global  __start__
     global  __exit__
     global  exoscall
@@ -78,6 +69,7 @@ section .text
 ; __start__ : entry point for executables
 
 %ifndef __KERNEL__
+_start:
 __start__:
     mov     [StartEBP], rbp
     mov     [StartESP], rsp
@@ -91,7 +83,7 @@ __start__:
 
     mov     edi, [_argc]
     mov     rsi, [_argv]
-    call    exosmain
+    call    main
 
     pop     rbp
     ret

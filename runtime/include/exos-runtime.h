@@ -22,7 +22,11 @@
 
 \************************************************************************/
 
+#ifndef EXOS_RUNTIME_H_INCLUDED
+#define EXOS_RUNTIME_H_INCLUDED
+
 #include "../../kernel/include/User.h"
+#include "stdarg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +62,19 @@ extern "C" {
 
 #define TZNAME_MAX 30
 
+#define EOF (-1)
+
+#define EPERM 1
+#define ENOENT 2
+#define EIO 5
+#define EBADF 9
+#define ENOMEM 12
+#define EACCES 13
+#define EEXIST 17
+#define EINVAL 22
+#define ENOSYS 38
+#define ERANGE 34
+
 #ifndef NULL
 #define NULL 0L
 #endif
@@ -75,10 +92,14 @@ extern "C" {
     typedef signed __int16 int16_t;
     typedef unsigned __int32 uint32_t;
     typedef signed __int32 int32_t;
+    typedef unsigned __int64 uint64_t;
+    typedef signed __int64 int64_t;
     typedef unsigned int uint_t;
     typedef signed int int_t;
     typedef unsigned int size_t;
     typedef unsigned int fpos_t;
+    typedef unsigned int uintptr_t;
+    typedef signed int intptr_t;
 #elif defined(__GNUC__) || defined(__clang__)
     typedef unsigned char uint8_t;
     typedef signed char int8_t;
@@ -86,10 +107,14 @@ extern "C" {
     typedef signed short int16_t;
     typedef unsigned int uint32_t;
     typedef signed int int32_t;
+    typedef unsigned long long uint64_t;
+    typedef signed long long int64_t;
     typedef unsigned long uint_t;
     typedef signed long int_t;
     typedef unsigned long size_t;
     typedef unsigned long fpos_t;
+    typedef unsigned long uintptr_t;
+    typedef signed long intptr_t;
 #else
     #error "Unsupported compiler for Base.h"
 #endif
@@ -98,6 +123,8 @@ extern "C" {
 // POSIX Socket types
 
 typedef uint32_t socklen_t;
+
+typedef int (*qsort_comparator)(const void* Left, const void* Right);
 
 #pragma pack(push, 1)
 struct sockaddr {
@@ -152,6 +179,12 @@ static inline unsigned long ntohl(unsigned long Value) { return htonl(Value); }
 extern void debug(const char* format, ...);
 
 /************************************************************************/
+// Error reporting
+
+extern int* __errno_location(void);
+#define errno (*__errno_location())
+
+/************************************************************************/
 
 // Command line arguments
 extern int _argc;
@@ -168,12 +201,14 @@ extern int strncmp(const char*, const char*, unsigned);
 extern char* strstr(const char* haystack, const char* needle);
 extern char* strchr(const char* string, int character);
 extern char* strrchr(const char* string, int character);
+extern char* strpbrk(const char* text, const char* accept);
 extern void memset(void*, int, size_t);
 extern void memcpy(void*, const void*, size_t);
 extern void* memmove(void*, const void*, size_t);
 extern int memcmp(const void* s1, const void* s2, size_t n);
 extern unsigned strlen(const char*);
 extern char* strcpy(char*, const char*);
+extern char* strcat(char* dest, const char* src);
 extern char* strncat(char* dest, const char* src, size_t n);
 extern char* getcwd(char* buffer, size_t size);
 
@@ -196,12 +231,47 @@ extern int getkey(void);
 extern unsigned getkeymodifiers(void);
 extern int sprintf(char* str, const char* fmt, ...);
 extern int snprintf(char* str, size_t size, const char* fmt, ...);
+extern int sscanf(const char* str, const char* fmt, ...);
 extern int printf(const char* format, ...);
 extern int _beginthread(void (*function)(void*), unsigned stack_size, void* arg_list);
 extern void _endthread(void);
 extern int system(const char*);
 extern void sleep(unsigned ms);
 extern int atoi(const char* str);
+extern long strtol(const char* nptr, char** endptr, int base);
+extern unsigned long strtoul(const char* nptr, char** endptr, int base);
+extern long long strtoll(const char* nptr, char** endptr, int base);
+extern unsigned long long strtoull(const char* nptr, char** endptr, int base);
+extern float strtof(const char* nptr, char** endptr);
+extern double strtod(const char* nptr, char** endptr);
+extern long double strtold(const char* nptr, char** endptr);
+extern void qsort(void* base, size_t num, size_t size, qsort_comparator compare);
+extern int remove(const char* path);
+extern int rename(const char* old_path, const char* new_path);
+extern char* getenv(const char* name);
+extern char* realpath(const char* path, char* resolved_path);
+extern char* strerror(int error);
+extern long double ldexpl(long double value, int exponent);
+
+/************************************************************************/
+// Character classification
+
+extern int isalnum(int character);
+extern int isalpha(int character);
+extern int isascii(int character);
+extern int isblank(int character);
+extern int iscntrl(int character);
+extern int isdigit(int character);
+extern int isgraph(int character);
+extern int islower(int character);
+extern int isprint(int character);
+extern int ispunct(int character);
+extern int isspace(int character);
+extern int isupper(int character);
+extern int isxdigit(int character);
+extern int toascii(int character);
+extern int tolower(int character);
+extern int toupper(int character);
 
 /************************************************************************/
 
@@ -226,6 +296,10 @@ extern FILE* fopen(const char*, const char*);
 extern size_t fread(void*, size_t, size_t, FILE*);
 extern size_t fwrite(const void*, size_t, size_t, FILE*);
 extern int fprintf(FILE* fp, const char* fmt, ...);
+extern int vfprintf(FILE* fp, const char* fmt, va_list args);
+extern int vsnprintf(char* buffer, size_t size, const char* fmt, va_list args);
+extern int fputs(const char* text, FILE* fp);
+extern int fputc(int character, FILE* fp);
 extern int fseek(FILE*, long int, int);
 extern long int ftell(FILE*);
 extern int fclose(FILE*);
@@ -233,6 +307,15 @@ extern int feof(FILE*);
 extern int fflush(FILE*);
 extern int fgetc(FILE*);
 extern int fgets(char* str, int num, FILE* fp);
+extern FILE* fdopen(int file_descriptor, const char* mode);
+extern FILE* freopen(const char* path, const char* mode, FILE* fp);
+extern int open(const char* path, int flags, ...);
+extern int close(int file_descriptor);
+extern int read(int file_descriptor, void* buffer, unsigned count);
+extern int write(int file_descriptor, const void* buffer, unsigned count);
+extern long lseek(int file_descriptor, long offset, int whence);
+extern int unlink(const char* path);
+extern int execvp(const char* file, char* const arguments[]);
 
 /************************************************************************/
 // Math
@@ -259,4 +342,6 @@ int     getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

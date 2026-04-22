@@ -127,9 +127,9 @@ SCRIPT_ERROR ClockGetProperty(
 
     EXPOSE_PROPERTY_GUARD();
 
-    EXPOSE_BIND_INTEGER("uptime_ms", GetSystemTime());
-    EXPOSE_BIND_HOST_HANDLE("boot_datetime", GetClockRootHandle(), &ClockBootDateTimeDescriptor, NULL);
-    EXPOSE_BIND_HOST_HANDLE("current_datetime", GetClockRootHandle(), &ClockCurrentDateTimeDescriptor, NULL);
+    EXPOSE_BIND_INTEGER("uptimeMs", GetSystemTime());
+    EXPOSE_BIND_HOST_HANDLE("bootDatetime", GetClockRootHandle(), &ClockBootDateTimeDescriptor, NULL);
+    EXPOSE_BIND_HOST_HANDLE("currentDatetime", GetClockRootHandle(), &ClockCurrentDateTimeDescriptor, NULL);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }

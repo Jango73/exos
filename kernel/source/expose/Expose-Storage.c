@@ -59,12 +59,12 @@ SCRIPT_ERROR StorageGetProperty(
 
         EXPOSE_BIND_INTEGER("type", DiskInfo.Type);
         EXPOSE_BIND_INTEGER("removable", DiskInfo.Removable);
-        EXPOSE_BIND_INTEGER("bytes_per_sector", DiskInfo.BytesPerSector);
-        EXPOSE_BIND_INTEGER("num_sectors_low", (U32)U64_Low32(DiskInfo.NumSectors));
-        EXPOSE_BIND_INTEGER("num_sectors_high", (U32)U64_High32(DiskInfo.NumSectors));
+        EXPOSE_BIND_INTEGER("bytesPerSector", DiskInfo.BytesPerSector);
+        EXPOSE_BIND_INTEGER("numSectorsLow", (U32)U64_Low32(DiskInfo.NumSectors));
+        EXPOSE_BIND_INTEGER("numSectorsHigh", (U32)U64_High32(DiskInfo.NumSectors));
         EXPOSE_BIND_INTEGER("access", DiskInfo.Access);
-        EXPOSE_BIND_STRING("driver_manufacturer", Storage->Driver->Manufacturer);
-        EXPOSE_BIND_STRING("driver_product", Storage->Driver->Product);
+        EXPOSE_BIND_STRING("driverManufacturer", Storage->Driver->Manufacturer);
+        EXPOSE_BIND_STRING("driverProduct", Storage->Driver->Product);
 
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }

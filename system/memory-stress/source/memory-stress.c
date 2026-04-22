@@ -340,7 +340,7 @@ static const char* GetExecutableName(const char* Path) {
  * @param argv Argument vector (unused).
  * @return Zero on success, non-zero on failure.
  */
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     PROCESS_MEMORY_INFO InitialInfo;
     PROCESS_MEMORY_INFO FinalInfo;
     PROCESS_MEMORY_INFO ReuseInfo;

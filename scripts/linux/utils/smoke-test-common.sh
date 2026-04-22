@@ -975,10 +975,12 @@ function RunCommandSpec() {
     local CompareSource="$4"
     local CompareDownloaded="$5"
     local TimeoutSeconds="${6:-$DEFAULT_TIMEOUT_SECONDS}"
+    local PreActionDelaySeconds="${7:-}"
     local ProbeTimeoutSeconds="$MONITOR_FALLBACK_TIMEOUT_SECONDS"
     local Offset
     local MonitorModeUsed=""
     local WaitStatus=0
+    local SpawnVerified=0
 
     if [ -z "$ActionType" ]; then
         echo "Invalid empty action type in command specification."
@@ -988,6 +990,10 @@ function RunCommandSpec() {
     if [ -z "$ActionText" ]; then
         echo "Invalid empty action in command specification."
         return 1
+    fi
+
+    if [ -n "$PreActionDelaySeconds" ]; then
+        sleep "$PreActionDelaySeconds"
     fi
 
     echo "Running $ActionType: $ActionText"
@@ -1004,6 +1010,7 @@ function RunCommandSpec() {
         if [[ "$ActionText" == /* ]]; then
             if RunOptionalCommandCheck VerifySpawnCommandLine "$ActionText" "$Offset" "$ProbeTimeoutSeconds"; then
                 WaitStatus=0
+                SpawnVerified=1
             else
                 WaitStatus=$?
             fi
@@ -1014,13 +1021,16 @@ function RunCommandSpec() {
                     Offset="$(GetLogSize)"
                     SendCommandWithMode "$ActionText" "persistent"
                     VerifySpawnCommandLine "$ActionText" "$Offset"
+                    SpawnVerified=1
                 else
                     return 1
                 fi
             fi
         fi
         if [ -n "$ExpectedText" ]; then
-            if [ "$MONITOR_MODE" = "auto" ] && [ "$MonitorModeUsed" = "transient" ]; then
+            if [ "$MONITOR_MODE" = "auto" ] &&
+                [ "$MonitorModeUsed" = "transient" ] &&
+                [ "$SpawnVerified" -eq 0 ]; then
                 if RunOptionalCommandCheck WaitForExpectedLog "$ExpectedText" "$Offset" "$ProbeTimeoutSeconds"; then
                     WaitStatus=0
                 else
@@ -1083,7 +1093,7 @@ function RunOptionalCommandCheck() {
 
 function RunCommandList() {
     # Command file grammar (one spec per line):
-    # command: "..." | hotkey: "..." | [log: "..."] | [file-size-compare: "host/path" "/guest/path"] | [timeout: N]
+    # command: "..." | hotkey: "..." | [before: N] | [log: "..."] | [file-size-compare: "host/path" "/guest/path"] | [timeout: N]
     local CommandsFilePath="${1:-$COMMANDS_FILE}"
     local Line
     local Part
@@ -1092,6 +1102,7 @@ function RunCommandList() {
     local ExpectedText=""
     local CompareSource=""
     local CompareDownloaded=""
+    local PreActionDelaySeconds=""
     local TimeoutSeconds=""
 
     local CommandsContent=""
@@ -1121,6 +1132,7 @@ function RunCommandList() {
         ExpectedText=""
         CompareSource=""
         CompareDownloaded=""
+        PreActionDelaySeconds=""
         TimeoutSeconds=""
 
         while IFS= read -r Part; do
@@ -1136,6 +1148,8 @@ function RunCommandList() {
             elif [[ "$Part" =~ ^file-size-compare:[[:space:]]*\"([^\"]*)\"[[:space:]]+\"([^\"]*)\"$ ]]; then
                 CompareSource="${BASH_REMATCH[1]}"
                 CompareDownloaded="${BASH_REMATCH[2]}"
+            elif [[ "$Part" =~ ^before:[[:space:]]*([0-9]+(\.[0-9]+)?)$ ]]; then
+                PreActionDelaySeconds="${BASH_REMATCH[1]}"
             elif [[ "$Part" =~ ^timeout:[[:space:]]*([0-9]+)$ ]]; then
                 TimeoutSeconds="${BASH_REMATCH[1]}"
             else
@@ -1149,7 +1163,7 @@ function RunCommandList() {
             exit 1
         fi
 
-        RunCommandSpec "$ActionType" "$CommandText" "$ExpectedText" "$CompareSource" "$CompareDownloaded" "$TimeoutSeconds"
+        RunCommandSpec "$ActionType" "$CommandText" "$ExpectedText" "$CompareSource" "$CompareDownloaded" "$TimeoutSeconds" "$PreActionDelaySeconds"
     done <<< "$CommandsContent"
 }
 

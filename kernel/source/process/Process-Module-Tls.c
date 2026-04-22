@@ -48,6 +48,11 @@ BOOL InitializeProcessModuleTls(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING B
         return TRUE;
     }
 
+    if (Tls->TotalSize == 0 && Tls->TemplateSize == 0) {
+        Binding->StateFlags |= EXECUTABLE_MODULE_BINDING_STATE_TLS_REGISTERED;
+        return TRUE;
+    }
+
     if (Tls->TotalSize == 0 || Tls->TemplateSize > Tls->TotalSize) {
         WARNING(TEXT("Invalid module TLS layout"));
         return FALSE;

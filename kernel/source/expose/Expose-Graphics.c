@@ -141,8 +141,8 @@ SCRIPT_ERROR GraphicsGetProperty(
     CurrentDriver = GraphicsGetCurrentBackendDriver();
 
     EXPOSE_BIND_STRING("frontend", GraphicsFrontEndToText(DisplaySessionGetActiveFrontEnd()));
-    EXPOSE_BIND_INTEGER("current_driver_index", GraphicsGetCurrentDriverIndex());
-    EXPOSE_BIND_STRING("current_driver_alias", CurrentDriver != NULL ? CurrentDriver->Alias : TEXT(""));
+    EXPOSE_BIND_INTEGER("currentDriverIndex", GraphicsGetCurrentDriverIndex());
+    EXPOSE_BIND_STRING("currentDriverAlias", CurrentDriver != NULL ? CurrentDriver->Alias : TEXT(""));
     EXPOSE_BIND_HOST_HANDLE("mode", GetGraphicsRootHandle(), &GraphicsModeDescriptor, NULL);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;

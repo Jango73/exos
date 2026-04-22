@@ -34,6 +34,14 @@ typedef UINT (*MODULE_IMPORT_RESOLVE)(void);
 
 /***************************************************************************/
 
+#define MODULE_HOST_FAILURE(...) \
+    do {                         \
+        printf(__VA_ARGS__);     \
+        debug(__VA_ARGS__);      \
+    } while (0)
+
+/***************************************************************************/
+
 static MODULE_SAMPLE_ADD SharedModuleSampleAdd = NULL;
 static MODULE_SAMPLE_INCREMENT_SHARED SharedModuleSampleIncrementShared = NULL;
 static volatile UINT LateTlsReady = 0;
@@ -104,8 +112,8 @@ static BOOL WaitForChildProcess(void) {
     ProcessInfo.StdIn = NULL;
     ProcessInfo.StdErr = NULL;
 
-    if (exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo)) != DF_RETURN_SUCCESS) {
-        printf("Module child process creation failed\n");
+    if (exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo)) == 0) {
+        MODULE_HOST_FAILURE("Module child process creation failed\n");
         return FALSE;
     }
 
@@ -116,11 +124,11 @@ static BOOL WaitForChildProcess(void) {
     WaitInfo.Count = 1;
     WaitInfo.MilliSeconds = 10000;
     WaitInfo.Flags = WAIT_FLAG_ANY;
-    WaitInfo.Objects[0] = ProcessInfo.Process;
+    WaitInfo.Objects[0] = ProcessInfo.Task;
 
     WaitResult = Wait(&WaitInfo);
     if (WaitResult != WAIT_OBJECT_0 || WaitInfo.ExitCodes[0] != 0) {
-        printf("Module child process failed wait=%u exit=%u\n", WaitResult, WaitInfo.ExitCodes[0]);
+        MODULE_HOST_FAILURE("Module child process failed wait=%u exit=%u\n", WaitResult, WaitInfo.ExitCodes[0]);
         return FALSE;
     }
 
@@ -136,24 +144,24 @@ static BOOL RunChildModuleTest(void) {
 
     Module = LoadModule((LPCSTR)"/system/apps/test/module-sample");
     if (Module == 0) {
-        printf("Module child load failed\n");
+        MODULE_HOST_FAILURE("Module child load failed\n");
         return FALSE;
     }
 
     ModuleSampleAdd = (MODULE_SAMPLE_ADD)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleAdd");
     ModuleSampleIncrementShared = (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleIncrementShared");
     if (ModuleSampleAdd == NULL || ModuleSampleIncrementShared == NULL) {
-        printf("Module child symbol lookup failed\n");
+        MODULE_HOST_FAILURE("Module child symbol lookup failed\n");
         return FALSE;
     }
 
     if (ModuleSampleAdd(0x23) != 0x2B) {
-        printf("Module child TLS call failed\n");
+        MODULE_HOST_FAILURE("Module child TLS call failed\n");
         return FALSE;
     }
 
     if (ModuleSampleIncrementShared() != 1) {
-        printf("Module child global data call failed\n");
+        MODULE_HOST_FAILURE("Module child global data call failed\n");
         return FALSE;
     }
 
@@ -175,7 +183,7 @@ static BOOL RunParentModuleTest(void) {
 
     LateThread = _beginthread(LateTlsWorker, 65536, NULL);
     if (LateThread == 0) {
-        printf("Module late TLS worker creation failed\n");
+        MODULE_HOST_FAILURE("Module late TLS worker creation failed\n");
         return FALSE;
     }
 
@@ -183,7 +191,7 @@ static BOOL RunParentModuleTest(void) {
 
     Module = LoadModule((LPCSTR)"/system/apps/test/module-sample");
     if (Module == 0) {
-        printf("Module load failed\n");
+        MODULE_HOST_FAILURE("Module load failed\n");
         return FALSE;
     }
 
@@ -191,51 +199,51 @@ static BOOL RunParentModuleTest(void) {
     ModuleSampleIncrementShared = (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleIncrementShared");
     ModuleSampleGetShared = (MODULE_SAMPLE_GET_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleGetShared");
     if (ModuleSampleAdd == NULL || ModuleSampleIncrementShared == NULL || ModuleSampleGetShared == NULL) {
-        printf("Module symbol lookup failed\n");
+        MODULE_HOST_FAILURE("Module symbol lookup failed\n");
         return FALSE;
     }
 
     SharedModuleSampleAdd = ModuleSampleAdd;
     LateTlsReady = 1;
     if (!WaitForFlag(&LateTlsDone, 5000) || LateTlsResult != 0x2B) {
-        printf("Module late TLS failed result=%u\n", LateTlsResult);
+        MODULE_HOST_FAILURE("Module late TLS failed result=%u\n", LateTlsResult);
         return FALSE;
     }
 
     Result = ModuleSampleAdd(0x23);
     printf("Module result: %u\n", Result);
     if (Result != 0x2B || ModuleSampleAdd(0x23) != 0x2C) {
-        printf("Module main TLS sequence failed\n");
+        MODULE_HOST_FAILURE("Module main TLS sequence failed\n");
         return FALSE;
     }
 
     if (ModuleSampleIncrementShared() != 1 || ModuleSampleIncrementShared() != 2) {
-        printf("Module main global data sequence failed\n");
+        MODULE_HOST_FAILURE("Module main global data sequence failed\n");
         return FALSE;
     }
 
     SharedModuleSampleIncrementShared = ModuleSampleIncrementShared;
     SharedThread = _beginthread(SharedDataWorker, 65536, NULL);
     if (SharedThread == 0) {
-        printf("Module shared data worker creation failed\n");
+        MODULE_HOST_FAILURE("Module shared data worker creation failed\n");
         return FALSE;
     }
 
     SharedDataReady = 1;
     if (!WaitForFlag(&SharedDataDone, 5000) || SharedDataResult != 3 || ModuleSampleGetShared() != 3) {
-        printf("Module task global data failed result=%u total=%u\n", SharedDataResult, ModuleSampleGetShared());
+        MODULE_HOST_FAILURE("Module task global data failed result=%u total=%u\n", SharedDataResult, ModuleSampleGetShared());
         return FALSE;
     }
 
     ImportModule = LoadModule((LPCSTR)"/system/apps/test/module-import");
     if (ImportModule == 0) {
-        printf("Module import load failed\n");
+        MODULE_HOST_FAILURE("Module import load failed\n");
         return FALSE;
     }
 
     ModuleImportResolve = (MODULE_IMPORT_RESOLVE)GetModuleSymbol(ImportModule, (LPCSTR)"ModuleImportResolve");
     if (ModuleImportResolve == NULL || ModuleImportResolve() != 0x123D) {
-        printf("Module import resolver failed\n");
+        MODULE_HOST_FAILURE("Module import resolver failed\n");
         return FALSE;
     }
 
@@ -248,7 +256,7 @@ static BOOL RunParentModuleTest(void) {
 
 /***************************************************************************/
 
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     if (argc > 1 && strcmp(argv[1], "--child") == 0) {
         return RunChildModuleTest() ? 0 : 1;
     }

@@ -30,7 +30,7 @@
 
 /************************************************************************/
 
-INT exosmain(INT argc, char** argv) {
+INT main(INT argc, char** argv) {
     UNUSED(argc);
     UNUSED(argv);
 

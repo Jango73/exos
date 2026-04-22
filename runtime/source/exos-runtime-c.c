@@ -1,32 +1,22 @@
 
 /************************************************************************\
 
-    EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    EXOS Runtime
+    Copyright (c) 1999-2026 Jango73
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    SPDX-License-Identifier: MIT
+    See runtime/LICENSE for license terms.
 
 
     EXOS Runtime
 
 \************************************************************************/
 
-#include "../../kernel/include/text/CoreString.h"
 #include "../../kernel/include/User.h"
 #include "../../kernel/include/VarArg.h"
 #include "../include/exos-runtime.h"
 #include "../include/exos.h"
+#include "../include/exos-string.h"
 
 /************************************************************************/
 
@@ -61,10 +51,6 @@ static void __attribute__((unused)) suppress_unused_warnings(void) {
     UNUSED(_static_arg_storage);
 }
 #pragma GCC diagnostic pop
-
-/************************************************************************/
-
-int atoi(const char* str) { return (int)StringToU32((LPCSTR)str); }
 
 /************************************************************************/
 
@@ -247,11 +233,14 @@ int fprintf(FILE* fp, const char* fmt, ...) {
     char Buffer[MAX_STRING_BUFFER];
     VarArgList Args;
 
-    if (!fp) return 0;
-
     VarArgStart(Args, fmt);
     StringPrintFormatArgs((LPSTR)Buffer, (LPCSTR)fmt, Args);
     VarArgEnd(Args);
+
+    if (!fp) {
+        printf("%s", Buffer);
+        return strlen(Buffer);
+    }
 
     return fwrite(Buffer, 1, strlen(Buffer), fp);
 }

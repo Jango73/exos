@@ -82,7 +82,7 @@ SCRIPT_ERROR MemoryMapRootGetProperty(
     EXPOSE_PROPERTY_GUARD();
 
     EXPOSE_BIND_HOST_HANDLE(
-        "kernel_region",
+        "kernelRegion",
         GetProcessMemoryRegionList(&KernelProcess),
         &MemoryRegionArrayDescriptor,
         NULL);
@@ -114,19 +114,19 @@ SCRIPT_ERROR MemoryRegionDescriptorGetProperty(
     SAFE_USE_VALID_ID(Descriptor, KOID_MEMORY_REGION_DESCRIPTOR) {
         EXPOSE_BIND_STRING("tag", (Descriptor->Tag[0] == STR_NULL) ? TEXT("???") : Descriptor->Tag);
 #ifdef __EXOS_64__
-        EXPOSE_BIND_INTEGER("base_low", (U32)(Descriptor->CanonicalBase & 0xFFFFFFFF));
-        EXPOSE_BIND_INTEGER("base_high", (U32)(Descriptor->CanonicalBase >> 32));
-        EXPOSE_BIND_INTEGER("physical_low", (U32)(Descriptor->PhysicalBase & 0xFFFFFFFF));
-        EXPOSE_BIND_INTEGER("physical_high", (U32)(Descriptor->PhysicalBase >> 32));
+        EXPOSE_BIND_INTEGER("baseLow", (U32)(Descriptor->CanonicalBase & 0xFFFFFFFF));
+        EXPOSE_BIND_INTEGER("baseHigh", (U32)(Descriptor->CanonicalBase >> 32));
+        EXPOSE_BIND_INTEGER("physicalLow", (U32)(Descriptor->PhysicalBase & 0xFFFFFFFF));
+        EXPOSE_BIND_INTEGER("physicalHigh", (U32)(Descriptor->PhysicalBase >> 32));
 #else
-        EXPOSE_BIND_INTEGER("base_low", (U32)Descriptor->CanonicalBase);
-        EXPOSE_BIND_INTEGER("base_high", 0);
-        EXPOSE_BIND_INTEGER("physical_low", (U32)Descriptor->PhysicalBase);
-        EXPOSE_BIND_INTEGER("physical_high", 0);
+        EXPOSE_BIND_INTEGER("baseLow", (U32)Descriptor->CanonicalBase);
+        EXPOSE_BIND_INTEGER("baseHigh", 0);
+        EXPOSE_BIND_INTEGER("physicalLow", (U32)Descriptor->PhysicalBase);
+        EXPOSE_BIND_INTEGER("physicalHigh", 0);
 #endif
-        EXPOSE_BIND_INTEGER("physical_known", Descriptor->PhysicalBase != 0);
+        EXPOSE_BIND_INTEGER("physicalKnown", Descriptor->PhysicalBase != 0);
         EXPOSE_BIND_INTEGER("size", Descriptor->Size);
-        EXPOSE_BIND_INTEGER("page_count", Descriptor->PageCount);
+        EXPOSE_BIND_INTEGER("pageCount", Descriptor->PageCount);
         EXPOSE_BIND_INTEGER("flags", Descriptor->Flags);
         EXPOSE_BIND_INTEGER("attributes", Descriptor->Attributes);
         EXPOSE_BIND_INTEGER("granularity", Descriptor->Granularity);

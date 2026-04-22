@@ -100,7 +100,7 @@ The following naming conventions have been adopted throughout the EXOS code base
 - Function : PascalCase
 - Variable : PascalCase
 - Shell command : lower_snake_case
-- Shell object/property : lower_snake_case
+- Shell object/property : lowerCamelCase
 
 
 ## Platform and Memory Foundations
@@ -261,7 +261,7 @@ Security in EXOS is implemented as a layered architecture. The effective access 
   - `EXPOSE_ACCESS_KERNEL`
   - `EXPOSE_ACCESS_OWNER_PROCESS`
   (defined in `kernel/include/Exposed.h`, implemented by `kernel/source/expose/Expose-Security.c`)
-- Process/task exposure protects sensitive fields (`page_directory`, heap metadata, architecture context, stack internals) behind kernel/admin or owner-process checks (`kernel/source/expose/Expose-Process.c`, `kernel/source/expose/Expose-Task.c`).
+- Process/task exposure protects sensitive fields (`pageDirectory`, heap metadata, architecture context, stack internals) behind kernel/admin or owner-process checks (`kernel/source/expose/Expose-Process.c`, `kernel/source/expose/Expose-Task.c`).
 
 #### Layer 6: Security data model for kernel objects
 
@@ -653,13 +653,13 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `handle`: handle for the process. Permissions: anyone (except `process[0]`, kernel and administrator only).
     - `status`: current process status. Permissions: anyone (except `process[0]`, kernel and administrator only).
     - `flags`: process flags bitfield. Permissions: anyone (except `process[0]`, kernel and administrator only).
-    - `exit_code`: termination status. Permissions: anyone (except `process[0]`, kernel and administrator only).
-    - `file_name`: executable name. Permissions: anyone (except `process[0]`, kernel and administrator only).
-    - `command_line`: full command line string. Permissions: anyone (except `process[0]`, kernel and administrator only).
-    - `work_folder`: current working folder. Permissions: anyone (except `process[0]`, kernel and administrator only).
-    - `page_directory`: page directory pointer. Permissions: kernel and administrator only.
-    - `heap_base`: heap base address. Permissions: kernel and administrator only.
-    - `heap_size`: heap size. Permissions: kernel and administrator only.
+    - `exitCode`: termination status. Permissions: anyone (except `process[0]`, kernel and administrator only).
+    - `fileName`: executable name. Permissions: anyone (except `process[0]`, kernel and administrator only).
+    - `commandLine`: full command line string. Permissions: anyone (except `process[0]`, kernel and administrator only).
+    - `workFolder`: current working folder. Permissions: anyone (except `process[0]`, kernel and administrator only).
+    - `pageDirectory`: page directory pointer. Permissions: kernel and administrator only.
+    - `heapBase`: heap base address. Permissions: kernel and administrator only.
+    - `heapSize`: heap size. Permissions: kernel and administrator only.
     - `task`: task list for the owning process. Permissions: kernel and administrator only.
       - `task.count`: number of tasks in the process. Permissions: kernel and administrator only.
       - `task[n]`: task view at index `n`. Permissions: see fields below.
@@ -669,20 +669,20 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
         - `status`: current task status. Permissions: anyone (except tasks that belong to the kernel process, kernel and administrator only).
         - `priority`: scheduling priority. Permissions: anyone (except tasks that belong to the kernel process, kernel and administrator only).
         - `flags`: task flags bitfield. Permissions: anyone (except tasks that belong to the kernel process, kernel and administrator only).
-        - `exit_code`: termination status. Permissions: anyone (except tasks that belong to the kernel process, kernel and administrator only).
+        - `exitCode`: termination status. Permissions: anyone (except tasks that belong to the kernel process, kernel and administrator only).
         - `function`: task entry function pointer. Permissions: kernel, administrator, and owner process.
         - `parameter`: task entry parameter pointer. Permissions: kernel, administrator, and owner process.
         - `architecture`: architecture-specific context view. Permissions: kernel and administrator only.
           - `context`: raw context pointer. Permissions: kernel and administrator only.
           - `stack`: architecture stack view. Permissions: kernel and administrator only.
-          - `system_stack`: architecture system stack view. Permissions: kernel and administrator only.
+          - `systemStack`: architecture system stack view. Permissions: kernel and administrator only.
         - `stack`: task stack view. Permissions: kernel and administrator only.
           - `base`: stack base address. Permissions: kernel and administrator only.
           - `size`: stack size. Permissions: kernel and administrator only.
-        - `system_stack`: system stack pointer. Permissions: kernel and administrator only.
-        - `wake_up_time`: scheduler wake-up time. Permissions: kernel and administrator only.
+        - `systemStack`: system stack pointer. Permissions: kernel and administrator only.
+        - `wakeUpTime`: scheduler wake-up time. Permissions: kernel and administrator only.
         - `mutex`: mutex pointer. Permissions: kernel and administrator only.
-        - `message_queue`: message queue pointer. Permissions: kernel and administrator only.
+        - `messageQueue`: message queue pointer. Permissions: kernel and administrator only.
         - `process`: owning process pointer. Permissions: kernel and administrator only.
 - `task`: Global task list root filtered through process access policy.
   - `task.count`: number of tasks the caller may target.
@@ -691,10 +691,10 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
   - `driver.count`: number of drivers. Permissions: kernel and administrator only.
   - `driver[n]`: driver view at index `n`. Permissions: kernel and administrator only.
     - `type`: driver type. Permissions: kernel and administrator only.
-    - `type_name`: driver type text. Permissions: anyone.
+    - `typeName`: driver type text. Permissions: anyone.
     - `alias`: driver alias. Permissions: anyone.
-    - `version_major`: major version. Permissions: kernel and administrator only.
-    - `version_minor`: minor version. Permissions: kernel and administrator only.
+    - `versionMajor`: major version. Permissions: kernel and administrator only.
+    - `versionMinor`: minor version. Permissions: kernel and administrator only.
     - `designer`: driver designer. Permissions: kernel and administrator only.
     - `manufacturer`: driver manufacturer. Permissions: kernel and administrator only.
     - `product`: driver product name. Permissions: kernel and administrator only.
@@ -706,35 +706,35 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
         - `width`: mode width.
         - `height`: mode height.
         - `bpp`: mode bit depth.
-    - `enum_domain_count`: number of enum domains. Permissions: kernel and administrator only.
-    - `enum_domain`: enum domain array. Permissions: kernel and administrator only.
-      - `enum_domain.count`: enum domain count. Permissions: kernel and administrator only.
-      - `enum_domain[n]`: enum domain value at index `n`. Permissions: kernel and administrator only.
+    - `enumDomainCount`: number of enum domains. Permissions: kernel and administrator only.
+    - `enumDomain`: enum domain array. Permissions: kernel and administrator only.
+      - `enumDomain.count`: enum domain count. Permissions: kernel and administrator only.
+      - `enumDomain[n]`: enum domain value at index `n`. Permissions: kernel and administrator only.
 - `graphics`: Active graphics session state. Permissions: anyone.
   - `graphics.frontend`: active display frontend text (`console` or `desktop`).
-  - `graphics.current_driver_index`: index of the active concrete graphics backend inside `driver[n]`.
-  - `graphics.current_driver_alias`: alias of the active concrete graphics backend.
+  - `graphics.currentDriverIndex`: index of the active concrete graphics backend inside `driver[n]`.
+  - `graphics.currentDriverAlias`: alias of the active concrete graphics backend.
   - `graphics.mode`: active graphics mode view.
     - `graphics.mode.width`: active mode width.
     - `graphics.mode.height`: active mode height.
     - `graphics.mode.bpp`: active mode bit depth.
 - `clock`: Clock exposure root. Permissions: anyone.
-  - `clock.uptime_ms`: milliseconds since clock initialization.
-  - `clock.boot_datetime`: local date-time captured during clock initialization.
-  - `clock.current_datetime`: local date-time maintained by the clock tick.
+  - `clock.uptimeMs`: milliseconds since clock initialization.
+  - `clock.bootDatetime`: local date-time captured during clock initialization.
+  - `clock.currentDatetime`: local date-time maintained by the clock tick.
   - Date-time objects expose `year`, `month`, `day`, `hour`, `minute`, `second`, and `milli`.
-- `memory_map`: Kernel address-space exposure root. Permissions: anyone.
-  - `memory_map.kernel_region`: kernel memory region list root.
-    - `memory_map.kernel_region.count`: number of kernel memory regions.
-    - `memory_map.kernel_region[n]`: kernel memory region view at index `n`.
+- `memoryMap`: Kernel address-space exposure root. Permissions: anyone.
+  - `memoryMap.kernelRegion`: kernel memory region list root.
+    - `memoryMap.kernelRegion.count`: number of kernel memory regions.
+    - `memoryMap.kernelRegion[n]`: kernel memory region view at index `n`.
       - `tag`: region tag.
-      - `base_low`: lower 32 bits of the canonical base.
-      - `base_high`: upper 32 bits of the canonical base.
-      - `physical_low`: lower 32 bits of the physical base.
-      - `physical_high`: upper 32 bits of the physical base.
-      - `physical_known`: indicates whether a physical base is known.
+      - `baseLow`: lower 32 bits of the canonical base.
+      - `baseHigh`: upper 32 bits of the canonical base.
+      - `physicalLow`: lower 32 bits of the physical base.
+      - `physicalHigh`: upper 32 bits of the physical base.
+      - `physicalKnown`: indicates whether a physical base is known.
       - `size`: region size.
-      - `page_count`: region page count.
+      - `pageCount`: region page count.
       - `flags`: region flags.
       - `attributes`: region attributes.
       - `granularity`: region granularity.
@@ -745,11 +745,11 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
       - `name`: device name.
       - `manufacturer`: device manufacturer text.
       - `product`: device product text.
-      - `mac_0`..`mac_5`: MAC address bytes.
-      - `ip_0`..`ip_3`: IPv4 address bytes.
-      - `link_up`: link state.
-      - `speed_mbps`: link speed in Mbps.
-      - `duplex_full`: duplex mode flag.
+      - `mac0`..`mac5`: MAC address bytes.
+      - `ip0`..`ip3`: IPv4 address bytes.
+      - `linkUp`: link state.
+      - `speedMbps`: link speed in Mbps.
+      - `duplexFull`: duplex mode flag.
       - `mtu`: configured MTU.
       - `initialized`: initialization state.
 - `storage`: Storage list root. provides indexed access to storage views. Permissions: anyone.
@@ -757,28 +757,28 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
   - `storage[n]`: storage view at index `n`. Permissions: anyone.
     - `type`: storage type. Permissions: anyone.
     - `removable`: removable flag. Permissions: anyone.
-    - `bytes_per_sector`: sector size in bytes. Permissions: anyone.
-    - `num_sectors_low`: lower 32-bit sector count. Permissions: anyone.
-    - `num_sectors_high`: upper 32-bit sector count. Permissions: anyone.
+    - `bytesPerSector`: sector size in bytes. Permissions: anyone.
+    - `numSectorsLow`: lower 32-bit sector count. Permissions: anyone.
+    - `numSectorsHigh`: upper 32-bit sector count. Permissions: anyone.
     - `access`: access mode flags. Permissions: anyone.
-    - `driver_manufacturer`: backing driver manufacturer. Permissions: anyone.
-    - `driver_product`: backing driver product name. Permissions: anyone.
-- `pci_bus`: PCI bus list root. provides indexed access to PCI bus views. Permissions: anyone.
-  - `pci_bus.count`: number of PCI buses. Permissions: anyone.
-  - `pci_bus[n]`: PCI bus view at index `n`. Permissions: anyone.
+    - `driverManufacturer`: backing driver manufacturer. Permissions: anyone.
+    - `driverProduct`: backing driver product name. Permissions: anyone.
+- `pciBus`: PCI bus list root. provides indexed access to PCI bus views. Permissions: anyone.
+  - `pciBus.count`: number of PCI buses. Permissions: anyone.
+  - `pciBus[n]`: PCI bus view at index `n`. Permissions: anyone.
     - `number`: PCI bus number. Permissions: anyone.
-    - `device_count`: number of PCI devices on the bus. Permissions: anyone.
-- `pci_device`: PCI device list root. provides indexed access to PCI device views. Permissions: anyone.
-  - `pci_device.count`: number of PCI devices. Permissions: anyone.
-  - `pci_device[n]`: PCI device view at index `n`. Permissions: anyone.
+    - `deviceCount`: number of PCI devices on the bus. Permissions: anyone.
+- `pciDevice`: PCI device list root. provides indexed access to PCI device views. Permissions: anyone.
+  - `pciDevice.count`: number of PCI devices. Permissions: anyone.
+  - `pciDevice[n]`: PCI device view at index `n`. Permissions: anyone.
     - `bus`: PCI bus number. Permissions: anyone.
     - `device`: PCI device number. Permissions: anyone.
     - `function`: PCI function number. Permissions: anyone.
-    - `vendor_id`: PCI vendor identifier. Permissions: anyone.
-    - `device_id`: PCI device identifier. Permissions: anyone.
-    - `base_class`: PCI base class code. Permissions: anyone.
-    - `sub_class`: PCI subclass code. Permissions: anyone.
-    - `prog_if`: PCI programming interface code. Permissions: anyone.
+    - `vendorId`: PCI vendor identifier. Permissions: anyone.
+    - `deviceId`: PCI device identifier. Permissions: anyone.
+    - `baseClass`: PCI base class code. Permissions: anyone.
+    - `subClass`: PCI subclass code. Permissions: anyone.
+    - `progIf`: PCI programming interface code. Permissions: anyone.
     - `revision`: PCI revision code. Permissions: anyone.
 - `keyboard`: Keyboard exposure root. provides access to keyboard state. Permissions: anyone.
   - `keyboard.layout`: active keyboard layout code. Permissions: anyone.
@@ -793,9 +793,9 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `bus`: PCI bus number. Permissions: kernel and administrator only.
     - `device`: PCI device number. Permissions: kernel and administrator only.
     - `function`: PCI function number. Permissions: kernel and administrator only.
-    - `port_number`: xHCI port index. Permissions: kernel and administrator only.
-    - `port_status`: raw port status. Permissions: kernel and administrator only.
-    - `speed_id`: link speed identifier. Permissions: kernel and administrator only.
+    - `portNumber`: xHCI port index. Permissions: kernel and administrator only.
+    - `portStatus`: raw port status. Permissions: kernel and administrator only.
+    - `speedId`: link speed identifier. Permissions: kernel and administrator only.
     - `connected`: connection status. Permissions: kernel and administrator only.
     - `enabled`: port enable state. Permissions: kernel and administrator only.
 - `usb.device`: USB device list root. provides indexed access to USB devices. Permissions: anyone.
@@ -804,47 +804,47 @@ All reusable helpers -such as the command line editor, adaptive delay, string co
     - `bus`: PCI bus number. Permissions: anyone.
     - `device`: PCI device number. Permissions: anyone.
     - `function`: PCI function number. Permissions: anyone.
-    - `port_number`: xHCI port index. Permissions: anyone.
+    - `portNumber`: xHCI port index. Permissions: anyone.
     - `address`: USB device address. Permissions: anyone.
-    - `speed_id`: link speed identifier. Permissions: anyone.
-    - `vendor_id`: USB vendor ID. Permissions: anyone.
-    - `product_id`: USB product ID. Permissions: anyone.
+    - `speedId`: link speed identifier. Permissions: anyone.
+    - `vendorId`: USB vendor ID. Permissions: anyone.
+    - `productId`: USB product ID. Permissions: anyone.
 - `usb.drive`: USB mass-storage list root. provides indexed access to USB storage devices. Permissions: anyone.
   - `usb.drive.count`: number of USB mass-storage devices. Permissions: anyone.
   - `usb.drive[n]`: storage device view at index `n`. Permissions: anyone.
     - `address`: USB device address. Permissions: anyone.
-    - `vendor_id`: USB vendor ID. Permissions: anyone.
-    - `product_id`: USB product ID. Permissions: anyone.
-    - `block_count`: block count. Permissions: anyone.
-    - `block_size`: block size in bytes. Permissions: anyone.
+    - `vendorId`: USB vendor ID. Permissions: anyone.
+    - `productId`: USB product ID. Permissions: anyone.
+    - `blockCount`: block count. Permissions: anyone.
+    - `blockSize`: block size in bytes. Permissions: anyone.
     - `present`: online state. Permissions: anyone.
 - `usb.node`: USB descriptor-tree list root. provides indexed access to discovered USB tree nodes. Permissions: anyone.
   - `usb.node.count`: number of USB tree nodes. Permissions: anyone.
   - `usb.node[n]`: tree node view at index `n`. Permissions: anyone.
-    - `node_type`: node kind.
+    - `nodeType`: node kind.
     - `bus`: PCI bus number.
     - `device`: PCI device number.
     - `function`: PCI function number.
-    - `port_number`: xHCI port index.
+    - `portNumber`: xHCI port index.
     - `address`: USB device address.
-    - `speed_id`: link speed identifier.
-    - `device_class`: USB device class.
-    - `device_sub_class`: USB device subclass.
-    - `device_protocol`: USB device protocol.
-    - `config_value`: configuration value.
-    - `config_attributes`: configuration attributes.
-    - `config_max_power`: configuration max power.
-    - `interface_number`: interface number.
-    - `alternate_setting`: interface alternate setting.
-    - `interface_class`: interface class.
-    - `interface_sub_class`: interface subclass.
-    - `interface_protocol`: interface protocol.
-    - `endpoint_address`: endpoint address.
-    - `endpoint_attributes`: endpoint attributes.
-    - `endpoint_max_packet_size`: endpoint max packet size.
-    - `endpoint_interval`: endpoint interval.
-    - `vendor_id`: USB vendor ID.
-    - `product_id`: USB product ID.
+    - `speedId`: link speed identifier.
+    - `deviceClass`: USB device class.
+    - `deviceSubClass`: USB device subclass.
+    - `deviceProtocol`: USB device protocol.
+    - `configValue`: configuration value.
+    - `configAttributes`: configuration attributes.
+    - `configMaxPower`: configuration max power.
+    - `interfaceNumber`: interface number.
+    - `alternateSetting`: interface alternate setting.
+    - `interfaceClass`: interface class.
+    - `interfaceSubClass`: interface subclass.
+    - `interfaceProtocol`: interface protocol.
+    - `endpointAddress`: endpoint address.
+    - `endpointAttributes`: endpoint attributes.
+    - `endpointMaxPacketSize`: endpoint max packet size.
+    - `endpointInterval`: endpoint interval.
+    - `vendorId`: USB vendor ID.
+    - `productId`: USB product ID.
 
 
 ## Hardware and Driver Stack
@@ -1157,6 +1157,7 @@ Logical kernel path keys are consumed through `utils/KernelPath`:
 - `KernelPath.UsersDatabase`: absolute VFS file path used by user account persistence.
 - `KernelPath.KeyboardLayouts`: absolute VFS folder path used to load keyboard layout files (`<layout>.ekm1`).
 - `KernelPath.SystemAppsRoot`: absolute VFS folder path used by shell package-name resolution (`package run <name>`).
+- `KernelPath.Binaries.<index>.Path`: repeatable absolute VFS folder path searched by the shell for executable command names after the current-folder resolution fails; resolved through the generic `KernelPathResolveListEntry(KERNEL_PATH_LIST_BINARY, ...)` helper.
 
 `MountDiskPartitions()` handles MBR and switches to GPT parsing when a protective MBR entry (`0xEE`) is detected. Supported formats are mounted through dedicated drivers (FAT16/FAT32/NTFS/EXFS/EXT2 path); partition metadata is written with `SetFileSystemPartitionInfo()`. Non-mounted partitions are materialized through `RegisterUnusedFileSystem()` so diagnostics and shell tooling can inspect them.
 
@@ -1719,6 +1720,7 @@ Startup automation (`ExecuteStartupCommands()`) loads `Run.<index>.Command` entr
 
 The `run` command delegates launch to `SpawnExecutable()`:
 
+- command names without folder separators are first resolved against the current shell folder, then against configured `KernelPath.Binaries.<index>.Path` folders when the current-folder candidate cannot be opened;
 - if the resolved target ends with `.e0` (`ScriptIsE0FileName()`), `RunScriptFile()` opens the file, reads it to memory, and executes its content with `ScriptExecute()`;
 - otherwise, it follows the process spawn path.
 

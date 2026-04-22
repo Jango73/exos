@@ -95,6 +95,20 @@ static U32 ELFMakeSegmentMapping(U32 Type, U32 Flags) {
 
 /************************************************************************/
 
+static UINT ELFGetDefaultRelocationEntrySize(U8 Class, BOOL Addend) {
+    if (Class == ELFCLASS32) {
+        return Addend ? 12 : 8;
+    }
+
+    if (Class == ELFCLASS64) {
+        return Addend ? 24 : 16;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
 static void ELFInitializeMetadata(U32 Target, LPEXECUTABLE_METADATA Metadata) {
     MemorySet(Metadata, 0, sizeof(EXECUTABLE_METADATA));
     Metadata->Format = EXECUTABLE_FORMAT_ELF;
@@ -259,10 +273,10 @@ static BOOL ELFInspectDynamicTable(
 
     RelAddress = 0;
     RelSize = 0;
-    RelEntrySize = 0;
+    RelEntrySize = ELFGetDefaultRelocationEntrySize(Class, FALSE);
     RelaAddress = 0;
     RelaSize = 0;
-    RelaEntrySize = 0;
+    RelaEntrySize = ELFGetDefaultRelocationEntrySize(Class, TRUE);
     JmpRelAddress = 0;
     PltRelSize = 0;
     PltRelType = 0;

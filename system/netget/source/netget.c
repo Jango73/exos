@@ -222,7 +222,7 @@ void PrintHttpError(int errorCode) {
 
 /************************************************************************/
 
-int exosmain(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
     URL parsedUrl;
     HTTP_CONNECTION* connection;
     const char* urlString;

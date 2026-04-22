@@ -27,7 +27,7 @@
 
 #include "../include/exos-runtime.h"
 #include "../include/exos.h"
-#include "../../kernel/include/utils/AdaptiveDelay.h"
+#include "exos-adaptive-delay.h"
 
 /************************************************************************/
 

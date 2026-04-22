@@ -364,9 +364,11 @@ static BOOL ApplyExecutableModuleRelocation32(U32 Type, LINEAR Target, LINEAR Sy
         case R_386_NONE:
             return TRUE;
         case R_386_32:
+            Value = (U32)(SymbolAddress + Addend);
+            break;
         case R_386_GLOB_DAT:
         case R_386_JMP_SLOT:
-            Value = (U32)(SymbolAddress + Addend);
+            Value = (U32)SymbolAddress;
             break;
         case R_386_PC32:
             Value = (U32)(SymbolAddress + Addend - Target);
@@ -509,10 +511,12 @@ static BOOL ApplyExecutableModuleRelocation64(U32 Type, LINEAR Target, LINEAR Sy
         case R_X86_64_NONE:
             return TRUE;
         case R_X86_64_64:
-        case R_X86_64_GLOB_DAT:
-        case R_X86_64_JUMP_SLOT:
             Value = (U64)(SymbolAddress + Addend);
             *((U64*)Target) = Value;
+            return TRUE;
+        case R_X86_64_GLOB_DAT:
+        case R_X86_64_JUMP_SLOT:
+            *((U64*)Target) = (U64)SymbolAddress;
             return TRUE;
         case R_X86_64_PC32:
             Value = (U64)(SymbolAddress + Addend - Target);

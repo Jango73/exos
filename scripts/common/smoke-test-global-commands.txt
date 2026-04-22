@@ -12,6 +12,8 @@ command: "/system/apps/terminal-tactics"
 hotkey: "shift-n"
 hotkey: "esc"
 hotkey: "shift-q" | log: "TEST > [Spawn] Executable finished normally : /system/apps/terminal-tactics"
+command: "tcc /system/apps/tcc/samples/hello.c -o /temp/tcc-global-hello" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 60
+command: "/temp/tcc-global-hello" | log: "TEST > [Spawn] Executable finished normally : /temp/tcc-global-hello" | timeout: 15
 command: "type /fs/n0p0/read.txt" | log: "TEST > [CMD_type] type /fs/n0p0/read.txt : OK"
 command: "copy /fs/n0p0/read.txt /fs/n0p0/write.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/n0p0/write.txt : OK"
 command: "type /fs/n0p0/write.txt" | log: "TEST > [CMD_type] type /fs/n0p0/write.txt : OK"
@@ -30,6 +32,6 @@ command: "/system/apps/memory-stress" | log: "memory stress: OK"
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/index.html /temp/index.html" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/index.html" "/exos/temp/index.html"
 command: "package run test" | log: "TEST > [Spawn] Executable finished normally : /package/binary/master"
 command: "desktop show"
-hotkey: "ctrl-alt-f1"
+hotkey: "ctrl-alt-f1" | before: 5
 command: "clear"
 command: "shutdown"

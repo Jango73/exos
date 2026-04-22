@@ -23,9 +23,11 @@ SUBMAKE = $(MAKE) ARCH=$(ARCH) BUILD_CORE_NAME=$(BUILD_CORE_NAME) BUILD_IMAGE_NA
 
 ################################################################################
 
-.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import
+.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import tcc
 
-all: hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import
+SYSTEM_PROGRAMS = hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import tcc
+
+all: $(SYSTEM_PROGRAMS)
 
 ################################################################################
 # Hello program
@@ -148,6 +150,16 @@ module_import_clean:
 	+$(SUBMAKE) -C test/module-import clean
 
 ################################################################################
+# TinyCC bootstrap compiler
 
-clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean
+tcc:
+	@echo "[ Building tcc ]"
+	+$(SUBMAKE) -C tcc all
+
+tcc_clean:
+	+$(SUBMAKE) -C tcc clean
+
+################################################################################
+
+clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean tcc_clean
 	@echo "[ Cleaning system programs ]"

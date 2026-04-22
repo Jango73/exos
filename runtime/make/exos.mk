@@ -52,6 +52,8 @@ $(error Unsupported architecture $(ARCH))
 endif
 
 COMMON_CFLAGS  = -ffreestanding -Wall -Wextra -O0 -fno-stack-protector -fno-builtin \
+                 -I$(EXOS_ROOT)/runtime/include \
+                 $(APP_EXTRA_CFLAGS) \
                  $(ARCH_CFLAGS)
 EXECUTABLE_CFLAGS = -fno-pic
 MODULE_CFLAGS = -fPIC -fvisibility=hidden -ftls-model=initial-exec
@@ -63,12 +65,15 @@ MODULE_LDFLAGS = -shared -T $(EXOS_MAKE_DIR)exos-module.ld -nostdlib --hash-styl
 ifeq ($(APP_TYPE),executable)
 CFLAGS = $(COMMON_CFLAGS) $(EXECUTABLE_CFLAGS)
 LDFLAGS = $(EXECUTABLE_LDFLAGS)
-LINK_INPUTS = $(OBJS) $(LIB_EXOS)
+ifeq ($(APP_USE_LIBGCC),1)
+APP_EXTRA_LINK_INPUTS += $(shell $(CC) -print-libgcc-file-name)
+endif
+LINK_INPUTS = $(OBJS) $(LIB_EXOS) $(APP_EXTRA_LINK_INPUTS)
 LINK_SCRIPT = $(EXOS_MAKE_DIR)exos.ld
 else ifeq ($(APP_TYPE),module)
 CFLAGS = $(COMMON_CFLAGS) $(MODULE_CFLAGS)
 LDFLAGS = $(MODULE_LDFLAGS)
-LINK_INPUTS = $(OBJS)
+LINK_INPUTS = $(OBJS) $(APP_EXTRA_LINK_INPUTS)
 LINK_SCRIPT = $(EXOS_MAKE_DIR)exos-module.ld
 else
 $(error Unsupported APP_TYPE $(APP_TYPE))

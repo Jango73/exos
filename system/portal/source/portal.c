@@ -34,7 +34,7 @@ HANDLE GreenBrush = NULL;
 HANDLE PortalDesktopHandle = NULL;
 HANDLE PortalDesktopWindow = NULL;
 
-int exosmain(int argc, char** argv);
+int main(int argc, char** argv);
 
 static STR Prop_Over[] = "OVER";
 static STR Prop_Down[] = "DOWN";
@@ -418,7 +418,7 @@ BOOL InitApplication(void) {
 
 /************************************************************************/
 
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     UNUSED(argc);
     UNUSED(argv);
 

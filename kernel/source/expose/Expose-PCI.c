@@ -236,7 +236,7 @@ SCRIPT_ERROR PciBusGetProperty(
     }
 
     EXPOSE_BIND_INTEGER("number", Bus->Number);
-    EXPOSE_BIND_INTEGER("device_count", PciBusGetDeviceCount(Bus->Number));
+    EXPOSE_BIND_INTEGER("deviceCount", PciBusGetDeviceCount(Bus->Number));
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }
@@ -332,11 +332,11 @@ SCRIPT_ERROR PciDeviceGetProperty(
     EXPOSE_BIND_INTEGER("bus", Device->Data.Bus);
     EXPOSE_BIND_INTEGER("device", Device->Data.Dev);
     EXPOSE_BIND_INTEGER("function", Device->Data.Func);
-    EXPOSE_BIND_INTEGER("vendor_id", Device->Data.VendorID);
-    EXPOSE_BIND_INTEGER("device_id", Device->Data.DeviceID);
-    EXPOSE_BIND_INTEGER("base_class", Device->Data.BaseClass);
-    EXPOSE_BIND_INTEGER("sub_class", Device->Data.SubClass);
-    EXPOSE_BIND_INTEGER("prog_if", Device->Data.ProgIF);
+    EXPOSE_BIND_INTEGER("vendorId", Device->Data.VendorID);
+    EXPOSE_BIND_INTEGER("deviceId", Device->Data.DeviceID);
+    EXPOSE_BIND_INTEGER("baseClass", Device->Data.BaseClass);
+    EXPOSE_BIND_INTEGER("subClass", Device->Data.SubClass);
+    EXPOSE_BIND_INTEGER("progIf", Device->Data.ProgIF);
     EXPOSE_BIND_INTEGER("revision", Device->Data.Revision);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;

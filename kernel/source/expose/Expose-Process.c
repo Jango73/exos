@@ -132,12 +132,12 @@ SCRIPT_ERROR ProcessGetProperty(
         EXPOSE_BIND_INTEGER("handle", (UINT)(LPVOID)Process);
         EXPOSE_BIND_INTEGER("status", Process->Status);
         EXPOSE_BIND_INTEGER("flags", Process->Flags);
-        EXPOSE_BIND_INTEGER("exit_code", Process->ExitCode);
-        EXPOSE_BIND_STRING("file_name", Process->FileName);
-        EXPOSE_BIND_STRING("command_line", Process->CommandLine);
-        EXPOSE_BIND_STRING("work_folder", Process->WorkFolder);
+        EXPOSE_BIND_INTEGER("exitCode", Process->ExitCode);
+        EXPOSE_BIND_STRING("fileName", Process->FileName);
+        EXPOSE_BIND_STRING("commandLine", Process->CommandLine);
+        EXPOSE_BIND_STRING("workFolder", Process->WorkFolder);
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("page_directory"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("pageDirectory"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }
@@ -146,7 +146,7 @@ SCRIPT_ERROR ProcessGetProperty(
             return SCRIPT_OK;
         }
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("heap_base"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("heapBase"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }
@@ -155,7 +155,7 @@ SCRIPT_ERROR ProcessGetProperty(
             return SCRIPT_OK;
         }
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("heap_size"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("heapSize"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }

@@ -39,6 +39,10 @@
 #define KERNEL_PATH_KEY_PRIVATE_PACKAGE_ALIAS TEXT("PrivatePackageAlias")
 #define KERNEL_PATH_KEY_PRIVATE_USER_DATA_ALIAS TEXT("PrivateUserDataAlias")
 #define KERNEL_PATH_KEY_SYSTEM_APPS_ROOT TEXT("SystemAppsRoot")
+#define KERNEL_PATH_LIST_ENTRY_PATH_FORMAT TEXT("KernelPath.%s.%u.Path")
+
+#define KERNEL_PATH_LIST_BINARY 0x00000001
+#define KERNEL_PATH_LIST_IMAGE 0x00000002
 
 #define KERNEL_PATH_DEFAULT_USERS_DATABASE TEXT("/system/data/users.database")
 #define KERNEL_PATH_DEFAULT_KEYBOARD_LAYOUTS TEXT("/system/keyboard")
@@ -55,13 +59,9 @@
 /***************************************************************************/
 
 BOOL KernelPathResolve(LPCSTR Name, LPCSTR DefaultPath, LPSTR OutPath, UINT OutPathSize);
+BOOL KernelPathResolveListEntry(UINT ListType, UINT Index, LPSTR OutPath, UINT OutPathSize);
 BOOL KernelPathBuildFile(
-    LPCSTR FolderName,
-    LPCSTR DefaultFolder,
-    LPCSTR LeafName,
-    LPCSTR Extension,
-    LPSTR OutPath,
-    UINT OutPathSize);
+    LPCSTR FolderName, LPCSTR DefaultFolder, LPCSTR LeafName, LPCSTR Extension, LPSTR OutPath, UINT OutPathSize);
 
 /***************************************************************************/
 

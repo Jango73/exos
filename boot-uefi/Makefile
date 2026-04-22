@@ -62,17 +62,30 @@ TICTACTOE_ELF   := $(CORE_BUILD_DIR)/system/tictactoe/tictactoe
 TERMTACTICS_ELF := $(CORE_BUILD_DIR)/system/terminal-tactics/terminal-tactics
 INPUTINFO_ELF   := $(CORE_BUILD_DIR)/system/input-info/input-info
 MEMORY_SMOKE_ELF := $(CORE_BUILD_DIR)/system/memory-stress/memory-stress
+TCC_ELF         := $(CORE_BUILD_DIR)/system/tcc/tcc
+TCC_CRT1_OBJ    := $(CORE_BUILD_DIR)/runtime/$(ARCH)/exos-runtime-a.o
+TCC_CRTI_OBJ    := $(CORE_BUILD_DIR)/runtime/crti.o
+TCC_CRTN_OBJ    := $(CORE_BUILD_DIR)/runtime/crtn.o
+TCC_LIBC_A      := $(CORE_BUILD_DIR)/runtime/libexos.a
+TCC_LIBC_MIT_LICENSE := ../runtime/LICENSE
 MASTER_ELF      := $(CORE_BUILD_DIR)/system/test/master/master
 SLAVE_ELF       := $(CORE_BUILD_DIR)/system/test/slave/slave
 MODULE_HOST_ELF := $(CORE_BUILD_DIR)/system/test/module-host/module-host
 MODULE_SAMPLE_ELF := $(CORE_BUILD_DIR)/system/test/module-sample/module-sample
 MODULE_IMPORT_ELF := $(CORE_BUILD_DIR)/system/test/module-import/module-import
 SYSTEM_SCRIPT_FILES := $(wildcard ../system/scripts/*)
+TCC_SAMPLE_FILES := $(wildcard ../system/tcc/samples/*)
+TCC_INCLUDE_FILES := $(wildcard ../system/tcc/include/*)
+RUNTIME_INCLUDE_FILES := $(wildcard ../runtime/include/*.h)
+RUNTIME_INCLUDE_SYS_FILES := $(wildcard ../runtime/include/sys/*.h)
 EXOS_VERSION_MAJOR = $(shell awk '/#define EXOS_VERSION_MAJOR/ {print $$3; exit}' ../kernel/include/User.h)
 EXOS_VERSION_MINOR = $(shell awk '/#define EXOS_VERSION_MINOR/ {print $$3; exit}' ../kernel/include/User.h)
 EPK_PACK_BIN    := $(CORE_BUILD_DIR)/tools/epk-pack
 SYSTEM_TEST_EPK_STAGING_DIR := $(UEFI_BUILD_DIR)/system-test-epk-root
 SYSTEM_TEST_EPK := $(UEFI_BUILD_DIR)/test.epk
+SYSTEM_STAGING_MANIFEST := $(UEFI_BUILD_DIR)/system-staging-manifest.txt
+COUNTERPART_IMAGE_NAME := $(subst -uefi-,-mbr-,$(BUILD_IMAGE_NAME))
+COUNTERPART_SYSTEM_STAGING_MANIFEST := ../build/image/$(COUNTERPART_IMAGE_NAME)/work-mbr/system-staging-manifest.txt
 MTOOLS_CONF := .mtoolsrc.tmp
 
 ifeq ($(ARCH),x86-32)
@@ -148,6 +161,7 @@ endif
 
 AUXILIARY_BUILD_DIR := $(UEFI_BUILD_DIR)
 
+include ../make/system-staging.mk
 include ../make/image-artifacts.mk
 
 .PHONY: all clean check_tools image usb-3-image floppy-image normalize-partition-flags
@@ -228,50 +242,16 @@ $(SYSTEM_TEST_EPK): $(EPK_PACK_BIN) $(MASTER_ELF) $(SLAVE_ELF)
 		> $(SYSTEM_TEST_EPK_STAGING_DIR)/manifest.toml
 	@$(EPK_PACK_BIN) pack --input $(SYSTEM_TEST_EPK_STAGING_DIR) --output $(SYSTEM_TEST_EPK)
 
-$(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(KERNEL_BIN) $(SYSTEM_SCRIPT_FILES) $(SYSTEM_TEST_EPK) $(MODULE_HOST_ELF) $(MODULE_SAMPLE_ELF) $(MODULE_IMPORT_ELF) $(USB3_IMG) $(FS_TEST_EXT2_IMG) $(FS_TEST_FAT32_IMG) $(FS_TEST_NTFS_IMG)
+$(UEFI_IMAGE): $(UEFI_BOOT_FILE_PATH) $(USB3_IMG) $(FS_TEST_EXT2_IMG) $(FS_TEST_FAT32_IMG) $(FS_TEST_NTFS_IMG) $(SYSTEM_STAGING_DEPENDENCIES)
 	@mkdir -p $(UEFI_BUILD_DIR)
 	@rm -rf $(UEFI_STAGING_DIR)
 	@mkdir -p $(UEFI_STAGING_DIR)/EFI/BOOT
 	@cp -f $(UEFI_BOOT_FILE_PATH) $(UEFI_STAGING_DIR)/EFI/BOOT/$(UEFI_BOOT_FILE)
 	@cp -f $(KERNEL_BIN) $(UEFI_STAGING_DIR)/exos.bin
 	@[ -f $(KERNEL_CFG_EXT2) ] || cp $(KERNEL_CFG_REF) $(KERNEL_CFG_EXT2)
-	@echo "Preparing EXT2 staging directory at $(EXT2_STAGING_DIR)"
-	@rm -rf $(EXT2_STAGING_DIR)
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/data
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/users
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/apps/test
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/keyboard
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/scripts
-	@mkdir -p $(EXT2_STAGING_DIR)/exos/temp
-	@cp $(KERNEL_BIN) $(EXT2_STAGING_DIR)/exos.bin
-	@cp $(KERNEL_CFG_EXT2) $(EXT2_STAGING_DIR)/$(CONFIG_TOML_NAME)
-	@for f in $(KEYBOARD_LAYOUTS); do \
-		if [ -f "$$f" ]; then \
-			echo "Copying $$f -> $(EXT2_STAGING_DIR)/exos/keyboard/$$(basename $$f)"; \
-			cp "$$f" "$(EXT2_STAGING_DIR)/exos/keyboard/$$(basename $$f)"; \
-		fi; \
-	done
-	@cp $(PORTAL_ELF) $(EXT2_STAGING_DIR)/exos/apps/portal
-	@cp $(NETGET_ELF) $(EXT2_STAGING_DIR)/exos/apps/netget
-	@cp $(HELLO_ELF) $(EXT2_STAGING_DIR)/exos/apps/hello
-	@cp $(TICTACTOE_ELF) $(EXT2_STAGING_DIR)/exos/apps/tictactoe
-	@cp $(TERMTACTICS_ELF) $(EXT2_STAGING_DIR)/exos/apps/terminal-tactics
-	@cp $(INPUTINFO_ELF) $(EXT2_STAGING_DIR)/exos/apps/input-info
-	@cp $(MEMORY_SMOKE_ELF) $(EXT2_STAGING_DIR)/exos/apps/memory-stress
-	@cp $(MEMORY_SMOKE_ELF) $(EXT2_STAGING_DIR)/exos/apps/memory-fragmentation
-	@cp $(MEMORY_SMOKE_ELF) $(EXT2_STAGING_DIR)/exos/apps/memory-growth
-	@cp $(MASTER_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/master
-	@cp $(SLAVE_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/slave
-	@cp $(MODULE_HOST_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-host
-	@cp $(MODULE_SAMPLE_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-sample
-	@cp $(MODULE_IMPORT_ELF) $(EXT2_STAGING_DIR)/exos/apps/test/module-import
-	@cp $(SYSTEM_TEST_EPK) $(EXT2_STAGING_DIR)/exos/apps/test.epk
-	@for f in $(SYSTEM_SCRIPT_FILES); do \
-		if [ -f "$$f" ]; then \
-			echo "Copying $$f -> $(EXT2_STAGING_DIR)/exos/scripts/$$(basename $$f)"; \
-			cp "$$f" "$(EXT2_STAGING_DIR)/exos/scripts/$$(basename $$f)"; \
-		fi; \
-	done
+	$(call STAGE_SYSTEM_EXT2_TREE,$(EXT2_STAGING_DIR))
+	$(call WRITE_SYSTEM_STAGING_MANIFEST,$(EXT2_STAGING_DIR),$(SYSTEM_STAGING_MANIFEST))
+	$(call VERIFY_COUNTERPART_SYSTEM_STAGING,$(SYSTEM_STAGING_MANIFEST),$(COUNTERPART_SYSTEM_STAGING_MANIFEST))
 	@echo "Creating UEFI disk image ($(IMG_SIZE_MB)MiB)..."
 	@dd if=/dev/zero of=$(UEFI_IMAGE) bs=1M count=$(IMG_SIZE_MB)
 	@parted -s $(UEFI_IMAGE) mklabel gpt

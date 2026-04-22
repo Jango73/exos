@@ -125,7 +125,7 @@ SCRIPT_ERROR DriverGetProperty(
     LPDRIVER Driver = (LPDRIVER)Parent;
     SAFE_USE_VALID_ID(Driver, KOID_DRIVER) {
         EXPOSE_BIND_STRING("alias", Driver->Alias);
-        EXPOSE_BIND_STRING("type_name", DriverTypeToText(Driver->Type));
+        EXPOSE_BIND_STRING("typeName", DriverTypeToText(Driver->Type));
         EXPOSE_BIND_INTEGER("type", Driver->Type);
         EXPOSE_BIND_STRING("product", Driver->Product);
         EXPOSE_BIND_INTEGER("ready", (Driver->Flags & DRIVER_FLAG_READY) != 0);
@@ -133,14 +133,14 @@ SCRIPT_ERROR DriverGetProperty(
 
         EXPOSE_REQUIRE_ACCESS(EXPOSE_ACCESS_DRIVER, NULL);
 
-        EXPOSE_BIND_INTEGER("version_major", Driver->VersionMajor);
-        EXPOSE_BIND_INTEGER("version_minor", Driver->VersionMinor);
+        EXPOSE_BIND_INTEGER("versionMajor", Driver->VersionMajor);
+        EXPOSE_BIND_INTEGER("versionMinor", Driver->VersionMinor);
         EXPOSE_BIND_STRING("designer", Driver->Designer);
         EXPOSE_BIND_STRING("manufacturer", Driver->Manufacturer);
         EXPOSE_BIND_INTEGER("flags", Driver->Flags);
-        EXPOSE_BIND_INTEGER("enum_domain_count", Driver->EnumDomainCount);
+        EXPOSE_BIND_INTEGER("enumDomainCount", Driver->EnumDomainCount);
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("enum_domain"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("enumDomain"))) {
             OutValue->Type = SCRIPT_VAR_HOST_HANDLE;
             OutValue->Value.HostHandle = Driver;
             OutValue->HostDescriptor = &DriverEnumDomainArrayDescriptor;

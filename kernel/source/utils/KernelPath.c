@@ -23,9 +23,9 @@
 
 #include "utils/KernelPath.h"
 
-#include "text/CoreString.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
@@ -49,6 +49,24 @@ static BOOL IsValidKernelPath(LPCSTR Path, UINT OutPathSize) {
     }
 
     return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Returns the configuration table name for a kernel path list type.
+ * @param ListType Kernel path list type.
+ * @return Configuration table name, or NULL when the type is unknown.
+ */
+static LPCSTR KernelPathGetListTableName(UINT ListType) {
+    switch (ListType) {
+        case KERNEL_PATH_LIST_BINARY:
+            return TEXT("Binaries");
+        case KERNEL_PATH_LIST_IMAGE:
+            return TEXT("Images");
+        default:
+            return NULL;
+    }
 }
 
 /************************************************************************/
@@ -90,12 +108,58 @@ BOOL KernelPathResolve(LPCSTR Name, LPCSTR DefaultPath, LPSTR OutPath, UINT OutP
             return TRUE;
         }
 
-        WARNING(TEXT("Invalid configured path for key=%s path=%s, using default"),
-            Name,
-            ConfiguredPath);
+        WARNING(TEXT("Invalid configured path for key=%s path=%s, using default"), Name, ConfiguredPath);
     }
 
     StringCopyLimit(OutPath, DefaultPath, OutPathSize);
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Resolves one configured path list entry by index.
+ * @param ListType Kernel path list type.
+ * @param Index Entry index in the selected `KernelPath.<table>` table.
+ * @param OutPath Destination buffer for resolved path.
+ * @param OutPathSize Size of destination buffer.
+ * @return TRUE when the indexed entry exists and is valid.
+ */
+BOOL KernelPathResolveListEntry(UINT ListType, UINT Index, LPSTR OutPath, UINT OutPathSize) {
+    STR Key[0x100];
+    LPTOML Configuration = NULL;
+    LPCSTR ListTableName = NULL;
+    LPCSTR ConfiguredPath = NULL;
+
+    if (OutPath == NULL || OutPathSize == 0) {
+        return FALSE;
+    }
+
+    OutPath[0] = STR_NULL;
+
+    ListTableName = KernelPathGetListTableName(ListType);
+    if (ListTableName == NULL) {
+        WARNING(TEXT("Invalid kernel path list type=%u"), ListType);
+        return FALSE;
+    }
+
+    Configuration = GetConfiguration();
+    if (Configuration == NULL) {
+        return FALSE;
+    }
+
+    StringPrintFormat(Key, KERNEL_PATH_LIST_ENTRY_PATH_FORMAT, ListTableName, Index);
+    ConfiguredPath = TomlGet(Configuration, Key);
+    if (ConfiguredPath == NULL) {
+        return FALSE;
+    }
+
+    if (IsValidKernelPath(ConfiguredPath, OutPathSize) == FALSE) {
+        WARNING(TEXT("Invalid configured path list entry key=%s path=%s"), Key, ConfiguredPath);
+        return FALSE;
+    }
+
+    StringCopyLimit(OutPath, ConfiguredPath, OutPathSize);
     return TRUE;
 }
 
@@ -112,12 +176,7 @@ BOOL KernelPathResolve(LPCSTR Name, LPCSTR DefaultPath, LPSTR OutPath, UINT OutP
  * @return TRUE on success, FALSE on validation or size failure.
  */
 BOOL KernelPathBuildFile(
-    LPCSTR FolderName,
-    LPCSTR DefaultFolder,
-    LPCSTR LeafName,
-    LPCSTR Extension,
-    LPSTR OutPath,
-    UINT OutPathSize) {
+    LPCSTR FolderName, LPCSTR DefaultFolder, LPCSTR LeafName, LPCSTR Extension, LPSTR OutPath, UINT OutPathSize) {
     STR FolderPath[MAX_PATH_NAME];
     U32 Length = 0;
     U32 LeafLength = 0;
@@ -154,9 +213,8 @@ BOOL KernelPathBuildFile(
     }
 
     if (StringLength(OutPath) + LeafLength + ExtensionLength >= OutPathSize) {
-        WARNING(TEXT("Path too long for folder=%s leaf=%s ext=%s"),
-            FolderPath,
-            LeafName,
+        WARNING(
+            TEXT("Path too long for folder=%s leaf=%s ext=%s"), FolderPath, LeafName,
             Extension != NULL ? Extension : TEXT(""));
         return FALSE;
     }

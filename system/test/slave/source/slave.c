@@ -64,7 +64,7 @@ void WorkerTask(void* arg) {
 
 /***************************************************************************/
 
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     int Thread1, Thread2, Thread3;
 
     UNUSED(argc);

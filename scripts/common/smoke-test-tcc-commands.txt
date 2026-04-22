@@ -1,0 +1,15 @@
+# TinyCC native compile smoke-test command specification
+
+command: "/system/apps/tcc/tcc -v" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 15
+command: "tcc /system/apps/tcc/samples/hello.c -o /system/apps/tcc/hello" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 60
+command: "/system/apps/tcc/hello" | log: "TEST > [Spawn] Executable finished normally : /system/apps/tcc/hello" | timeout: 15
+command: "tcc -c /system/apps/tcc/samples/workflow-checksum.c -o /system/apps/tcc/workflow-checksum.o" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 15
+command: "tcc -c /system/apps/tcc/samples/workflow-scale.c -o /system/apps/tcc/workflow-scale.o" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 15
+command: "tcc -ar rcs /system/apps/tcc/libworkflow.a /system/apps/tcc/workflow-checksum.o /system/apps/tcc/workflow-scale.o" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 15
+command: "tcc /system/apps/tcc/samples/workflow-main.c /system/apps/tcc/libworkflow.a -o /system/apps/tcc/workflow" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 60
+command: "/system/apps/tcc/workflow" | log: "TEST > [Spawn] Executable finished normally : /system/apps/tcc/workflow" | timeout: 15
+command: "tcc --source-warning 1 /system/apps/tcc/samples/hello.c -o /system/apps/tcc/source-warning" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 60
+command: "/system/apps/tcc/source-warning" | log: "TEST > [Spawn] Executable finished normally : /system/apps/tcc/source-warning" | timeout: 15
+command: "tcc --source-limit 1 /system/apps/tcc/samples/hello.c -o /system/apps/tcc/source-too-large" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 1" | timeout: 15
+command: "tcc --heap-limit 4096 /system/apps/tcc/samples/hello.c -o /system/apps/tcc/heap-limited" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 1" | timeout: 15
+command: "shutdown"

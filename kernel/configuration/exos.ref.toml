@@ -53,6 +53,13 @@ PrivatePackageAlias="/package"
 PrivateUserDataAlias="/user-data"
 SystemAppsRoot="/system/apps"
 
+[[KernelPath.Binaries]]
+# Additional folders searched by the shell for executable commands.
+Path="/system/apps/tcc"
+
+[[KernelPath.Binaries]]
+Path="/system/apps"
+
 [[SystemFS.Mount]]
 FileSystem="active"
 SourcePath="exos"

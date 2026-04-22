@@ -23,6 +23,16 @@ Runs on QEMU, Bochs, and real hardware.<br>
 
 EXOS is provided "as is", without warranty of any kind. Neither EXOS authors/contributors, nor the authors/contributors of bundled third-party software, can be held liable for any direct, indirect, incidental, special, exemplary, or consequential damages arising from the use of this project.
 
+## License
+
+The EXOS codebase is licensed under GPLv3, except for the runtime under `runtime/`, which is licensed under MIT. See `LICENSE` and `runtime/LICENSE`.
+Third-party products stored under `third/` are subject to their own licenses; refer to each component's license file in `third/`.
+
+Quick note on license "contamination" (copyleft propagation):
+- MIT code can be included in GPLv3 projects.
+- If distributed as one combined work with GPLv3 code, the resulting distribution must comply with GPLv3 terms.
+- Third-party components in `third/` keep their own license obligations (notice, attribution, and compatibility requirements).
+
 ## Debian compile & run
 
 ### Using the provided dashboard
@@ -161,11 +171,11 @@ Bm437_IBM_VGA_8x16.otb from the Ultimate Oldschool PC Font Pack by VileR, licens
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C                              361          34769          36328         118344
-C/C++ Header                   250           6450           6998          16365
-Assembly                        22           1994           1269           6946
+C                              371          35229          36583         119926
+C/C++ Header                   273           6555           7030          16665
+Assembly                        22           1994           1249           6950
 -------------------------------------------------------------------------------
-SUM:                           633          43213          44595         141655
+SUM:                           666          43778          44862         143541
 -------------------------------------------------------------------------------
 ```
 

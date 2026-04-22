@@ -22,8 +22,9 @@
 
 \************************************************************************/
 
-#include "shell/Shell-Commands-Private.h"
 #include "process/Process-Control.h"
+#include "shell/Shell-Commands-Private.h"
+#include "utils/KernelPath.h"
 #include "utils/SizeFormat.h"
 
 #define DIR_RECURSIVE_STRESS_ENTRY_COUNT 1200
@@ -31,9 +32,10 @@
 /************************************************************************/
 
 static BOOL ShellCommandLineCompletion(
-    const COMMANDLINE_COMPLETION_CONTEXT* CompletionContext,
-    LPSTR Output,
-    U32 OutputSize);
+    const COMMANDLINE_COMPLETION_CONTEXT* CompletionContext, LPSTR Output, U32 OutputSize);
+static BOOL ShellFileExists(LPCSTR FileName);
+static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
+static BOOL ShellResolveBinarySearchPath(LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
 
 /************************************************************************/
 
@@ -65,8 +67,8 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
         return;
     }
 
-    ConsolePrint(TEXT("Stress listing (temporary): %u synthetic entries under %s\n"),
-        DIR_RECURSIVE_STRESS_ENTRY_COUNT,
+    ConsolePrint(
+        TEXT("Stress listing (temporary): %u synthetic entries under %s\n"), DIR_RECURSIVE_STRESS_ENTRY_COUNT,
         BasePath != NULL ? BasePath : TEXT("/"));
 
     for (Index = 0; Index < DIR_RECURSIVE_STRESS_ENTRY_COUNT; Index++) {
@@ -77,12 +79,8 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
         BOOL IsFolder = (RandomB & 0x7) == 0;
 
         StringPrintFormat(
-            Name,
-            TEXT("%s%sentry_%04u_%08x"),
-            BasePath != NULL ? BasePath : TEXT("/"),
-            ((Index % 6) == 0) ? TEXT("sub/") : TEXT(""),
-            Index,
-            RandomA);
+            Name, TEXT("%s%sentry_%04u_%08x"), BasePath != NULL ? BasePath : TEXT("/"),
+            ((Index % 6) == 0) ? TEXT("sub/") : TEXT(""), Index, RandomA);
 
         SizeFormatBytesText(U64_FromUINT(EntrySize), SizeText);
 
@@ -93,19 +91,12 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
         Minute = (RandomC >> 18) % 60;
         AttrMask = (RandomC >> 24) & 0xF;
 
-        ConsolePrint(TEXT("%s %-12s %u-%u-%u %u:%u "),
-            Name,
-            IsFolder ? TEXT("<Folder>") : SizeText,
-            Day,
-            Month,
-            Year,
-            Hour,
+        ConsolePrint(
+            TEXT("%s %-12s %u-%u-%u %u:%u "), Name, IsFolder ? TEXT("<Folder>") : SizeText, Day, Month, Year, Hour,
             Minute);
-        ConsolePrint(TEXT("%s%s%s%s\n"),
-            (AttrMask & 1) ? TEXT("R") : TEXT("-"),
-            (AttrMask & 2) ? TEXT("H") : TEXT("-"),
-            (AttrMask & 4) ? TEXT("S") : TEXT("-"),
-            (AttrMask & 8) ? TEXT("X") : TEXT("-"));
+        ConsolePrint(
+            TEXT("%s%s%s%s\n"), (AttrMask & 1) ? TEXT("R") : TEXT("-"), (AttrMask & 2) ? TEXT("H") : TEXT("-"),
+            (AttrMask & 4) ? TEXT("S") : TEXT("-"), (AttrMask & 8) ? TEXT("X") : TEXT("-"));
 
         if (ProcessControlIsInterruptRequested(CurrentProcess)) {
             break;
@@ -121,12 +112,8 @@ void InitShellContext(LPSHELLCONTEXT This) {
     MemorySet(This, 0, sizeof(SHELLCONTEXT));
 
     if (!ReservedHeapInit(
-            &This->ReservedHeap,
-            GetCurrentProcess(),
-            SHELL_RESERVED_HEAP_INITIAL_SIZE,
-            SHELL_RESERVED_HEAP_MAXIMUM_SIZE,
-            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
-            TEXT("ShellHeap"))) {
+            &This->ReservedHeap, GetCurrentProcess(), SHELL_RESERVED_HEAP_INITIAL_SIZE,
+            SHELL_RESERVED_HEAP_MAXIMUM_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ShellHeap"))) {
         WARNING(TEXT("Reserved shell heap unavailable, using process heap"));
         AllocatorInitProcess(&This->Allocator, GetCurrentProcess());
     } else {
@@ -137,10 +124,7 @@ void InitShellContext(LPSHELLCONTEXT This) {
     This->CommandChar = 0;
 
     CommandLineEditorInitA(&This->Input.Editor, HISTORY_SIZE, &This->Allocator);
-    CommandLineEditorSetCompletionCallback(
-        &This->Input.Editor,
-        ShellCommandLineCompletion,
-        This);
+    CommandLineEditorSetCompletionCallback(&This->Input.Editor, ShellCommandLineCompletion, This);
     StringArrayInitA(&This->Options, 8, &This->Allocator);
     PathCompletionInitA(&This->PathCompletion, GetSystemFS(), &This->Allocator);
 
@@ -155,25 +139,18 @@ void InitShellContext(LPSHELLCONTEXT This) {
 
     // Initialize persistent script context
     SCRIPT_CALLBACKS Callbacks = {
-        ShellScriptOutput,
-        ShellScriptExecuteCommand,
-        ShellScriptResolveVariable,
-        ShellScriptCallFunction,
-        This
-    };
+        ShellScriptOutput, ShellScriptExecuteCommand, ShellScriptResolveVariable, ShellScriptCallFunction, This};
     This->ScriptContext = ScriptCreateContextA(&Callbacks, &This->Allocator);
 
     if (!ExposeRegisterDefaultScriptHostObjects(This->ScriptContext)) {
         WARNING(TEXT("Failed to register default script host objects"));
     }
-
 }
 
 /************************************************************************/
 
 void DeinitShellContext(LPSHELLCONTEXT This) {
     U32 Index;
-
 
     for (Index = 0; Index < SHELL_NUM_BUFFERS; Index++) {
         if (This->Buffer[Index]) AllocatorFree(&This->Allocator, This->Buffer[Index]);
@@ -190,7 +167,6 @@ void DeinitShellContext(LPSHELLCONTEXT This) {
     }
 
     ReservedHeapDeinit(&This->ReservedHeap);
-
 }
 
 /************************************************************************/
@@ -307,9 +283,7 @@ BOOL HasOption(LPSHELLCONTEXT Context, LPCSTR ShortName, LPCSTR LongName) {
  * @return TRUE when a completion was produced, FALSE otherwise.
  */
 static BOOL ShellCommandLineCompletion(
-    const COMMANDLINE_COMPLETION_CONTEXT* CompletionContext,
-    LPSTR Output,
-    U32 OutputSize) {
+    const COMMANDLINE_COMPLETION_CONTEXT* CompletionContext, LPSTR Output, U32 OutputSize) {
     LPSHELLCONTEXT Context;
     STR Token[MAX_PATH_NAME];
     STR Full[MAX_PATH_NAME];
@@ -419,6 +393,95 @@ BOOL QualifyFileName(LPSHELLCONTEXT Context, LPCSTR RawName, LPSTR FileName) {
 
 /************************************************************************/
 
+/**
+ * @brief Checks whether a file can be opened for reading.
+ * @param FileName Absolute or process-relative file path.
+ * @return TRUE when the file exists and can be opened.
+ */
+static BOOL ShellFileExists(LPCSTR FileName) {
+    FILE_OPEN_INFO OpenInfo;
+    LPFILE File;
+
+    if (STRING_EMPTY(FileName)) {
+        return FALSE;
+    }
+
+    OpenInfo.Header.Size = sizeof(FILE_OPEN_INFO);
+    OpenInfo.Name = (LPSTR)FileName;
+    OpenInfo.Flags = FILE_OPEN_READ;
+
+    File = OpenFile(&OpenInfo);
+    if (File == NULL) {
+        return FALSE;
+    }
+
+    CloseFile(File);
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Builds a candidate command path from a binary search folder.
+ * @param FolderPath Configured binary search folder.
+ * @param LeafName Command leaf name.
+ * @param OutPath Destination path buffer.
+ * @return TRUE on success.
+ */
+static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]) {
+    if (STRING_EMPTY(FolderPath) || STRING_EMPTY(LeafName) || OutPath == NULL) {
+        return FALSE;
+    }
+
+    if (StringLength(FolderPath) + StringLength(LeafName) + 1 >= MAX_PATH_NAME) {
+        WARNING(TEXT("Binary search path too long folder=%s leaf=%s"), FolderPath, LeafName);
+        return FALSE;
+    }
+
+    StringCopy(OutPath, FolderPath);
+    if (OutPath[StringLength(OutPath) - 1] != PATH_SEP) {
+        StringConcat(OutPath, TEXT("/"));
+    }
+    StringConcat(OutPath, LeafName);
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Resolves a command leaf name through configured binary folders.
+ * @param LeafName Command leaf name without folder components.
+ * @param OutPath Destination path buffer.
+ * @return TRUE when a configured candidate exists.
+ */
+static BOOL ShellResolveBinarySearchPath(LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]) {
+    UINT Index = 0;
+
+    if (STRING_EMPTY(LeafName) || OutPath == NULL) {
+        return FALSE;
+    }
+
+    FOREVER {
+        STR FolderPath[MAX_PATH_NAME];
+        STR CandidatePath[MAX_PATH_NAME];
+
+        if (KernelPathResolveListEntry(KERNEL_PATH_LIST_BINARY, Index, FolderPath, MAX_PATH_NAME) == FALSE) {
+            break;
+        }
+
+        if (ShellBuildBinarySearchPath(FolderPath, LeafName, CandidatePath) && ShellFileExists(CandidatePath)) {
+            StringCopy(OutPath, CandidatePath);
+            return TRUE;
+        }
+
+        Index++;
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
 BOOL QualifyCommandLine(LPSHELLCONTEXT Context, LPCSTR RawCommandLine, LPSTR QualifiedCommandLine) {
     U32 Quotes = 0;
     U32 s = 0;  // source index
@@ -462,6 +525,10 @@ BOOL QualifyCommandLine(LPSHELLCONTEXT Context, LPCSTR RawCommandLine, LPSTR Qua
     // Qualify the executable name
     if (!QualifyFileName(Context, ExecutableName, QualifiedPath)) {
         return FALSE;
+    }
+
+    if (StringFindChar(ExecutableName, PATH_SEP) == NULL && ShellFileExists(QualifiedPath) == FALSE) {
+        ShellResolveBinarySearchPath(ExecutableName, QualifiedPath);
     }
 
     // Build the qualified command line
@@ -547,13 +614,11 @@ static void ListFile(LPFILE File, U32 Indent) {
     U32 Length;
     U32 Index;
 
-
     //-------------------------------------
     // Eliminate the . and .. files
 
     if (StringCompare(File->Name, TEXT(".")) == 0) return;
     if (StringCompare(File->Name, TEXT("..")) == 0) return;
-
 
     StringCopy(Name, File->Name);
 
@@ -662,12 +727,9 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
                 Reason = TEXT("path not found");
             }
             ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
-            WARNING(TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"),
-                DiskName,
-                Reason,
-                Base,
-                FileSystem->Name,
-                FileSystem->Driver->Product);
+            WARNING(
+                TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"), DiskName, Reason, Base,
+                FileSystem->Name, FileSystem->Driver->Product);
             return;
         }
         ListFile(File, Indent);
@@ -713,10 +775,8 @@ U32 CMD_commands(LPSHELLCONTEXT Context) {
     U32 Index;
 
     for (Index = 0; COMMANDS[Index].Command != NULL; Index++) {
-        ConsolePrint(TEXT("%s (%s) %s - %s\n"),
-            COMMANDS[Index].Name,
-            COMMANDS[Index].AltName,
-            COMMANDS[Index].Usage,
+        ConsolePrint(
+            TEXT("%s (%s) %s - %s\n"), COMMANDS[Index].Name, COMMANDS[Index].AltName, COMMANDS[Index].Usage,
             COMMANDS[Index].Description);
     }
 
@@ -760,11 +820,8 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
             if (DoSystemCall(SYSCALL_ConsoleGetModeInfo, SYSCALL_PARAM(&ModeInfo)) != DF_RETURN_SUCCESS) {
                 continue;
             }
-            ConsolePrint(TEXT("  %u: %ux%u (char height %u)\n"),
-                Index,
-                ModeInfo.Columns,
-                ModeInfo.Rows,
-                ModeInfo.CharHeight);
+            ConsolePrint(
+                TEXT("  %u: %ux%u (char height %u)\n"), Index, ModeInfo.Columns, ModeInfo.Rows, ModeInfo.CharHeight);
         }
         return DF_RETURN_SUCCESS;
     }
@@ -857,7 +914,6 @@ U32 CMD_pause(LPSHELLCONTEXT Context) {
 /************************************************************************/
 
 U32 CMD_dir(LPSHELLCONTEXT Context) {
-
     STR Target[MAX_PATH_NAME];
     STR Base[MAX_PATH_NAME];
     LPFILESYSTEM FileSystem = NULL;

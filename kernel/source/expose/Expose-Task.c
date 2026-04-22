@@ -230,7 +230,7 @@ SCRIPT_ERROR ArchitectureTaskDataGetProperty(
 
     EXPOSE_BIND_INTEGER("context", (UINT)(LPVOID)&Architecture->Context);
     EXPOSE_BIND_HOST_HANDLE("stack", &Architecture->Stack, &StackDescriptor, Context);
-    EXPOSE_BIND_HOST_HANDLE("system_stack", &Architecture->SystemStack, &StackDescriptor, Context);
+    EXPOSE_BIND_HOST_HANDLE("systemStack", &Architecture->SystemStack, &StackDescriptor, Context);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }
@@ -271,7 +271,7 @@ SCRIPT_ERROR TaskGetProperty(
         EXPOSE_BIND_INTEGER("type", Task->Type);
         EXPOSE_BIND_INTEGER("status", GetTaskStatus(Task));
         EXPOSE_BIND_INTEGER("priority", Task->Priority);
-        EXPOSE_BIND_INTEGER("exit_code", Task->ExitCode);
+        EXPOSE_BIND_INTEGER("exitCode", Task->ExitCode);
         EXPOSE_BIND_INTEGER("flags", Task->Flags);
 
         if (STRINGS_EQUAL_NO_CASE(Property, TEXT("function"))) {
@@ -316,7 +316,7 @@ SCRIPT_ERROR TaskGetProperty(
             return SCRIPT_OK;
         }
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("system_stack"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("systemStack"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }
@@ -328,16 +328,16 @@ SCRIPT_ERROR TaskGetProperty(
             return SCRIPT_OK;
         }
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("wake_up_time")) ||
-            STRINGS_EQUAL_NO_CASE(Property, TEXT("message_queue")) ||
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("wakeUpTime")) ||
+            STRINGS_EQUAL_NO_CASE(Property, TEXT("messageQueue")) ||
             STRINGS_EQUAL_NO_CASE(Property, TEXT("mutex"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }
         }
 
-        EXPOSE_BIND_INTEGER("wake_up_time", Task->SchedulerState.WakeUpTime);
-        EXPOSE_BIND_INTEGER("message_queue", (UINT)(LPVOID)&Task->MessageQueue);
+        EXPOSE_BIND_INTEGER("wakeUpTime", Task->SchedulerState.WakeUpTime);
+        EXPOSE_BIND_INTEGER("messageQueue", (UINT)(LPVOID)&Task->MessageQueue);
         EXPOSE_BIND_INTEGER("mutex", (UINT)(LPVOID)&Task->Mutex);
 
         return SCRIPT_ERROR_UNDEFINED_VAR;

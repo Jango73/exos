@@ -315,7 +315,7 @@ int PlayGame(void) {
 
 /************************************************************************/
 
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     UNUSED(argc);
     UNUSED(argv);
 

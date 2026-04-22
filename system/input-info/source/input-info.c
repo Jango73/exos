@@ -143,7 +143,7 @@ static void UpdateInputDisplay(I32 PosX, I32 PosY, U32 Buttons, U32 LastKeyDown,
  * @param argv Argument vector (unused).
  * @return Exit code.
  */
-int exosmain(int argc, char** argv) {
+int main(int argc, char** argv) {
     MESSAGE Message;
     I32 PosX = 0;
     I32 PosY = 0;

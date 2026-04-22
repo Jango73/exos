@@ -218,14 +218,14 @@ SCRIPT_ERROR UsbPortGetProperty(
     EXPOSE_BIND_INTEGER("bus", Port->Data.Bus);
     EXPOSE_BIND_INTEGER("device", Port->Data.Dev);
     EXPOSE_BIND_INTEGER("function", Port->Data.Func);
-    EXPOSE_BIND_INTEGER("port_number", Port->Data.PortNumber);
-    EXPOSE_BIND_INTEGER("port_status", Port->Data.PortStatus);
-    EXPOSE_BIND_INTEGER("speed_id", Port->Data.SpeedId);
+    EXPOSE_BIND_INTEGER("portNumber", Port->Data.PortNumber);
+    EXPOSE_BIND_INTEGER("portStatus", Port->Data.PortStatus);
+    EXPOSE_BIND_INTEGER("speedId", Port->Data.SpeedId);
     EXPOSE_BIND_INTEGER("connected", Port->Data.Connected);
     EXPOSE_BIND_INTEGER("enabled", Port->Data.Enabled);
-    EXPOSE_BIND_INTEGER("last_enum_error", Port->Data.LastEnumError);
-    EXPOSE_BIND_STRING("last_enum_error_text", XHCIEnumErrorToString(Port->Data.LastEnumError));
-    EXPOSE_BIND_INTEGER("last_enum_completion", Port->Data.LastEnumCompletion);
+    EXPOSE_BIND_INTEGER("lastEnumError", Port->Data.LastEnumError);
+    EXPOSE_BIND_STRING("lastEnumErrorText", XHCIEnumErrorToString(Port->Data.LastEnumError));
+    EXPOSE_BIND_INTEGER("lastEnumCompletion", Port->Data.LastEnumCompletion);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }
@@ -323,11 +323,11 @@ SCRIPT_ERROR UsbDeviceGetProperty(
     EXPOSE_BIND_INTEGER("bus", Device->Data.Bus);
     EXPOSE_BIND_INTEGER("device", Device->Data.Dev);
     EXPOSE_BIND_INTEGER("function", Device->Data.Func);
-    EXPOSE_BIND_INTEGER("port_number", Device->Data.PortNumber);
+    EXPOSE_BIND_INTEGER("portNumber", Device->Data.PortNumber);
     EXPOSE_BIND_INTEGER("address", Device->Data.Address);
-    EXPOSE_BIND_INTEGER("speed_id", Device->Data.SpeedId);
-    EXPOSE_BIND_INTEGER("vendor_id", Device->Data.VendorID);
-    EXPOSE_BIND_INTEGER("product_id", Device->Data.ProductID);
+    EXPOSE_BIND_INTEGER("speedId", Device->Data.SpeedId);
+    EXPOSE_BIND_INTEGER("vendorId", Device->Data.VendorID);
+    EXPOSE_BIND_INTEGER("productId", Device->Data.ProductID);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }
@@ -417,10 +417,10 @@ SCRIPT_ERROR UsbDriveGetProperty(
     LPUSB_STORAGE_ENTRY Entry = (LPUSB_STORAGE_ENTRY)Parent;
     SAFE_USE_VALID_ID(Entry, KOID_USBSTORAGE) {
         EXPOSE_BIND_INTEGER("address", Entry->Address);
-        EXPOSE_BIND_INTEGER("vendor_id", Entry->VendorId);
-        EXPOSE_BIND_INTEGER("product_id", Entry->ProductId);
-        EXPOSE_BIND_INTEGER("block_count", Entry->BlockCount);
-        EXPOSE_BIND_INTEGER("block_size", Entry->BlockSize);
+        EXPOSE_BIND_INTEGER("vendorId", Entry->VendorId);
+        EXPOSE_BIND_INTEGER("productId", Entry->ProductId);
+        EXPOSE_BIND_INTEGER("blockCount", Entry->BlockCount);
+        EXPOSE_BIND_INTEGER("blockSize", Entry->BlockSize);
         EXPOSE_BIND_INTEGER("present", Entry->Present);
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }
@@ -522,30 +522,30 @@ SCRIPT_ERROR UsbNodeGetProperty(
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }
 
-    EXPOSE_BIND_INTEGER("node_type", Node->Data.NodeType);
+    EXPOSE_BIND_INTEGER("nodeType", Node->Data.NodeType);
     EXPOSE_BIND_INTEGER("bus", Node->Data.Bus);
     EXPOSE_BIND_INTEGER("device", Node->Data.Dev);
     EXPOSE_BIND_INTEGER("function", Node->Data.Func);
-    EXPOSE_BIND_INTEGER("port_number", Node->Data.PortNumber);
+    EXPOSE_BIND_INTEGER("portNumber", Node->Data.PortNumber);
     EXPOSE_BIND_INTEGER("address", Node->Data.Address);
-    EXPOSE_BIND_INTEGER("speed_id", Node->Data.SpeedId);
-    EXPOSE_BIND_INTEGER("device_class", Node->Data.DeviceClass);
-    EXPOSE_BIND_INTEGER("device_sub_class", Node->Data.DeviceSubClass);
-    EXPOSE_BIND_INTEGER("device_protocol", Node->Data.DeviceProtocol);
-    EXPOSE_BIND_INTEGER("config_value", Node->Data.ConfigValue);
-    EXPOSE_BIND_INTEGER("config_attributes", Node->Data.ConfigAttributes);
-    EXPOSE_BIND_INTEGER("config_max_power", Node->Data.ConfigMaxPower);
-    EXPOSE_BIND_INTEGER("interface_number", Node->Data.InterfaceNumber);
-    EXPOSE_BIND_INTEGER("alternate_setting", Node->Data.AlternateSetting);
-    EXPOSE_BIND_INTEGER("interface_class", Node->Data.InterfaceClass);
-    EXPOSE_BIND_INTEGER("interface_sub_class", Node->Data.InterfaceSubClass);
-    EXPOSE_BIND_INTEGER("interface_protocol", Node->Data.InterfaceProtocol);
-    EXPOSE_BIND_INTEGER("endpoint_address", Node->Data.EndpointAddress);
-    EXPOSE_BIND_INTEGER("endpoint_attributes", Node->Data.EndpointAttributes);
-    EXPOSE_BIND_INTEGER("endpoint_max_packet_size", Node->Data.EndpointMaxPacketSize);
-    EXPOSE_BIND_INTEGER("endpoint_interval", Node->Data.EndpointInterval);
-    EXPOSE_BIND_INTEGER("vendor_id", Node->Data.VendorID);
-    EXPOSE_BIND_INTEGER("product_id", Node->Data.ProductID);
+    EXPOSE_BIND_INTEGER("speedId", Node->Data.SpeedId);
+    EXPOSE_BIND_INTEGER("deviceClass", Node->Data.DeviceClass);
+    EXPOSE_BIND_INTEGER("deviceSubClass", Node->Data.DeviceSubClass);
+    EXPOSE_BIND_INTEGER("deviceProtocol", Node->Data.DeviceProtocol);
+    EXPOSE_BIND_INTEGER("configValue", Node->Data.ConfigValue);
+    EXPOSE_BIND_INTEGER("configAttributes", Node->Data.ConfigAttributes);
+    EXPOSE_BIND_INTEGER("configMaxPower", Node->Data.ConfigMaxPower);
+    EXPOSE_BIND_INTEGER("interfaceNumber", Node->Data.InterfaceNumber);
+    EXPOSE_BIND_INTEGER("alternateSetting", Node->Data.AlternateSetting);
+    EXPOSE_BIND_INTEGER("interfaceClass", Node->Data.InterfaceClass);
+    EXPOSE_BIND_INTEGER("interfaceSubClass", Node->Data.InterfaceSubClass);
+    EXPOSE_BIND_INTEGER("interfaceProtocol", Node->Data.InterfaceProtocol);
+    EXPOSE_BIND_INTEGER("endpointAddress", Node->Data.EndpointAddress);
+    EXPOSE_BIND_INTEGER("endpointAttributes", Node->Data.EndpointAttributes);
+    EXPOSE_BIND_INTEGER("endpointMaxPacketSize", Node->Data.EndpointMaxPacketSize);
+    EXPOSE_BIND_INTEGER("endpointInterval", Node->Data.EndpointInterval);
+    EXPOSE_BIND_INTEGER("vendorId", Node->Data.VendorID);
+    EXPOSE_BIND_INTEGER("productId", Node->Data.ProductID);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }

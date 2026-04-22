@@ -23,7 +23,8 @@ APP_SOURCES := \
     source/tt-production.c \
     source/tt-render.c \
     source/tt-save.c \
-    source/tt-types.c
+    source/tt-types.c \
+    source/tt-viewport.c
 APP_HEADERS := $(wildcard source/*.h)
 
 include ../../runtime/make/exos.mk

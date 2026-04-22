@@ -45,6 +45,7 @@ CFLAGS  = $(DEBUG_CFLAGS) -Wall -Wextra -O0 -nostdinc \
         -Werror-implicit-function-declaration -Wstrict-prototypes \
         -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) \
         -I../kernel/include \
+        -Iinclude \
         $(CFLAGS_ARCH)
 
 CXXFLAGS = $(DEBUG_CFLAGS) -Wall -Wextra -O0 -std=c++11 \
@@ -53,6 +54,7 @@ CXXFLAGS = $(DEBUG_CFLAGS) -Wall -Wextra -O0 -std=c++11 \
         -fvisibility=hidden -mno-red-zone \
         -fno-rtti -fno-threadsafe-statics \
         -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) \
+        -Iinclude \
         $(CXXFLAGS_ARCH)
 
 AFLAGS  = -f $(NASM_FORMAT) $(DEBUG_AFLAGS) -I source/ -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL)
@@ -60,12 +62,24 @@ AFLAGS  = -f $(NASM_FORMAT) $(DEBUG_AFLAGS) -I source/ -DPROFILING=$(PROFILING) 
 LDFLAGS = -T linker.ld -nostdlib -Map=$(BUILD_DIR)/runtime/exos-runtime.map
 
 RUNTIME_LIB = $(BUILD_DIR)/runtime/libexos.a
+TCC_EMPTY_CRT = $(BUILD_DIR)/runtime/tcc-crt-empty.o
+RUNTIME_LIB_OBJECT_MANIFEST = libc-objects.txt
 
-SRC_C   = $(wildcard source/*.c) ../kernel/source/text/CoreString.c ../kernel/source/utils/AdaptiveDelay.c
+SRC_C_ORDERED = \
+	source/exos-adaptive-delay.c \
+	source/exos.c \
+	source/exos-module.c \
+	source/exos-runtime-c.c \
+	source/exos-runtime-stdlib.c \
+	source/exos-string.c \
+	source/http.c \
+	source/tcc-crt-empty.c
+SRC_C_EXTRA = $(filter-out $(SRC_C_ORDERED),$(wildcard source/*.c))
+SRC_C   = $(SRC_C_ORDERED) $(SRC_C_EXTRA)
 SRC_CXX = $(wildcard source/*.cpp)
 SRC_S   = $(wildcard source/*.asm) $(wildcard source/$(ARCH)/*.asm)
 
-OBJ_C   = $(patsubst source/%.c, $(BUILD_DIR)/runtime/%.o, $(filter source/%.c, $(SRC_C))) $(patsubst ../kernel/source/%.c, $(BUILD_DIR)/runtime/%.o, $(filter ../kernel/source/%.c, $(SRC_C)))
+OBJ_C   = $(patsubst source/%.c, $(BUILD_DIR)/runtime/%.o, $(filter source/%.c, $(SRC_C)))
 # OBJ_CXX = $(patsubst source/%.cpp, $(BUILD_DIR)/runtime/%.o, $(SRC_CXX))
 OBJ_S   = $(patsubst source/%.asm, $(BUILD_DIR)/runtime/%.o, $(SRC_S))
 
@@ -73,11 +87,18 @@ OBJS    = $(OBJ_S) $(OBJ_C) # $(OBJ_CXX)
 
 # === Build rules ===
 
-all: $(RUNTIME_LIB)
+all: $(RUNTIME_LIB) $(BUILD_DIR)/runtime/crti.o $(BUILD_DIR)/runtime/crtn.o
 
-$(RUNTIME_LIB): $(OBJS)
+$(RUNTIME_LIB): $(OBJS) $(RUNTIME_LIB_OBJECT_MANIFEST)
 	@mkdir -p $(dir $@)
-	$(AR) rcs $@ $^
+	$(AR) rcs $@ $(OBJS)
+	@$(AR) t $@ | diff -u $(RUNTIME_LIB_OBJECT_MANIFEST) -
+
+$(BUILD_DIR)/runtime/crti.o: $(TCC_EMPTY_CRT)
+	cp -f $< $@
+
+$(BUILD_DIR)/runtime/crtn.o: $(TCC_EMPTY_CRT)
+	cp -f $< $@
 
 $(BUILD_DIR)/runtime/%.o: source/%.c
 	@mkdir -p $(dir $@)
@@ -86,10 +107,6 @@ $(BUILD_DIR)/runtime/%.o: source/%.c
 $(BUILD_DIR)/runtime/%.o: source/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-$(BUILD_DIR)/runtime/%.o: ../kernel/source/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BUILD_DIR)/runtime/%.o: source/%.asm
 	@mkdir -p $(dir $@)
