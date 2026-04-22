@@ -37,6 +37,10 @@
 
 - [x] Make all autotests pass
 
+- [ ] Execute Syscall-Return-ABI.md
+
+- [ ] Implement stdin/stdout/stderr
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
@@ -112,14 +116,6 @@
 - [ ] Opening a file in a userland program without an absolute path should do the same as using getcwd().
 - [ ] Add a getpd() that returns the folder in which the current executable's image lives.
 - [ ] FileReadAll() : use HeapAlloc, NOT KernelHeapAlloc
-
-### API return contract (system-wide)
-
-- [ ] Target contract for kernel APIs, drivers, and syscalls: functions return only `DF_RETURN_*` status codes (`DF_RETURN_SUCCESS` on success, error code otherwise).
-  - Functional values are returned through explicit output parameters (input/output structures or output pointers), not through the function return value.
-  - New or refactored code must follow this contract immediately.
-  - Existing modules are migrated progressively as work advances, until full convergence is reached across the system.
-  - Compatibility shims are temporary and must be removed once migrated callers and providers are updated.
 
 ### Memory
 
