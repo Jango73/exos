@@ -39,7 +39,7 @@
 
 - [x] Execute Syscall-Return-ABI.md
 
-- [ ] Enrich the module loading smoke test
+- [x] Enrich the module loading smoke test
 
 - [ ] Implement stdin/stdout/stderr
 
