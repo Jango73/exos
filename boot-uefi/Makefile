@@ -57,7 +57,7 @@ KEYBOARD_LAYOUTS := ../deploy/keyboard/*.ekm1
 
 PORTAL_ELF      := $(CORE_BUILD_DIR)/system/portal/portal
 NETGET_ELF      := $(CORE_BUILD_DIR)/system/netget/netget
-HELLO_ELF       := $(CORE_BUILD_DIR)/system/hello/hello
+HELLO_ELF       := $(CORE_BUILD_DIR)/system/test/hello/hello
 TICTACTOE_ELF   := $(CORE_BUILD_DIR)/system/tictactoe/tictactoe
 TERMTACTICS_ELF := $(CORE_BUILD_DIR)/system/terminal-tactics/terminal-tactics
 INPUTINFO_ELF   := $(CORE_BUILD_DIR)/system/input-info/input-info

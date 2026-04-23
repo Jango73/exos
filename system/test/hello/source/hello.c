@@ -22,8 +22,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/exos.h"
+#include "../../../../runtime/include/exos-runtime.h"
+#include "../../../../runtime/include/exos.h"
 
 /***************************************************************************/
 

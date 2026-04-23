@@ -8,4 +8,4 @@
 APP_NAME := hello
 APP_SOURCES := source/hello.c
 
-include ../../runtime/make/exos.mk
+include ../../../runtime/make/exos.mk

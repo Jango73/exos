@@ -34,10 +34,10 @@ all: $(SYSTEM_PROGRAMS)
 
 hello:
 	@echo "[ Building hello ]"
-	+$(SUBMAKE) -C hello all
+	+$(SUBMAKE) -C test/hello all
 
 hello_clean:
-	+$(SUBMAKE) -C hello clean
+	+$(SUBMAKE) -C test/hello clean
 
 ################################################################################
 # Portal program

@@ -10,7 +10,7 @@ ldsym global "kernel/bin/exos.sym"
 ldsym global "boot-mbr/bin/payload.sym"
 
 # Load userland executable symbols
-ldsym global "system/hello/bin/hello.sym"
+ldsym global "system/test/hello/bin/hello.sym"
 
 # Breakpoints
 # lbreak 0xc0000000
