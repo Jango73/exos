@@ -41,6 +41,8 @@ char _static_arg_storage[MAX_STRING_BUFFER];     // Storage for argument strings
 
 PROCESS_INFO _ProcessInfo;
 
+void RuntimeInitializeStandardStreams(void);
+
 /************************************************************************/
 
 // Suppress unused warnings for future use
@@ -451,7 +453,15 @@ FILE* fopen(const char* __name, const char* __mode) {
 #ifndef __KERNEL__
 int fclose(FILE* __fp) {
     if (__fp) {
-        exoscall(SYSCALL_DeleteObject, EXOS_PARAM(__fp->_handle));
+        if (__fp->_handle != 0) {
+            exoscall(SYSCALL_DeleteObject, EXOS_PARAM(__fp->_handle));
+            __fp->_handle = 0;
+        }
+
+        if (__fp == stdin || __fp == stdout || __fp == stderr) {
+            return 1;
+        }
+
         if (__fp->_base) free(__fp->_base);
         free(__fp);
         return 1;
@@ -888,6 +898,8 @@ void _SetupArguments(void) {
     if (exoscall(SYSCALL_GetProcessInfo, EXOS_PARAM(&_ProcessInfo)) != DF_RETURN_SUCCESS) {
         return;
     }
+
+    RuntimeInitializeStandardStreams();
 
     int CommandLineLen = strlen((const char*)_ProcessInfo.CommandLine);
 

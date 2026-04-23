@@ -13,9 +13,6 @@
 #include "../../../runtime/include/exos-runtime.h"
 #include "../../../runtime/include/setjmp.h"
 
-#define stdin NULL
-#define stdout NULL
-#define stderr NULL
 #define environ NULL
 #define main TinyCcMain
 

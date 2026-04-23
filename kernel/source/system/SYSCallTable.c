@@ -108,6 +108,7 @@ void InitializeSystemCallTable(void) {
     SysCallTable[SYSCALL_EnumVolumes] = (SYSCALL_ENTRY){SysCall_EnumVolumes, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetVolumeInfo] = (SYSCALL_ENTRY){SysCall_GetVolumeInfo, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_OpenFile] = (SYSCALL_ENTRY){SysCall_OpenFile, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_CreatePipe] = (SYSCALL_ENTRY){SysCall_CreatePipe, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_ReadFile] = (SYSCALL_ENTRY){SysCall_ReadFile, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_WriteFile] = (SYSCALL_ENTRY){SysCall_WriteFile, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetFileSize] = (SYSCALL_ENTRY){SysCall_GetFileSize, EXOS_PRIVILEGE_USER};

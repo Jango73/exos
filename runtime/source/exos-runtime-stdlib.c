@@ -24,10 +24,60 @@
 /************************************************************************/
 
 int __exos_errno = 0;
+extern PROCESS_INFO _ProcessInfo;
+
+FILE* stdin = NULL;
+FILE* stdout = NULL;
+FILE* stderr = NULL;
+
+static FILE RuntimeStandardInputStream;
+static FILE RuntimeStandardOutputStream;
+static FILE RuntimeStandardErrorStream;
 
 /************************************************************************/
 
 int* __errno_location(void) { return &__exos_errno; }
+
+/************************************************************************/
+
+static HANDLE RuntimeStandardHandleByDescriptor(int FileDescriptor) {
+    if (FileDescriptor == STDIN_FILENO) {
+        return _ProcessInfo.StdIn;
+    }
+
+    if (FileDescriptor == STDOUT_FILENO) {
+        return _ProcessInfo.StdOut;
+    }
+
+    if (FileDescriptor == STDERR_FILENO) {
+        return _ProcessInfo.StdErr;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+static void RuntimeInitializeStandardStream(FILE* Stream, HANDLE Handle) {
+    if (Stream == NULL) {
+        return;
+    }
+
+    memset(Stream, 0, sizeof(FILE));
+    Stream->_handle = Handle;
+}
+
+/************************************************************************/
+
+void RuntimeInitializeStandardStreams(void) {
+    RuntimeInitializeStandardStream(&RuntimeStandardInputStream, _ProcessInfo.StdIn);
+    RuntimeInitializeStandardStream(&RuntimeStandardOutputStream, _ProcessInfo.StdOut);
+    RuntimeInitializeStandardStream(&RuntimeStandardErrorStream, _ProcessInfo.StdErr);
+
+    stdin = (_ProcessInfo.StdIn != 0) ? &RuntimeStandardInputStream : NULL;
+    stdout = (_ProcessInfo.StdOut != 0) ? &RuntimeStandardOutputStream : NULL;
+    stderr = (_ProcessInfo.StdErr != 0) ? &RuntimeStandardErrorStream : NULL;
+}
 
 /************************************************************************/
 
@@ -570,65 +620,127 @@ int open(const char* path, int flags, ...) {
 /************************************************************************/
 
 int close(int file_descriptor) {
-    if (file_descriptor <= 2) {
-        return 0;
+    HANDLE FileHandle = 0;
+
+    if (file_descriptor < 0) {
+        errno = EBADF;
+        return -1;
     }
 
-    exoscall(SYSCALL_DeleteObject, EXOS_PARAM((HANDLE)file_descriptor));
+    FileHandle = RuntimeStandardHandleByDescriptor(file_descriptor);
+    if (file_descriptor <= STDERR_FILENO && FileHandle == 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (FileHandle == 0) {
+        FileHandle = (HANDLE)file_descriptor;
+    }
+
+    if (FileHandle == 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    exoscall(SYSCALL_DeleteObject, EXOS_PARAM(FileHandle));
     return 0;
 }
 
 /************************************************************************/
 
 int read(int file_descriptor, void* buffer, unsigned count) {
-    if (file_descriptor <= 0 || buffer == NULL) {
+    HANDLE FileHandle = 0;
+
+    if (file_descriptor < 0 || buffer == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    return RuntimeReadHandle((HANDLE)file_descriptor, buffer, count);
+    FileHandle = RuntimeStandardHandleByDescriptor(file_descriptor);
+    if (file_descriptor <= STDERR_FILENO && FileHandle == 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (FileHandle == 0) {
+        FileHandle = (HANDLE)file_descriptor;
+    }
+
+    if (FileHandle == 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    return RuntimeReadHandle(FileHandle, buffer, count);
 }
 
 /************************************************************************/
 
 int write(int file_descriptor, const void* buffer, unsigned count) {
-    if (file_descriptor == 1 || file_descriptor == 2) {
+    HANDLE FileHandle = 0;
+
+    if (file_descriptor < 0 || buffer == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    FileHandle = RuntimeStandardHandleByDescriptor(file_descriptor);
+    if ((file_descriptor == STDOUT_FILENO || file_descriptor == STDERR_FILENO) && FileHandle == 0) {
         char Text[MAX_STRING_BUFFER];
-        unsigned CopyCount;
+        unsigned CopyCount = (count < (MAX_STRING_BUFFER - 1)) ? count : (MAX_STRING_BUFFER - 1);
 
-        if (buffer == NULL) {
-            errno = EINVAL;
-            return -1;
-        }
-
-        CopyCount = (count < (MAX_STRING_BUFFER - 1)) ? count : (MAX_STRING_BUFFER - 1);
         memmove(Text, buffer, CopyCount);
         Text[CopyCount] = '\0';
         printf("%s", Text);
         return (int)count;
     }
 
-    if (file_descriptor <= 0 || buffer == NULL) {
-        errno = EINVAL;
+    if (FileHandle == 0) {
+        if (file_descriptor <= STDERR_FILENO) {
+            errno = EBADF;
+            return -1;
+        }
+        FileHandle = (HANDLE)file_descriptor;
+    }
+
+    if (FileHandle == 0) {
+        errno = EBADF;
         return -1;
     }
 
-    return RuntimeWriteHandle((HANDLE)file_descriptor, buffer, count);
+    return RuntimeWriteHandle(FileHandle, buffer, count);
 }
 
 /************************************************************************/
 
 long lseek(int file_descriptor, long offset, int whence) {
-    if (file_descriptor <= 0) {
+    HANDLE FileHandle = 0;
+
+    if (file_descriptor < 0) {
         errno = EBADF;
         return -1;
     }
 
-    if (RuntimeSeekHandle((HANDLE)file_descriptor, offset, whence) != 0) {
+    FileHandle = RuntimeStandardHandleByDescriptor(file_descriptor);
+    if (file_descriptor <= STDERR_FILENO && FileHandle == 0) {
+        errno = EBADF;
         return -1;
     }
 
-    return (long)exoscall(SYSCALL_GetFilePointer, EXOS_PARAM((HANDLE)file_descriptor));
+    if (FileHandle == 0) {
+        FileHandle = (HANDLE)file_descriptor;
+    }
+
+    if (FileHandle == 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (RuntimeSeekHandle(FileHandle, offset, whence) != 0) {
+        return -1;
+    }
+
+    return (long)exoscall(SYSCALL_GetFilePointer, EXOS_PARAM(FileHandle));
 }
 
 /************************************************************************/
@@ -636,9 +748,21 @@ long lseek(int file_descriptor, long offset, int whence) {
 FILE* fdopen(int file_descriptor, const char* mode) {
     UNUSED(mode);
     FILE* File;
+    HANDLE FileHandle = 0;
 
-    if (file_descriptor == 1 || file_descriptor == 2) {
+    if (file_descriptor < 0) {
+        errno = EBADF;
         return NULL;
+    }
+
+    FileHandle = RuntimeStandardHandleByDescriptor(file_descriptor);
+    if (file_descriptor <= STDERR_FILENO && FileHandle == 0) {
+        errno = EBADF;
+        return NULL;
+    }
+
+    if (FileHandle == 0) {
+        FileHandle = (HANDLE)file_descriptor;
     }
 
     File = (FILE*)malloc(sizeof(FILE));
@@ -650,7 +774,7 @@ FILE* fdopen(int file_descriptor, const char* mode) {
     // fdopen creates the FILE* stream facade only for callers that explicitly
     // ask for stream I/O. The underlying descriptor remains the EXOS handle.
     memset(File, 0, sizeof(FILE));
-    File->_handle = (unsigned)file_descriptor;
+    File->_handle = (unsigned)FileHandle;
     return File;
 }
 
@@ -659,6 +783,35 @@ FILE* fdopen(int file_descriptor, const char* mode) {
 FILE* freopen(const char* path, const char* mode, FILE* fp) {
     UNUSED(fp);
     return fopen(path, mode);
+}
+
+/************************************************************************/
+
+int pipe(int pipefd[2]) {
+    PIPE_INFO Info;
+    UINT Result;
+
+    if (pipefd == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    memset(&Info, 0, sizeof(Info));
+    Info.Header.Size = sizeof(PIPE_INFO);
+    Info.Header.Version = EXOS_ABI_VERSION;
+    Info.Header.Flags = 0;
+    Info.ReadHandle = 0;
+    Info.WriteHandle = 0;
+
+    Result = (UINT)exoscall(SYSCALL_CreatePipe, EXOS_PARAM(&Info));
+    if (Result != DF_RETURN_SUCCESS || Info.ReadHandle == 0 || Info.WriteHandle == 0) {
+        errno = EIO;
+        return -1;
+    }
+
+    pipefd[0] = (int)Info.ReadHandle;
+    pipefd[1] = (int)Info.WriteHandle;
+    return 0;
 }
 
 /************************************************************************/

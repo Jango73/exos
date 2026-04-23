@@ -23,9 +23,9 @@ SUBMAKE = $(MAKE) ARCH=$(ARCH) BUILD_CORE_NAME=$(BUILD_CORE_NAME) BUILD_IMAGE_NA
 
 ################################################################################
 
-.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import tcc
+.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc
 
-SYSTEM_PROGRAMS = hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import tcc
+SYSTEM_PROGRAMS = hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc
 
 all: $(SYSTEM_PROGRAMS)
 
@@ -150,6 +150,36 @@ module_import_clean:
 	+$(SUBMAKE) -C test/module-import clean
 
 ################################################################################
+# Pipe source test program
+
+pipe_source:
+	@echo "[ Building pipe source ]"
+	+$(SUBMAKE) -C test/pipe-source all
+
+pipe_source_clean:
+	+$(SUBMAKE) -C test/pipe-source clean
+
+################################################################################
+# Pipe upper test program
+
+pipe_upper:
+	@echo "[ Building pipe upper ]"
+	+$(SUBMAKE) -C test/pipe-upper all
+
+pipe_upper_clean:
+	+$(SUBMAKE) -C test/pipe-upper clean
+
+################################################################################
+# Pipe summary test program
+
+pipe_summary:
+	@echo "[ Building pipe summary ]"
+	+$(SUBMAKE) -C test/pipe-summary all
+
+pipe_summary_clean:
+	+$(SUBMAKE) -C test/pipe-summary clean
+
+################################################################################
 # TinyCC bootstrap compiler
 
 tcc:
@@ -161,5 +191,5 @@ tcc_clean:
 
 ################################################################################
 
-clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean tcc_clean
+clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean pipe_source_clean pipe_upper_clean pipe_summary_clean tcc_clean
 	@echo "[ Cleaning system programs ]"

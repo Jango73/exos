@@ -41,7 +41,7 @@
 
 - [x] Enrich the module loading smoke test
 
-- [ ] Implement stdin/stdout/stderr
+- [x] Implement stdin/stdout/stderr
 
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps

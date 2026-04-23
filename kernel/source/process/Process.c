@@ -248,6 +248,9 @@ LPPROCESS NewProcess(void) {
     This->SchedulerState.Paused = FALSE;
     This->MaximumAllocatedMemory = N_HalfMemory;
     This->TaskCount = 0;
+    This->StdOut = 0;
+    This->StdIn = 0;
+    This->StdErr = 0;
     This->Session = NULL;
     ProcessArenaReset(This);
 
@@ -307,6 +310,21 @@ void DeleteProcessCommit(LPPROCESS This) {
         }
 
         DeleteProcessModuleBindings(This);
+
+        if (This->StdIn != 0) {
+            CloseHandle(This->StdIn);
+            This->StdIn = 0;
+        }
+
+        if (This->StdOut != 0) {
+            CloseHandle(This->StdOut);
+            This->StdOut = 0;
+        }
+
+        if (This->StdErr != 0) {
+            CloseHandle(This->StdErr);
+            This->StdErr = 0;
+        }
 
         // Free page directory if allocated
         // TODO : FREE ALL PD PAGES
@@ -508,6 +526,9 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     UINT StackSize = 0;
     UINT TotalSize = 0;
     BOOL Result = FALSE;
+    HANDLE SourceStdOut = 0;
+    HANDLE SourceStdIn = 0;
+    HANDLE SourceStdErr = 0;
 
     DEBUG(TEXT("Enter"));
 
@@ -608,12 +629,12 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
         StringClear(Process->CommandLine);
     }
 
+    ParentProcess = GetCurrentProcess();
+
     // Initialize WorkFolder from PROCESS_INFO or inherit from parent
     if (!StringEmpty(Info->WorkFolder)) {
         StringCopy(Process->WorkFolder, Info->WorkFolder);
     } else {
-        ParentProcess = GetCurrentProcess();
-
         SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) {
             StringCopy(Process->WorkFolder, ParentProcess->WorkFolder);
         } else {
@@ -626,6 +647,45 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
 
     // Copy process creation flags
     Process->Flags = Info->Flags;
+
+    SourceStdOut = EnsureHandle((LINEAR)Info->StdOut);
+    SourceStdIn = EnsureHandle((LINEAR)Info->StdIn);
+    SourceStdErr = EnsureHandle((LINEAR)Info->StdErr);
+
+    SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) {
+        if (SourceStdOut == 0) {
+            SourceStdOut = ParentProcess->StdOut;
+        }
+
+        if (SourceStdIn == 0) {
+            SourceStdIn = ParentProcess->StdIn;
+        }
+
+        if (SourceStdErr == 0) {
+            SourceStdErr = ParentProcess->StdErr;
+        }
+    }
+
+    if (SourceStdOut != 0) {
+        Process->StdOut = DuplicateHandle(SourceStdOut);
+        if (Process->StdOut == 0) {
+            goto Out;
+        }
+    }
+
+    if (SourceStdIn != 0) {
+        Process->StdIn = DuplicateHandle(SourceStdIn);
+        if (Process->StdIn == 0) {
+            goto Out;
+        }
+    }
+
+    if (SourceStdErr != 0) {
+        Process->StdErr = DuplicateHandle(SourceStdErr);
+        if (Process->StdErr == 0) {
+            goto Out;
+        }
+    }
 
     CodeSize = ExecutableMetadata.Layout.CodeSize;
     DataSize = ExecutableMetadata.Layout.DataSize;
@@ -802,6 +862,29 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     Result = TRUE;
 
 Out:
+
+    if (!Result) {
+        if (Process != NULL) {
+            if (Process->StdIn != 0) {
+                CloseHandle(Process->StdIn);
+                Process->StdIn = 0;
+            }
+
+            if (Process->StdOut != 0) {
+                CloseHandle(Process->StdOut);
+                Process->StdOut = 0;
+            }
+
+            if (Process->StdErr != 0) {
+                CloseHandle(Process->StdErr);
+                Process->StdErr = 0;
+            }
+        }
+    }
+
+    Info->StdOut = Process != NULL ? Process->StdOut : 0;
+    Info->StdIn = Process != NULL ? Process->StdIn : 0;
+    Info->StdErr = Process != NULL ? Process->StdErr : 0;
 
     Info->Process = (HANDLE)Process;
     Info->Task = (HANDLE)Task;

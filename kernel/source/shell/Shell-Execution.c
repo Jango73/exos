@@ -25,6 +25,7 @@
 #include "shell/Shell-Commands-Private.h"
 #include "core/ID.h"
 #include "system/SYSCall.h"
+#include "utils/Pipe.h"
 
 /************************************************************************/
 
@@ -37,6 +38,34 @@ typedef struct tag_SHELL_SCRIPT_FUNCTION_ENTRY {
     LPCSTR Name;
     SHELL_SCRIPT_FUNCTION_HANDLER Handler;
 } SHELL_SCRIPT_FUNCTION_ENTRY;
+
+/************************************************************************/
+
+#define SHELL_PIPELINE_MAX_STAGES 8
+
+typedef struct tag_SHELL_PIPELINE_STAGE {
+    STR CommandLine[MAX_PATH_NAME];
+    STR InputPath[MAX_PATH_NAME];
+    STR OutputPath[MAX_PATH_NAME];
+    STR ErrorPath[MAX_PATH_NAME];
+    BOOL OutputAppend;
+    BOOL ErrorAppend;
+    BOOL ErrorToOutput;
+} SHELL_PIPELINE_STAGE, *LPSHELL_PIPELINE_STAGE;
+
+typedef struct tag_SHELL_PIPELINE_PLAN {
+    SHELL_PIPELINE_STAGE Stages[SHELL_PIPELINE_MAX_STAGES];
+    UINT StageCount;
+} SHELL_PIPELINE_PLAN, *LPSHELL_PIPELINE_PLAN;
+
+/************************************************************************/
+
+typedef enum tag_SHELL_REDIRECTION_STREAM {
+    SHELL_REDIRECTION_STREAM_NONE = 0,
+    SHELL_REDIRECTION_STREAM_IN = 1,
+    SHELL_REDIRECTION_STREAM_OUT = 2,
+    SHELL_REDIRECTION_STREAM_ERROR = 3
+} SHELL_REDIRECTION_STREAM;
 
 /************************************************************************/
 
@@ -59,6 +88,567 @@ static BOOL ShellScriptContainsLineBreak(LPCSTR Text) {
     }
 
     return FALSE;
+}
+
+/************************************************************************/
+
+static BOOL ShellCommandLineHasRedirectionOrPipe(LPCSTR CommandLine) {
+    BOOL InQuotes = FALSE;
+    UINT Index = 0;
+
+    if (CommandLine == NULL) {
+        return FALSE;
+    }
+
+    while (CommandLine[Index] != STR_NULL) {
+        if (CommandLine[Index] == STR_QUOTE) {
+            InQuotes = !InQuotes;
+        } else if (!InQuotes &&
+                (CommandLine[Index] == '|' || CommandLine[Index] == '<' || CommandLine[Index] == '>')) {
+            return TRUE;
+        }
+
+        Index++;
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+static BOOL ShellIsTokenBoundary(STR Character) {
+    return Character == STR_NULL || Character <= STR_SPACE || Character == '|' || Character == '<' ||
+           Character == '>';
+}
+
+/************************************************************************/
+
+static SHELL_REDIRECTION_STREAM ShellParseRedirectionStream(LPCSTR Token) {
+    if (Token == NULL) {
+        return SHELL_REDIRECTION_STREAM_NONE;
+    }
+
+    if (StringCompare(Token, TEXT("0")) == 0 || StringCompare(Token, TEXT("in")) == 0) {
+        return SHELL_REDIRECTION_STREAM_IN;
+    }
+
+    if (StringCompare(Token, TEXT("1")) == 0 || StringCompare(Token, TEXT("out")) == 0) {
+        return SHELL_REDIRECTION_STREAM_OUT;
+    }
+
+    if (StringCompare(Token, TEXT("2")) == 0 || StringCompare(Token, TEXT("error")) == 0) {
+        return SHELL_REDIRECTION_STREAM_ERROR;
+    }
+
+    return SHELL_REDIRECTION_STREAM_NONE;
+}
+
+/************************************************************************/
+
+static BOOL ShellTokenIsOutputAlias(LPCSTR Token) {
+    SHELL_REDIRECTION_STREAM Stream;
+
+    Stream = ShellParseRedirectionStream(Token);
+    return Stream == SHELL_REDIRECTION_STREAM_OUT;
+}
+
+/************************************************************************/
+
+static BOOL ShellHasUpcomingRedirectionOperator(LPCSTR Text, UINT Index) {
+    if (Text == NULL) {
+        return FALSE;
+    }
+
+    while (Text[Index] != STR_NULL && Text[Index] <= STR_SPACE) {
+        Index++;
+    }
+
+    if (Text[Index] == '<' || Text[Index] == '>') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+static BOOL ShellReadPipelineToken(LPCSTR Text, UINT* InOutIndex, STR Token[MAX_PATH_NAME]) {
+    UINT ReadIndex;
+    UINT WriteIndex = 0;
+    BOOL InQuotes = FALSE;
+
+    if (Text == NULL || InOutIndex == NULL || Token == NULL) {
+        return FALSE;
+    }
+
+    ReadIndex = *InOutIndex;
+    while (Text[ReadIndex] != STR_NULL && Text[ReadIndex] <= STR_SPACE) {
+        ReadIndex++;
+    }
+
+    if (Text[ReadIndex] == STR_NULL) {
+        *InOutIndex = ReadIndex;
+        return FALSE;
+    }
+
+    if (Text[ReadIndex] == '|') {
+        Token[0] = '|';
+        Token[1] = STR_NULL;
+        *InOutIndex = ReadIndex + 1;
+        return TRUE;
+    }
+
+    if (Text[ReadIndex] == '<') {
+        Token[0] = '<';
+        Token[1] = STR_NULL;
+        *InOutIndex = ReadIndex + 1;
+        return TRUE;
+    }
+
+    if (Text[ReadIndex] == '>') {
+        Token[0] = '>';
+        if (Text[ReadIndex + 1] == '>') {
+            Token[1] = '>';
+            Token[2] = STR_NULL;
+            *InOutIndex = ReadIndex + 2;
+        } else {
+            Token[1] = STR_NULL;
+            *InOutIndex = ReadIndex + 1;
+        }
+        return TRUE;
+    }
+
+    if (Text[ReadIndex] == '2' && Text[ReadIndex + 1] == '>' && Text[ReadIndex + 2] == '&' && Text[ReadIndex + 3] == '1') {
+        Token[0] = '2';
+        Token[1] = '>';
+        Token[2] = '&';
+        Token[3] = '1';
+        Token[4] = STR_NULL;
+        *InOutIndex = ReadIndex + 4;
+        return TRUE;
+    }
+
+    if (Text[ReadIndex] == '2' && Text[ReadIndex + 1] == '>' && Text[ReadIndex + 2] == '>') {
+        Token[0] = '2';
+        Token[1] = '>';
+        Token[2] = '>';
+        Token[3] = STR_NULL;
+        *InOutIndex = ReadIndex + 3;
+        return TRUE;
+    }
+
+    if (Text[ReadIndex] == '2' && Text[ReadIndex + 1] == '>') {
+        Token[0] = '2';
+        Token[1] = '>';
+        Token[2] = STR_NULL;
+        *InOutIndex = ReadIndex + 2;
+        return TRUE;
+    }
+
+    while (Text[ReadIndex] != STR_NULL && (InQuotes || !ShellIsTokenBoundary(Text[ReadIndex]))) {
+        if (Text[ReadIndex] == STR_QUOTE) {
+            InQuotes = !InQuotes;
+        } else if (WriteIndex < MAX_PATH_NAME - 1) {
+            Token[WriteIndex] = Text[ReadIndex];
+            WriteIndex++;
+        }
+
+        ReadIndex++;
+    }
+
+    Token[WriteIndex] = STR_NULL;
+    *InOutIndex = ReadIndex;
+    return WriteIndex > 0;
+}
+
+/************************************************************************/
+
+static BOOL ShellAppendTokenToCommandLine(STR CommandLine[MAX_PATH_NAME], LPCSTR Token) {
+    BOOL NeedsQuotes = FALSE;
+    UINT Index = 0;
+    UINT CurrentLength;
+    UINT TokenLength;
+
+    if (CommandLine == NULL || Token == NULL) {
+        return FALSE;
+    }
+
+    TokenLength = StringLength(Token);
+    CurrentLength = StringLength(CommandLine);
+
+    while (Token[Index] != STR_NULL) {
+        if (Token[Index] <= STR_SPACE) {
+            NeedsQuotes = TRUE;
+            break;
+        }
+        Index++;
+    }
+
+    if (CurrentLength > 0) {
+        if (CurrentLength + 1 >= MAX_PATH_NAME) {
+            return FALSE;
+        }
+
+        CommandLine[CurrentLength++] = STR_SPACE;
+        CommandLine[CurrentLength] = STR_NULL;
+    }
+
+    if (!NeedsQuotes) {
+        if (CurrentLength + TokenLength >= MAX_PATH_NAME) {
+            return FALSE;
+        }
+
+        StringConcat(CommandLine, Token);
+        return TRUE;
+    }
+
+    if (CurrentLength + TokenLength + 2 >= MAX_PATH_NAME) {
+        return FALSE;
+    }
+
+    CommandLine[CurrentLength++] = STR_QUOTE;
+    CommandLine[CurrentLength] = STR_NULL;
+    StringConcat(CommandLine, Token);
+    CurrentLength = StringLength(CommandLine);
+    CommandLine[CurrentLength++] = STR_QUOTE;
+    CommandLine[CurrentLength] = STR_NULL;
+    return TRUE;
+}
+
+/************************************************************************/
+
+static BOOL ShellParsePipelinePlan(LPCSTR CommandLine, LPSHELL_PIPELINE_PLAN Plan) {
+    UINT Index = 0;
+    STR Token[MAX_PATH_NAME];
+    UINT StageIndex = 0;
+    BOOL ExpectInputPath = FALSE;
+    BOOL ExpectOutputPath = FALSE;
+    BOOL ExpectErrorPath = FALSE;
+    BOOL OutputAppend = FALSE;
+    BOOL ErrorAppend = FALSE;
+    SHELL_REDIRECTION_STREAM PendingStream = SHELL_REDIRECTION_STREAM_NONE;
+
+    if (CommandLine == NULL || Plan == NULL) {
+        return FALSE;
+    }
+
+    MemorySet(Plan, 0, sizeof(SHELL_PIPELINE_PLAN));
+    Plan->StageCount = 1;
+
+    while (ShellReadPipelineToken(CommandLine, &Index, Token)) {
+        LPSHELL_PIPELINE_STAGE Stage = &Plan->Stages[StageIndex];
+
+        if (ExpectInputPath) {
+            if (ShellParseRedirectionStream(Token) != SHELL_REDIRECTION_STREAM_NONE) {
+                return FALSE;
+            }
+            StringCopy(Stage->InputPath, Token);
+            ExpectInputPath = FALSE;
+            continue;
+        }
+
+        if (ExpectOutputPath) {
+            if (ShellParseRedirectionStream(Token) != SHELL_REDIRECTION_STREAM_NONE) {
+                return FALSE;
+            }
+            StringCopy(Stage->OutputPath, Token);
+            Stage->OutputAppend = OutputAppend;
+            ExpectOutputPath = FALSE;
+            continue;
+        }
+
+        if (ExpectErrorPath) {
+            if (ShellTokenIsOutputAlias(Token)) {
+                Stage->ErrorToOutput = TRUE;
+                ExpectErrorPath = FALSE;
+                continue;
+            }
+
+            if (ShellParseRedirectionStream(Token) != SHELL_REDIRECTION_STREAM_NONE) {
+                return FALSE;
+            }
+            StringCopy(Stage->ErrorPath, Token);
+            Stage->ErrorAppend = ErrorAppend;
+            ExpectErrorPath = FALSE;
+            continue;
+        }
+
+        if (StringCompare(Token, TEXT("|")) == 0) {
+            if (StringEmpty(Stage->CommandLine) || StageIndex + 1 >= SHELL_PIPELINE_MAX_STAGES) {
+                return FALSE;
+            }
+
+            StageIndex++;
+            Plan->StageCount = StageIndex + 1;
+            PendingStream = SHELL_REDIRECTION_STREAM_NONE;
+            continue;
+        }
+
+        if (StringCompare(Token, TEXT("<")) == 0) {
+            SHELL_REDIRECTION_STREAM TargetStream = PendingStream;
+
+            if (TargetStream == SHELL_REDIRECTION_STREAM_NONE) {
+                TargetStream = SHELL_REDIRECTION_STREAM_IN;
+            }
+
+            if (TargetStream != SHELL_REDIRECTION_STREAM_IN) {
+                return FALSE;
+            }
+
+            PendingStream = SHELL_REDIRECTION_STREAM_NONE;
+            ExpectInputPath = TRUE;
+            continue;
+        }
+
+        if (StringCompare(Token, TEXT(">")) == 0 || StringCompare(Token, TEXT(">>")) == 0) {
+            SHELL_REDIRECTION_STREAM TargetStream = PendingStream;
+
+            if (TargetStream == SHELL_REDIRECTION_STREAM_NONE) {
+                TargetStream = SHELL_REDIRECTION_STREAM_OUT;
+            }
+
+            OutputAppend = StringCompare(Token, TEXT(">>")) == 0;
+            PendingStream = SHELL_REDIRECTION_STREAM_NONE;
+
+            if (TargetStream == SHELL_REDIRECTION_STREAM_OUT) {
+                ExpectOutputPath = TRUE;
+            } else if (TargetStream == SHELL_REDIRECTION_STREAM_ERROR) {
+                ExpectErrorPath = TRUE;
+                ErrorAppend = OutputAppend;
+            } else {
+                return FALSE;
+            }
+            continue;
+        }
+
+        if (StringCompare(Token, TEXT("2>")) == 0 || StringCompare(Token, TEXT("2>>")) == 0) {
+            ExpectErrorPath = TRUE;
+            ErrorAppend = StringCompare(Token, TEXT("2>>")) == 0;
+            continue;
+        }
+
+        if (StringCompare(Token, TEXT("2>&1")) == 0) {
+            Stage->ErrorToOutput = TRUE;
+            continue;
+        }
+
+        SHELL_REDIRECTION_STREAM Stream = ShellParseRedirectionStream(Token);
+        if (Stream != SHELL_REDIRECTION_STREAM_NONE && ShellHasUpcomingRedirectionOperator(CommandLine, Index)) {
+            PendingStream = Stream;
+            continue;
+        }
+
+        if (!ShellAppendTokenToCommandLine(Stage->CommandLine, Token)) {
+            return FALSE;
+        }
+    }
+
+    if (ExpectInputPath || ExpectOutputPath || ExpectErrorPath) {
+        return FALSE;
+    }
+
+    for (Index = 0; Index < Plan->StageCount; Index++) {
+        if (StringEmpty(Plan->Stages[Index].CommandLine)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+/************************************************************************/
+
+static HANDLE ShellOpenRedirectionHandle(LPSHELLCONTEXT Context, LPCSTR RawPath, UINT OpenFlags) {
+    FILE_OPEN_INFO FileOpenInfo;
+    STR QualifiedPath[MAX_PATH_NAME];
+    LPFILE File = NULL;
+    HANDLE FileHandle = 0;
+
+    if (Context == NULL || STRING_EMPTY(RawPath)) {
+        return 0;
+    }
+
+    if (!QualifyFileName(Context, RawPath, QualifiedPath)) {
+        return 0;
+    }
+
+    MemorySet(&FileOpenInfo, 0, sizeof(FILE_OPEN_INFO));
+    FileOpenInfo.Header.Size = sizeof(FILE_OPEN_INFO);
+    FileOpenInfo.Header.Version = EXOS_ABI_VERSION;
+    FileOpenInfo.Header.Flags = 0;
+    FileOpenInfo.Name = QualifiedPath;
+    FileOpenInfo.Flags = OpenFlags;
+
+    File = OpenFile(&FileOpenInfo);
+    SAFE_USE_VALID_ID(File, KOID_FILE) {
+        FileHandle = PointerToHandle((LINEAR)File);
+        if (FileHandle == 0) {
+            CloseFile(File);
+        }
+    }
+
+    return FileHandle;
+}
+
+/************************************************************************/
+
+static BOOL ShellRunPipelinePlan(LPSHELLCONTEXT Context, LPSHELL_PIPELINE_PLAN Plan) {
+    HANDLE PreviousReadHandle = 0;
+    WAIT_INFO WaitInfo;
+    UINT StageIndex;
+
+    if (Context == NULL || Plan == NULL || Plan->StageCount == 0) {
+        return FALSE;
+    }
+
+    MemorySet(&WaitInfo, 0, sizeof(WaitInfo));
+    WaitInfo.Header.Size = sizeof(WAIT_INFO);
+    WaitInfo.Header.Version = EXOS_ABI_VERSION;
+    WaitInfo.Header.Flags = 0;
+    WaitInfo.Count = 0;
+    WaitInfo.MilliSeconds = INFINITY;
+
+    for (StageIndex = 0; StageIndex < Plan->StageCount; StageIndex++) {
+        LPSHELL_PIPELINE_STAGE Stage = &Plan->Stages[StageIndex];
+        STR QualifiedCommandLine[MAX_PATH_NAME];
+        HANDLE InputHandle = 0;
+        HANDLE OutputHandle = 0;
+        HANDLE ErrorHandle = 0;
+        HANDLE NextReadHandle = 0;
+        HANDLE NextWriteHandle = 0;
+        PROCESS_INFO ProcessInfo;
+
+        if (!QualifyCommandLine(Context, Stage->CommandLine, QualifiedCommandLine)) {
+            ConsolePrint(TEXT("Unknown command: %s\n"), Stage->CommandLine);
+            return FALSE;
+        }
+
+        if (!STRING_EMPTY(Stage->InputPath)) {
+            InputHandle = ShellOpenRedirectionHandle(Context, Stage->InputPath, FILE_OPEN_READ | FILE_OPEN_EXISTING);
+            if (InputHandle == 0) {
+                ConsolePrint(TEXT("Cannot open input redirection: %s\n"), Stage->InputPath);
+                return FALSE;
+            }
+        } else if (PreviousReadHandle != 0) {
+            InputHandle = PreviousReadHandle;
+        }
+
+        if (!STRING_EMPTY(Stage->OutputPath)) {
+            UINT OpenFlags = FILE_OPEN_WRITE | FILE_OPEN_CREATE_ALWAYS;
+            if (Stage->OutputAppend) {
+                OpenFlags |= FILE_OPEN_SEEK_END;
+            } else {
+                OpenFlags |= FILE_OPEN_TRUNCATE;
+            }
+
+            OutputHandle = ShellOpenRedirectionHandle(Context, Stage->OutputPath, OpenFlags);
+            if (OutputHandle == 0) {
+                if (InputHandle != 0) {
+                    CloseHandle(InputHandle);
+                }
+                ConsolePrint(TEXT("Cannot open output redirection: %s\n"), Stage->OutputPath);
+                return FALSE;
+            }
+        } else if (StageIndex + 1 < Plan->StageCount) {
+            if (PipeCreateHandles(&NextReadHandle, &NextWriteHandle) != DF_RETURN_SUCCESS) {
+                if (InputHandle != 0) {
+                    CloseHandle(InputHandle);
+                }
+                ConsolePrint(TEXT("Cannot create pipe\n"));
+                return FALSE;
+            }
+            OutputHandle = NextWriteHandle;
+        }
+
+        if (Stage->ErrorToOutput) {
+            ErrorHandle = OutputHandle;
+        } else if (!STRING_EMPTY(Stage->ErrorPath)) {
+            UINT OpenFlags = FILE_OPEN_WRITE | FILE_OPEN_CREATE_ALWAYS;
+            if (Stage->ErrorAppend) {
+                OpenFlags |= FILE_OPEN_SEEK_END;
+            } else {
+                OpenFlags |= FILE_OPEN_TRUNCATE;
+            }
+
+            ErrorHandle = ShellOpenRedirectionHandle(Context, Stage->ErrorPath, OpenFlags);
+            if (ErrorHandle == 0) {
+                if (InputHandle != 0) {
+                    CloseHandle(InputHandle);
+                }
+                if (OutputHandle != 0) {
+                    CloseHandle(OutputHandle);
+                }
+                if (NextReadHandle != 0) {
+                    CloseHandle(NextReadHandle);
+                }
+                ConsolePrint(TEXT("Cannot open error redirection: %s\n"), Stage->ErrorPath);
+                return FALSE;
+            }
+        }
+
+        MemorySet(&ProcessInfo, 0, sizeof(PROCESS_INFO));
+        ProcessInfo.Header.Size = sizeof(PROCESS_INFO);
+        ProcessInfo.Header.Version = EXOS_ABI_VERSION;
+        ProcessInfo.Header.Flags = 0;
+        ProcessInfo.Flags = 0;
+        StringCopy(ProcessInfo.CommandLine, QualifiedCommandLine);
+        StringCopy(ProcessInfo.WorkFolder, Context->CurrentFolder);
+        ProcessInfo.StdOut = OutputHandle;
+        ProcessInfo.StdIn = InputHandle;
+        ProcessInfo.StdErr = ErrorHandle;
+        ProcessInfo.Process = NULL;
+        ProcessInfo.Task = NULL;
+
+        if (!CreateProcess(&ProcessInfo) || ProcessInfo.Process == NULL) {
+            if (InputHandle != 0) {
+                CloseHandle(InputHandle);
+            }
+
+            if (OutputHandle != 0) {
+                CloseHandle(OutputHandle);
+            }
+
+            if (ErrorHandle != 0 && ErrorHandle != OutputHandle) {
+                CloseHandle(ErrorHandle);
+            }
+
+            if (NextReadHandle != 0) {
+                CloseHandle(NextReadHandle);
+            }
+
+            ConsolePrint(TEXT("Process launch failed: %s\n"), QualifiedCommandLine);
+            return FALSE;
+        }
+
+        if (WaitInfo.Count < WAIT_INFO_MAX_OBJECTS) {
+            WaitInfo.Objects[WaitInfo.Count] = ProcessInfo.Process;
+            WaitInfo.Count++;
+        }
+
+        if (InputHandle != 0) {
+            CloseHandle(InputHandle);
+        }
+
+        if (OutputHandle != 0) {
+            CloseHandle(OutputHandle);
+        }
+
+        if (ErrorHandle != 0 && ErrorHandle != OutputHandle) {
+            CloseHandle(ErrorHandle);
+        }
+
+        PreviousReadHandle = NextReadHandle;
+    }
+
+    if (PreviousReadHandle != 0) {
+        CloseHandle(PreviousReadHandle);
+    }
+
+    if (WaitInfo.Count > 0) {
+        Wait(&WaitInfo);
+    }
+
+    return TRUE;
 }
 
 /************************************************************************/
@@ -179,6 +769,7 @@ UINT ShellScriptExecuteCommand(LPCSTR Command, LPVOID UserData) {
     LPSHELLCONTEXT Context = (LPSHELLCONTEXT)UserData;
     U32 Index;
     U32 Result = DF_RETURN_GENERIC;
+    SHELL_PIPELINE_PLAN PipelinePlan;
 
     if (Context == NULL || Command == NULL) {
         return DF_RETURN_BAD_PARAMETER;
@@ -186,6 +777,26 @@ UINT ShellScriptExecuteCommand(LPCSTR Command, LPVOID UserData) {
 
 
     StringCopy(Context->Input.CommandLine, Command);
+
+    if (ShellCommandLineHasRedirectionOrPipe(Command)) {
+        if (!ShellParsePipelinePlan(Command, &PipelinePlan)) {
+            if (Context->ScriptContext) {
+                Context->ScriptContext->ErrorCode = SCRIPT_ERROR_SYNTAX;
+                StringCopy(Context->ScriptContext->ErrorMessage, TEXT("Invalid redirection or pipeline syntax"));
+            }
+            return DF_RETURN_GENERIC;
+        }
+
+        if (!ShellRunPipelinePlan(Context, &PipelinePlan)) {
+            if (Context->ScriptContext) {
+                Context->ScriptContext->ErrorCode = SCRIPT_ERROR_SYNTAX;
+                StringCopy(Context->ScriptContext->ErrorMessage, TEXT("Pipeline execution failed"));
+            }
+            return DF_RETURN_GENERIC;
+        }
+
+        return DF_RETURN_SUCCESS;
+    }
 
     ClearOptions(Context);
 

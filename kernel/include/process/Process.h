@@ -180,6 +180,9 @@ struct tag_PROCESS {
     STR FileName[MAX_PATH_NAME];                            // Executable file path
     STR CommandLine[MAX_PATH_NAME];                         // Command line used to start this process
     STR WorkFolder[MAX_PATH_NAME];                          // Process working folder
+    HANDLE StdOut;                                          // Standard output handle owned by the process
+    HANDLE StdIn;                                           // Standard input handle owned by the process
+    HANDLE StdErr;                                          // Standard error handle owned by the process
     UINT TaskCount;                                         // Number of active tasks in this process
     MESSAGEQUEUE MessageQueue;                              // Process-level message queue (input, etc.)
     U64 UserID;                                             // Owner user

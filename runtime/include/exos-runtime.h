@@ -119,6 +119,8 @@ extern "C" {
     #error "Unsupported compiler for Base.h"
 #endif
 
+typedef int_t ssize_t;
+
 /************************************************************************/
 // POSIX Socket types
 
@@ -286,6 +288,14 @@ typedef struct __iobuf {
     unsigned char _tmpfchar; /* tmpfile number */
 } FILE;
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
+extern FILE* stdin;
+extern FILE* stdout;
+extern FILE* stderr;
+
 /************************************************************************/
 
 /* FILE_FIND_INFO comes from kernel/include/User.h via exos.h */
@@ -309,6 +319,7 @@ extern int fgetc(FILE*);
 extern int fgets(char* str, int num, FILE* fp);
 extern FILE* fdopen(int file_descriptor, const char* mode);
 extern FILE* freopen(const char* path, const char* mode, FILE* fp);
+extern int pipe(int pipefd[2]);
 extern int open(const char* path, int flags, ...);
 extern int close(int file_descriptor);
 extern int read(int file_descriptor, void* buffer, unsigned count);

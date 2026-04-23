@@ -514,6 +514,18 @@ EXOS implements a lifecycle management system for both processes and tasks that 
 - Session ownership is therefore tied to the process tree: children share the same session by default unless explicitly reassigned.
 - This keeps user identity and security context consistent across a spawned process hierarchy.
 
+#### Standard Stream Inheritance and Pipes
+
+- `PROCESS_INFO` carries `StdIn`, `StdOut`, and `StdErr` handle inputs for process creation.
+- `CreateProcess()` resolves those handles, duplicates them for child ownership, and stores effective values in the `PROCESS` structure.
+- If one standard stream handle is omitted at creation, the child inherits the corresponding handle from its parent process.
+- Process teardown closes child-owned standard stream handles so stream object lifetime follows process lifetime.
+- `GetProcessInfo()` returns the effective standard stream handles for runtime initialization.
+- Anonymous pipes are provided by `SYSCALL_CreatePipe` (`PIPE_INFO`) and exported as two endpoint handles:
+  - read endpoint,
+  - write endpoint.
+- `ReadFile` and `WriteFile` syscalls accept both file handles and pipe endpoint handles, so redirection and pipelines use one shared data path.
+
 #### Lifecycle Flow
 
 **1. Task Termination:**

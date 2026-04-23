@@ -221,6 +221,41 @@ function NormalizeSpaces() {
     echo "$Value"
 }
 
+function SplitCommandSpecSegments() {
+    local InputLine="$1"
+    local InQuotes=0
+    local Character=""
+    local Segment=""
+    local Index=0
+    local Length=0
+
+    Length="${#InputLine}"
+
+    for ((Index = 0; Index < Length; Index++)); do
+        Character="${InputLine:Index:1}"
+
+        if [ "$Character" = "\"" ]; then
+            if [ "$InQuotes" -eq 0 ]; then
+                InQuotes=1
+            else
+                InQuotes=0
+            fi
+            Segment+="$Character"
+            continue
+        fi
+
+        if [ "$Character" = "|" ] && [ "$InQuotes" -eq 0 ]; then
+            echo "$Segment"
+            Segment=""
+            continue
+        fi
+
+        Segment+="$Character"
+    done
+
+    echo "$Segment"
+}
+
 function WaitForImageReady() {
     local ImagePath="$1"
     local StartTime
@@ -622,8 +657,11 @@ function KeyForChar() {
         [a-z0-9]) echo "$Char" ;;
         " ") echo "spc" ;;
         "/") echo "slash" ;;
+        "|") echo "shift-backslash" ;;
         "-") echo "minus" ;;
         ".") echo "dot" ;;
+        "<") echo "shift-comma" ;;
+        ">") echo "shift-dot" ;;
         ":") echo "shift-semicolon" ;;
         "_") echo "shift-minus" ;;
         *) echo "" ;;
@@ -989,6 +1027,7 @@ function RunCommandSpec() {
     local MonitorModeUsed=""
     local WaitStatus=0
     local SpawnVerified=0
+    local IsPipelineCommand=0
 
     if [ -z "$ActionType" ]; then
         echo "Invalid empty action type in command specification."
@@ -1004,6 +1043,10 @@ function RunCommandSpec() {
         sleep "$PreActionDelaySeconds"
     fi
 
+    if [[ "$ActionText" == *"|"* ]]; then
+        IsPipelineCommand=1
+    fi
+
     echo "Running $ActionType: $ActionText"
     if [ "$ActionType" = "command" ]; then
         MonitorModeUsed="$MONITOR_MODE"
@@ -1015,7 +1058,7 @@ function RunCommandSpec() {
 
         Offset="$(GetLogSize)"
         SendCommandWithMode "$ActionText" "$MonitorModeUsed"
-        if [[ "$ActionText" == /* ]]; then
+        if [[ "$ActionText" == /* ]] && [ "$IsPipelineCommand" -eq 0 ]; then
             if RunOptionalCommandCheck VerifySpawnCommandLine "$ActionText" "$Offset" "$ProbeTimeoutSeconds"; then
                 WaitStatus=0
                 SpawnVerified=1
@@ -1036,7 +1079,8 @@ function RunCommandSpec() {
             fi
         fi
         if [ -n "$ExpectedText" ]; then
-            if [ "$MONITOR_MODE" = "auto" ] &&
+            if [ "$IsPipelineCommand" -eq 0 ] &&
+                [ "$MONITOR_MODE" = "auto" ] &&
                 [ "$MonitorModeUsed" = "transient" ] &&
                 [ "$SpawnVerified" -eq 0 ]; then
                 if RunOptionalCommandCheck WaitForExpectedLog "$ExpectedText" "$Offset" "$ProbeTimeoutSeconds"; then
@@ -1052,7 +1096,10 @@ function RunCommandSpec() {
                 fi
             fi
             if [ "$WaitStatus" -ne 0 ]; then
-                if [ "$MONITOR_MODE" = "auto" ] && [ "$MonitorModeUsed" = "transient" ] && [ "$WaitStatus" -eq 2 ]; then
+                if [ "$IsPipelineCommand" -eq 0 ] &&
+                    [ "$MONITOR_MODE" = "auto" ] &&
+                    [ "$MonitorModeUsed" = "transient" ] &&
+                    [ "$WaitStatus" -eq 2 ]; then
                     echo "Retrying command with persistent monitor connection: $ActionText"
                     ACTIVE_MONITOR_MODE="persistent"
                     Offset="$(GetLogSize)"
@@ -1164,7 +1211,7 @@ function RunCommandList() {
                 echo "Invalid command spec segment: $Part"
                 exit 1
             fi
-        done < <(echo "$Line" | tr '|' '\n')
+        done < <(SplitCommandSpecSegments "$Line")
 
         if [ -z "$ActionType" ] || [ -z "$CommandText" ]; then
             echo "Invalid command spec, missing command or hotkey: $Line"

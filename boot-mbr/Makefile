@@ -163,6 +163,9 @@ SLAVE_ELF       = $(CORE_BUILD_DIR)/system/test/slave/slave
 MODULE_HOST_ELF = $(CORE_BUILD_DIR)/system/test/module-host/module-host
 MODULE_SAMPLE_ELF = $(CORE_BUILD_DIR)/system/test/module-sample/module-sample
 MODULE_IMPORT_ELF = $(CORE_BUILD_DIR)/system/test/module-import/module-import
+PIPE_SOURCE_ELF = $(CORE_BUILD_DIR)/system/test/pipe-source/pipe-source
+PIPE_UPPER_ELF = $(CORE_BUILD_DIR)/system/test/pipe-upper/pipe-upper
+PIPE_SUMMARY_ELF = $(CORE_BUILD_DIR)/system/test/pipe-summary/pipe-summary
 SYSTEM_TEST_EPK_STAGING_DIR = $(MBR_BUILD_DIR)/system-test-epk-root
 SYSTEM_TEST_EPK = $(MBR_BUILD_DIR)/test.epk
 EXOS_VERSION_MAJOR = $(shell awk '/#define EXOS_VERSION_MAJOR/ {print $$3; exit}' ../kernel/include/User.h)
@@ -316,7 +319,7 @@ $(CYCLE_BIN):
 
 # Create image only if it does not exist
 FINAL_IMG_DEPS_COMMON = check_tools $(MBR_BIN) $(VBR_BIN) $(PAYLOAD_BIN)
-FINAL_IMG_DEPS_FULL = $(FINAL_IMG_DEPS_COMMON) $(KERNEL_BIN) $(PORTAL_ELF) $(NETGET_ELF) $(HELLO_ELF) $(TICTACTOE_ELF) $(TERMTACTICS_ELF) $(INPUTINFO_ELF) $(MASTER_ELF) $(SLAVE_ELF) $(MODULE_HOST_ELF) $(MODULE_SAMPLE_ELF) $(MODULE_IMPORT_ELF) $(SYSTEM_SCRIPT_FILES)
+FINAL_IMG_DEPS_FULL = $(FINAL_IMG_DEPS_COMMON) $(KERNEL_BIN) $(PORTAL_ELF) $(NETGET_ELF) $(HELLO_ELF) $(TICTACTOE_ELF) $(TERMTACTICS_ELF) $(INPUTINFO_ELF) $(MASTER_ELF) $(SLAVE_ELF) $(MODULE_HOST_ELF) $(MODULE_SAMPLE_ELF) $(MODULE_IMPORT_ELF) $(PIPE_SOURCE_ELF) $(PIPE_UPPER_ELF) $(PIPE_SUMMARY_ELF) $(SYSTEM_SCRIPT_FILES)
 
 ifeq ($(TEST_PAYLOAD),1)
 FINAL_IMG_DEPS = $(FINAL_IMG_DEPS_COMMON)
@@ -401,6 +404,9 @@ update-fat32: check_payload_size $(FINAL_IMG) $(KERNEL_CFG_FAT32) $(SYSTEM_TEST_
 		$(call MCOPY_IF_NEEDED,$(MODULE_HOST_ELF),z:/EXOS/APPS/TEST/module-host)\
 		$(call MCOPY_IF_NEEDED,$(MODULE_SAMPLE_ELF),z:/EXOS/APPS/TEST/module-sample)\
 		$(call MCOPY_IF_NEEDED,$(MODULE_IMPORT_ELF),z:/EXOS/APPS/TEST/module-import)\
+		$(call MCOPY_IF_NEEDED,$(PIPE_SOURCE_ELF),z:/EXOS/APPS/TEST/pipe-source)\
+		$(call MCOPY_IF_NEEDED,$(PIPE_UPPER_ELF),z:/EXOS/APPS/TEST/pipe-upper)\
+		$(call MCOPY_IF_NEEDED,$(PIPE_SUMMARY_ELF),z:/EXOS/APPS/TEST/pipe-summary)\
 		$(call MCOPY_IF_NEEDED,$(SYSTEM_TEST_EPK),z:/EXOS/APPS/TEST.EPK)\
 		for f in $(SYSTEM_SCRIPT_FILES); do \
 			if [ -f "$$f" ]; then \

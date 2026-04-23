@@ -45,6 +45,8 @@
 #define KOID_IOCONTROL 0x54434F49         // "IOCT"
 #define KOID_FILESYSTEM 0x53595346        // "FSYS"
 #define KOID_FILE 0x454C4946              // "FILE"
+#define KOID_PIPE 0x45504950              // "PIPE"
+#define KOID_PIPE_ENDPOINT 0x50504550     // "PEPP"
 #define KOID_GRAPHICSCONTEXT 0x43584647   // "GFXC"
 #define KOID_DESKTOP 0x544B5344           // "DSKT"
 #define KOID_WINDOW 0x444E4957            // "WIND"
