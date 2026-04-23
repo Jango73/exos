@@ -44,6 +44,7 @@ extern DeviceInterruptHandler
 extern Kernel_x86_32
 extern DebugLogSyscallFrame
 extern SystemCallHandler
+extern RestoreCurrentTaskUserTlsBase
 
 section .text
 
@@ -152,6 +153,7 @@ section .text
     mov     es, ax
     pop     rax
     mov     ds, ax
+    call    RestoreCurrentTaskUserTlsBase
 %endmacro
 
 %macro ALIGN_STACK 0

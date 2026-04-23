@@ -53,6 +53,63 @@ static volatile UINT SharedDataResult = 0;
 
 /***************************************************************************/
 
+static HANDLE LoadModuleWithStatus(LPCSTR Path, UINT* StatusOut, UINT* StageOut) {
+    MODULE_LOAD_INFO ModuleInfo;
+    UINT Status;
+
+    memset(&ModuleInfo, 0, sizeof(ModuleInfo));
+    ModuleInfo.Header.Size = sizeof(ModuleInfo);
+    ModuleInfo.Header.Version = EXOS_ABI_VERSION;
+    ModuleInfo.Header.Flags = 0;
+    ModuleInfo.Path = Path;
+    ModuleInfo.Module = 0;
+    ModuleInfo.Flags = 0;
+    ModuleInfo.ModuleIdentifierHigh = 0;
+    ModuleInfo.ModuleIdentifierLow = 0;
+
+    Status = (UINT)exoscall(SYSCALL_LoadModule, EXOS_PARAM(&ModuleInfo));
+    if (StatusOut != NULL) {
+        *StatusOut = Status;
+    }
+    if (StageOut != NULL) {
+        *StageOut = ModuleInfo.Flags;
+    }
+
+    if (Status != DF_RETURN_SUCCESS) {
+        return 0;
+    }
+
+    return ModuleInfo.Module;
+}
+
+/***************************************************************************/
+
+static LPVOID GetModuleSymbolWithStatus(HANDLE Module, LPCSTR Name, UINT* StatusOut) {
+    MODULE_SYMBOL_INFO ModuleInfo;
+    UINT Status;
+
+    memset(&ModuleInfo, 0, sizeof(ModuleInfo));
+    ModuleInfo.Header.Size = sizeof(ModuleInfo);
+    ModuleInfo.Header.Version = EXOS_ABI_VERSION;
+    ModuleInfo.Header.Flags = 0;
+    ModuleInfo.Module = Module;
+    ModuleInfo.Name = Name;
+    ModuleInfo.Address = 0;
+
+    Status = (UINT)exoscall(SYSCALL_GetModuleSymbol, EXOS_PARAM(&ModuleInfo));
+    if (StatusOut != NULL) {
+        *StatusOut = Status;
+    }
+
+    if (Status != DF_RETURN_SUCCESS) {
+        return NULL;
+    }
+
+    return (LPVOID)ModuleInfo.Address;
+}
+
+/***************************************************************************/
+
 static BOOL WaitForFlag(volatile UINT* Flag, UINT TimeoutMilliseconds) {
     UINT StartTime;
 
@@ -101,6 +158,9 @@ static BOOL WaitForChildProcess(void) {
     PROCESS_INFO ProcessInfo;
     WAIT_INFO WaitInfo;
     U32 WaitResult;
+    U32 StartTime;
+    U32 ObjectHandle;
+    U32 Index;
 
     memset(&ProcessInfo, 0, sizeof(ProcessInfo));
     ProcessInfo.Header.Size = sizeof(ProcessInfo);
@@ -122,17 +182,43 @@ static BOOL WaitForChildProcess(void) {
     WaitInfo.Header.Version = EXOS_ABI_VERSION;
     WaitInfo.Header.Flags = 0;
     WaitInfo.Count = 1;
-    WaitInfo.MilliSeconds = 10000;
+    WaitInfo.MilliSeconds = 1000;
     WaitInfo.Flags = WAIT_FLAG_ANY;
-    WaitInfo.Objects[0] = ProcessInfo.Task;
 
-    WaitResult = Wait(&WaitInfo);
-    if (WaitResult != WAIT_OBJECT_0 || WaitInfo.ExitCodes[0] != 0) {
-        MODULE_HOST_FAILURE("Module child process failed wait=%u exit=%u\n", WaitResult, WaitInfo.ExitCodes[0]);
-        return FALSE;
+    StartTime = GetSystemTime();
+    WaitResult = WAIT_INVALID_PARAMETER;
+    for (Index = 0; Index < 2; Index++) {
+        ObjectHandle = (Index == 0) ? (U32)ProcessInfo.Process : (U32)ProcessInfo.Task;
+        WaitInfo.Objects[0] = (HANDLE)ObjectHandle;
+
+        while (GetSystemTime() - StartTime < 10000) {
+            WaitResult = Wait(&WaitInfo);
+            if (WaitResult == WAIT_INVALID_PARAMETER) {
+                Sleep(10);
+                continue;
+            }
+
+            if (WaitResult == WAIT_TIMEOUT) {
+                break;
+            }
+
+            if (WaitResult == WAIT_OBJECT_0 && WaitInfo.ExitCodes[0] == 0) {
+                return TRUE;
+            }
+
+            MODULE_HOST_FAILURE("Module child process failed wait=%u exit=%u object=%p\n",
+                                WaitResult,
+                                WaitInfo.ExitCodes[0],
+                                (HANDLE)ObjectHandle);
+            return FALSE;
+        }
     }
 
-    return TRUE;
+    MODULE_HOST_FAILURE("Module child process wait failed wait=%u process=%p task=%p\n",
+                        WaitResult,
+                        ProcessInfo.Process,
+                        ProcessInfo.Task);
+    return FALSE;
 }
 
 /***************************************************************************/
@@ -141,17 +227,26 @@ static BOOL RunChildModuleTest(void) {
     HANDLE Module;
     MODULE_SAMPLE_ADD ModuleSampleAdd;
     MODULE_SAMPLE_INCREMENT_SHARED ModuleSampleIncrementShared;
+    UINT LoadStatus = 0;
+    UINT LoadStage = 0;
+    UINT SymbolStatus = 0;
 
-    Module = LoadModule((LPCSTR)"/system/apps/test/module-sample");
+    Module = LoadModuleWithStatus((LPCSTR)"/system/apps/test/module-sample", &LoadStatus, &LoadStage);
     if (Module == 0) {
-        MODULE_HOST_FAILURE("Module child load failed\n");
+        MODULE_HOST_FAILURE("Module child load failed status=%u stage=%u\n", LoadStatus, LoadStage);
         return FALSE;
     }
 
-    ModuleSampleAdd = (MODULE_SAMPLE_ADD)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleAdd");
-    ModuleSampleIncrementShared = (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleIncrementShared");
-    if (ModuleSampleAdd == NULL || ModuleSampleIncrementShared == NULL) {
-        MODULE_HOST_FAILURE("Module child symbol lookup failed\n");
+    ModuleSampleAdd = (MODULE_SAMPLE_ADD)GetModuleSymbolWithStatus(Module, (LPCSTR)"ModuleSampleAdd", &SymbolStatus);
+    if (ModuleSampleAdd == NULL) {
+        MODULE_HOST_FAILURE("Module child symbol lookup failed name=ModuleSampleAdd status=%u\n", SymbolStatus);
+        return FALSE;
+    }
+
+    ModuleSampleIncrementShared =
+        (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbolWithStatus(Module, (LPCSTR)"ModuleSampleIncrementShared", &SymbolStatus);
+    if (ModuleSampleIncrementShared == NULL) {
+        MODULE_HOST_FAILURE("Module child symbol lookup failed name=ModuleSampleIncrementShared status=%u\n", SymbolStatus);
         return FALSE;
     }
 
@@ -178,6 +273,9 @@ static BOOL RunParentModuleTest(void) {
     MODULE_SAMPLE_GET_SHARED ModuleSampleGetShared;
     MODULE_IMPORT_RESOLVE ModuleImportResolve;
     UINT Result;
+    UINT LoadStatus = 0;
+    UINT LoadStage = 0;
+    UINT SymbolStatus = 0;
     int LateThread;
     int SharedThread;
 
@@ -189,17 +287,28 @@ static BOOL RunParentModuleTest(void) {
 
     printf("Module host starting...\n");
 
-    Module = LoadModule((LPCSTR)"/system/apps/test/module-sample");
+    Module = LoadModuleWithStatus((LPCSTR)"/system/apps/test/module-sample", &LoadStatus, &LoadStage);
     if (Module == 0) {
-        MODULE_HOST_FAILURE("Module load failed\n");
+        MODULE_HOST_FAILURE("Module load failed status=%u stage=%u\n", LoadStatus, LoadStage);
         return FALSE;
     }
 
-    ModuleSampleAdd = (MODULE_SAMPLE_ADD)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleAdd");
-    ModuleSampleIncrementShared = (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleIncrementShared");
-    ModuleSampleGetShared = (MODULE_SAMPLE_GET_SHARED)GetModuleSymbol(Module, (LPCSTR)"ModuleSampleGetShared");
-    if (ModuleSampleAdd == NULL || ModuleSampleIncrementShared == NULL || ModuleSampleGetShared == NULL) {
-        MODULE_HOST_FAILURE("Module symbol lookup failed\n");
+    ModuleSampleAdd = (MODULE_SAMPLE_ADD)GetModuleSymbolWithStatus(Module, (LPCSTR)"ModuleSampleAdd", &SymbolStatus);
+    if (ModuleSampleAdd == NULL) {
+        MODULE_HOST_FAILURE("Module symbol lookup failed name=ModuleSampleAdd status=%u\n", SymbolStatus);
+        return FALSE;
+    }
+
+    ModuleSampleIncrementShared =
+        (MODULE_SAMPLE_INCREMENT_SHARED)GetModuleSymbolWithStatus(Module, (LPCSTR)"ModuleSampleIncrementShared", &SymbolStatus);
+    if (ModuleSampleIncrementShared == NULL) {
+        MODULE_HOST_FAILURE("Module symbol lookup failed name=ModuleSampleIncrementShared status=%u\n", SymbolStatus);
+        return FALSE;
+    }
+
+    ModuleSampleGetShared = (MODULE_SAMPLE_GET_SHARED)GetModuleSymbolWithStatus(Module, (LPCSTR)"ModuleSampleGetShared", &SymbolStatus);
+    if (ModuleSampleGetShared == NULL) {
+        MODULE_HOST_FAILURE("Module symbol lookup failed name=ModuleSampleGetShared status=%u\n", SymbolStatus);
         return FALSE;
     }
 
@@ -235,15 +344,20 @@ static BOOL RunParentModuleTest(void) {
         return FALSE;
     }
 
-    ImportModule = LoadModule((LPCSTR)"/system/apps/test/module-import");
+    ImportModule = LoadModuleWithStatus((LPCSTR)"/system/apps/test/module-import", &LoadStatus, &LoadStage);
     if (ImportModule == 0) {
-        MODULE_HOST_FAILURE("Module import load failed\n");
+        MODULE_HOST_FAILURE("Module import load failed status=%u stage=%u\n", LoadStatus, LoadStage);
         return FALSE;
     }
 
-    ModuleImportResolve = (MODULE_IMPORT_RESOLVE)GetModuleSymbol(ImportModule, (LPCSTR)"ModuleImportResolve");
-    if (ModuleImportResolve == NULL || ModuleImportResolve() != 0x123D) {
-        MODULE_HOST_FAILURE("Module import resolver failed\n");
+    ModuleImportResolve = (MODULE_IMPORT_RESOLVE)GetModuleSymbolWithStatus(ImportModule, (LPCSTR)"ModuleImportResolve", &SymbolStatus);
+    if (ModuleImportResolve == NULL) {
+        MODULE_HOST_FAILURE("Module import resolver failed name=ModuleImportResolve status=%u\n", SymbolStatus);
+        return FALSE;
+    }
+
+    if (ModuleImportResolve() != 0x123D) {
+        MODULE_HOST_FAILURE("Module import resolver failed wrong-result\n");
         return FALSE;
     }
 

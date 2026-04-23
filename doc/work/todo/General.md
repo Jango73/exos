@@ -39,6 +39,8 @@
 
 - [x] Execute Syscall-Return-ABI.md
 
+- [ ] Enrich the module loading smoke test
+
 - [ ] Implement stdin/stdout/stderr
 
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps

@@ -288,9 +288,13 @@ static BOOL BuildExecutableModuleSharedSegment(
     UINT SegmentIndex,
     LPEXECUTABLE_MODULE_SHARED_SEGMENT SharedSegment) {
     UINT VirtualAddressOffset;
-    UINT FileBackedSize;
+    UINT FileBackedStart;
+    UINT FileBackedEnd;
     UINT PageCount;
     UINT PageIndex;
+    U8* PageBuffer = NULL;
+    UINT ReadOffset;
+    UINT ReadSize;
 
     if (File == NULL || Segment == NULL || SharedSegment == NULL) {
         return FALSE;
@@ -305,7 +309,8 @@ static BOOL BuildExecutableModuleSharedSegment(
         return FALSE;
     }
 
-    FileBackedSize = VirtualAddressOffset + Segment->FileSize;
+    FileBackedStart = VirtualAddressOffset;
+    FileBackedEnd = VirtualAddressOffset + Segment->FileSize;
     PageCount = (UINT)(PAGE_ALIGN(VirtualAddressOffset + Segment->MemorySize) >> PAGE_SIZE_MUL);
     if (PageCount == 0) {
         return FALSE;
@@ -323,61 +328,73 @@ static BOOL BuildExecutableModuleSharedSegment(
     SharedSegment->SegmentIndex = SegmentIndex;
     SharedSegment->AlignedVirtualAddress = Segment->VirtualAddress - VirtualAddressOffset;
     SharedSegment->VirtualAddressOffset = VirtualAddressOffset;
-    SharedSegment->FileBackedSize = FileBackedSize;
+    SharedSegment->FileBackedSize = FileBackedEnd;
     SharedSegment->MemorySize = (UINT)PAGE_ALIGN(VirtualAddressOffset + Segment->MemorySize);
     SharedSegment->PageCount = PageCount;
+    PageBuffer = (U8*)KernelHeapAlloc(PAGE_SIZE);
+    if (PageBuffer == NULL) {
+        ERROR(TEXT("KernelHeapAlloc failed page_buffer"));
+        DeleteExecutableModuleSharedSegment(SharedSegment);
+        return FALSE;
+    }
 
     for (PageIndex = 0; PageIndex < PageCount; PageIndex++) {
         PHYSICAL PhysicalPage = AllocPhysicalPage();
-        LINEAR MappedPage = 0;
         UINT PageReadOffset = PageIndex << PAGE_SIZE_MUL;
-        UINT ReadOffset;
-        UINT ReadSize;
 
         if (PhysicalPage == 0) {
             ERROR(TEXT("AllocPhysicalPage failed index=%u page=%u"),
                 SegmentIndex,
                 PageIndex);
+            KernelHeapFree(PageBuffer);
             DeleteExecutableModuleSharedSegment(SharedSegment);
             return FALSE;
         }
 
         SharedSegment->PhysicalPages[PageIndex] = PhysicalPage;
-        MappedPage = MapTemporaryPhysicalPage1(PhysicalPage);
-        if (MappedPage == 0) {
-            ERROR(TEXT("MapTemporaryPhysicalPage1 failed index=%u page=%u"),
-                SegmentIndex,
-                PageIndex);
-            DeleteExecutableModuleSharedSegment(SharedSegment);
-            return FALSE;
+        MemorySet(PageBuffer, 0, PAGE_SIZE);
+        ReadOffset = 0;
+        ReadSize = 0;
+
+        if (Segment->FileSize != 0 && PageReadOffset < FileBackedEnd) {
+            UINT PageEnd = PageReadOffset + PAGE_SIZE;
+            UINT DataStart = (PageReadOffset > FileBackedStart) ? PageReadOffset : FileBackedStart;
+            UINT DataEnd = (PageEnd < FileBackedEnd) ? PageEnd : FileBackedEnd;
+            UINT DestinationOffset;
+
+            if (DataStart < DataEnd) {
+                DestinationOffset = DataStart - PageReadOffset;
+                ReadOffset = Segment->FileOffset + (DataStart - FileBackedStart);
+                ReadSize = DataEnd - DataStart;
+
+                if (!ReadExecutableModuleFileBytes(File, ReadOffset, (LPVOID)(PageBuffer + DestinationOffset), ReadSize)) {
+                    ERROR(TEXT("ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"),
+                        SegmentIndex,
+                        ReadOffset,
+                        ReadSize);
+                    KernelHeapFree(PageBuffer);
+                    DeleteExecutableModuleSharedSegment(SharedSegment);
+                    return FALSE;
+                }
+            }
         }
 
-        MemorySet((LPVOID)MappedPage, 0, PAGE_SIZE);
+        {
+            LINEAR MappedPage = MapTemporaryPhysicalPage1(PhysicalPage);
+            if (MappedPage == 0) {
+                ERROR(TEXT("MapTemporaryPhysicalPage1 failed index=%u page=%u"),
+                    SegmentIndex,
+                    PageIndex);
+                KernelHeapFree(PageBuffer);
+                DeleteExecutableModuleSharedSegment(SharedSegment);
+                return FALSE;
+            }
 
-        if (Segment->FileSize == 0) {
-            continue;
-        }
-
-        if (PageReadOffset >= FileBackedSize) {
-            continue;
-        }
-
-        ReadOffset = Segment->FileOffset - VirtualAddressOffset + PageReadOffset;
-        ReadSize = FileBackedSize - PageReadOffset;
-        if (ReadSize > PAGE_SIZE) {
-            ReadSize = PAGE_SIZE;
-        }
-
-        if (!ReadExecutableModuleFileBytes(File, ReadOffset, (LPVOID)MappedPage, ReadSize)) {
-            ERROR(TEXT("ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"),
-                SegmentIndex,
-                ReadOffset,
-                ReadSize);
-            DeleteExecutableModuleSharedSegment(SharedSegment);
-            return FALSE;
+            MemoryCopy((LPVOID)MappedPage, (LPCVOID)PageBuffer, PAGE_SIZE);
         }
     }
 
+    KernelHeapFree(PageBuffer);
     return TRUE;
 }
 

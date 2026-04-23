@@ -35,6 +35,8 @@
 #include "system/System.h"
 #include "text/Text.h"
 
+#define PAGE_FAULT_ERROR_USER_MODE 0x4
+
 // Conservative pointer checks. If StackLow/High are zero, use heuristics.
 /*
 static BOOL IsFramePointerSane(U32 CurEbp, U32 PrevEbp, U32 StackLow, U32 StackHigh) {
@@ -376,7 +378,8 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
           Frame->Registers.EIP,
           Frame->Registers.ESP);
 
-    if (ResolveKernelPageFault(FaultAddress)) {
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) &&
+        ResolveKernelPageFault(FaultAddress)) {
         DEBUG(TEXT("Resolved kernel page fault %X"), FaultAddress);
         return;
     }

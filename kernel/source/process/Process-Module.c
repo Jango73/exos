@@ -921,6 +921,8 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
 
                 if (PrivateSegment->Present != FALSE) {
                     if (!InstallProcessModulePrivateSegment(Process, Binding, PrivateSegment)) {
+                        WARNING(TEXT("[InstallProcessModuleBindingSegments] Private segment install failed index=%u"),
+                                SegmentIndex);
                         UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                         UnlockMutex(&(Process->Mutex));
                         return FALSE;
@@ -930,6 +932,8 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
 
                 if (SharedSegment->Present != FALSE) {
                     if (!InstallProcessModuleSharedSegment(Process, Binding, SharedSegment)) {
+                        WARNING(TEXT("[InstallProcessModuleBindingSegments] Shared segment install failed index=%u"),
+                                SegmentIndex);
                         UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                         UnlockMutex(&(Process->Mutex));
                         return FALSE;
@@ -946,18 +950,21 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
                     Binding->SegmentSizes,
                     ResolveProcessModuleSymbol,
                     &ResolverContext)) {
+                WARNING(TEXT("[InstallProcessModuleBindingSegments] Relocation failed"));
                 UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                 UnlockMutex(&(Process->Mutex));
                 return FALSE;
             }
 
             if (!InitializeProcessModuleGlobalDataLocked(Binding)) {
+                WARNING(TEXT("[InstallProcessModuleBindingSegments] Global data init failed"));
                 UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                 UnlockMutex(&(Process->Mutex));
                 return FALSE;
             }
 
             if (!InitializeProcessModuleTls(Process, Binding)) {
+                WARNING(TEXT("[InstallProcessModuleBindingSegments] TLS init failed"));
                 UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                 UnlockMutex(&(Process->Mutex));
                 return FALSE;

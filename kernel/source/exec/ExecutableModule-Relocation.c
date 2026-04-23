@@ -134,17 +134,31 @@ static BOOL ResolveExecutableMappedSymbol32(
     LINEAR SymbolTableAddress;
     LINEAR StringTableAddress;
     UINT SymbolCount;
+    UINT DumpLimit;
+    BOOL InvalidNameOffsetFound = FALSE;
 
     SymbolTableAddress = Mapper(MapperContext, SymbolTable->SymbolTableAddress);
     StringTableAddress = Mapper(MapperContext, SymbolTable->StringTableAddress);
     if (SymbolTableAddress == 0 || StringTableAddress == 0 || SymbolTable->SymbolEntrySize == 0) {
+        WARNING(TEXT("Invalid symbol table mapping name=%s sym=%p str=%p ent=%u"),
+                Name,
+                (LPVOID)SymbolTableAddress,
+                (LPVOID)StringTableAddress,
+                SymbolTable->SymbolEntrySize);
         return FALSE;
     }
 
     SymbolCount = SymbolTable->SymbolTableSize / SymbolTable->SymbolEntrySize;
     for (UINT SymbolIndex = 0; SymbolIndex < SymbolCount; SymbolIndex++) {
         LPEXECUTABLE_ELF32_SYMBOL Symbol = (LPEXECUTABLE_ELF32_SYMBOL)(SymbolTableAddress + SymbolIndex * SymbolTable->SymbolEntrySize);
-        LPCSTR SymbolName = (LPCSTR)(StringTableAddress + Symbol->Name);
+        LPCSTR SymbolName;
+
+        if (Symbol->Name >= SymbolTable->StringTableSize) {
+            InvalidNameOffsetFound = TRUE;
+            continue;
+        }
+
+        SymbolName = (LPCSTR)(StringTableAddress + Symbol->Name);
 
         if (!ExecutableSymbolCanExport(Symbol->Info, Symbol->SectionIndex)) {
             continue;
@@ -156,6 +170,31 @@ static BOOL ResolveExecutableMappedSymbol32(
 
         *Address = Mapper(MapperContext, Symbol->Value);
         return *Address != 0;
+    }
+
+    WARNING(TEXT("Symbol not found name=%s count=%u sym=%p str=%p sym_size=%u str_size=%u bad_name_offset=%u"),
+            Name,
+            SymbolCount,
+            (LPVOID)SymbolTableAddress,
+            (LPVOID)StringTableAddress,
+            SymbolTable->SymbolTableSize,
+            SymbolTable->StringTableSize,
+            InvalidNameOffsetFound ? 1 : 0);
+
+    DumpLimit = SymbolCount;
+    if (DumpLimit > 4) {
+        DumpLimit = 4;
+    }
+
+    for (UINT SymbolIndex = 0; SymbolIndex < DumpLimit; SymbolIndex++) {
+        LPEXECUTABLE_ELF32_SYMBOL Symbol = (LPEXECUTABLE_ELF32_SYMBOL)(SymbolTableAddress + SymbolIndex * SymbolTable->SymbolEntrySize);
+
+        DEBUG(TEXT("sample idx=%u name_off=%u info=%x shndx=%u value=%x"),
+              SymbolIndex,
+              Symbol->Name,
+              Symbol->Info,
+              Symbol->SectionIndex,
+              Symbol->Value);
     }
 
     return FALSE;
@@ -177,17 +216,31 @@ static BOOL ResolveExecutableMappedSymbol64(
     LINEAR SymbolTableAddress;
     LINEAR StringTableAddress;
     UINT SymbolCount;
+    UINT DumpLimit;
+    BOOL InvalidNameOffsetFound = FALSE;
 
     SymbolTableAddress = Mapper(MapperContext, SymbolTable->SymbolTableAddress);
     StringTableAddress = Mapper(MapperContext, SymbolTable->StringTableAddress);
     if (SymbolTableAddress == 0 || StringTableAddress == 0 || SymbolTable->SymbolEntrySize == 0) {
+        WARNING(TEXT("Invalid symbol table mapping name=%s sym=%p str=%p ent=%u"),
+                Name,
+                (LPVOID)SymbolTableAddress,
+                (LPVOID)StringTableAddress,
+                SymbolTable->SymbolEntrySize);
         return FALSE;
     }
 
     SymbolCount = SymbolTable->SymbolTableSize / SymbolTable->SymbolEntrySize;
     for (UINT SymbolIndex = 0; SymbolIndex < SymbolCount; SymbolIndex++) {
         LPEXECUTABLE_ELF64_SYMBOL Symbol = (LPEXECUTABLE_ELF64_SYMBOL)(SymbolTableAddress + SymbolIndex * SymbolTable->SymbolEntrySize);
-        LPCSTR SymbolName = (LPCSTR)(StringTableAddress + Symbol->Name);
+        LPCSTR SymbolName;
+
+        if (Symbol->Name >= SymbolTable->StringTableSize) {
+            InvalidNameOffsetFound = TRUE;
+            continue;
+        }
+
+        SymbolName = (LPCSTR)(StringTableAddress + Symbol->Name);
 
         if (!ExecutableSymbolCanExport(Symbol->Info, Symbol->SectionIndex)) {
             continue;
@@ -199,6 +252,31 @@ static BOOL ResolveExecutableMappedSymbol64(
 
         *Address = Mapper(MapperContext, (UINT)Symbol->Value);
         return *Address != 0;
+    }
+
+    WARNING(TEXT("Symbol not found name=%s count=%u sym=%p str=%p sym_size=%u str_size=%u bad_name_offset=%u"),
+            Name,
+            SymbolCount,
+            (LPVOID)SymbolTableAddress,
+            (LPVOID)StringTableAddress,
+            SymbolTable->SymbolTableSize,
+            SymbolTable->StringTableSize,
+            InvalidNameOffsetFound ? 1 : 0);
+
+    DumpLimit = SymbolCount;
+    if (DumpLimit > 4) {
+        DumpLimit = 4;
+    }
+
+    for (UINT SymbolIndex = 0; SymbolIndex < DumpLimit; SymbolIndex++) {
+        LPEXECUTABLE_ELF64_SYMBOL Symbol = (LPEXECUTABLE_ELF64_SYMBOL)(SymbolTableAddress + SymbolIndex * SymbolTable->SymbolEntrySize);
+
+        DEBUG(TEXT("sample idx=%u name_off=%u info=%x shndx=%u value=%x"),
+              SymbolIndex,
+              Symbol->Name,
+              Symbol->Info,
+              Symbol->SectionIndex,
+              (UINT)Symbol->Value);
     }
 
     return FALSE;
@@ -426,6 +504,11 @@ static BOOL RelocateExecutableModuleTable32(
     SymbolTableAddress = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, SymbolTable->SymbolTableAddress, FALSE);
     StringTableAddress = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, SymbolTable->StringTableAddress, FALSE);
     if (TableAddress == 0 || SymbolTableAddress == 0 || StringTableAddress == 0 || Table->EntrySize == 0) {
+        WARNING(TEXT("[RelocateExecutableModuleTable64] Invalid table mapping table=%p sym=%p str=%p entry_size=%u"),
+                (LPVOID)TableAddress,
+                (LPVOID)SymbolTableAddress,
+                (LPVOID)StringTableAddress,
+                Table->EntrySize);
         return FALSE;
     }
 
@@ -446,6 +529,12 @@ static BOOL RelocateExecutableModuleTable32(
 
             Offset = Rel->Offset;
             Info = Rel->Info;
+            SymbolIndex = Info >> 8;
+            Type = Info & 0xFF;
+            if (Type == R_386_NONE) {
+                continue;
+            }
+
             Target = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, Offset, TRUE);
             if (Target == 0) return FALSE;
             Addend = *((U32*)Target);
@@ -455,12 +544,16 @@ static BOOL RelocateExecutableModuleTable32(
             Offset = Rela->Offset;
             Info = Rela->Info;
             Addend = (UINT)Rela->Addend;
+            SymbolIndex = Info >> 8;
+            Type = Info & 0xFF;
+            if (Type == R_386_NONE) {
+                continue;
+            }
+
             Target = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, Offset, TRUE);
             if (Target == 0) return FALSE;
         }
 
-        SymbolIndex = Info >> 8;
-        Type = Info & 0xFF;
         if (Type == R_386_TLS_TPOFF) {
             if (!ApplyExecutableModuleTlsRelocation32(Type, Target, Addend, Image->Metadata.Tls.TotalSize)) return FALSE;
             continue;
@@ -543,6 +636,11 @@ static BOOL ApplyExecutableModuleRelocation64(U32 Type, LINEAR Target, LINEAR Sy
  */
 static BOOL ApplyExecutableModuleTlsRelocation64(U32 Type, LINEAR Target, UINT Addend, UINT TlsSize) {
     if (Target == 0 || TlsSize == 0) {
+        WARNING(TEXT("[ApplyExecutableModuleTlsRelocation64] Invalid TLS relocation type=%u target=%p addend=%u tls_size=%u"),
+                Type,
+                (LPVOID)Target,
+                Addend,
+                TlsSize);
         return FALSE;
     }
 
@@ -597,8 +695,19 @@ static BOOL RelocateExecutableModuleTable64(
 
             Offset = Rel->Offset;
             Info = Rel->Info;
+            SymbolIndex = (UINT)(Info >> 32);
+            Type = (U32)(Info & 0xFFFFFFFF);
+            if (Type == R_X86_64_NONE) {
+                continue;
+            }
+
             Target = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, (UINT)Offset, TRUE);
-            if (Target == 0) return FALSE;
+            if (Target == 0) {
+                WARNING(TEXT("[RelocateExecutableModuleTable64] REL target map failed index=%u offset=%x"),
+                        RelocationIndex,
+                        (UINT)Offset);
+                return FALSE;
+            }
             Addend = *((UINT*)Target);
         } else {
             LPEXECUTABLE_ELF64_RELA Rela = (LPEXECUTABLE_ELF64_RELA)(TableAddress + RelocationIndex * Table->EntrySize);
@@ -606,14 +715,30 @@ static BOOL RelocateExecutableModuleTable64(
             Offset = Rela->Offset;
             Info = Rela->Info;
             Addend = (UINT)Rela->Addend;
+            SymbolIndex = (UINT)(Info >> 32);
+            Type = (U32)(Info & 0xFFFFFFFF);
+            if (Type == R_X86_64_NONE) {
+                continue;
+            }
+
             Target = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, (UINT)Offset, TRUE);
-            if (Target == 0) return FALSE;
+            if (Target == 0) {
+                WARNING(TEXT("[RelocateExecutableModuleTable64] RELA target map failed index=%u offset=%x"),
+                        RelocationIndex,
+                        (UINT)Offset);
+                return FALSE;
+            }
         }
 
-        SymbolIndex = (UINT)(Info >> 32);
-        Type = (U32)(Info & 0xFFFFFFFF);
         if (Type == R_X86_64_TPOFF64) {
-            if (!ApplyExecutableModuleTlsRelocation64(Type, Target, Addend, Image->Metadata.Tls.TotalSize)) return FALSE;
+            if (!ApplyExecutableModuleTlsRelocation64(Type, Target, Addend, Image->Metadata.Tls.TotalSize)) {
+                WARNING(TEXT("[RelocateExecutableModuleTable64] TLS relocation failed index=%u offset=%x addend=%u tls_size=%u"),
+                        RelocationIndex,
+                        (UINT)Offset,
+                        Addend,
+                        Image->Metadata.Tls.TotalSize);
+                return FALSE;
+            }
             continue;
         }
 
@@ -622,7 +747,12 @@ static BOOL RelocateExecutableModuleTable64(
 
         if (Type == R_X86_64_RELATIVE) {
             SymbolAddress = MapExecutableModuleVirtualAddress(Image, SegmentBases, SegmentSizes, Addend, FALSE);
-            if (Addend != 0 && SymbolAddress == 0) return FALSE;
+            if (Addend != 0 && SymbolAddress == 0) {
+                WARNING(TEXT("[RelocateExecutableModuleTable64] Relative relocation map failed index=%u addend=%u"),
+                        RelocationIndex,
+                        Addend);
+                return FALSE;
+            }
         } else if (!ResolveExecutableModuleSymbol(
                        Image,
                        SegmentBases,
@@ -639,7 +769,12 @@ static BOOL RelocateExecutableModuleTable64(
             return FALSE;
         }
 
-        if (!ApplyExecutableModuleRelocation64(Type, Target, SymbolAddress, Addend)) return FALSE;
+        if (!ApplyExecutableModuleRelocation64(Type, Target, SymbolAddress, Addend)) {
+            WARNING(TEXT("[RelocateExecutableModuleTable64] Apply relocation failed index=%u type=%u"),
+                    RelocationIndex,
+                    Type);
+            return FALSE;
+        }
     }
 
     return TRUE;
