@@ -22,7 +22,14 @@
 // Header.Size with sizeof(struct), set Header.Version to EXOS_ABI_VERSION, and clear
 // Header.Flags before invoking system calls.
 
-HANDLE CreateTask(LPTASK_INFO TaskInfo) { return (HANDLE)exoscall(SYSCALL_CreateTask, EXOS_PARAM(TaskInfo)); }
+UINT CreateTask(LPTASK_INFO TaskInfo) {
+    if (TaskInfo == NULL) {
+        return DF_RETURN_BAD_PARAMETER;
+    }
+
+    TaskInfo->Task = 0;
+    return (UINT)exoscall(SYSCALL_CreateTask, EXOS_PARAM(TaskInfo));
+}
 
 /***************************************************************************/
 

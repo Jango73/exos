@@ -455,6 +455,7 @@ typedef struct PACKED tag_TASK_INFO {
     U32 Flags;
     SECURITY_ATTRIBUTES Security;
     STR Name[MAX_USER_NAME];
+    HANDLE Task;
 } TASK_INFO, *LPTASK_INFO;
 
 typedef struct PACKED tag_MESSAGE_INFO {

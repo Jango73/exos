@@ -299,6 +299,7 @@ unsigned getkeymodifiers(void) {
 #ifndef __KERNEL__
 int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_list) {
     TASK_INFO TaskInfo;
+    UINT Result;
 
     memset(&TaskInfo, 0, sizeof(TaskInfo));
 
@@ -313,8 +314,14 @@ int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_li
     TaskInfo.StackSize = (U32)stack_size;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
     TaskInfo.Flags = 0;
+    TaskInfo.Task = 0;
 
-    return (int)exoscall(SYSCALL_CreateTask, EXOS_PARAM(&TaskInfo));
+    Result = (UINT)exoscall(SYSCALL_CreateTask, EXOS_PARAM(&TaskInfo));
+    if (Result != DF_RETURN_SUCCESS || TaskInfo.Task == NULL) {
+        return 0;
+    }
+
+    return (int)TaskInfo.Task;
 }
 #endif
 
@@ -333,6 +340,7 @@ void sleep(unsigned ms) { exoscall(SYSCALL_Sleep, EXOS_PARAM(ms)); }
 #ifndef __KERNEL__
 int system(const char* __cmd) {
     PROCESS_INFO ProcessInfo;
+    UINT Result;
 
     memset(&ProcessInfo, 0, sizeof(ProcessInfo));
 
@@ -344,8 +352,11 @@ int system(const char* __cmd) {
     ProcessInfo.StdOut = NULL;
     ProcessInfo.StdIn = NULL;
     ProcessInfo.StdErr = NULL;
+    ProcessInfo.Process = NULL;
+    ProcessInfo.Task = NULL;
 
-    return (int)exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo));
+    Result = (UINT)exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo));
+    return (int)Result;
 }
 #endif
 

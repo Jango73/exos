@@ -377,8 +377,9 @@ BOOL InitApplication(void) {
     TaskInfo.StackSize = 65536;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
     TaskInfo.Flags = 0;
+    TaskInfo.Task = NULL;
 
-    if (CreateTask(&TaskInfo) == NULL) return FALSE;
+    if (!ExosIsSuccess(CreateTask(&TaskInfo)) || TaskInfo.Task == NULL) return FALSE;
 
     Sleep(500);
 

@@ -622,6 +622,15 @@ exos-runtime-c.c : malloc() (or any other function)
                     └── whew... finally job is done
 ```
 
+#### Syscall return ABI contract
+
+Syscalls that use user-provided `*_INFO` payloads follow one return contract:
+- the syscall return register carries only `DF_RETURN_*` status codes;
+- payload values are written back through explicit output fields in the same structure;
+- callers must check `Result == DF_RETURN_SUCCESS` before reading output fields.
+
+`CreateProcess` follows this pattern by returning `DF_RETURN_*` and writing created handles in `PROCESS_INFO.Process` and `PROCESS_INFO.Task`. `CreateTask` returns `DF_RETURN_*` and writes the created task handle in `TASK_INFO.Task`. Runtime wrappers expose `ExosIsSuccess(...)` so userland checks are consistent.
+
 ### Task and window message delivery
 
 Tasks and processes own fixed-size message queues (`MESSAGEQUEUE` in `kernel/source/process/Task-Messaging.c`) backed by dedicated virtual memory regions and operated through `utils/MessageQueue`. Task queues are allocated at task creation (`TaskInitializeMessageBuffer` in `kernel/source/process/Task.c`), while process queues are allocated on demand (`EnsureProcessMessageQueue`). Both use the process `System` arena (`ProcessArenaAllocateSystem`) so queue storage does not consume heap expansion space. Queue operations do not allocate or free entries during message posting/retrieval. If a target queue does not exist, posted messages are dropped and keyboard input continues down the classic buffered path for `getkey()` (used by the shell). When a process message queue exists, the keyboard helpers (`PeekChar`, `GetChar`, `GetKeyCode`) consume key events from that queue by discarding `EWM_KEYUP` messages and returning the first `EWM_KEYDOWN`, then fall back to the classic buffer when no queue exists. Each queue is capped to 100 pending messages and guarded by a per-queue mutex plus a waiting flag. `WaitForMessage` marks the task queue as waiting and sleeps the task; `AddTaskMessage` wakes the task when a new message arrives and clears the waiting flag.

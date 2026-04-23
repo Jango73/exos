@@ -63,6 +63,7 @@ RUN_X86_64_UEFI=1
 SKIP_BUILD=0
 STOP_AFTER_SHELL_READY=0
 ENABLE_HASH_COMPARE=0
+KEEP_QEMU_ON_FAIL=0
 CURRENT_IMAGE_PATH=""
 CURRENT_FS_OFFSET=0
 CURRENT_ARCHIVE_NAME=""
@@ -73,9 +74,10 @@ SCRIPT_DISPLAY_NAME="${SMOKE_TEST_SCRIPT_NAME:-$0}"
 SMOKE_TEST_SUMMARY_ENABLED=0
 SMOKE_TEST_FAILED_TARGET=""
 ACTIVE_MONITOR_MODE=""
+ACTIVE_QEMU_SESSION_PID=""
 
 function Usage() {
-    echo "Usage: $SCRIPT_DISPLAY_NAME [--only <x86-32|x86-32-rtl8139|x86-64|x86-64-uefi>] [--commands-file <path>] [--no-build] [--stop-after-shell] [--no-keyboard-layout-patch] [--hash-compare] [--key-delay <seconds>] [--command-delay <seconds>] [--boot-input-delay <seconds>] [--help]"
+    echo "Usage: $SCRIPT_DISPLAY_NAME [--only <x86-32|x86-32-rtl8139|x86-64|x86-64-uefi>] [--commands-file <path>] [--no-build] [--stop-after-shell] [--keep-qemu-on-fail] [--no-keyboard-layout-patch] [--hash-compare] [--key-delay <seconds>] [--command-delay <seconds>] [--boot-input-delay <seconds>] [--help]"
 }
 
 function ParseArguments() {
@@ -153,6 +155,9 @@ function ParseArguments() {
                 ;;
             --stop-after-shell)
                 STOP_AFTER_SHELL_READY=1
+                ;;
+            --keep-qemu-on-fail)
+                KEEP_QEMU_ON_FAIL=1
                 ;;
             --no-keyboard-layout-patch)
                 PATCH_KEYBOARD_LAYOUT=0
@@ -495,6 +500,9 @@ function OnScriptExit() {
     local ExitCode="$1"
     if [ "$ExitCode" -ne 0 ]; then
         ArchiveCurrentRunLogs "fail"
+        StopActiveQemuSessionOnFailureIfNeeded
+    else
+        StopActiveQemuSession
     fi
     StopLocalHttpServer
     if [ "$SMOKE_TEST_SUMMARY_ENABLED" -eq 1 ]; then
@@ -1173,6 +1181,55 @@ function StopQemu() {
     exec 3>&- || true
 }
 
+function StopActiveQemuSession() {
+    local QemuSessionPid="$ACTIVE_QEMU_SESSION_PID"
+    local ShutdownStart=""
+    local ShutdownTimeout=4
+
+    if [ -z "$QemuSessionPid" ]; then
+        return 0
+    fi
+
+    if kill -0 "$QemuSessionPid" 2>/dev/null; then
+        StopQemu
+    fi
+
+    ShutdownStart="$SECONDS"
+    while kill -0 "$QemuSessionPid" 2>/dev/null; do
+        if [ $((SECONDS - ShutdownStart)) -ge "$ShutdownTimeout" ]; then
+            break
+        fi
+        sleep 0.2
+    done
+
+    if kill -0 "$QemuSessionPid" 2>/dev/null; then
+        kill -- -"$QemuSessionPid" 2>/dev/null || kill "$QemuSessionPid" 2>/dev/null || true
+    fi
+
+    ShutdownStart="$SECONDS"
+    while kill -0 "$QemuSessionPid" 2>/dev/null; do
+        if [ $((SECONDS - ShutdownStart)) -ge "$ShutdownTimeout" ]; then
+            break
+        fi
+        sleep 0.2
+    done
+
+    if kill -0 "$QemuSessionPid" 2>/dev/null; then
+        kill -9 -- -"$QemuSessionPid" 2>/dev/null || kill -9 "$QemuSessionPid" 2>/dev/null || true
+    fi
+
+    wait "$QemuSessionPid" 2>/dev/null || true
+    ACTIVE_QEMU_SESSION_PID=""
+}
+
+function StopActiveQemuSessionOnFailureIfNeeded() {
+    if [ "$KEEP_QEMU_ON_FAIL" -eq 1 ]; then
+        return 0
+    fi
+
+    StopActiveQemuSession
+}
+
 function RunArchitecture() {
     # End-to-end flow for one target (build, run, drive shell, validate, shutdown).
     local Name="$1"
@@ -1216,13 +1273,13 @@ function RunArchitecture() {
     local ShutdownWaitStart
     local ShutdownWaitTimeout=20
 
-    bash -c "cd \"$ROOT_DIR\" && $QemuScript" &
+    setsid bash -c "cd \"$ROOT_DIR\" && $QemuScript" &
     local QemuPid=$!
-    trap 'if [ -n "${QemuPid:-}" ] && kill -0 "${QemuPid}" 2>/dev/null; then kill "${QemuPid}" || true; fi' RETURN
+    ACTIVE_QEMU_SESSION_PID="$QemuPid"
 
     if ! WaitForMonitor; then
         echo "QEMU monitor did not start."
-        kill "$QemuPid" || true
+        StopActiveQemuSessionOnFailureIfNeeded
         exit 1
     fi
 
@@ -1237,12 +1294,13 @@ function RunArchitecture() {
         while kill -0 "$QemuPid" 2>/dev/null; do
             if [ $((SECONDS - ShutdownWaitStart)) -ge "$ShutdownWaitTimeout" ]; then
                 echo "Timed out waiting for QEMU shutdown after shell-ready stop."
-                kill "$QemuPid" || true
+                StopActiveQemuSessionOnFailureIfNeeded
                 exit 1
             fi
             sleep 0.2
         done
         wait "$QemuPid" || true
+        ACTIVE_QEMU_SESSION_PID=""
         ArchiveCurrentRunLogs "pass"
         return 0
     fi
@@ -1253,13 +1311,14 @@ function RunArchitecture() {
     while kill -0 "$QemuPid" 2>/dev/null; do
         if [ $((SECONDS - ShutdownWaitStart)) -ge "$ShutdownWaitTimeout" ]; then
             echo "Timed out waiting for QEMU shutdown from shell command."
-            kill "$QemuPid" || true
+            StopActiveQemuSessionOnFailureIfNeeded
             exit 1
         fi
         sleep 0.2
     done
 
     wait "$QemuPid" || true
+    ACTIVE_QEMU_SESSION_PID=""
     ArchiveCurrentRunLogs "pass"
     SMOKE_TEST_FAILED_TARGET=""
 }

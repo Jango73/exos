@@ -112,7 +112,7 @@ static BOOL WaitForChildProcess(void) {
     ProcessInfo.StdIn = NULL;
     ProcessInfo.StdErr = NULL;
 
-    if (exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo)) == 0) {
+    if (!ExosIsSuccess((UINT)exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo)))) {
         MODULE_HOST_FAILURE("Module child process creation failed\n");
         return FALSE;
     }
@@ -251,6 +251,7 @@ static BOOL RunParentModuleTest(void) {
         return FALSE;
     }
 
+    debug("module-host success\n");
     return TRUE;
 }
 

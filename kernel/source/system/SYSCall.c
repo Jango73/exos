@@ -250,23 +250,45 @@ UINT SysCall_DeleteObject(UINT Parameter) {
  * fails.
  *
  * @param Parameter Pointer to PROCESS_INFO structure supplied by userland.
- * @return UINT Result code from CreateProcess or an error code.
+ * @return UINT DF_RETURN_SUCCESS on success, error code otherwise.
  */
 UINT SysCall_CreateProcess(UINT Parameter) {
     LPPROCESS_INFO Info = (LPPROCESS_INFO)Parameter;
+    LPPROCESS Process;
+    LPTASK Task;
+    HANDLE ProcessHandle;
+    HANDLE TaskHandle;
 
     SAFE_USE_INPUT_POINTER(Info, PROCESS_INFO) {
-        UINT Result = (UINT)CreateProcess(Info);
-
-        if (Result) {
-            Info->Process = PointerToHandle((LINEAR)Info->Process);
-            Info->Task = PointerToHandle((LINEAR)Info->Task);
+        if (CreateProcess(Info) == FALSE) {
+            return DF_RETURN_GENERIC;
         }
 
-        return Result;
+        Process = (LPPROCESS)Info->Process;
+        Task = (LPTASK)Info->Task;
+        ProcessHandle = PointerToHandle((LINEAR)Process);
+        TaskHandle = PointerToHandle((LINEAR)Task);
+
+        if (ProcessHandle == NULL || TaskHandle == NULL) {
+            if (ProcessHandle != NULL) {
+                ReleaseHandle(ProcessHandle);
+            }
+
+            if (TaskHandle != NULL) {
+                ReleaseHandle(TaskHandle);
+            }
+
+            KillProcess(Process);
+            return DF_RETURN_GENERIC;
+        }
+
+        Info->Process = ProcessHandle;
+        Info->Task = TaskHandle;
+
+        return DF_RETURN_SUCCESS;
     }
 
-    return 0;
+    return DF_RETURN_BAD_PARAMETER;
 }
 
 /************************************************************************/
@@ -407,17 +429,32 @@ UINT SysCall_GetProfileInfo(UINT Parameter) {
  * @brief Create a task for the current process and return its handle.
  *
  * @param Parameter Pointer to TASK_INFO structure provided by userland.
- * @return UINT Handle to the created task, or 0 on failure.
+ * @return UINT DF_RETURN_SUCCESS on success, error code otherwise.
  */
 UINT SysCall_CreateTask(UINT Parameter) {
     LPTASK_INFO TaskInfo = (LPTASK_INFO)Parameter;
+    LPTASK Task;
+    HANDLE Handle;
 
     SAFE_USE_INPUT_POINTER(TaskInfo, TASK_INFO) {
-        LPTASK Task = KernelCreateTask(GetCurrentProcess(), TaskInfo);
-        return PointerToHandle((LINEAR)Task);
+        Task = KernelCreateTask(GetCurrentProcess(), TaskInfo);
+
+        if (Task == NULL) {
+            return DF_RETURN_GENERIC;
+        }
+
+        Handle = PointerToHandle((LINEAR)Task);
+
+        if (Handle == NULL) {
+            KernelKillTask(Task);
+            return DF_RETURN_GENERIC;
+        }
+
+        TaskInfo->Task = Handle;
+        return DF_RETURN_SUCCESS;
     }
 
-    return 0;
+    return DF_RETURN_BAD_PARAMETER;
 }
 
 /************************************************************************/

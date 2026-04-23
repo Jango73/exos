@@ -37,7 +37,7 @@
 
 - [x] Make all autotests pass
 
-- [ ] Execute Syscall-Return-ABI.md
+- [x] Execute Syscall-Return-ABI.md
 
 - [ ] Implement stdin/stdout/stderr
 
@@ -85,6 +85,10 @@
 ### Keyboard
 
 - [ ] Add more keyboard layouts : ja-JP, zh-CN, ko-KR, nl-NL, sv-SE, fi-FI, pl-PL, tr-TR, cs-CZ, ru-RU, hi-IN
+
+### Shell
+
+- [ ] Add options to the command dir : sort by name, extension, modified date. limit output to n items.
 
 ## Low priority
 
