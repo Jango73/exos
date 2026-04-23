@@ -94,10 +94,10 @@ input-info_clean:
 
 memory_smoke:
 	@echo "[ Building memory-stress ]"
-	+$(SUBMAKE) -C memory-stress all
+	+$(SUBMAKE) -C test/memory-stress all
 
 memory_smoke_clean:
-	+$(SUBMAKE) -C memory-stress clean
+	+$(SUBMAKE) -C test/memory-stress clean
 
 ################################################################################
 # Master test program

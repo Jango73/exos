@@ -8,4 +8,4 @@
 APP_NAME := memory-stress
 APP_SOURCES := source/memory-stress.c
 
-include ../../runtime/make/exos.mk
+include ../../../runtime/make/exos.mk
