@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
     int result = system("/package/binary/slave");
 
-    if (result) {
+    if (result == DF_RETURN_SUCCESS) {
         printf("Slave process launched successfully\n");
     } else {
         printf("Failed to launch slave process (result: %d)\n", result);

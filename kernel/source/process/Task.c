@@ -312,9 +312,12 @@ void DeleteTask(LPTASK This) {
 
 
             if (This->OwnerProcess->TaskCount == 0) {
-
-                // Set process exit code to last task's exit code
-                This->OwnerProcess->ExitCode = This->ExitCode;
+                // Keep process exit code tied to the main user task.
+                // Background user tasks may terminate after the main task and
+                // must not overwrite the process exit status.
+                if (This->Type == TASK_TYPE_USER_MAIN) {
+                    This->OwnerProcess->ExitCode = This->ExitCode;
+                }
 
                 SetProcessStatus(This->OwnerProcess, PROCESS_STATUS_DEAD);
 
@@ -468,7 +471,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
 
     Task->Type = (Process->Privilege == CPU_PRIVILEGE_KERNEL) ?
         TASK_TYPE_KERNEL_OTHER :
-        Process->TaskCount == 0 ? TASK_TYPE_USER_MAIN : TASK_TYPE_USER_OTHER;
+        Process->TaskCount == 1 ? TASK_TYPE_USER_MAIN : TASK_TYPE_USER_OTHER;
 
     SetTaskWakeUpTime(Task, ComputeTaskQuantumTime(Task->Priority));
 

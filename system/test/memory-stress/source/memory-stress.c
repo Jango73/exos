@@ -21,8 +21,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/exos.h"
+#include "../../../../runtime/include/exos-runtime.h"
+#include "../../../../runtime/include/exos.h"
 
 /************************************************************************/
 
@@ -210,9 +210,9 @@ static BOOL RunFragmentationPhase(LPBLOCK_SLOT Slots, U32 SlotCount) {
 
         Slots[Index].Pointer = Pointer;
         FillPattern(Slots[Index].Pointer, Slots[Index].RequestedSize, Slots[Index].Pattern);
-        FillPattern(((U8*)Slots[Index].Pointer) + Slots[Index].RequestedSize,
-                    NewSize - Slots[Index].RequestedSize,
-                    Slots[Index].Pattern + 1);
+        FillPattern(
+            ((U8*)Slots[Index].Pointer) + Slots[Index].RequestedSize, NewSize - Slots[Index].RequestedSize,
+            Slots[Index].Pattern + 1);
         Slots[Index].RequestedSize = NewSize;
         Slots[Index].Pattern += 1;
         FillPattern(Slots[Index].Pointer, Slots[Index].RequestedSize, Slots[Index].Pattern);
@@ -377,11 +377,9 @@ int main(int argc, char** argv) {
         return 10;
     }
 
-    debug("memory stress: initial reserved=%u first_unallocated=%u used=%u free=%u",
-          InitialInfo.HeapReservedSize,
-          InitialInfo.HeapFirstUnallocatedOffset,
-          InitialInfo.HeapUsedBytes,
-          InitialInfo.HeapFreeBytes);
+    debug(
+        "memory stress: initial reserved=%u first_unallocated=%u used=%u free=%u", InitialInfo.HeapReservedSize,
+        InitialInfo.HeapFirstUnallocatedOffset, InitialInfo.HeapUsedBytes, InitialInfo.HeapFreeBytes);
 
     PeakReservedSize = InitialInfo.HeapReservedSize;
 
@@ -420,24 +418,20 @@ int main(int argc, char** argv) {
     }
 
     if (PeakReservedSize <= InitialInfo.HeapReservedSize) {
-        debug("memory stress: heap did not grow (initial=%u peak=%u)",
-              InitialInfo.HeapReservedSize,
-              PeakReservedSize);
-        printf("memory stress: heap did not grow (initial=%u peak=%u)\n",
-               InitialInfo.HeapReservedSize,
-               PeakReservedSize);
+        debug("memory stress: heap did not grow (initial=%u peak=%u)", InitialInfo.HeapReservedSize, PeakReservedSize);
+        printf(
+            "memory stress: heap did not grow (initial=%u peak=%u)\n", InitialInfo.HeapReservedSize, PeakReservedSize);
         return 16;
     }
 
     if (FinalInfo.HeapFirstUnallocatedOffset != InitialInfo.HeapFirstUnallocatedOffset) {
-        debug("memory stress: heap tail mismatch (initial=%u final=%u used_initial=%u used_final=%u)",
-              InitialInfo.HeapFirstUnallocatedOffset,
-              FinalInfo.HeapFirstUnallocatedOffset,
-              InitialInfo.HeapUsedBytes,
-              FinalInfo.HeapUsedBytes);
-        printf("memory stress: heap tail mismatch (initial=%u final=%u)\n",
-               InitialInfo.HeapFirstUnallocatedOffset,
-               FinalInfo.HeapFirstUnallocatedOffset);
+        debug(
+            "memory stress: heap tail mismatch (initial=%u final=%u used_initial=%u used_final=%u)",
+            InitialInfo.HeapFirstUnallocatedOffset, FinalInfo.HeapFirstUnallocatedOffset, InitialInfo.HeapUsedBytes,
+            FinalInfo.HeapUsedBytes);
+        printf(
+            "memory stress: heap tail mismatch (initial=%u final=%u)\n", InitialInfo.HeapFirstUnallocatedOffset,
+            FinalInfo.HeapFirstUnallocatedOffset);
         return 17;
     }
 
@@ -465,27 +459,22 @@ int main(int argc, char** argv) {
     }
 
     if (ReuseInfo.HeapFirstUnallocatedOffset != InitialInfo.HeapFirstUnallocatedOffset) {
-        debug("memory stress: heap reuse state mismatch (initial=%u reuse=%u used_initial=%u used_reuse=%u)",
-              InitialInfo.HeapFirstUnallocatedOffset,
-              ReuseInfo.HeapFirstUnallocatedOffset,
-              InitialInfo.HeapUsedBytes,
-              ReuseInfo.HeapUsedBytes);
+        debug(
+            "memory stress: heap reuse state mismatch (initial=%u reuse=%u used_initial=%u used_reuse=%u)",
+            InitialInfo.HeapFirstUnallocatedOffset, ReuseInfo.HeapFirstUnallocatedOffset, InitialInfo.HeapUsedBytes,
+            ReuseInfo.HeapUsedBytes);
         printf("memory stress: heap reuse state mismatch\n");
         return 21;
     }
 
-    debug("memory stress: OK initial_reserved=%u peak_reserved=%u final_reserved=%u initial_used=%u final_used=%u",
-          InitialInfo.HeapReservedSize,
-          PeakReservedSize,
-          FinalInfo.HeapReservedSize,
-          InitialInfo.HeapUsedBytes,
-          FinalInfo.HeapUsedBytes);
-    printf("memory stress: OK initial_reserved=%u peak_reserved=%u final_reserved=%u initial_used=%u final_used=%u\n",
-           InitialInfo.HeapReservedSize,
-           PeakReservedSize,
-           FinalInfo.HeapReservedSize,
-           InitialInfo.HeapUsedBytes,
-           FinalInfo.HeapUsedBytes);
+    debug(
+        "memory stress: OK initial_reserved=%u peak_reserved=%u final_reserved=%u initial_used=%u final_used=%u",
+        InitialInfo.HeapReservedSize, PeakReservedSize, FinalInfo.HeapReservedSize, InitialInfo.HeapUsedBytes,
+        FinalInfo.HeapUsedBytes);
+    printf(
+        "memory stress: OK initial_reserved=%u peak_reserved=%u final_reserved=%u initial_used=%u final_used=%u\n",
+        InitialInfo.HeapReservedSize, PeakReservedSize, FinalInfo.HeapReservedSize, InitialInfo.HeapUsedBytes,
+        FinalInfo.HeapUsedBytes);
 
     return 0;
 }

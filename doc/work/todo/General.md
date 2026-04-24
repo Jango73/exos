@@ -37,6 +37,12 @@
 
 - [x] Make all autotests pass
 
+- [x] Execute Syscall-Return-ABI.md
+
+- [x] Enrich the module loading smoke test
+
+- [x] Implement stdin/stdout/stderr
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
@@ -71,7 +77,15 @@
 
 ### Scheduling
 
-- [ ] Improve the scheduler (task priorities)
+- [ ] Improve the scheduler (task priorities):
+  - [ ] Split scheduler timing state into dedicated fields (for example sleep deadline vs time-slice deadline) instead of reusing one `WakeUpTime` for both semantics.
+  - [ ] Rearm task time-slice budget on each dispatch/preemption boundary so priority-based quantum remains effective after the first run.
+  - [ ] Replace single global runnable scan with priority run queues (one FIFO per priority level) plus a bitmap for O(1) highest-priority selection.
+  - [ ] Keep round-robin fairness inside each priority level while always selecting the highest runnable priority level first.
+  - [ ] Introduce effective dynamic priority (`BasePriority` + temporary boosts + mutex donation) and preempt immediately when a higher effective priority task becomes runnable.
+  - [ ] Add anti-starvation aging: gradually increase effective priority of runnable tasks that wait too long without CPU time.
+  - [ ] Implement priority inheritance for mutex contention: when a high-priority waiter blocks on a low-priority owner, temporarily donate priority to the owner and restore it on unlock.
+  - [ ] Keep quantum configuration coherent: when `General.QuantumMS` overrides minimum quantum, recompute/update maximum quantum consistently (preserve policy ratio).
 - [ ] A CPU-bound task that never blocks can starve lower-priority deferred work and input handling (e.g., System Data View loop). Preference: force yield when a task is too CPU-hungry.
 
 ### Multicore
@@ -81,6 +95,10 @@
 ### Keyboard
 
 - [ ] Add more keyboard layouts : ja-JP, zh-CN, ko-KR, nl-NL, sv-SE, fi-FI, pl-PL, tr-TR, cs-CZ, ru-RU, hi-IN
+
+### Shell
+
+- [ ] Add options to the command dir : sort by name, extension, modified date. limit output to n items.
 
 ## Low priority
 
@@ -112,14 +130,6 @@
 - [ ] Opening a file in a userland program without an absolute path should do the same as using getcwd().
 - [ ] Add a getpd() that returns the folder in which the current executable's image lives.
 - [ ] FileReadAll() : use HeapAlloc, NOT KernelHeapAlloc
-
-### API return contract (system-wide)
-
-- [ ] Target contract for kernel APIs, drivers, and syscalls: functions return only `DF_RETURN_*` status codes (`DF_RETURN_SUCCESS` on success, error code otherwise).
-  - Functional values are returned through explicit output parameters (input/output structures or output pointers), not through the function return value.
-  - New or refactored code must follow this contract immediately.
-  - Existing modules are migrated progressively as work advances, until full convergence is reached across the system.
-  - Compatibility shims are temporary and must be removed once migrated callers and providers are updated.
 
 ### Memory
 

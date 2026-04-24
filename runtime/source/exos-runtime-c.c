@@ -41,6 +41,8 @@ char _static_arg_storage[MAX_STRING_BUFFER];     // Storage for argument strings
 
 PROCESS_INFO _ProcessInfo;
 
+void RuntimeInitializeStandardStreams(void);
+
 /************************************************************************/
 
 // Suppress unused warnings for future use
@@ -299,6 +301,7 @@ unsigned getkeymodifiers(void) {
 #ifndef __KERNEL__
 int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_list) {
     TASK_INFO TaskInfo;
+    UINT Result;
 
     memset(&TaskInfo, 0, sizeof(TaskInfo));
 
@@ -313,8 +316,14 @@ int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_li
     TaskInfo.StackSize = (U32)stack_size;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
     TaskInfo.Flags = 0;
+    TaskInfo.Task = 0;
 
-    return (int)exoscall(SYSCALL_CreateTask, EXOS_PARAM(&TaskInfo));
+    Result = (UINT)exoscall(SYSCALL_CreateTask, EXOS_PARAM(&TaskInfo));
+    if (Result != DF_RETURN_SUCCESS || TaskInfo.Task == NULL) {
+        return 0;
+    }
+
+    return (int)TaskInfo.Task;
 }
 #endif
 
@@ -333,6 +342,7 @@ void sleep(unsigned ms) { exoscall(SYSCALL_Sleep, EXOS_PARAM(ms)); }
 #ifndef __KERNEL__
 int system(const char* __cmd) {
     PROCESS_INFO ProcessInfo;
+    UINT Result;
 
     memset(&ProcessInfo, 0, sizeof(ProcessInfo));
 
@@ -344,8 +354,11 @@ int system(const char* __cmd) {
     ProcessInfo.StdOut = NULL;
     ProcessInfo.StdIn = NULL;
     ProcessInfo.StdErr = NULL;
+    ProcessInfo.Process = NULL;
+    ProcessInfo.Task = NULL;
 
-    return (int)exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo));
+    Result = (UINT)exoscall(SYSCALL_CreateProcess, EXOS_PARAM(&ProcessInfo));
+    return (int)Result;
 }
 #endif
 
@@ -440,7 +453,15 @@ FILE* fopen(const char* __name, const char* __mode) {
 #ifndef __KERNEL__
 int fclose(FILE* __fp) {
     if (__fp) {
-        exoscall(SYSCALL_DeleteObject, EXOS_PARAM(__fp->_handle));
+        if (__fp->_handle != 0) {
+            exoscall(SYSCALL_DeleteObject, EXOS_PARAM(__fp->_handle));
+            __fp->_handle = 0;
+        }
+
+        if (__fp == stdin || __fp == stdout || __fp == stderr) {
+            return 1;
+        }
+
         if (__fp->_base) free(__fp->_base);
         free(__fp);
         return 1;
@@ -877,6 +898,8 @@ void _SetupArguments(void) {
     if (exoscall(SYSCALL_GetProcessInfo, EXOS_PARAM(&_ProcessInfo)) != DF_RETURN_SUCCESS) {
         return;
     }
+
+    RuntimeInitializeStandardStreams();
 
     int CommandLineLen = strlen((const char*)_ProcessInfo.CommandLine);
 

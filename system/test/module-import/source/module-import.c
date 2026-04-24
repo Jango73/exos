@@ -27,6 +27,43 @@
 /***************************************************************************/
 
 EXOS_MODULE_IMPORT UINT ModuleSampleSharedValue(UINT Value);
+EXOS_MODULE_IMPORT UINT ModuleSampleSubtract(UINT A, UINT B);
+EXOS_MODULE_IMPORT UINT ModuleSampleMultiply(UINT A, UINT B);
+EXOS_MODULE_IMPORT UINT ModuleSampleDivide(UINT A, UINT B);
+EXOS_MODULE_IMPORT UINT ModuleSampleFactorial(UINT N);
+EXOS_MODULE_IMPORT UINT ModuleSampleFibonacci(UINT N);
+EXOS_MODULE_IMPORT UINT ModuleSampleGcd(UINT A, UINT B);
+EXOS_MODULE_IMPORT UINT ModuleSamplePower(UINT Base, UINT Exp);
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathBasic(void) { return ModuleSampleSubtract(100, 37); }
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathMultiply(void) { return ModuleSampleMultiply(12, 7); }
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathDivide(void) { return ModuleSampleDivide(84, 6); }
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathFactorialSum(void) {
+    return ModuleSampleFactorial(4) + ModuleSampleFactorial(3);
+}
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathFibonacci(void) { return ModuleSampleFibonacci(7); }
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathGcd(void) { return ModuleSampleGcd(48, 18); }
+
+/***************************************************************************/
+
+EXOS_MODULE_EXPORT UINT ModuleImportMathPower(void) { return ModuleSamplePower(2, 8); }
 
 /***************************************************************************/
 

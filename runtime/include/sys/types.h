@@ -5,7 +5,6 @@
 
 typedef long off_t;
 typedef long time_t;
-typedef long ssize_t;
 typedef unsigned long mode_t;
 
 #endif

@@ -521,9 +521,17 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         Kernel_x86_32.TSS->IOMapBase = (U16)sizeof(X86_64_TASK_STATE_SEGMENT);
 
         SAFE_USE(CurrentTask) {
+            U64 CurrentFsBase = ReadMSR64Local(IA32_FS_BASE_MSR);
+
             GetFS(CurrentTask->Arch.Context.Registers.FS);
             GetGS(CurrentTask->Arch.Context.Registers.GS);
-            CurrentTask->Arch.UserTlsBase = (LINEAR)ReadMSR64Local(IA32_FS_BASE_MSR);
+            if (!(CurrentTask->OwnerProcess != NULL &&
+                  CurrentTask->OwnerProcess->Privilege == CPU_PRIVILEGE_USER &&
+                  CurrentTask->UserTlsAnchor != 0 &&
+                  CurrentTask->Arch.UserTlsBase != 0 &&
+                  CurrentFsBase == 0)) {
+                CurrentTask->Arch.UserTlsBase = (LINEAR)CurrentFsBase;
+            }
             SaveFPU(&(CurrentTask->Arch.Context.FPURegisters));
         }
 
@@ -571,6 +579,26 @@ BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
     }
 
     return FALSE;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Re-apply user TLS MSR state for the currently running task.
+ */
+void RestoreCurrentTaskUserTlsBase(void) {
+    LPTASK Task = GetCurrentTask();
+
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        if (Task->OwnerProcess == NULL || Task->OwnerProcess->Privilege != CPU_PRIVILEGE_USER) {
+            return;
+        }
+
+        WriteMSR64(IA32_FS_BASE_MSR,
+                   (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+                   (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
+        WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
+    }
 }
 
 /***************************************************************************/

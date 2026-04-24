@@ -72,7 +72,11 @@ typedef struct tag_MESSAGE {
 
 /************************************************************************/
 
-HANDLE CreateTask(LPTASK_INFO);
+static inline BOOL ExosIsSuccess(UINT Status) { return Status == DF_RETURN_SUCCESS; }
+
+/************************************************************************/
+
+UINT CreateTask(LPTASK_INFO);
 BOOL KillTask(HANDLE);
 void Exit(void);
 void Sleep(U32);

@@ -159,6 +159,7 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_OpenFileMapping 0x0000002B
 #define SYSCALL_MapViewOfFile 0x0000002C
 #define SYSCALL_UnmapViewOfFile 0x0000002D
+#define SYSCALL_CreatePipe 0x00000094
 
 /************************************************************************/
 // Console Services
@@ -306,7 +307,7 @@ typedef struct PACKED tag_ABI_HEADER {
 
 /************************************************************************/
 
-#define SYSCALL_Last 0x00000094
+#define SYSCALL_Last 0x00000095
 
 /************************************************************************/
 // Structure limits
@@ -455,6 +456,7 @@ typedef struct PACKED tag_TASK_INFO {
     U32 Flags;
     SECURITY_ATTRIBUTES Security;
     STR Name[MAX_USER_NAME];
+    HANDLE Task;
 } TASK_INFO, *LPTASK_INFO;
 
 typedef struct PACKED tag_MESSAGE_INFO {
@@ -538,6 +540,12 @@ typedef struct PACKED tag_FILE_OPERATION {
     U32 NumBytes;
     LPVOID Buffer;
 } FILE_OPERATION, *LPFILE_OPERATION;
+
+typedef struct PACKED tag_PIPE_INFO {
+    ABI_HEADER Header;
+    HANDLE ReadHandle;
+    HANDLE WriteHandle;
+} PIPE_INFO, *LPPIPE_INFO;
 
 typedef struct PACKED tag_FILE_FIND_INFO {
     ABI_HEADER Header;

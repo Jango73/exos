@@ -75,9 +75,11 @@ void ReleaseKernelObject(LPVOID Object);
 void ReleaseProcessKernelObjects(struct tag_PROCESS* Process);
 void DoPageFault(void);
 HANDLE PointerToHandle(LINEAR Pointer);
+HANDLE DuplicateHandle(HANDLE Handle);
 LINEAR HandleToPointer(HANDLE Handle);
 LINEAR EnsureKernelPointer(LINEAR Value);
 HANDLE EnsureHandle(LINEAR Value);
+BOOL CloseHandle(HANDLE Handle);
 void ReleaseHandle(HANDLE Handle);
 
 /************************************************************************/

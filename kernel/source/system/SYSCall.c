@@ -46,6 +46,7 @@
 #include "core/Security.h"
 #include "network/Socket.h"
 #include "system/SYSCall.h"
+#include "utils/Pipe.h"
 #include "utils/ProcessAccess.h"
 
 extern BOOL ReleaseWindowGC(HANDLE Handle);
@@ -232,12 +233,7 @@ UINT SysCall_DeleteObject(UINT Parameter) {
         return 0;
     }
 
-    if (DeleteObject((HANDLE)ObjectPointer) == FALSE) {
-        return 0;
-    }
-
-    ReleaseHandle((HANDLE)Parameter);
-    return 1;
+    return CloseHandle((HANDLE)Parameter) ? 1 : 0;
 }
 
 /************************************************************************/
@@ -250,23 +246,45 @@ UINT SysCall_DeleteObject(UINT Parameter) {
  * fails.
  *
  * @param Parameter Pointer to PROCESS_INFO structure supplied by userland.
- * @return UINT Result code from CreateProcess or an error code.
+ * @return UINT DF_RETURN_SUCCESS on success, error code otherwise.
  */
 UINT SysCall_CreateProcess(UINT Parameter) {
     LPPROCESS_INFO Info = (LPPROCESS_INFO)Parameter;
+    LPPROCESS Process;
+    LPTASK Task;
+    HANDLE ProcessHandle;
+    HANDLE TaskHandle;
 
     SAFE_USE_INPUT_POINTER(Info, PROCESS_INFO) {
-        UINT Result = (UINT)CreateProcess(Info);
-
-        if (Result) {
-            Info->Process = PointerToHandle((LINEAR)Info->Process);
-            Info->Task = PointerToHandle((LINEAR)Info->Task);
+        if (CreateProcess(Info) == FALSE) {
+            return DF_RETURN_GENERIC;
         }
 
-        return Result;
+        Process = (LPPROCESS)Info->Process;
+        Task = (LPTASK)Info->Task;
+        ProcessHandle = PointerToHandle((LINEAR)Process);
+        TaskHandle = PointerToHandle((LINEAR)Task);
+
+        if (ProcessHandle == NULL || TaskHandle == NULL) {
+            if (ProcessHandle != NULL) {
+                ReleaseHandle(ProcessHandle);
+            }
+
+            if (TaskHandle != NULL) {
+                ReleaseHandle(TaskHandle);
+            }
+
+            KillProcess(Process);
+            return DF_RETURN_GENERIC;
+        }
+
+        Info->Process = ProcessHandle;
+        Info->Task = TaskHandle;
+
+        return DF_RETURN_SUCCESS;
     }
 
-    return 0;
+    return DF_RETURN_BAD_PARAMETER;
 }
 
 /************************************************************************/
@@ -328,6 +346,9 @@ UINT SysCall_GetProcessInfo(UINT Parameter) {
             // Copy the command line and work folder within buffer limits
             StringCopyLimit(Info->CommandLine, CurrentProcess->CommandLine, MAX_PATH_NAME);
             StringCopyLimit(Info->WorkFolder, CurrentProcess->WorkFolder, MAX_PATH_NAME);
+            Info->StdOut = CurrentProcess->StdOut;
+            Info->StdIn = CurrentProcess->StdIn;
+            Info->StdErr = CurrentProcess->StdErr;
 
             return DF_RETURN_SUCCESS;
         }
@@ -407,17 +428,32 @@ UINT SysCall_GetProfileInfo(UINT Parameter) {
  * @brief Create a task for the current process and return its handle.
  *
  * @param Parameter Pointer to TASK_INFO structure provided by userland.
- * @return UINT Handle to the created task, or 0 on failure.
+ * @return UINT DF_RETURN_SUCCESS on success, error code otherwise.
  */
 UINT SysCall_CreateTask(UINT Parameter) {
     LPTASK_INFO TaskInfo = (LPTASK_INFO)Parameter;
+    LPTASK Task;
+    HANDLE Handle;
 
     SAFE_USE_INPUT_POINTER(TaskInfo, TASK_INFO) {
-        LPTASK Task = KernelCreateTask(GetCurrentProcess(), TaskInfo);
-        return PointerToHandle((LINEAR)Task);
+        Task = KernelCreateTask(GetCurrentProcess(), TaskInfo);
+
+        if (Task == NULL) {
+            return DF_RETURN_GENERIC;
+        }
+
+        Handle = PointerToHandle((LINEAR)Task);
+
+        if (Handle == NULL) {
+            KernelKillTask(Task);
+            return DF_RETURN_GENERIC;
+        }
+
+        TaskInfo->Task = Handle;
+        return DF_RETURN_SUCCESS;
     }
 
-    return 0;
+    return DF_RETURN_BAD_PARAMETER;
 }
 
 /************************************************************************/
@@ -1059,6 +1095,26 @@ UINT SysCall_OpenFile(UINT Parameter) {
 /************************************************************************/
 
 /**
+ * @brief Create one anonymous pipe and return read/write endpoint handles.
+ *
+ * @param Parameter Pointer to PIPE_INFO provided by userland.
+ * @return UINT DF_RETURN_SUCCESS on success, error code otherwise.
+ */
+UINT SysCall_CreatePipe(UINT Parameter) {
+    LPPIPE_INFO Info = (LPPIPE_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, PIPE_INFO) {
+        Info->ReadHandle = 0;
+        Info->WriteHandle = 0;
+        return PipeCreateHandles(&Info->ReadHandle, &Info->WriteHandle);
+    }
+
+    return DF_RETURN_BAD_PARAMETER;
+}
+
+/************************************************************************/
+
+/**
  * @brief Read data from a file handle into a caller-provided buffer.
  *
  * @param Parameter Pointer to FILE_OPERATION containing the read request.
@@ -1069,13 +1125,19 @@ UINT SysCall_ReadFile(UINT Parameter) {
 
     SAFE_USE_INPUT_POINTER(Operation, FILE_OPERATION) {
         HANDLE FileHandle = Operation->File;
-        LPFILE File = (LPFILE)HandleToPointer(FileHandle);
+        LPVOID Object = (LPVOID)HandleToPointer(FileHandle);
 
-        SAFE_USE_VALID_ID(File, KOID_FILE) {
-            Operation->File = (HANDLE)File;
-            UINT Result = ReadFile(Operation);
-            Operation->File = FileHandle;
-            return Result;
+        SAFE_USE_VALID(Object) {
+            if (((LPOBJECT)Object)->TypeID == KOID_FILE) {
+                Operation->File = (HANDLE)Object;
+                UINT Result = ReadFile(Operation);
+                Operation->File = FileHandle;
+                return Result;
+            }
+
+            if (((LPOBJECT)Object)->TypeID == KOID_PIPE_ENDPOINT) {
+                return PipeReadEndpoint(Object, Operation->Buffer, Operation->NumBytes);
+            }
         }
 
         Operation->File = FileHandle;
@@ -1097,13 +1159,19 @@ UINT SysCall_WriteFile(UINT Parameter) {
 
     SAFE_USE_INPUT_POINTER(Operation, FILE_OPERATION) {
         HANDLE FileHandle = Operation->File;
-        LPFILE File = (LPFILE)HandleToPointer(FileHandle);
+        LPVOID Object = (LPVOID)HandleToPointer(FileHandle);
 
-        SAFE_USE_VALID_ID(File, KOID_FILE) {
-            Operation->File = (HANDLE)File;
-            UINT Result = WriteFile(Operation);
-            Operation->File = FileHandle;
-            return Result;
+        SAFE_USE_VALID(Object) {
+            if (((LPOBJECT)Object)->TypeID == KOID_FILE) {
+                Operation->File = (HANDLE)Object;
+                UINT Result = WriteFile(Operation);
+                Operation->File = FileHandle;
+                return Result;
+            }
+
+            if (((LPOBJECT)Object)->TypeID == KOID_PIPE_ENDPOINT) {
+                return PipeWriteEndpoint(Object, (LPCVOID)Operation->Buffer, Operation->NumBytes);
+            }
         }
 
         Operation->File = FileHandle;

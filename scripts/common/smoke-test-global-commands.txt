@@ -7,7 +7,8 @@ command: "dir" | log: "TEST > [CMD_dir] dir : OK"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
-command: "/system/apps/test/module-host" | log: "TEST > [Spawn] Executable finished normally : /system/apps/test/module-host"
+command: "/system/apps/test/module-host" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 5
+command: "/system/apps/test/pipe-source | /system/apps/test/pipe-upper | /system/apps/test/pipe-summary" | log: "PIPE_SMOKE_RESULT:RBG" | timeout: 15
 command: "/system/apps/terminal-tactics"
 hotkey: "shift-n"
 hotkey: "esc"

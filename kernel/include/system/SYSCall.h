@@ -97,6 +97,7 @@ UINT SysCall_GetFilePosition(UINT Parameter);
 UINT SysCall_SetFilePosition(UINT Parameter);
 UINT SysCall_FindFirstFile(UINT Parameter);
 UINT SysCall_FindNextFile(UINT Parameter);
+UINT SysCall_CreatePipe(UINT Parameter);
 UINT SysCall_ConsolePeekKey(UINT Parameter);
 UINT SysCall_ConsoleGetKey(UINT Parameter);
 UINT SysCall_ConsoleGetKeyModifiers(UINT Parameter);

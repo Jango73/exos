@@ -34,6 +34,10 @@
 
 /************************************************************************/
 
+#define PAGE_FAULT_ERROR_USER_MODE 0x4
+
+/************************************************************************/
+
 #define DEFINE_FATAL_HANDLER(FunctionName, Description)             \
     void FunctionName(LPINTERRUPT_FRAME Frame) {                    \
         ERROR(TEXT("%s"), TEXT(Description));                       \
@@ -200,7 +204,8 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
           (LPVOID)Frame->Registers.RIP,
           (LPVOID)Frame->Registers.RSP);
 
-    if (ResolveKernelPageFault((LINEAR)FaultAddress)) {
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) &&
+        ResolveKernelPageFault((LINEAR)FaultAddress)) {
         DEBUG(TEXT("Resolved kernel page fault %p"), (LPVOID)FaultAddress);
         return;
     }

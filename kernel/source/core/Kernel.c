@@ -41,6 +41,7 @@
 #include "system/SerialPort.h"
 #include "utils/BusyWait.h"
 #include "utils/Helpers.h"
+#include "utils/Pipe.h"
 #include "utils/TOML.h"
 #include "utils/UUID.h"
 
@@ -142,6 +143,41 @@ HANDLE PointerToHandle(LINEAR Pointer) {
 /************************************************************************/
 
 /**
+ * @brief Duplicate an existing user-visible handle.
+ *
+ * Allocates one new handle entry attached to the same kernel pointer as the
+ * input handle.
+ *
+ * @param Handle Existing handle.
+ * @return HANDLE Duplicated handle or 0 on failure.
+ */
+HANDLE DuplicateHandle(HANDLE Handle) {
+    LINEAR Pointer = HandleToPointer(Handle);
+    LPHANDLE_MAP HandleMap = GetHandleMap();
+    UINT NewHandle = 0;
+    UINT Status;
+
+    if (Pointer == 0) {
+        return 0;
+    }
+
+    Status = HandleMapAllocateHandle(HandleMap, &NewHandle);
+    if (Status != HANDLE_MAP_OK) {
+        return 0;
+    }
+
+    Status = HandleMapAttachPointer(HandleMap, NewHandle, Pointer);
+    if (Status != HANDLE_MAP_OK) {
+        HandleMapReleaseHandle(HandleMap, NewHandle);
+        return 0;
+    }
+
+    return NewHandle;
+}
+
+/************************************************************************/
+
+/**
  * @brief Resolve a user-visible handle back to its kernel pointer.
  *
  * @param Handle Handle supplied by userland.
@@ -195,6 +231,9 @@ BOOL DeleteObject(HANDLE Object) {
                 case KOID_FILE:
                     Result = (UINT)CloseFile((LPFILE)KernelObject);
                     break;
+                case KOID_PIPE_ENDPOINT:
+                    Result = (UINT)PipeCloseEndpoint((LPVOID)KernelObject);
+                    break;
                 case KOID_DESKTOP:
                     Result = (UINT)DeleteDesktop((LPDESKTOP)KernelObject);
                     break;
@@ -244,6 +283,31 @@ HANDLE EnsureHandle(LINEAR Value) {
     }
 
     return PointerToHandle(Value);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Close one handle and destroy the object only when it is the last handle.
+ *
+ * @param Handle Handle to close.
+ * @return TRUE on success, FALSE on failure.
+ */
+BOOL CloseHandle(HANDLE Handle) {
+    LINEAR ObjectPointer = HandleToPointer(Handle);
+    UINT ExistingHandle = 0;
+
+    if (ObjectPointer == 0) {
+        return FALSE;
+    }
+
+    ReleaseHandle(Handle);
+
+    if (HandleMapFindHandleByPointer(GetHandleMap(), ObjectPointer, &ExistingHandle) == HANDLE_MAP_OK) {
+        return TRUE;
+    }
+
+    return DeleteObject((HANDLE)ObjectPointer);
 }
 
 /************************************************************************/

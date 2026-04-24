@@ -1,11 +1,11 @@
 ################################################################################
 #
 #       EXOS System Programs
-#       Copyright (c) 1999-2025 Jango73
+#       Copyright (c) 1999-2026 Jango73
 #
 ################################################################################
 
-APP_NAME := memory-stress
-APP_SOURCES := source/memory-stress.c
+APP_NAME := pipe-upper
+APP_SOURCES := source/pipe-upper.c
 
-include ../../runtime/make/exos.mk
+include ../../../runtime/make/exos.mk

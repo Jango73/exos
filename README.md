@@ -25,7 +25,7 @@ EXOS is provided "as is", without warranty of any kind. Neither EXOS authors/con
 
 ## License
 
-The EXOS codebase is licensed under GPLv3, except for the runtime under `runtime/`, which is licensed under MIT. See `LICENSE` and `runtime/LICENSE`.
+The EXOS codebase is licensed under GPLv3, except for the runtime under `runtime/`, which is licensed under MIT. See `LICENSE` and `runtime/LICENSE`.<br>
 Third-party products stored under `third/` are subject to their own licenses; refer to each component's license file in `third/`.
 
 Quick note on license "contamination" (copyleft propagation):
@@ -79,30 +79,29 @@ Quick note on license "contamination" (copyleft propagation):
 - Virtual memory management (CPU & DMA mapping) (buddy allocator for physical pages)
 - Heap management (free lists)
 - Process spawning (kernel and userland), task spawning, scheduling
+- Binary executable and library loading, thread local storage
 - Security at kernel object level, with user account/session and permissions
 - Kernel pointer masking : handles in userland
 - File system drivers : FAT16, FAT32, EXT2, NTFS ~
-- I/O APIC & Local APIC driver
+- I/O APIC & Local APIC drivers
 - PCI device driver
 - ATA, SATA/AHCI & NVMe storage drivers
 - xHCI driver (USB 3)
-- ACPI shutdown/reboot
-- Console management
 - GOP (UEFI framebuffer) driver
-- VGA driver
-- VESA driver
-- Intel Graphics (iGPU) driver
+- VGA/VESA/iGPU drivers
 - PS/2 keyboard and mouse drivers
 - USB keyboard (HID) and mouse drivers
 - USB mass storage device driver ~
+- Console management
 - Virtual file system with mount points
 - Shell with embedded scripting and kernel objects exposure
 - Configuration with TOML format
-- E1000 driver ~
-- Realtek RTL8139 & RTL8111/8168/8411 drivers ~
+- E1000 / Realtek RTL8139 & RTL8111/8168/8411 network drivers ~
 - ARP/IPv4/DHCP/UDP/TCP network layers ~
 - Minimal HTTP client ~
 - Desktop/windowing system (WIP)
+- Native C compiler (TinyCC integration)
+- ACPI shutdown/reboot
 - A few test apps
 
 (~ means working in emulator - QEMU, but not tested or not yet working on bare metal)
@@ -116,7 +115,6 @@ Quick note on license "contamination" (copyleft propagation):
 - Full Unicode
 - PCIe driver
 - VMD (Volume Management Device - Intel)
-- Native C compiler (TinyCC port)
 - HDA audio (Intel HD Audio)
 - NVIDIA GeForce driver
 - AMD Radeon driver
@@ -171,11 +169,11 @@ Bm437_IBM_VGA_8x16.otb from the Ultimate Oldschool PC Font Pack by VileR, licens
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C                              371          35229          36583         119926
-C/C++ Header                   273           6555           7030          16665
-Assembly                        22           1994           1249           6950
+C                              375          35649          36727         121576
+C/C++ Header                   274           6576           7051          16699
+Assembly                        22           1994           1249           6952
 -------------------------------------------------------------------------------
-SUM:                           666          43778          44862         143541
+SUM:                           671          44219          45027         145227
 -------------------------------------------------------------------------------
 ```
 

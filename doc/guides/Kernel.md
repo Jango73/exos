@@ -514,6 +514,18 @@ EXOS implements a lifecycle management system for both processes and tasks that 
 - Session ownership is therefore tied to the process tree: children share the same session by default unless explicitly reassigned.
 - This keeps user identity and security context consistent across a spawned process hierarchy.
 
+#### Standard Stream Inheritance and Pipes
+
+- `PROCESS_INFO` carries `StdIn`, `StdOut`, and `StdErr` handle inputs for process creation.
+- `CreateProcess()` resolves those handles, duplicates them for child ownership, and stores effective values in the `PROCESS` structure.
+- If one standard stream handle is omitted at creation, the child inherits the corresponding handle from its parent process.
+- Process teardown closes child-owned standard stream handles so stream object lifetime follows process lifetime.
+- `GetProcessInfo()` returns the effective standard stream handles for runtime initialization.
+- Anonymous pipes are provided by `SYSCALL_CreatePipe` (`PIPE_INFO`) and exported as two endpoint handles:
+  - read endpoint,
+  - write endpoint.
+- `ReadFile` and `WriteFile` syscalls accept both file handles and pipe endpoint handles, so redirection and pipelines use one shared data path.
+
 #### Lifecycle Flow
 
 **1. Task Termination:**
@@ -621,6 +633,15 @@ exos-runtime-c.c : malloc() (or any other function)
                 └── calls SysCall_xxx via SysCallTable[]
                     └── whew... finally job is done
 ```
+
+#### Syscall return ABI contract
+
+Syscalls that use user-provided `*_INFO` payloads follow one return contract:
+- the syscall return register carries only `DF_RETURN_*` status codes;
+- payload values are written back through explicit output fields in the same structure;
+- callers must check `Result == DF_RETURN_SUCCESS` before reading output fields.
+
+`CreateProcess` follows this pattern by returning `DF_RETURN_*` and writing created handles in `PROCESS_INFO.Process` and `PROCESS_INFO.Task`. `CreateTask` returns `DF_RETURN_*` and writes the created task handle in `TASK_INFO.Task`. Runtime wrappers expose `ExosIsSuccess(...)` so userland checks are consistent.
 
 ### Task and window message delivery
 
