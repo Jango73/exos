@@ -22,30 +22,31 @@
 
 \************************************************************************/
 
+#include "system/SYSCall.h"
+
 #include "Base.h"
-#include "system/Clock.h"
-#include "console/Console.h"
+#include "Desktop.h"
 #include "GFX.h"
-#include "fs/File.h"
-#include "memory/Heap.h"
-#include "utils/Helpers.h"
+#include "console/Console.h"
 #include "core/ID.h"
 #include "core/Kernel.h"
-#include "drivers/input/Keyboard.h"
-#include "log/Log.h"
-#include "memory/Memory.h"
-#include "input/Mouse.h"
-#include "Desktop.h"
+#include "core/Security.h"
 #include "desktop/Desktop-NonClient.h"
 #include "desktop/Desktop-WindowClass.h"
+#include "drivers/input/Keyboard.h"
+#include "fs/File.h"
+#include "input/Mouse.h"
+#include "log/Log.h"
 #include "log/Profile.h"
+#include "memory/Heap.h"
+#include "memory/Memory.h"
+#include "network/Socket.h"
 #include "process/Process.h"
 #include "process/Schedule.h"
+#include "system/Clock.h"
 #include "user/Account.h"
 #include "user/UserSession.h"
-#include "core/Security.h"
-#include "network/Socket.h"
-#include "system/SYSCall.h"
+#include "utils/Helpers.h"
 #include "utils/Pipe.h"
 #include "utils/ProcessAccess.h"
 
@@ -62,9 +63,7 @@ static LPWINDOW_CLASS SysCallResolveAccessibleWindowClass(HANDLE WindowClassHand
         WindowClass = WindowClassFindByName(WindowClassName);
     }
 
-    SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(WindowClass, KOID_WINDOW_CLASS, TRUE) {
-        return WindowClass;
-    }
+    SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(WindowClass, KOID_WINDOW_CLASS, TRUE) { return WindowClass; }
 
     return NULL;
 }
@@ -233,7 +232,49 @@ UINT SysCall_DeleteObject(UINT Parameter) {
         return 0;
     }
 
-    return CloseHandle((HANDLE)Parameter) ? 1 : 0;
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Set a window caption.
+ *
+ * @param Parameter Handle and new caption text.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_SetWindowCaption(UINT Parameter) {
+    LPWINDOW_CAPTION Caption = (LPWINDOW_CAPTION)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Caption, WINDOW_CAPTION) {
+        LPWINDOW Window = (LPWINDOW)HandleToPointer(Caption->Window);
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
+            return SetWindowCaption((HANDLE)Window, Caption->Text);
+        }
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Create or update a window timer.
+ *
+ * @param Parameter Handle, timer ID, and interval in milliseconds.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_SetWindowTimer(UINT Parameter) {
+    LPTIMER_INFO Info = (LPTIMER_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, TIMER_INFO) {
+        LPWINDOW Window = (LPWINDOW)HandleToPointer(Info->Window);
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
+            return SetWindowTimer((HANDLE)Window, Info->TimerID, Info->Interval);
+        }
+    }
+
+    return 0;
 }
 
 /************************************************************************/
@@ -927,9 +968,7 @@ UINT SysCall_FreeRegion(UINT Parameter) {
  * @param Parameter Linear address to validate.
  * @return UINT TRUE if the address is valid, FALSE otherwise.
  */
-UINT SysCall_IsMemoryValid(UINT Parameter) {
-    return (UINT)IsValidMemory((LINEAR)Parameter);
-}
+UINT SysCall_IsMemoryValid(UINT Parameter) { return (UINT)IsValidMemory((LINEAR)Parameter); }
 
 /************************************************************************/
 
@@ -1015,8 +1054,7 @@ UINT SysCall_EnumVolumes(UINT Parameter) {
         LockMutex(MUTEX_FILESYSTEM, INFINITY);
 
         LPLIST FileSystemList = GetFileSystemList();
-        for (LPLISTNODE Node = FileSystemList != NULL ? FileSystemList->First : NULL; Node;
-             Node = Node->Next) {
+        for (LPLISTNODE Node = FileSystemList != NULL ? FileSystemList->First : NULL; Node; Node = Node->Next) {
             LPFILESYSTEM FileSystem = (LPFILESYSTEM)Node;
             HANDLE VolumeHandle = PointerToHandle((LINEAR)FileSystem);
 
@@ -1694,9 +1732,7 @@ UINT SysCall_ApplyDesktopTheme(UINT Parameter) {
     LPDESKTOP_THEME_INFO ApplyInfo = (LPDESKTOP_THEME_INFO)Parameter;
 
     SAFE_USE_INPUT_POINTER(ApplyInfo, DESKTOP_THEME_INFO) {
-        SAFE_USE_VALID(ApplyInfo->Target) {
-            return (UINT)ApplyDesktopTheme(ApplyInfo->Target);
-        }
+        SAFE_USE_VALID(ApplyInfo->Target) { return (UINT)ApplyDesktopTheme(ApplyInfo->Target); }
     }
 
     return FALSE;
@@ -1715,8 +1751,8 @@ UINT SysCall_CreateWindow(UINT Parameter) {
         if (WindowInfo->Parent != 0) {
             LPWINDOW ParentWindow = (LPWINDOW)HandleToPointer(WindowInfo->Parent);
 
-            SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(ParentWindow, KOID_WINDOW, TRUE) {
-            } else {
+            SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(ParentWindow, KOID_WINDOW, TRUE) {}
+            else {
                 WindowInfo->Window = 0;
                 return 0;
             }
@@ -2019,9 +2055,7 @@ UINT SysCall_ScreenPointToWindowPoint(UINT Parameter) {
         LPWINDOW Window = (LPWINDOW)HandleToPointer(WindowPointInfo->Window);
         SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
             return (UINT)ScreenPointToWindowPoint(
-                (HANDLE)Window,
-                &(WindowPointInfo->ScreenPoint),
-                &(WindowPointInfo->WindowPoint));
+                (HANDLE)Window, &(WindowPointInfo->ScreenPoint), &(WindowPointInfo->WindowPoint));
         }
     }
 
@@ -2176,12 +2210,8 @@ UINT SysCall_RegisterWindowClass(UINT Parameter) {
         if (Process == NULL || Process->TypeID != KOID_PROCESS) return 0;
 
         WindowClass = WindowClassRegisterUserClass(
-            ClassInfo->ClassName,
-            (U32)ClassInfo->BaseClass,
-            ClassInfo->BaseClassName,
-            ClassInfo->Function,
-            ClassInfo->ClassDataSize,
-            Process);
+            ClassInfo->ClassName, (U32)ClassInfo->BaseClass, ClassInfo->BaseClassName, ClassInfo->Function,
+            ClassInfo->ClassDataSize, Process);
 
         if (WindowClass == NULL || WindowClass->TypeID != KOID_WINDOW_CLASS) return 0;
 
@@ -2739,8 +2769,7 @@ UINT SysCall_DrawText(UINT Parameter) {
                     .X = TextInfo->X,
                     .Y = TextInfo->Y,
                     .Text = TextInfo->Text,
-                    .Font = NULL
-                };
+                    .Font = NULL};
                 return (UINT)DesktopDrawText(&DrawInfo);
             }
         }
@@ -2769,12 +2798,7 @@ UINT SysCall_MeasureText(UINT Parameter) {
 
         SAFE_USE_VALID(TextInfo->Text) {
             MeasureInfo = (GFX_TEXT_MEASURE_INFO){
-                .Header = TextInfo->Header,
-                .Text = TextInfo->Text,
-                .Font = NULL,
-                .Width = 0,
-                .Height = 0
-            };
+                .Header = TextInfo->Header, .Text = TextInfo->Text, .Font = NULL, .Width = 0, .Height = 0};
 
             if (DesktopMeasureText(&MeasureInfo) == FALSE) {
                 return 0;
@@ -2919,7 +2943,8 @@ UINT SysCall_DrawWindowBackground(UINT Parameter) {
                 return 0;
             }
 
-            return (UINT)DrawWindowBackground((HANDLE)Window, (HANDLE)Context, &(BackgroundInfo->Rect), BackgroundInfo->ThemeToken);
+            return (UINT)DrawWindowBackground(
+                (HANDLE)Window, (HANDLE)Context, &(BackgroundInfo->Rect), BackgroundInfo->ThemeToken);
         }
     }
 
@@ -3144,8 +3169,7 @@ UINT SysCall_ListUsers(UINT Parameter) {
 
         ListInfo->UserCount = 0;
         LPLIST AccountList = GetAccountList();
-        LPUSER_ACCOUNT Account =
-            (LPUSER_ACCOUNT)(AccountList != NULL ? AccountList->First : NULL);
+        LPUSER_ACCOUNT Account = (LPUSER_ACCOUNT)(AccountList != NULL ? AccountList->First : NULL);
 
         while (Account != NULL && ListInfo->UserCount < ListInfo->MaxUsers) {
             StringCopy(ListInfo->UserNames[ListInfo->UserCount], Account->UserName);
@@ -3207,9 +3231,7 @@ UINT SysCall_SocketBind(UINT Parameter) {
 UINT SysCall_SocketListen(UINT Parameter) {
     LPSOCKET_LISTEN_INFO Info = (LPSOCKET_LISTEN_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, SOCKET_LISTEN_INFO) {
-        return SocketListen(Info->SocketHandle, Info->Backlog);
-    }
+    SAFE_USE_INPUT_POINTER(Info, SOCKET_LISTEN_INFO) { return SocketListen(Info->SocketHandle, Info->Backlog); }
 
     return DF_RETURN_BAD_PARAMETER;
 }
@@ -3298,7 +3320,9 @@ UINT SysCall_SocketSendTo(UINT Parameter) {
     LPSOCKET_DATA_INFO Info = (LPSOCKET_DATA_INFO)Parameter;
 
     SAFE_USE_INPUT_POINTER(Info, SOCKET_DATA_INFO) {
-        return SocketSendTo(Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData, Info->AddressLength);
+        return SocketSendTo(
+            Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData,
+            Info->AddressLength);
     }
 
     return DF_RETURN_BAD_PARAMETER;
@@ -3317,7 +3341,9 @@ UINT SysCall_SocketReceiveFrom(UINT Parameter) {
 
     SAFE_USE_INPUT_POINTER(Info, SOCKET_DATA_INFO) {
         U32 AddressLength = Info->AddressLength;
-        UINT Result = SocketReceiveFrom(Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData, &AddressLength);
+        UINT Result = SocketReceiveFrom(
+            Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData,
+            &AddressLength);
         Info->AddressLength = AddressLength;
         return Result;
     }
@@ -3349,9 +3375,7 @@ UINT SysCall_SocketClose(UINT Parameter) {
 UINT SysCall_SocketShutdown(UINT Parameter) {
     LPSOCKET_SHUTDOWN_INFO Info = (LPSOCKET_SHUTDOWN_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, SOCKET_SHUTDOWN_INFO) {
-        return SocketShutdown(Info->SocketHandle, Info->How);
-    }
+    SAFE_USE_INPUT_POINTER(Info, SOCKET_SHUTDOWN_INFO) { return SocketShutdown(Info->SocketHandle, Info->How); }
 
     return DF_RETURN_BAD_PARAMETER;
 }
@@ -3369,7 +3393,8 @@ UINT SysCall_SocketGetOption(UINT Parameter) {
 
     SAFE_USE_INPUT_POINTER(Info, SOCKET_OPTION_INFO) {
         U32 OptionLength = Info->OptionLength;
-        UINT Result = SocketGetOption(Info->SocketHandle, Info->Level, Info->OptionName, Info->OptionValue, &OptionLength);
+        UINT Result =
+            SocketGetOption(Info->SocketHandle, Info->Level, Info->OptionName, Info->OptionValue, &OptionLength);
         Info->OptionLength = OptionLength;
         return Result;
     }
@@ -3389,7 +3414,8 @@ UINT SysCall_SocketSetOption(UINT Parameter) {
     LPSOCKET_OPTION_INFO Info = (LPSOCKET_OPTION_INFO)Parameter;
 
     SAFE_USE_INPUT_POINTER(Info, SOCKET_OPTION_INFO) {
-        return SocketSetOption(Info->SocketHandle, Info->Level, Info->OptionName, Info->OptionValue, Info->OptionLength);
+        return SocketSetOption(
+            Info->SocketHandle, Info->Level, Info->OptionName, Info->OptionValue, Info->OptionLength);
     }
 
     return DF_RETURN_BAD_PARAMETER;
@@ -3429,6 +3455,32 @@ UINT SysCall_SocketGetSocketName(UINT Parameter) {
     }
 
     return DF_RETURN_BAD_PARAMETER;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Get the surface info from a graphics context.
+ *
+ * @param Parameter Pointer to GC_SURFACE_INFO structure.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetGCSurface(UINT Parameter) {
+    LPGC_SURFACE_INFO Info = (LPGC_SURFACE_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, GC_SURFACE_INFO) {
+        LPGRAPHICSCONTEXT Context = (LPGRAPHICSCONTEXT)HandleToPointer(Info->GC);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Context, KOID_GRAPHICSCONTEXT, TRUE) {
+            Info->Width = Context->Width;
+            Info->Height = Context->Height;
+            Info->Pitch = Context->BytesPerScanLine;
+            Info->MemoryBase = Context->MemoryBase;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
 /************************************************************************/

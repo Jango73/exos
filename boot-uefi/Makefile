@@ -76,6 +76,7 @@ MODULE_IMPORT_ELF := $(CORE_BUILD_DIR)/system/test/module-import/module-import
 PIPE_SOURCE_ELF := $(CORE_BUILD_DIR)/system/test/pipe-source/pipe-source
 PIPE_UPPER_ELF := $(CORE_BUILD_DIR)/system/test/pipe-upper/pipe-upper
 PIPE_SUMMARY_ELF := $(CORE_BUILD_DIR)/system/test/pipe-summary/pipe-summary
+TINYGL_DEMO_ELF := $(CORE_BUILD_DIR)/system/tinygl-demo/tinygl-demo
 SYSTEM_SCRIPT_FILES := $(wildcard ../system/scripts/*)
 TCC_SAMPLE_FILES := $(wildcard ../system/tcc/samples/*)
 TCC_INCLUDE_FILES := $(wildcard ../system/tcc/include/*)

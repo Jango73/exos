@@ -13,6 +13,7 @@
 \************************************************************************/
 
 #include "../include/exos.h"
+
 #include "../include/exos-runtime.h"
 #include "../include/exos-string.h"
 
@@ -231,7 +232,8 @@ BOOL ApplyDesktopTheme(LPCSTR Target) {
 
 /***************************************************************************/
 
-HANDLE RegisterWindowClass(LPCSTR ClassName, HANDLE BaseClass, LPCSTR BaseClassName, WINDOWFUNC Function, U32 ClassDataSize) {
+HANDLE RegisterWindowClass(
+    LPCSTR ClassName, HANDLE BaseClass, LPCSTR BaseClassName, WINDOWFUNC Function, U32 ClassDataSize) {
     WINDOW_CLASS_INFO ClassInfo;
 
     ClassInfo.Header.Size = sizeof ClassInfo;
@@ -301,16 +303,8 @@ BOOL WindowInheritsClass(HANDLE Window, HANDLE WindowClass, LPCSTR ClassName) {
 /***************************************************************************/
 
 HANDLE CreateWindowWithClass(
-    HANDLE Parent,
-    HANDLE WindowClass,
-    LPCSTR WindowClassName,
-    WINDOWFUNC Func,
-    U32 Style,
-    U32 ID,
-    I32 PosX,
-    I32 PosY,
-    I32 SizeX,
-    I32 SizeY) {
+    HANDLE Parent, HANDLE WindowClass, LPCSTR WindowClassName, WINDOWFUNC Func, U32 Style, U32 ID, I32 PosX, I32 PosY,
+    I32 SizeX, I32 SizeY) {
     WINDOW_INFO WindowInfo;
 
     WindowInfo.Header.Size = sizeof WindowInfo;
@@ -334,9 +328,7 @@ HANDLE CreateWindowWithClass(
 
 /***************************************************************************/
 
-HANDLE CreateWindow(LPWINDOW_INFO WindowInfo) {
-    return (HANDLE)exoscall(SYSCALL_CreateWindow, EXOS_PARAM(WindowInfo));
-}
+HANDLE CreateWindow(LPWINDOW_INFO WindowInfo) { return (HANDLE)exoscall(SYSCALL_CreateWindow, EXOS_PARAM(WindowInfo)); }
 
 /***************************************************************************/
 
@@ -464,6 +456,45 @@ UINT SetWindowProp(HANDLE Window, LPCSTR Name, UINT Value) {
 
 /***************************************************************************/
 
+BOOL SetWindowCaption(HANDLE Window, LPCSTR Caption) {
+    WINDOW_CAPTION WindowCaption;
+    UINT Index;
+
+    WindowCaption.Header.Size = sizeof WindowCaption;
+    WindowCaption.Header.Version = EXOS_ABI_VERSION;
+    WindowCaption.Header.Flags = 0;
+    WindowCaption.Window = Window;
+    for (Index = 0; Index < MAX_WINDOW_CAPTION; Index++) {
+        WindowCaption.Text[Index] = (Caption[Index] == 0) ? 0 : (U8)Caption[Index];
+        if (Caption[Index] == 0) break;
+    }
+
+    return (BOOL)exoscall(SYSCALL_SetWindowCaption, EXOS_PARAM(&WindowCaption));
+}
+
+/***************************************************************************/
+
+BOOL SetWindowTimer(HANDLE Window, U32 TimerID, U32 IntervalMilliseconds) {
+    TIMER_INFO TimerInfo;
+
+    TimerInfo.Header.Size = sizeof TimerInfo;
+    TimerInfo.Header.Version = EXOS_ABI_VERSION;
+    TimerInfo.Header.Flags = 0;
+    TimerInfo.Window = Window;
+    TimerInfo.TimerID = TimerID;
+    TimerInfo.Interval = IntervalMilliseconds;
+
+    return (BOOL)exoscall(SYSCALL_SetWindowTimer, EXOS_PARAM(&TimerInfo));
+}
+
+/***************************************************************************/
+
+BOOL KillWindowTimer(HANDLE Window, U32 TimerID) {
+    return SetWindowTimer(Window, TimerID, 0);
+}
+
+/***************************************************************************/
+
 UINT GetWindowProp(HANDLE Window, LPCSTR Name) {
     PROP_INFO PropInfo;
 
@@ -483,6 +514,14 @@ HANDLE GetWindowGC(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_GetWindowGC,
 /***************************************************************************/
 
 BOOL ReleaseWindowGC(HANDLE GC) { return (BOOL)exoscall(SYSCALL_ReleaseWindowGC, EXOS_PARAM(GC)); }
+
+/***************************************************************************/
+
+BOOL GetGCSurface(HANDLE GC, LPGC_SURFACE_INFO Info) {
+    if (GC == NULL || Info == NULL) return FALSE;
+    Info->GC = GC;
+    return (BOOL)exoscall(SYSCALL_GetGCSurface, EXOS_PARAM(Info));
+}
 
 /***************************************************************************/
 
@@ -601,11 +640,15 @@ HANDLE GetWindowChild(HANDLE Window, U32 ChildIndex) {
 
 /***************************************************************************/
 
-HANDLE GetNextWindowSibling(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_GetNextWindowSibling, EXOS_PARAM(Window)); }
+HANDLE GetNextWindowSibling(HANDLE Window) {
+    return (HANDLE)exoscall(SYSCALL_GetNextWindowSibling, EXOS_PARAM(Window));
+}
 
 /***************************************************************************/
 
-HANDLE GetPreviousWindowSibling(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_GetPreviousWindowSibling, EXOS_PARAM(Window)); }
+HANDLE GetPreviousWindowSibling(HANDLE Window) {
+    return (HANDLE)exoscall(SYSCALL_GetPreviousWindowSibling, EXOS_PARAM(Window));
+}
 
 /***************************************************************************/
 
@@ -637,15 +680,11 @@ HANDLE GetSystemPen(U32 Index) { return exoscall(SYSCALL_GetSystemPen, EXOS_PARA
 
 /***************************************************************************/
 
-HANDLE CreateBrush(LPBRUSH_INFO BrushInfo) {
-    return exoscall(SYSCALL_CreateBrush, EXOS_PARAM(BrushInfo));
-}
+HANDLE CreateBrush(LPBRUSH_INFO BrushInfo) { return exoscall(SYSCALL_CreateBrush, EXOS_PARAM(BrushInfo)); }
 
 /***************************************************************************/
 
-HANDLE CreatePen(LPPEN_INFO PenInfo) {
-    return exoscall(SYSCALL_CreatePen, EXOS_PARAM(PenInfo));
-}
+HANDLE CreatePen(LPPEN_INFO PenInfo) { return exoscall(SYSCALL_CreatePen, EXOS_PARAM(PenInfo)); }
 
 /***************************************************************************/
 
@@ -723,9 +762,7 @@ U32 GetPixel(HANDLE GC, U32 X, U32 Y) {
 
 /***************************************************************************/
 
-BOOL Line(LPLINE_INFO LineInfo) {
-    return (BOOL)exoscall(SYSCALL_Line, EXOS_PARAM(LineInfo));
-}
+BOOL Line(LPLINE_INFO LineInfo) { return (BOOL)exoscall(SYSCALL_Line, EXOS_PARAM(LineInfo)); }
 
 /***************************************************************************/
 
@@ -794,9 +831,7 @@ U32 GetMouseButtons(void) { return (U32)exoscall(SYSCALL_GetMouseButtons, EXOS_P
 
 /***************************************************************************/
 
-HANDLE CaptureMouse(HANDLE Window) {
-    return (HANDLE)exoscall(SYSCALL_CaptureMouse, EXOS_PARAM(Window));
-}
+HANDLE CaptureMouse(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_CaptureMouse, EXOS_PARAM(Window)); }
 
 /***************************************************************************/
 
@@ -812,27 +847,19 @@ U32 GetKeyModifiers(void) {
 
 /***************************************************************************/
 
-U32 ConsoleGetKey(LPKEYCODE KeyCode) {
-    return exoscall(SYSCALL_ConsoleGetKey, EXOS_PARAM(KeyCode));
-}
+U32 ConsoleGetKey(LPKEYCODE KeyCode) { return exoscall(SYSCALL_ConsoleGetKey, EXOS_PARAM(KeyCode)); }
 
 /***************************************************************************/
 
-U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Buffer) {
-    return exoscall(SYSCALL_ConsoleBlitBuffer, EXOS_PARAM(Buffer));
-}
+U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Buffer) { return exoscall(SYSCALL_ConsoleBlitBuffer, EXOS_PARAM(Buffer)); }
 
 /***************************************************************************/
 
-void ConsoleGotoXY(LPPOINT Position) {
-    exoscall(SYSCALL_ConsoleGotoXY, EXOS_PARAM(Position));
-}
+void ConsoleGotoXY(LPPOINT Position) { exoscall(SYSCALL_ConsoleGotoXY, EXOS_PARAM(Position)); }
 
 /***************************************************************************/
 
-void ConsoleClear(void) {
-    exoscall(SYSCALL_ConsoleClear, EXOS_PARAM(0));
-}
+void ConsoleClear(void) { exoscall(SYSCALL_ConsoleClear, EXOS_PARAM(0)); }
 
 /***************************************************************************/
 
@@ -868,9 +895,7 @@ BOOL ConsoleGetCurrentMode(LPCONSOLE_MODE_INFO Info) {
 
 /***************************************************************************/
 
-BOOL DeleteObject(HANDLE Object) {
-    return (BOOL)exoscall(SYSCALL_DeleteObject, EXOS_PARAM(Object));
-}
+BOOL DeleteObject(HANDLE Object) { return (BOOL)exoscall(SYSCALL_DeleteObject, EXOS_PARAM(Object)); }
 
 /***************************************************************************/
 
@@ -878,9 +903,7 @@ static U32 RandomSeed = 1;
 
 /***************************************************************************/
 
-void srand(U32 Seed) {
-    RandomSeed = Seed;
-}
+void srand(U32 Seed) { RandomSeed = Seed; }
 
 /***************************************************************************/
 
@@ -994,7 +1017,9 @@ I32 SocketReceive(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Fla
 
 /***************************************************************************/
 
-I32 SocketSendTo(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress, U32 AddressLength) {
+I32 SocketSendTo(
+    SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress,
+    U32 AddressLength) {
     SOCKET_DATA_INFO Info;
     Info.Header.Size = sizeof(SOCKET_DATA_INFO);
     Info.Header.Version = EXOS_ABI_VERSION;
@@ -1015,7 +1040,9 @@ I32 SocketSendTo(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Fla
 
 /***************************************************************************/
 
-I32 SocketReceiveFrom(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress, U32* AddressLength) {
+I32 SocketReceiveFrom(
+    SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress,
+    U32* AddressLength) {
     SOCKET_DATA_INFO Info;
     Info.Header.Size = sizeof(SOCKET_DATA_INFO);
     Info.Header.Version = EXOS_ABI_VERSION;
@@ -1038,9 +1065,7 @@ I32 SocketReceiveFrom(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32
 
 /***************************************************************************/
 
-U32 SocketClose(SOCKET_HANDLE SocketHandle) {
-    return exoscall(SYSCALL_SocketClose, EXOS_PARAM(SocketHandle));
-}
+U32 SocketClose(SOCKET_HANDLE SocketHandle) { return exoscall(SYSCALL_SocketClose, EXOS_PARAM(SocketHandle)); }
 
 /***************************************************************************/
 

@@ -26,11 +26,11 @@
 
 /************************************************************************/
 
-#include "User.h"
-#include "process/Task-Messaging.h"
-#include "process/Process.h"
 #include "Desktop-ThemeRuntime.h"
 #include "GFX.h"
+#include "User.h"
+#include "process/Process.h"
+#include "process/Task-Messaging.h"
 
 /************************************************************************/
 // Windowing lock contract
@@ -62,7 +62,8 @@
 LPDESKTOP KernelCreateDesktop(void);
 BOOL DeleteDesktop(LPDESKTOP);
 BOOL KernelShowDesktop(LPDESKTOP);
-HANDLE RegisterWindowClass(LPCSTR ClassName, HANDLE BaseClass, LPCSTR BaseClassName, WINDOWFUNC Function, U32 ClassDataSize);
+HANDLE RegisterWindowClass(
+    LPCSTR ClassName, HANDLE BaseClass, LPCSTR BaseClassName, WINDOWFUNC Function, U32 ClassDataSize);
 BOOL UnregisterWindowClass(HANDLE WindowClass, LPCSTR ClassName);
 HANDLE FindWindowClass(LPCSTR ClassName);
 BOOL WindowInheritsClass(HANDLE Window, HANDLE WindowClass, LPCSTR ClassName);
@@ -131,6 +132,7 @@ HANDLE CaptureMouse(HANDLE Window);
 BOOL ReleaseMouse(void);
 BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info);
 BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info);
+BOOL GetGCSurface(HANDLE GC, LPGC_SURFACE_INFO Info);
 BOOL SetWindowTimer(HANDLE Window, U32 TimerID, U32 IntervalMilliseconds);
 BOOL KillWindowTimer(HANDLE Window, U32 TimerID);
 U32 BaseWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2);

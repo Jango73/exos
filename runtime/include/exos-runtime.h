@@ -81,42 +81,43 @@ extern "C" {
 
 #define PI 3.1415926535f
 #define TWO_PI 6.283185307179586f
+#define PI_ON_TWO 1.5707963267948966f
 
 /************************************************************************/
 // Types
 
 #if defined(_MSC_VER)
-    typedef unsigned __int8 uint8_t;
-    typedef signed __int8 int8_t;
-    typedef unsigned __int16 uint16_t;
-    typedef signed __int16 int16_t;
-    typedef unsigned __int32 uint32_t;
-    typedef signed __int32 int32_t;
-    typedef unsigned __int64 uint64_t;
-    typedef signed __int64 int64_t;
-    typedef unsigned int uint_t;
-    typedef signed int int_t;
-    typedef unsigned int size_t;
-    typedef unsigned int fpos_t;
-    typedef unsigned int uintptr_t;
-    typedef signed int intptr_t;
+typedef unsigned __int8 uint8_t;
+typedef signed __int8 int8_t;
+typedef unsigned __int16 uint16_t;
+typedef signed __int16 int16_t;
+typedef unsigned __int32 uint32_t;
+typedef signed __int32 int32_t;
+typedef unsigned __int64 uint64_t;
+typedef signed __int64 int64_t;
+typedef unsigned int uint_t;
+typedef signed int int_t;
+typedef unsigned int size_t;
+typedef unsigned int fpos_t;
+typedef unsigned int uintptr_t;
+typedef signed int intptr_t;
 #elif defined(__GNUC__) || defined(__clang__)
-    typedef unsigned char uint8_t;
-    typedef signed char int8_t;
-    typedef unsigned short uint16_t;
-    typedef signed short int16_t;
-    typedef unsigned int uint32_t;
-    typedef signed int int32_t;
-    typedef unsigned long long uint64_t;
-    typedef signed long long int64_t;
-    typedef unsigned long uint_t;
-    typedef signed long int_t;
-    typedef unsigned long size_t;
-    typedef unsigned long fpos_t;
-    typedef unsigned long uintptr_t;
-    typedef signed long intptr_t;
+typedef unsigned char uint8_t;
+typedef signed char int8_t;
+typedef unsigned short uint16_t;
+typedef signed short int16_t;
+typedef unsigned int uint32_t;
+typedef signed int int32_t;
+typedef unsigned long long uint64_t;
+typedef signed long long int64_t;
+typedef unsigned long uint_t;
+typedef signed long int_t;
+typedef unsigned long size_t;
+typedef unsigned long fpos_t;
+typedef unsigned long uintptr_t;
+typedef signed long intptr_t;
 #else
-    #error "Unsupported compiler for Base.h"
+#error "Unsupported compiler for Base.h"
 #endif
 
 typedef int_t ssize_t;
@@ -143,8 +144,8 @@ struct sockaddr_in {
 #pragma pack(pop)
 
 // Socket option constants
-#define SOL_SOCKET                1
-#define SO_RCVTIMEO               20
+#define SOL_SOCKET 1
+#define SO_RCVTIMEO 20
 
 /************************************************************************/
 // Byte order inline functions
@@ -173,7 +174,7 @@ static inline unsigned long htonl(unsigned long Value) {
 static inline unsigned long ntohl(unsigned long Value) { return htonl(Value); }
 
 #else
-    #error "Endianness not defined"
+#error "Endianness not defined"
 #endif
 
 /************************************************************************/
@@ -331,25 +332,33 @@ extern int execvp(const char* file, char* const arguments[]);
 /************************************************************************/
 // Math
 
-extern float cos(float code);
+extern float fcos(float code);
+extern float fsin(float code);
+extern float fsqrt(float x);
+extern int fceil(float x);
+
+extern double sin(double x);
+extern double cos(double x);
+extern double sqrt(double x);
+extern double ceil(double x);
 
 /************************************************************************/
 // POSIX Socket interface
 
-int     socket(int domain, int type, int protocol);
-int     bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-int     listen(int sockfd, int backlog);
-int     accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-int     connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-size_t  send(int sockfd, const void *buf, size_t len, int flags);
-size_t  recv(int sockfd, void *buf, size_t len, int flags);
-size_t  sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
-size_t  recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
-int     shutdown(int sockfd, int how);
-int     getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
-int     setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
-int     getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-int     getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int socket(int domain, int type, int protocol);
+int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
+int listen(int sockfd, int backlog);
+int accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
+int connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
+size_t send(int sockfd, const void* buf, size_t len, int flags);
+size_t recv(int sockfd, void* buf, size_t len, int flags);
+size_t sendto(int sockfd, const void* buf, size_t len, int flags, const struct sockaddr* dest_addr, socklen_t addrlen);
+size_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen);
+int shutdown(int sockfd, int how);
+int getsockopt(int sockfd, int level, int optname, void* optval, socklen_t* optlen);
+int setsockopt(int sockfd, int level, int optname, const void* optval, socklen_t optlen);
+int getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
+int getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 
 #ifdef __cplusplus
 }

@@ -3,6 +3,7 @@ exos-adaptive-delay.o
 exos.o
 exos-module.o
 exos-runtime-c.o
+exos-runtime-math.o
 exos-runtime-stdlib.o
 exos-string.o
 http.o

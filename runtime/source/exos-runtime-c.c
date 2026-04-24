@@ -15,8 +15,8 @@
 #include "../../kernel/include/User.h"
 #include "../../kernel/include/VarArg.h"
 #include "../include/exos-runtime.h"
-#include "../include/exos.h"
 #include "../include/exos-string.h"
+#include "../include/exos.h"
 
 /************************************************************************/
 
@@ -29,15 +29,13 @@ extern void* KernelHeapRealloc(void* ptr, unsigned long size);
 
 /************************************************************************/
 
-/************************************************************************/
-
 // Global argc/argv for main function
 int _argc = 0;
 char** _argv = NULL;
 
 // Static storage for argv to avoid early malloc() issues
-char* _static_argv[16];                          // Support up to 16 arguments
-char _static_arg_storage[MAX_STRING_BUFFER];     // Storage for argument strings
+char* _static_argv[16];                       // Support up to 16 arguments
+char _static_arg_storage[MAX_STRING_BUFFER];  // Storage for argument strings
 
 PROCESS_INFO _ProcessInfo;
 
@@ -251,9 +249,7 @@ int fprintf(FILE* fp, const char* fmt, ...) {
 /************************************************************************/
 
 #ifndef __KERNEL__
-int peekch(void) {
-    return exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0));
-}
+int peekch(void) { return exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0)); }
 #endif
 
 /************************************************************************/
@@ -291,9 +287,7 @@ int getkey(void) {
 /************************************************************************/
 
 #ifndef __KERNEL__
-unsigned getkeymodifiers(void) {
-    return (unsigned)GetKeyModifiers();
-}
+unsigned getkeymodifiers(void) { return (unsigned)GetKeyModifiers(); }
 #endif
 
 /************************************************************************/
@@ -308,10 +302,10 @@ int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_li
     TaskInfo.Header.Size = sizeof(TASK_INFO);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
     TaskInfo.Header.Flags = 0;
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wcast-function-type"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
     TaskInfo.Func = (TASKFUNC)start_address;
-    #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
     TaskInfo.Parameter = (LPVOID)arg_list;
     TaskInfo.StackSize = (U32)stack_size;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
@@ -615,92 +609,6 @@ int fgets(char* str, int num, FILE* fp) {
 }
 
 /************************************************************************/
-// Math
-
-#define COS_TABLE_SIZE 512
-
-static const float cos_table[COS_TABLE_SIZE] = {
-    1.0000000f, 0.9999247f, 0.9996988f, 0.9993224f, 0.9987955f, 0.9981181f, 0.9972904f, 0.9963126f,
-    0.9951847f, 0.9939070f, 0.9924796f, 0.9909027f, 0.9891765f, 0.9873014f, 0.9852777f, 0.9831055f,
-    0.9807853f, 0.9783174f, 0.9757021f, 0.9729400f, 0.9700313f, 0.9669765f, 0.9637761f, 0.9604305f,
-    0.9569404f, 0.9533060f, 0.9495282f, 0.9456073f, 0.9415441f, 0.9373390f, 0.9329928f, 0.9285061f,
-    0.9238795f, 0.9191139f, 0.9142098f, 0.9091680f, 0.9039893f, 0.8986745f, 0.8932243f, 0.8876396f,
-    0.8819213f, 0.8760701f, 0.8700869f, 0.8639728f, 0.8577286f, 0.8513552f, 0.8448536f, 0.8382247f,
-    0.8314696f, 0.8245893f, 0.8175848f, 0.8104572f, 0.8032075f, 0.7958369f, 0.7883464f, 0.7807372f,
-    0.7730105f, 0.7651673f, 0.7572088f, 0.7491364f, 0.7409511f, 0.7326543f, 0.7242471f, 0.7157308f,
-    0.7071068f, 0.6983762f, 0.6895405f, 0.6806010f, 0.6715590f, 0.6624158f, 0.6531728f, 0.6438315f,
-    0.6343933f, 0.6248595f, 0.6152316f, 0.6055110f, 0.5956993f, 0.5857979f, 0.5758082f, 0.5657318f,
-    0.5555702f, 0.5453250f, 0.5349976f, 0.5245897f, 0.5141027f, 0.5035384f, 0.4928982f, 0.4821838f,
-    0.4713967f, 0.4605387f, 0.4496113f, 0.4386162f, 0.4275551f, 0.4164296f, 0.4052413f, 0.3939920f,
-    0.3826834f, 0.3713172f, 0.3598950f, 0.3484189f, 0.3368899f, 0.3253103f, 0.3136817f, 0.3020059f,
-    0.2902847f, 0.2785197f, 0.2667128f, 0.2548656f, 0.2429802f, 0.2310581f, 0.2191012f, 0.2071114f,
-    0.1950903f, 0.1830399f, 0.1709619f, 0.1588581f, 0.1467305f, 0.1345807f, 0.1224107f, 0.1102222f,
-    0.0980171f, 0.0857973f, 0.0735646f, 0.0613207f, 0.0490677f, 0.0368072f, 0.0245412f, 0.0122715f,
-    0.0000000f, -0.0122715f, -0.0245412f, -0.0368072f, -0.0490677f, -0.0613207f, -0.0735646f, -0.0857973f,
-    -0.0980171f, -0.1102222f, -0.1224107f, -0.1345807f, -0.1467305f, -0.1588581f, -0.1709619f, -0.1830399f,
-    -0.1950903f, -0.2071114f, -0.2191012f, -0.2310581f, -0.2429802f, -0.2548656f, -0.2667128f, -0.2785197f,
-    -0.2902847f, -0.3020059f, -0.3136817f, -0.3253103f, -0.3368899f, -0.3484189f, -0.3598950f, -0.3713172f,
-    -0.3826834f, -0.3939920f, -0.4052413f, -0.4164296f, -0.4275551f, -0.4386162f, -0.4496113f, -0.4605387f,
-    -0.4713967f, -0.4821838f, -0.4928982f, -0.5035384f, -0.5141027f, -0.5245897f, -0.5349976f, -0.5453250f,
-    -0.5555702f, -0.5657318f, -0.5758082f, -0.5857979f, -0.5956993f, -0.6055110f, -0.6152316f, -0.6248595f,
-    -0.6343933f, -0.6438315f, -0.6531728f, -0.6624158f, -0.6715590f, -0.6806010f, -0.6895405f, -0.6983762f,
-    -0.7071068f, -0.7157308f, -0.7242471f, -0.7326543f, -0.7409511f, -0.7491364f, -0.7572088f, -0.7651673f,
-    -0.7730105f, -0.7807372f, -0.7883464f, -0.7958369f, -0.8032075f, -0.8104572f, -0.8175848f, -0.8245893f,
-    -0.8314696f, -0.8382247f, -0.8448536f, -0.8513552f, -0.8577286f, -0.8639728f, -0.8700869f, -0.8760701f,
-    -0.8819213f, -0.8876396f, -0.8932243f, -0.8986745f, -0.9039893f, -0.9091680f, -0.9142098f, -0.9191139f,
-    -0.9238795f, -0.9285061f, -0.9329928f, -0.9373390f, -0.9415441f, -0.9456073f, -0.9495282f, -0.9533060f,
-    -0.9569404f, -0.9604305f, -0.9637761f, -0.9669765f, -0.9700313f, -0.9729400f, -0.9757021f, -0.9783174f,
-    -0.9807853f, -0.9831055f, -0.9852777f, -0.9873014f, -0.9891765f, -0.9909027f, -0.9924796f, -0.9939070f,
-    -0.9951847f, -0.9963126f, -0.9972904f, -0.9981181f, -0.9987955f, -0.9993224f, -0.9996988f, -0.9999247f,
-    -1.0000000f, -0.9999247f, -0.9996988f, -0.9993224f, -0.9987955f, -0.9981181f, -0.9972904f, -0.9963126f,
-    -0.9951847f, -0.9939070f, -0.9924796f, -0.9909027f, -0.9891765f, -0.9873014f, -0.9852777f, -0.9831055f,
-    -0.9807853f, -0.9783174f, -0.9757021f, -0.9729400f, -0.9700313f, -0.9669765f, -0.9637761f, -0.9604305f,
-    -0.9569404f, -0.9533060f, -0.9495282f, -0.9456073f, -0.9415441f, -0.9373390f, -0.9329928f, -0.9285061f,
-    -0.9238795f, -0.9191139f, -0.9142098f, -0.9091680f, -0.9039893f, -0.8986745f, -0.8932243f, -0.8876396f,
-    -0.8819213f, -0.8760701f, -0.8700869f, -0.8639728f, -0.8577286f, -0.8513552f, -0.8448536f, -0.8382247f,
-    -0.8314696f, -0.8245893f, -0.8175848f, -0.8104572f, -0.8032075f, -0.7958369f, -0.7883464f, -0.7807372f,
-    -0.7730105f, -0.7651673f, -0.7572088f, -0.7491364f, -0.7409511f, -0.7326543f, -0.7242471f, -0.7157308f,
-    -0.7071068f, -0.6983762f, -0.6895405f, -0.6806010f, -0.6715590f, -0.6624158f, -0.6531728f, -0.6438315f,
-    -0.6343933f, -0.6248595f, -0.6152316f, -0.6055110f, -0.5956993f, -0.5857979f, -0.5758082f, -0.5657318f,
-    -0.5555702f, -0.5453250f, -0.5349976f, -0.5245897f, -0.5141027f, -0.5035384f, -0.4928982f, -0.4821838f,
-    -0.4713967f, -0.4605387f, -0.4496113f, -0.4386162f, -0.4275551f, -0.4164296f, -0.4052413f, -0.3939920f,
-    -0.3826834f, -0.3713172f, -0.3598950f, -0.3484189f, -0.3368899f, -0.3253103f, -0.3136817f, -0.3020059f,
-    -0.2902847f, -0.2785197f, -0.2667128f, -0.2548656f, -0.2429802f, -0.2310581f, -0.2191012f, -0.2071114f,
-    -0.1950903f, -0.1830399f, -0.1709619f, -0.1588581f, -0.1467305f, -0.1345807f, -0.1224107f, -0.1102222f,
-    -0.0980171f, -0.0857973f, -0.0735646f, -0.0613207f, -0.0490677f, -0.0368072f, -0.0245412f, -0.0122715f,
-    -0.0000000f, 0.0122715f, 0.0245412f, 0.0368072f, 0.0490677f, 0.0613207f, 0.0735646f, 0.0857973f,
-    0.0980171f, 0.1102222f, 0.1224107f, 0.1345807f, 0.1467305f, 0.1588581f, 0.1709619f, 0.1830399f,
-    0.1950903f, 0.2071114f, 0.2191012f, 0.2310581f, 0.2429802f, 0.2548656f, 0.2667128f, 0.2785197f,
-    0.2902847f, 0.3020059f, 0.3136817f, 0.3253103f, 0.3368899f, 0.3484189f, 0.3598950f, 0.3713172f,
-    0.3826834f, 0.3939920f, 0.4052413f, 0.4164296f, 0.4275551f, 0.4386162f, 0.4496113f, 0.4605387f,
-    0.4713967f, 0.4821838f, 0.4928982f, 0.5035384f, 0.5141027f, 0.5245897f, 0.5349976f, 0.5453250f,
-    0.5555702f, 0.5657318f, 0.5758082f, 0.5857979f, 0.5956993f, 0.6055110f, 0.6152316f, 0.6248595f,
-    0.6343933f, 0.6438315f, 0.6531728f, 0.6624158f, 0.6715590f, 0.6806010f, 0.6895405f, 0.6983762f,
-    0.7071068f, 0.7157308f, 0.7242471f, 0.7326543f, 0.7409511f, 0.7491364f, 0.7572088f, 0.7651673f,
-    0.7730105f, 0.7807372f, 0.7883464f, 0.7958369f, 0.8032075f, 0.8104572f, 0.8175848f, 0.8245893f,
-    0.8314696f, 0.8382247f, 0.8448536f, 0.8513552f, 0.8577286f, 0.8639728f, 0.8700869f, 0.8760701f,
-    0.8819213f, 0.8876396f, 0.8932243f, 0.8986745f, 0.9039893f, 0.9091680f, 0.9142098f, 0.9191139f,
-    0.9238795f, 0.9285061f, 0.9329928f, 0.9373390f, 0.9415441f, 0.9456073f, 0.9495282f, 0.9533060f,
-    0.9569404f, 0.9604305f, 0.9637761f, 0.9669765f, 0.9700313f, 0.9729400f, 0.9757021f, 0.9783174f,
-    0.9807853f, 0.9831055f, 0.9852777f, 0.9873014f, 0.9891765f, 0.9909027f, 0.9924796f, 0.9939070f,
-    0.9951847f, 0.9963126f, 0.9972904f, 0.9981181f, 0.9987955f, 0.9993224f, 0.9996988f, 0.9999247f
-};
-
-/************************************************************************/
-
-float cos(float angle) {
-    angle = angle - (int)(angle / TWO_PI) * TWO_PI;
-    if (angle < 0.0f) {
-        angle += TWO_PI;
-    }
-    
-    float pos = angle * COS_TABLE_SIZE / TWO_PI;
-    int index = (int)pos;
-    
-    return cos_table[index];
-}
-
-/************************************************************************/
 // Socket API implementations
 
 // TODO : when pointer masking done, remove SocketDescriptorToHandle
@@ -708,13 +616,13 @@ static inline SOCKET_HANDLE SocketDescriptorToHandle(int SocketDescriptor) {
     return (SOCKET_HANDLE)(INT)SocketDescriptor;
 }
 
-int socket(int domain, int type, int protocol) {
-    return (int)SocketCreate((U16)domain, (U16)type, (U16)protocol);
-}
+/************************************************************************/
+
+int socket(int domain, int type, int protocol) { return (int)SocketCreate((U16)domain, (U16)type, (U16)protocol); }
 
 /************************************************************************/
 
-int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
     SOCKET_ADDRESS kernelAddr;
 
     if (!addr || addrlen < sizeof(struct sockaddr)) {
@@ -729,13 +637,11 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
 /************************************************************************/
 
-int listen(int sockfd, int backlog) {
-    return (int)SocketListen(SocketDescriptorToHandle(sockfd), (U32)backlog);
-}
+int listen(int sockfd, int backlog) { return (int)SocketListen(SocketDescriptorToHandle(sockfd), (U32)backlog); }
 
 /************************************************************************/
 
-int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+int accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
     SOCKET_ADDRESS kernelAddr;
     U32 len = sizeof(kernelAddr);
     int result = (int)SocketAccept(SocketDescriptorToHandle(sockfd), &kernelAddr, &len);
@@ -751,7 +657,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
 
 /************************************************************************/
 
-int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+int connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
     SOCKET_ADDRESS kernelAddr;
 
     if (!addr || addrlen < sizeof(struct sockaddr)) {
@@ -766,20 +672,20 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
 /************************************************************************/
 
-size_t send(int sockfd, const void *buf, size_t len, int flags) {
+size_t send(int sockfd, const void* buf, size_t len, int flags) {
     I32 result = SocketSend(SocketDescriptorToHandle(sockfd), (LPCVOID)buf, (U32)len, (U32)flags);
     return (result >= 0) ? (size_t)result : 0;
 }
 
 /************************************************************************/
 
-size_t recv(int sockfd, void *buf, size_t len, int flags) {
+size_t recv(int sockfd, void* buf, size_t len, int flags) {
     return (size_t)SocketReceive(SocketDescriptorToHandle(sockfd), (LPVOID)buf, (U32)len, (U32)flags);
 }
 
 /************************************************************************/
 
-size_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen) {
+size_t sendto(int sockfd, const void* buf, size_t len, int flags, const struct sockaddr* dest_addr, socklen_t addrlen) {
     SOCKET_ADDRESS kernelAddr;
 
     if (!dest_addr || addrlen < sizeof(struct sockaddr)) {
@@ -789,16 +695,18 @@ size_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct s
     kernelAddr.AddressFamily = dest_addr->sa_family;
     memcpy(kernelAddr.Data, dest_addr->sa_data, sizeof(kernelAddr.Data));
 
-    I32 result = SocketSendTo(SocketDescriptorToHandle(sockfd), (LPCVOID)buf, (U32)len, (U32)flags, &kernelAddr, (U32)addrlen);
+    I32 result =
+        SocketSendTo(SocketDescriptorToHandle(sockfd), (LPCVOID)buf, (U32)len, (U32)flags, &kernelAddr, (U32)addrlen);
     return (result >= 0) ? (size_t)result : 0;
 }
 
 /************************************************************************/
 
-size_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen) {
+size_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen) {
     SOCKET_ADDRESS kernelAddr;
     U32 addr_len = sizeof(kernelAddr);
-    I32 result = SocketReceiveFrom(SocketDescriptorToHandle(sockfd), (LPVOID)buf, (U32)len, (U32)flags, &kernelAddr, &addr_len);
+    I32 result =
+        SocketReceiveFrom(SocketDescriptorToHandle(sockfd), (LPVOID)buf, (U32)len, (U32)flags, &kernelAddr, &addr_len);
 
     if (result >= 0 && src_addr && addrlen && *addrlen >= sizeof(struct sockaddr)) {
         src_addr->sa_family = kernelAddr.AddressFamily;
@@ -811,15 +719,14 @@ size_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *s
 
 /************************************************************************/
 
-int shutdown(int sockfd, int how) {
-    return (int)SocketShutdown(SocketDescriptorToHandle(sockfd), (U32)how);
-}
+int shutdown(int sockfd, int how) { return (int)SocketShutdown(SocketDescriptorToHandle(sockfd), (U32)how); }
 
 /************************************************************************/
 
-int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {
+int getsockopt(int sockfd, int level, int optname, void* optval, socklen_t* optlen) {
     U32 opt_len = (optlen != NULL) ? *optlen : 0;
-    int result = (int)SocketGetOption(SocketDescriptorToHandle(sockfd), (U32)level, (U32)optname, (LPVOID)optval, &opt_len);
+    int result =
+        (int)SocketGetOption(SocketDescriptorToHandle(sockfd), (U32)level, (U32)optname, (LPVOID)optval, &opt_len);
     if (optlen != NULL) {
         *optlen = opt_len;
     }
@@ -828,13 +735,14 @@ int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optl
 
 /************************************************************************/
 
-int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen) {
-    return (int)SocketSetOption(SocketDescriptorToHandle(sockfd), (U32)level, (U32)optname, (LPCVOID)optval, (U32)optlen);
+int setsockopt(int sockfd, int level, int optname, const void* optval, socklen_t optlen) {
+    return (int)SocketSetOption(
+        SocketDescriptorToHandle(sockfd), (U32)level, (U32)optname, (LPCVOID)optval, (U32)optlen);
 }
 
 /************************************************************************/
 
-int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+int getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
     SOCKET_ADDRESS kernelAddr;
     U32 len = sizeof(kernelAddr);
     int result = (int)SocketGetPeerName(SocketDescriptorToHandle(sockfd), &kernelAddr, &len);
@@ -850,7 +758,7 @@ int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
 
 /************************************************************************/
 
-int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+int getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
     SOCKET_ADDRESS kernelAddr;
     U32 len = sizeof(kernelAddr);
     int result = (int)SocketGetSocketName(SocketDescriptorToHandle(sockfd), &kernelAddr, &len);

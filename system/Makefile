@@ -23,9 +23,9 @@ SUBMAKE = $(MAKE) ARCH=$(ARCH) BUILD_CORE_NAME=$(BUILD_CORE_NAME) BUILD_IMAGE_NA
 
 ################################################################################
 
-.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc
+.PHONY: all clean hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc tinygl_demo
 
-SYSTEM_PROGRAMS = hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc
+SYSTEM_PROGRAMS = hello portal tictactoe terminal_tactics netget input-info memory_smoke master slave module_host module_sample module_import pipe_source pipe_upper pipe_summary tcc tinygl_demo
 
 all: $(SYSTEM_PROGRAMS)
 
@@ -190,6 +190,16 @@ tcc_clean:
 	+$(SUBMAKE) -C tcc clean
 
 ################################################################################
+# TinyGL Demo
 
-clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean pipe_source_clean pipe_upper_clean pipe_summary_clean tcc_clean
+tinygl_demo:
+	@echo "[ Building tinygl-demo ]"
+	+$(SUBMAKE) -C tinygl-demo all
+
+tinygl_demo_clean:
+	+$(SUBMAKE) -C tinygl-demo clean
+
+################################################################################
+
+clean: hello_clean portal_clean tictactoe_clean terminal_tactics_clean netget_clean input-info_clean memory_smoke_clean master_clean slave_clean module_host_clean module_sample_clean module_import_clean pipe_source_clean pipe_upper_clean pipe_summary_clean tcc_clean tinygl_demo_clean
 	@echo "[ Cleaning system programs ]"

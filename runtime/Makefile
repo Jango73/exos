@@ -70,6 +70,7 @@ SRC_C_ORDERED = \
 	source/exos.c \
 	source/exos-module.c \
 	source/exos-runtime-c.c \
+	source/exos-runtime-math.c \
 	source/exos-runtime-stdlib.c \
 	source/exos-string.c \
 	source/http.c \

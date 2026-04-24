@@ -127,6 +127,7 @@ HANDLE GetWindowGC(HANDLE);
 BOOL ReleaseWindowGC(HANDLE);
 HANDLE BeginWindowDraw(HANDLE);
 BOOL EndWindowDraw(HANDLE);
+BOOL GetGCSurface(HANDLE GC, LPGC_SURFACE_INFO Info);
 BOOL GetWindowRect(HANDLE, LPRECT);
 BOOL GetWindowClientRect(HANDLE, LPRECT);
 BOOL ScreenPointToWindowPoint(HANDLE, LPPOINT, LPPOINT);
@@ -181,8 +182,11 @@ SOCKET_HANDLE SocketAccept(SOCKET_HANDLE SocketHandle, LPSOCKET_ADDRESS Address,
 U32 SocketConnect(SOCKET_HANDLE SocketHandle, LPSOCKET_ADDRESS Address, U32 AddressLength);
 I32 SocketSend(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags);
 I32 SocketReceive(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags);
-I32 SocketSendTo(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress, U32 AddressLength);
-I32 SocketReceiveFrom(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress, U32* AddressLength);
+I32 SocketSendTo(
+    SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress, U32 AddressLength);
+I32 SocketReceiveFrom(
+    SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress,
+    U32* AddressLength);
 U32 SocketClose(SOCKET_HANDLE SocketHandle);
 U32 SocketShutdown(SOCKET_HANDLE SocketHandle, U32 How);
 U32 SocketGetOption(SOCKET_HANDLE SocketHandle, U32 Level, U32 OptionName, LPVOID OptionValue, U32* OptionLength);
@@ -215,7 +219,7 @@ static inline unsigned long HToNl(unsigned long Value) {
 static inline unsigned long NToHl(unsigned long Value) { return HToNl(Value); }
 
 #else
-    #error "Endianness not defined"
+#error "Endianness not defined"
 #endif
 
 /************************************************************************/

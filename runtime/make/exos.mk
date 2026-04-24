@@ -90,7 +90,7 @@ OBJS   = $(OBJ_C)
 all: $(TARGET) $(TARGET_SYMBOLS)
 
 $(TARGET): $(LINK_INPUTS) $(LINK_SCRIPT)
-	$(LD) $(LDFLAGS) -o $@ $(LINK_INPUTS)
+	$(LD) $(LDFLAGS) -o $@ --start-group $(LINK_INPUTS) --end-group
 
 $(APP_OUT_DIR)/%.o: source/%.c $(APP_HEADERS)
 	@mkdir -p $(dir $@)
