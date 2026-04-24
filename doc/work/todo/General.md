@@ -77,7 +77,15 @@
 
 ### Scheduling
 
-- [ ] Improve the scheduler (task priorities)
+- [ ] Improve the scheduler (task priorities):
+  - [ ] Split scheduler timing state into dedicated fields (for example sleep deadline vs time-slice deadline) instead of reusing one `WakeUpTime` for both semantics.
+  - [ ] Rearm task time-slice budget on each dispatch/preemption boundary so priority-based quantum remains effective after the first run.
+  - [ ] Replace single global runnable scan with priority run queues (one FIFO per priority level) plus a bitmap for O(1) highest-priority selection.
+  - [ ] Keep round-robin fairness inside each priority level while always selecting the highest runnable priority level first.
+  - [ ] Introduce effective dynamic priority (`BasePriority` + temporary boosts + mutex donation) and preempt immediately when a higher effective priority task becomes runnable.
+  - [ ] Add anti-starvation aging: gradually increase effective priority of runnable tasks that wait too long without CPU time.
+  - [ ] Implement priority inheritance for mutex contention: when a high-priority waiter blocks on a low-priority owner, temporarily donate priority to the owner and restore it on unlock.
+  - [ ] Keep quantum configuration coherent: when `General.QuantumMS` overrides minimum quantum, recompute/update maximum quantum consistently (preserve policy ratio).
 - [ ] A CPU-bound task that never blocks can starve lower-priority deferred work and input handling (e.g., System Data View loop). Preference: force yield when a task is too CPU-hungry.
 
 ### Multicore
