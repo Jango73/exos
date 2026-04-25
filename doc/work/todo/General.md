@@ -43,6 +43,20 @@
 
 - [x] Implement stdin/stdout/stderr
 
+- [ ] Renaming
+  - Rename ExecutableELF-Metadata.* -> Executable-ELF-Metadata.*
+  - Rename ExecutableELF-Private.* -> Executable-ELF-Private.*
+  - Rename ExecutableELF.* -> Executable-ELF.*
+  - Rename ExecutableEXOS.* -> Executable-EXOS.*
+  - Rename ExecutableModule-Relocation.* -> Executable-Module-Relocation.*
+  - Rename ExecutableModule.* -> Executable-Module.*
+  - Rename FileSystem.* -> File-System.*
+  - Rename BuddyAllocator.* -> Buddy-Allocator.*
+  - Rename EpkParser.* -> Epk-Parser.*
+  - Rename Shell-EmbeddedScripts.* -> Shell-Embedded-Scripts.*
+  - Rename DeferredWork.* -> Deferred-Work.*
+  - Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
@@ -74,6 +88,19 @@
 ### Building
 
 - [x] Implement Native-C-Compiler.md
+
+### Runtime
+
+- [ ] Clean up runtime folder
+  - Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
+  - Move exos headers from runtime/include/ to runtime/include/exos/
+  - Rename exos-runtime.h -> exos-runtime-main.h
+  - Rename exos-string.h -> exos-runtime-string.h
+  - Rename http.h -> exos-runtime-http.h
+  - Rename exos-runtime-c.c -> exos-runtime-main.c
+  - Rename exos-string.c -> exos-runtime-string.c
+  - Rename http.c -> exos-runtime-http.c
+  - Create exos-window.c and move windowing functions from exos.c to exos-window.c
 
 ### Scheduling
 

@@ -1,0 +1,452 @@
+Analyze these consumption logs.
+
+Objective:
+
+* Compute the token cost for 1% of weekly quota
+* Identify and exclude outliers (mass copy-paste, long debug sessions, obvious anomalies)
+* Compute a robust baseline (global median)
+* Detect internal drift (beginning vs end)
+* Build a summary table including efficiency
+
+Constraints:
+
+* Independent sessions
+* Possible resets → detect them and do not link segments
+* Work only on Δweekly
+* Do not multiply columns → keep it readable
+
+Method:
+
+* For each segment:
+
+  * compute tokens / (% consumed)
+  * compute modified lines (add + del)
+  * compute efficiency = lines / (tokens / 1000)
+
+* Filter outliers for global statistics (but keep them visible in the table)
+
+Expected output:
+
+1. Table with columns:
+
+   * segment (or timestamp)
+   * tokens (k)
+   * Δweekly (%)
+   * tokens / 1%
+   * modified lines
+   * efficiency (lines / 1k tokens)
+
+2. Statistics:
+
+   * median tokens / 1% (baseline)
+   * typical range
+   * median efficiency
+
+3. Drift:
+
+   * median beginning vs end
+   * % difference
+
+4. Conclusion:
+
+   * quota trend: decrease / increase / stable
+   * note on efficiency (if notable evolution)
+
+5. Validate the model:
+
+Δweekly ≈ (a·input) / (1 + input / K)
+        + b·reasoning
+        + c·log(input)
+
+with
+   K ≈ 1,000,000
+   a ≈ 0.000006   (% / input token)
+   b ≈ 0.00002    (% / reasoning token)
+   c ≈ 0.8        (%)
+
+Data:
+
+```
+
+--------------------
+2026-04-21 7:40
+
+5-hour		100%
+Weekly		100%
+
+--------------------
+2026-04-21 7:50
+
+9 files changed: -363 +680
+
+Token usage: total=384 016 input=360 384 (+ 9 695 360 cached) output=23 632 (reasoning 5 145)
+
+5-hour		64%
+Weekly		94%
+
+--------------------
+2026-04-21 7:59
+
+11 files changed: -21 +126
+
+Token usage: total=420 241 input=404 239 (+ 5 346 304 cached) output=16 002 (reasoning 4 450)
+
+5-hour		45%
+Weekly		91%
+
+--------------------
+2026-04-21 9:19
+
+1 file changed: -3 +57
+
+Token usage: total=24 219 input=21 364 (+ 398 848 cached) output=2 855 (reasoning 277)
+
+5-hour		43%
+Weekly		91%
+
+--------------------
+2026-04-21 9:50
+
+7 files changed: -85 +214
+
+Token usage: total=446 928 input=428 459 (+ 8 393 472 cached) output=18 469 (reasoning 4 083)
+
+5-hour		12%
+Weekly		86%
+
+--------------------
+2026-04-21 15:15
+
+5-hour		100%
+Weekly		100%
+
+17 files changed: -125 +119
+
+Token usage: total=253 067 input=237 614 (+ 4 750 592 cached) output=15 453 (reasoning 3 732)
+
+--------------------
+2026-04-21 15:30
+
+5-hour		83%
+Weekly		84%
+
+20 files changed: -111 +958
+
+Token usage: total=502 024 input=483 070 (+ 3 873 536 cached) output=18 954 (reasoning 3 921)
+
+--------------------
+2026-04-21 17:30
+
+5-hour		42%
+Weekly		77%
+
+6 files changed: -53 +64
+
+Token usage: total=342 599 input=329 095 (+ 4 844 288 cached) output=13 504 (reasoning 2 636)
+
+--------------------
+2026-04-21 18:15
+
+5-hour		19%
+Weekly		74%
+
+Token usage: total=337 510 input=323 996 (+ 7 359 232 cached) output=13 514 (reasoning 3 301)
+
+--------------------
+2026-04-21 20:20
+
+5-hour		100%
+Weekly		100%		Reset the same day... ??
+
+--------------------
+2026-04-21 20:35
+
+5-hour		89%
+Weekly		98%
+
+5 files changed: -4 +353
+
+Token usage: total=515 634 input=494 727 (+ 11 214 080 cached) output=20 907 (reasoning 6 801)
+
+--------------------
+2026-04-21 21:00
+
+5-hour		43%
+Weekly		91%
+
+78 files changed: -37 +40580
+
+Token usage: total=510 345 input=487 194 (+ 14 021 504 cached) output=23 151 (reasoning 6 171)
+
+Hint : TinyCC integration, a lot of code is just copy/paste from TinyCC
+
+--------------------
+2026-04-21 21:30
+
+5-hour		24%
+Weekly		88%
+
+37 files changed: -37 +25153
+
+Token usage: total=703 831 input=673 390 (+ 18 535 040 cached) output=30 441 (reasoning 7 630)
+
+Hint : TinyCC integration, a lot of code is just copy/paste from TinyCC
+
+--------------------
+2026-04-22 8:20
+
+5-hour		24%
+Weekly		88%
+
+--------------------
+2026-04-22 8:37
+
+5-hour		79%
+Weekly		85%
+
+1 file changed: -22 +99
+
+Token usage: total=437 026 input=425 782 (+ 4 727 552 cached) output=11 244 (reasoning 1 759)
+
+--------------------
+2026-04-22 9:13
+
+5-hour		73%
+Weekly		84%
+
+15 files changed: -313 +313
+
+Token usage: total=138 761 input=128 579 (+ 1 398 784 cached) output=10 182 (reasoning 4 173)
+
+--------------------
+2026-04-22 12:39
+
+5-hour		6%
+Weekly		73%
+
+Token usage: total=1 038 793 input=978 098 (+ 25 271 936 cached) output=60 695 (reasoning 28 711)
+
+--------------------
+2026-04-22 13:00
+
+5-hour		0%
+Weekly		73%
+
+--------------------
+2026-04-22 13:20
+
+5-hour		100%
+Weekly		73%
+
+--------------------
+2026-04-22 14:04
+
+5-hour		69%
+Weekly		68%
+
+19 files changed: -40 +74
+
+Token usage: total=1 942 888 input=1 849 462 (+ 38 430 464 cached) output=93 426 (reasoning 46 131)
+
+Hint : Interactive debug session
+
+--------------------
+2026-04-22 14:40
+
+5-hour		66%
+Weekly		67%
+
+Hint : Codex /compact
+
+--------------------
+2026-04-22 16:30
+
+5-hour		39%
+Weekly		63%
+
+Token usage: total=2 588 541 input=2 473 258 (+ 50 461 440 cached) output=115 283 (reasoning 56 640)
+
+Hint : bug fix, doc
+
+--------------------
+2026-04-22 17:05
+
+5-hour		35%
+Weekly		62%
+
+Token usage: total=141 978 input=134 539 (+ 1 345 408 cached) output=7 439 (reasoning 2 986)
+To continue this session, run codex resume 019db5b0-2eea-7a73-82c3-cbffe440d042
+
+Hint : bug fix
+
+--------------------
+2026-04-22 17:25
+
+5-hour		24%
+Weekly		61%
+
+Token usage: total=298 999 input=280 103 (+ 3 200 768 cached) output=18 896 (reasoning 6 016)
+
+--------------------
+2026-04-22 18:15
+
+5-hour		23%
+Weekly		60%
+
+Token usage: total=117 770 input=113 603 (+ 299 264 cached) output=4 167 (reasoning 3 277)
+
+Hint: questions
+
+--------------------
+2026-04-22 19:00
+
+5-hour		100%
+Weekly		60%
+
+--------------------
+2026-04-23 6:00
+
+5-hour		100%
+Weekly		60%
+
+--------------------
+2026-04-23 7:40
+
+5-hour		100%
+Weekly		60%
+
+10 files changed: -19 +93
+
+Token usage: total=707 682 input=665 685 (+ 17 415 424 cached) output=41 997 (reasoning 24 098)
+
+Hint: code + interactive debug
+
+--------------------
+2026-04-23 9:05
+
+5-hour		0%
+Weekly		45%
+
+Token usage: total=1 217 322 input=1 135 995 (+ 35 462 784 cached) output=81 327 (reasoning 47 857)
+
+Hint: unfinished standalone debug session (modules, tasks, TLS)
+
+--------------------
+2026-04-23 12:10
+
+5-hour		100%
+Weekly		45%
+
+--------------------
+2026-04-23 13:40
+
+5-hour		62%
+Weekly		40%
+
+Token usage: total=1 944 835 input=1 832 033 (+ 50 392 704 cached) output=112 802 (reasoning 66 319)
+
+Hint: standalone debug session with gdb (modules, tasks, TLS)
+
+--------------------
+2026-04-23 14:00
+
+5-hour		0%
+Weekly		29%
+
+10 files changed: -78 +481
+
+Token usage: total=3 259 610 input=3 061 919 (+ 80 938 112 cached) output=197 691 (reasoning 116 433)
+
+Hint: standalone debug session on logs (modules, tasks, TLS)
+
+--------------------
+2026-04-23 17:30
+
+5-hour      100%
+Weekly      29%
+
+--------------------
+2026-04-23 ??:??
+
+5-hour      ??%
+Weekly      23%
+
+19 files changed: -47 +1388
+
+Token usage: total=456 340 input=415 166 (+ 15 302 656 cached) output=41 174 (reasoning 14 672)
+
+Hint: implement stdout/stdin/stderr and pipes
+
+--------------------
+2026-04-24 06:20
+
+5-hour      100%
+Weekly      23%
+
+--------------------
+2026-04-24 07:20
+
+5-hour      53%
+Weekly      16%
+
+5 files changed: -10 +406
+
+Token usage: total=954 558 input=880 572 (+ 35 940 352 cached) output=73 986 (reasoning 27 317)
+
+Hint: fix stdout/stdin/stderr and pipes
+
+--------------------
+2026-04-24 08:00
+
+5-hour      35%
+Weekly      13%
+
+Token usage: total=658 099 input=640 253 (+ 7 673 216 cached) output=17 846 (reasoning 9 088)
+
+Hint: fix smoke test
+
+--------------------
+2026-04-24 09:00
+
+5-hour      31%
+Weekly      12%
+
+Token usage: total=128 942 input=118 296 (+ 1 365 248 cached) output=10 646 (reasoning 3 469)
+
+Hint: fix addon
+
+--------------------
+2026-04-24 09:50
+
+5-hour      29%
+Weekly      12%
+
+--------------------
+2026-04-24 10:05
+
+5-hour      26%
+Weekly      12%
+
+1 file changed: -1 +9
+
+Token usage: total=189 860 input=184 092 (+ 1 134 080 cached) output=5 768 (reasoning 2 196)
+
+Hint: add scheduler improvement description
+
+--------------------
+2026-04-25 08:00
+
+5-hour      100%
+Weekly      11%
+
+--------------------
+2026-04-25 09:00
+
+5-hour      84%
+Weekly      8%
+
+Files changed ? (amend)
+
+Token usage: total=331 124 input=312 433 (+ 3 802 624 cached) output=18 691 (reasoning 4 936)
+
+```
