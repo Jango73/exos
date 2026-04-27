@@ -16,7 +16,7 @@
 
 /************************************************************************/
 
-#include "exos-runtime.h"
+#include "exos-runtime-main.h"
 
 /************************************************************************/
 
@@ -24,10 +24,10 @@
 
 /************************************************************************/
 
-#define ADAPTIVE_DELAY_MIN_TICKS        10
-#define ADAPTIVE_DELAY_MAX_TICKS        1000
-#define ADAPTIVE_DELAY_BACKOFF_FACTOR   2
-#define ADAPTIVE_DELAY_MAX_ATTEMPTS     10
+#define ADAPTIVE_DELAY_MIN_TICKS 10
+#define ADAPTIVE_DELAY_MAX_TICKS 1000
+#define ADAPTIVE_DELAY_BACKOFF_FACTOR 2
+#define ADAPTIVE_DELAY_MAX_ATTEMPTS 10
 
 /************************************************************************/
 

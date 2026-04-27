@@ -11,7 +11,7 @@
 
 \************************************************************************/
 
-#include "../include/exos-adaptive-delay.h"
+#include "exos/exos-adaptive-delay.h"
 
 /************************************************************************/
 
@@ -116,6 +116,4 @@ void AdaptiveDelay_OnSuccess(LPADAPTIVE_DELAY_STATE State) {
  * @brief Called when an operation fails.
  * @param State Pointer to the delay state structure.
  */
-void AdaptiveDelay_OnFailure(LPADAPTIVE_DELAY_STATE State) {
-    UNUSED(State);
-}
+void AdaptiveDelay_OnFailure(LPADAPTIVE_DELAY_STATE State) { UNUSED(State); }

@@ -25,9 +25,9 @@
 #ifndef HTTP_H_INCLUDED
 #define HTTP_H_INCLUDED
 
-#include "../include/exos-runtime.h"
-#include "../include/exos.h"
 #include "exos-adaptive-delay.h"
+#include "exos-runtime-main.h"
+#include "exos.h"
 
 /************************************************************************/
 
@@ -36,68 +36,68 @@
 /***************************************************************************/
 // HTTP Error Codes
 
-#define HTTP_SUCCESS                0
-#define HTTP_ERROR_INVALID_URL      1
+#define HTTP_SUCCESS 0
+#define HTTP_ERROR_INVALID_URL 1
 #define HTTP_ERROR_CONNECTION_FAILED 2
-#define HTTP_ERROR_TIMEOUT          3
+#define HTTP_ERROR_TIMEOUT 3
 #define HTTP_ERROR_INVALID_RESPONSE 4
-#define HTTP_ERROR_MEMORY_ERROR     5
-#define HTTP_ERROR_PROTOCOL_ERROR   6
-#define HTTP_ERROR_SOCKET_OVERFLOW  7
+#define HTTP_ERROR_MEMORY_ERROR 5
+#define HTTP_ERROR_PROTOCOL_ERROR 6
+#define HTTP_ERROR_SOCKET_OVERFLOW 7
 
 /***************************************************************************/
 // URL Structure
 
 typedef struct tag_URL {
-    char Scheme[8];                 // http
-    char Host[256];                 // hostname or IP
-    unsigned short Port;            // port number (default 80)
-    char Path[512];                 // request path
-    char Query[256];                // query string
-    int Valid;                      // URL validity flag
+    char Scheme[8];       // http
+    char Host[256];       // hostname or IP
+    unsigned short Port;  // port number (default 80)
+    char Path[512];       // request path
+    char Query[256];      // query string
+    int Valid;            // URL validity flag
 } URL;
 
 /***************************************************************************/
 // HTTP Request Structure
 
 typedef struct tag_HTTP_REQUEST {
-    char Method[8];                 // GET, POST, HEAD
-    char URI[256];                  // Request URI
-    char Version[16];               // HTTP/1.1
-    char Headers[1024];             // Request headers
-    unsigned char* Body;            // Request body (for POST)
-    unsigned int BodyLength;        // Body length
+    char Method[8];           // GET, POST, HEAD
+    char URI[256];            // Request URI
+    char Version[16];         // HTTP/1.1
+    char Headers[1024];       // Request headers
+    unsigned char* Body;      // Request body (for POST)
+    unsigned int BodyLength;  // Body length
 } HTTP_REQUEST;
 
 /***************************************************************************/
 // HTTP Response Structure
 
 typedef struct tag_HTTP_RESPONSE {
-    char Version[16];               // HTTP version
-    unsigned short StatusCode;      // HTTP status code
-    char ReasonPhrase[64];          // Status reason phrase
-    char Headers[2048];             // Response headers
-    unsigned char* Body;            // Response body
-    unsigned int BodyLength;        // Body length
-    unsigned int ContentLength;     // Content-Length header value
-    int ChunkedEncoding;            // Transfer-Encoding: chunked
+    char Version[16];            // HTTP version
+    unsigned short StatusCode;   // HTTP status code
+    char ReasonPhrase[64];       // Status reason phrase
+    char Headers[2048];          // Response headers
+    unsigned char* Body;         // Response body
+    unsigned int BodyLength;     // Body length
+    unsigned int ContentLength;  // Content-Length header value
+    int ChunkedEncoding;         // Transfer-Encoding: chunked
 } HTTP_RESPONSE;
 
 /***************************************************************************/
 // HTTP Connection Structure
 
 typedef struct tag_HTTP_CONNECTION {
-    SOCKET_HANDLE SocketHandle;  // Berkeley socket descriptor
-    unsigned int RemoteIP;          // Server IP address
-    unsigned short RemotePort;      // Server port (usually 80)
-    int Connected;                  // Connection status
-    int KeepAlive;                  // Keep-alive support
-    HTTP_REQUEST* CurrentRequest;    // Active request
-    HTTP_RESPONSE* CurrentResponse;  // Active response
-    unsigned char ReceiveBuffer[4096]; // HTTP receive buffer
-    unsigned int ReceiveBufferUsed; // Buffer usage
-    unsigned int ReceiveState;      // Parsing state
-    ADAPTIVE_DELAY_STATE DelayState; // Exponential backoff for connection attempts
+    SOCKET_HANDLE SocketHandle;         // Berkeley socket descriptor
+    unsigned int RemoteIP;              // Server IP address
+    unsigned short RemotePort;          // Server port (usually 80)
+    int Connected;                      // Connection status
+    int KeepAlive;                      // Keep-alive support
+    HTTP_REQUEST* CurrentRequest;       // Active request
+    HTTP_RESPONSE* CurrentResponse;     // Active response
+    unsigned char ReceiveBuffer[4096];  // HTTP receive buffer
+    unsigned int ReceiveBufferUsed;     // Buffer usage
+    unsigned int ReceiveState;          // Parsing state
+    ADAPTIVE_DELAY_STATE DelayState;    // Exponential backoff for connection attempts
 } HTTP_CONNECTION;
 
 /***************************************************************************/
@@ -170,8 +170,9 @@ int HTTP_Get(HTTP_CONNECTION* Connection, const char* Path, HTTP_RESPONSE* Respo
  * @param Response The response structure to fill
  * @return HTTP_SUCCESS on success, error code otherwise
  */
-int HTTP_Post(HTTP_CONNECTION* Connection, const char* Path, const unsigned char* Body,
-              unsigned int BodyLength, HTTP_RESPONSE* Response);
+int HTTP_Post(
+    HTTP_CONNECTION* Connection, const char* Path, const unsigned char* Body, unsigned int BodyLength,
+    HTTP_RESPONSE* Response);
 
 /**
  * @brief Receive an HTTP response and stream the body directly to a file
@@ -182,9 +183,9 @@ int HTTP_Post(HTTP_CONNECTION* Connection, const char* Path, const unsigned char
  * @param ProgressCallbacks Optional callbacks invoked to report progress while downloading
  * @return HTTP_SUCCESS on success, error code or HTTP status code otherwise
  */
-int HTTP_DownloadToFile(HTTP_CONNECTION* Connection, const char* Filename,
-                        HTTP_RESPONSE* ResponseMetadata, unsigned int* BytesWritten,
-                        const HTTP_PROGRESS_CALLBACKS* ProgressCallbacks);
+int HTTP_DownloadToFile(
+    HTTP_CONNECTION* Connection, const char* Filename, HTTP_RESPONSE* ResponseMetadata, unsigned int* BytesWritten,
+    const HTTP_PROGRESS_CALLBACKS* ProgressCallbacks);
 
 /**
  * @brief Free response data
@@ -201,8 +202,9 @@ void HTTP_FreeResponse(HTTP_RESPONSE* Response);
  * @param BodyLength The length of the request body (0 for GET)
  * @return HTTP_SUCCESS on success, error code otherwise
  */
-int HTTP_SendRequest(HTTP_CONNECTION* Connection, const char* Method, const char* Path,
-                           const unsigned char* Body, unsigned int BodyLength);
+int HTTP_SendRequest(
+    HTTP_CONNECTION* Connection, const char* Method, const char* Path, const unsigned char* Body,
+    unsigned int BodyLength);
 
 /**
  * @brief Get header value from response

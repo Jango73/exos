@@ -14,7 +14,7 @@
 
 #include "../../kernel/include/Base.h"
 #include "../../kernel/include/Types.h"
-#include "exos-runtime.h"
+#include "exos/exos-runtime-main.h"
 
 /************************************************************************/
 
@@ -95,9 +95,7 @@ float fcos(float angle) {
 
 /************************************************************************/
 
-float fsin(float angle) {
-    return fcos(angle - PI_ON_TWO);
-}
+float fsin(float angle) { return fcos(angle - PI_ON_TWO); }
 
 /************************************************************************/
 
@@ -134,9 +132,7 @@ double sin(double x) {
 
 /************************************************************************/
 
-double cos(double x) {
-    return sin(x + PI_ON_TWO);
-}
+double cos(double x) { return sin(x + PI_ON_TWO); }
 
 /************************************************************************/
 

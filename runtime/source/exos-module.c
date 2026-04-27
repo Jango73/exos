@@ -11,8 +11,8 @@
 
 \************************************************************************/
 
-#include "../include/exos.h"
-#include "../include/exos-runtime.h"
+#include "exos/exos-runtime-main.h"
+#include "exos/exos.h"
 
 /***************************************************************************/
 

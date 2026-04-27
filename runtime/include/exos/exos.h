@@ -27,7 +27,7 @@
 
 /************************************************************************/
 
-#include "../../kernel/include/User.h"
+#include "../../../kernel/include/User.h"
 
 #ifdef __cplusplus
 extern "C" {

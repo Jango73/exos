@@ -18,8 +18,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/exos.h"
+#include "../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../runtime/include/exos/exos.h"
 #include "../../../third/tinygl/include/tinygl.h"
 
 /************************************************************************/
@@ -95,10 +95,7 @@ double math_ceil(double x) {
 
 /************************************************************************/
 
-typedef enum VIEW_MODE {
-    VIEW_MODE_UNLIT_CUBE = 1,
-    VIEW_MODE_LIT_CUBE = 2
-} VIEW_MODE;
+typedef enum VIEW_MODE { VIEW_MODE_UNLIT_CUBE = 1, VIEW_MODE_LIT_CUBE = 2 } VIEW_MODE;
 
 typedef struct tag_TINYGL_DEMO_STATE {
     TGLContext Context;
@@ -324,8 +321,8 @@ static void tinyglDemoRenderFrame(LPTINYGL_DEMO_STATE State, GLfloat DeltaSecond
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glFrustum(
-        -HalfWidth, HalfWidth, -TINYGL_DEMO_HALF_FRUSTUM_HEIGHT, TINYGL_DEMO_HALF_FRUSTUM_HEIGHT, TINYGL_DEMO_NEAR_PLANE,
-        TINYGL_DEMO_FAR_PLANE);
+        -HalfWidth, HalfWidth, -TINYGL_DEMO_HALF_FRUSTUM_HEIGHT, TINYGL_DEMO_HALF_FRUSTUM_HEIGHT,
+        TINYGL_DEMO_NEAR_PLANE, TINYGL_DEMO_FAR_PLANE);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -467,7 +464,8 @@ static BOOL tinyglDemoCreate(HANDLE Window) {
         return FALSE;
     }
 
-    if (tinyglDemoAllocateSurface(State, ClientRect.X2 - ClientRect.X1 + 1, ClientRect.Y2 - ClientRect.Y1 + 1) == FALSE) {
+    if (tinyglDemoAllocateSurface(State, ClientRect.X2 - ClientRect.X1 + 1, ClientRect.Y2 - ClientRect.Y1 + 1) ==
+        FALSE) {
         tinyglDemoSetState(Window, NULL);
         tinyglDemoDestroyState(State);
         return FALSE;

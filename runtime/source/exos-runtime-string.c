@@ -11,7 +11,7 @@
 
 \************************************************************************/
 
-#include "../include/exos-string.h"
+#include "exos/exos-runtime-string.h"
 
 /************************************************************************/
 
@@ -25,9 +25,7 @@ static const STR ExosHexDigitsUpper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
  * @param Character Character to test.
  * @return TRUE for decimal digits, FALSE otherwise.
  */
-static BOOL exos_string_is_numeric(STR Character) {
-    return Character >= '0' && Character <= '9';
-}
+static BOOL exos_string_is_numeric(STR Character) { return Character >= '0' && Character <= '9'; }
 
 /************************************************************************/
 
@@ -194,13 +192,7 @@ static INT exos_string_divide(UINT* Number, I32 Base) {
  * @return Pointer to the end of the formatted string.
  */
 static LPSTR exos_string_number_to_string(
-    LPSTR Text,
-    UINT Number,
-    I32 Base,
-    I32 Size,
-    I32 Precision,
-    I32 Type,
-    BOOL IsNegative) {
+    LPSTR Text, UINT Number, I32 Base, I32 Size, I32 Precision, I32 Type, BOOL IsNegative) {
     STR PaddingCharacter;
     STR Sign;
     STR Temporary[66];
@@ -594,7 +586,7 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
                     }
                 } else
 #endif
-                if (Qualifier == 'l' || Qualifier == 'L') {
+                    if (Qualifier == 'l' || Qualifier == 'L') {
                     I32 SignedValue = VarArg(Args, I32);
                     if (SignedValue < 0) {
                         NumberIsNegative = TRUE;
@@ -626,7 +618,7 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
                     NumberValue = VarArg(Args, U64);
                 } else
 #endif
-                if (Qualifier == 'l' || Qualifier == 'L') {
+                    if (Qualifier == 'l' || Qualifier == 'L') {
                     NumberValue = (UINT)VarArg(Args, U32);
                 } else if (Qualifier == 'h') {
                     NumberValue = (UINT)(U16)VarArg(Args, UINT);
@@ -639,14 +631,7 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
         {
             STR Temporary[128];
 
-            exos_string_number_to_string(
-                Temporary,
-                NumberValue,
-                Base,
-                FieldWidth,
-                Precision,
-                Flags,
-                NumberIsNegative);
+            exos_string_number_to_string(Temporary, NumberValue, Base, FieldWidth, Precision, Flags, NumberIsNegative);
             for (Index = 0; Temporary[Index] != STR_NULL; Index++) {
                 *Dst++ = Temporary[Index];
             }

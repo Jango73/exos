@@ -12,15 +12,14 @@
 
 \************************************************************************/
 
-#include "../../kernel/include/User.h"
-#include "../include/exos-runtime.h"
-#include "../include/exos.h"
-#include "../include/exos-string.h"
-#include "../include/fcntl.h"
-#include "../include/sys/mman.h"
-#include "../include/sys/stat.h"
-#include "../include/sys/time.h"
-#include "../include/time.h"
+#include "exos/exos-runtime-main.h"
+#include "exos/exos-runtime-string.h"
+#include "exos/exos.h"
+#include "stdlib/fcntl.h"
+#include "stdlib/sys/mman.h"
+#include "stdlib/sys/stat.h"
+#include "stdlib/sys/time.h"
+#include "stdlib/time.h"
 
 /************************************************************************/
 

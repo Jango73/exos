@@ -18,9 +18,9 @@
 
 \************************************************************************/
 
-#include "../../../../runtime/include/exos-runtime.h"
-#include "../../../../runtime/include/exos.h"
-#include "../../../../runtime/include/unistd.h"
+#include "../../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../../runtime/include/exos/exos.h"
+#include "../../../../runtime/include/stdlib/unistd.h"
 
 /***************************************************************************/
 

@@ -1,7 +1,7 @@
 #ifndef STDINT_H_INCLUDED
 #define STDINT_H_INCLUDED
 
-#include "exos-runtime.h"
+#include "../exos/exos-runtime-main.h"
 
 typedef int8_t int_least8_t;
 typedef uint8_t uint_least8_t;

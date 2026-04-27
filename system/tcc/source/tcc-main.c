@@ -10,8 +10,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/setjmp.h"
+#include "../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../runtime/include/stdlib/setjmp.h"
 
 #define environ NULL
 #define main TinyCcMain

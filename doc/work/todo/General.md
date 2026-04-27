@@ -57,16 +57,16 @@
   - [x] Rename DeferredWork.* -> Deferred-Work.*
   - [x] Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
 
-- [ ] Clean up runtime folder
-  - Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
-  - Move exos headers from runtime/include/ to runtime/include/exos/
-  - Rename exos-runtime.h -> exos-runtime-main.h
-  - Rename exos-string.h -> exos-runtime-string.h
-  - Rename http.h -> exos-runtime-http.h
-  - Rename exos-runtime-c.c -> exos-runtime-main.c
-  - Rename exos-string.c -> exos-runtime-string.c
-  - Rename http.c -> exos-runtime-http.c
-  - Create exos-window.c and move windowing functions from exos.c to exos-window.c
+- [x] Clean up runtime folder
+  - [x] Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
+  - [x] Move exos headers from runtime/include/ to runtime/include/exos/
+  - [x] Rename exos-runtime.h -> exos-runtime-main.h
+  - [x] Rename exos-string.h -> exos-runtime-string.h
+  - [x] Rename http.h -> exos-runtime-http.h
+  - [x] Rename exos-runtime-c.c -> exos-runtime-main.c
+  - [x] Rename exos-string.c -> exos-runtime-string.c
+  - [x] Rename http.c -> exos-runtime-http.c
+  - [x] Create exos-window.c and move windowing functions from exos.c to exos-window.c
 
 - [ ] Remove UI components from kernel and cleanup
   - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.

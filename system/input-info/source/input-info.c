@@ -22,8 +22,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/exos.h"
+#include "../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../runtime/include/exos/exos.h"
 
 /************************************************************************/
 
@@ -127,10 +127,9 @@ static void UpdateInputDisplay(I32 PosX, I32 PosY, U32 Buttons, U32 LastKeyDown,
     printf("Last keydown VK: 0x%02X  Last keyup VK: 0x%02X  \n", LastKeyDown & 0xFF, LastKeyUp & 0xFF);
     printf("Media keys:\n");
     for (Index = 0; Index < (sizeof(MediaIndicators) / sizeof(MediaIndicators[0])); Index++) {
-        printf("  %-10s : %-4s count=%u      \n",
-               MediaIndicators[Index].Name,
-               MediaIndicators[Index].Pressed ? "DOWN" : "UP",
-               MediaIndicators[Index].PressCount);
+        printf(
+            "  %-10s : %-4s count=%u      \n", MediaIndicators[Index].Name,
+            MediaIndicators[Index].Pressed ? "DOWN" : "UP", MediaIndicators[Index].PressCount);
     }
 }
 

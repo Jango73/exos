@@ -52,9 +52,12 @@ $(error Unsupported architecture $(ARCH))
 endif
 
 COMMON_CFLAGS  = -ffreestanding -Wall -Wextra -O0 -fno-stack-protector -fno-builtin \
-                 -I$(EXOS_ROOT)/runtime/include \
-                 $(APP_EXTRA_CFLAGS) \
-                 $(ARCH_CFLAGS)
+                  -I$(EXOS_ROOT)/runtime/include \
+                  -I$(EXOS_ROOT)/runtime/include/stdlib \
+                  -I$(EXOS_ROOT)/runtime/include/exos \
+                  -I$(EXOS_ROOT)/runtime \
+                  $(APP_EXTRA_CFLAGS) \
+                  $(ARCH_CFLAGS)
 EXECUTABLE_CFLAGS = -fno-pic
 MODULE_CFLAGS = -fPIC -fvisibility=hidden -ftls-model=initial-exec
 

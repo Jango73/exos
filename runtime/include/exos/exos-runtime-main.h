@@ -25,7 +25,7 @@
 #ifndef EXOS_RUNTIME_H_INCLUDED
 #define EXOS_RUNTIME_H_INCLUDED
 
-#include "../../kernel/include/User.h"
+#include "../../../kernel/include/User.h"
 #include "stdarg.h"
 
 #ifdef __cplusplus

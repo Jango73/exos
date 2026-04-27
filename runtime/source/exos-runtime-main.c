@@ -12,11 +12,12 @@
 
 \************************************************************************/
 
+#include "exos/exos-runtime-main.h"
+
 #include "../../kernel/include/User.h"
 #include "../../kernel/include/VarArg.h"
-#include "../include/exos-runtime.h"
-#include "../include/exos-string.h"
-#include "../include/exos.h"
+#include "exos/exos-runtime-string.h"
+#include "exos/exos.h"
 
 /************************************************************************/
 
