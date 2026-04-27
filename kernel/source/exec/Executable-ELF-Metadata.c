@@ -21,8 +21,7 @@
 
 \************************************************************************/
 
-#include "ExecutableELF-Private.h"
-
+#include "Executable-ELF-Private.h"
 #include "log/Log.h"
 #include "text/CoreString.h"
 
@@ -138,12 +137,7 @@ static BOOL ELFMetadataAddSegment(LPEXECUTABLE_METADATA Metadata, const ELF_PROG
 /************************************************************************/
 
 static BOOL ELFMetadataAddRelocationTable(
-    LPEXECUTABLE_DYNAMIC_INFO Dynamic,
-    U32 Type,
-    UINT VirtualAddress,
-    UINT Size,
-    UINT EntrySize
-) {
+    LPEXECUTABLE_DYNAMIC_INFO Dynamic, U32 Type, UINT VirtualAddress, UINT Size, UINT EntrySize) {
     EXECUTABLE_RELOCATION_TABLE_INFO* Table;
 
     if (Dynamic == NULL) return FALSE;
@@ -161,13 +155,8 @@ static BOOL ELFMetadataAddRelocationTable(
 /************************************************************************/
 
 static BOOL ELFMapVirtualRangeToFileOffset(
-    LPFILE_OPERATION FileOperation,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    UINT VirtualAddress,
-    UINT Size,
-    UINT* FileOffset
-) {
+    LPFILE_OPERATION FileOperation, const ELF_FILE_HEADER* Header, U8 Class, UINT VirtualAddress, UINT Size,
+    UINT* FileOffset) {
     U32 Index;
 
     if (Header == NULL || FileOffset == NULL) return FALSE;
@@ -193,12 +182,7 @@ static BOOL ELFMapVirtualRangeToFileOffset(
 
 /************************************************************************/
 
-static BOOL ELFReadDynamicEntry(
-    LPFILE_OPERATION FileOperation,
-    UINT FileOffset,
-    U8 Class,
-    LPELF_DYNAMIC_ENTRY Entry
-) {
+static BOOL ELFReadDynamicEntry(LPFILE_OPERATION FileOperation, UINT FileOffset, U8 Class, LPELF_DYNAMIC_ENTRY Entry) {
     if (Entry == NULL) return FALSE;
 
     if (Class == ELFCLASS32) {
@@ -229,14 +213,8 @@ static BOOL ELFReadDynamicEntry(
 /************************************************************************/
 
 static BOOL ELFInspectDynamicTable(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    UINT DynamicVirtualAddress,
-    UINT DynamicSize,
-    LPEXECUTABLE_DYNAMIC_INFO Dynamic
-) {
+    LPFILE_OPERATION FileOperation, U32 FileSize, const ELF_FILE_HEADER* Header, U8 Class, UINT DynamicVirtualAddress,
+    UINT DynamicSize, LPEXECUTABLE_DYNAMIC_INFO Dynamic) {
     UINT DynamicFileOffset;
     UINT DynamicEntrySize;
     UINT DynamicEntryCount;
@@ -254,7 +232,9 @@ static BOOL ELFInspectDynamicTable(
 
     if (Dynamic == NULL) return FALSE;
     if (DynamicSize == 0) return TRUE;
-    if (!ELFMapVirtualRangeToFileOffset(FileOperation, Header, Class, DynamicVirtualAddress, DynamicSize, &DynamicFileOffset)) return FALSE;
+    if (!ELFMapVirtualRangeToFileOffset(
+            FileOperation, Header, Class, DynamicVirtualAddress, DynamicSize, &DynamicFileOffset))
+        return FALSE;
 
     if (Class == ELFCLASS32) {
         DynamicEntrySize = sizeof(EXOS_ELF32_DYN);
@@ -362,11 +342,7 @@ static BOOL ELFInspectDynamicTable(
         U32 HashHeader[2];
 
         if (!ELFMapVirtualRangeToFileOffset(
-                FileOperation,
-                Header,
-                Class,
-                Dynamic->SymbolTable.HashTableAddress,
-                sizeof(HashHeader),
+                FileOperation, Header, Class, Dynamic->SymbolTable.HashTableAddress, sizeof(HashHeader),
                 &HashTableFileOffset)) {
             return FALSE;
         }
@@ -379,16 +355,20 @@ static BOOL ELFInspectDynamicTable(
         Dynamic->SymbolTable.SymbolTableSize = SymbolCount * Dynamic->SymbolTable.SymbolEntrySize;
     }
 
-    if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_REL, RelAddress, RelSize, RelEntrySize)) return FALSE;
-    if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_RELA, RelaAddress, RelaSize, RelaEntrySize)) return FALSE;
+    if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_REL, RelAddress, RelSize, RelEntrySize))
+        return FALSE;
+    if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_RELA, RelaAddress, RelaSize, RelaEntrySize))
+        return FALSE;
 
     if (JmpRelAddress != 0 && PltRelSize != 0) {
         if (PltRelType == DT_REL) {
-            if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_PLT_REL, JmpRelAddress, PltRelSize, RelEntrySize)) {
+            if (!ELFMetadataAddRelocationTable(
+                    Dynamic, EXECUTABLE_RELOCATION_TABLE_PLT_REL, JmpRelAddress, PltRelSize, RelEntrySize)) {
                 return FALSE;
             }
         } else if (PltRelType == DT_RELA) {
-            if (!ELFMetadataAddRelocationTable(Dynamic, EXECUTABLE_RELOCATION_TABLE_PLT_RELA, JmpRelAddress, PltRelSize, RelaEntrySize)) {
+            if (!ELFMetadataAddRelocationTable(
+                    Dynamic, EXECUTABLE_RELOCATION_TABLE_PLT_RELA, JmpRelAddress, PltRelSize, RelaEntrySize)) {
                 return FALSE;
             }
         } else {
@@ -402,10 +382,7 @@ static BOOL ELFInspectDynamicTable(
 /************************************************************************/
 
 static void ELFStoreMetadataLayout(
-    const ELF_FILE_HEADER* Header,
-    const ELF_LAYOUT_INFO* Layout,
-    LPEXECUTABLE_METADATA Metadata
-) {
+    const ELF_FILE_HEADER* Header, const ELF_LAYOUT_INFO* Layout, LPEXECUTABLE_METADATA Metadata) {
     Metadata->EntryPoint = Header->EntryPoint;
     ELFStoreExecutableInfo(Header, Layout, &Metadata->Layout);
 }
@@ -413,13 +390,8 @@ static void ELFStoreMetadataLayout(
 /************************************************************************/
 
 static BOOL ELFInspectMetadata(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    U32 Target,
-    LPEXECUTABLE_METADATA Metadata
-) {
+    LPFILE_OPERATION FileOperation, U32 FileSize, const ELF_FILE_HEADER* Header, U8 Class, U32 Target,
+    LPEXECUTABLE_METADATA Metadata) {
     ELF_LAYOUT_INFO Layout;
     U32 Index;
     UINT DynamicVirtualAddress;
@@ -469,13 +441,7 @@ static BOOL ELFInspectMetadata(
     if (DynamicSize != 0) {
         Metadata->Dynamic.Present = FALSE;
         if (!ELFInspectDynamicTable(
-                FileOperation,
-                FileSize,
-                Header,
-                Class,
-                DynamicVirtualAddress,
-                DynamicSize,
-                &Metadata->Dynamic)) {
+                FileOperation, FileSize, Header, Class, DynamicVirtualAddress, DynamicSize, &Metadata->Dynamic)) {
             return FALSE;
         }
     }
@@ -508,7 +474,8 @@ BOOL GetExecutableImageInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     Class = Ident[EI_CLASS];
     if (!ELFReadHeader(&FileOperation, FileSize, Class, Ident, &Header)) goto Out_Error;
     if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
-    if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_IMAGE, Metadata)) goto Out_Error;
+    if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_IMAGE, Metadata))
+        goto Out_Error;
 
     DEBUG(TEXT("Exit (success)"));
     return TRUE;
@@ -542,7 +509,8 @@ BOOL GetExecutableModuleInfo_ELF(LPFILE File, LPEXECUTABLE_METADATA Metadata) {
     Class = Ident[EI_CLASS];
     if (!ELFReadHeader(&FileOperation, FileSize, Class, Ident, &Header)) goto Out_Error;
     if (!ELFValidateProgramHeaderTable(FileSize, &Header)) goto Out_Error;
-    if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_MODULE, Metadata)) goto Out_Error;
+    if (!ELFInspectMetadata(&FileOperation, FileSize, &Header, Class, EXECUTABLE_TARGET_MODULE, Metadata))
+        goto Out_Error;
 
     DEBUG(TEXT("Exit (success)"));
     return TRUE;

@@ -21,7 +21,7 @@
 
 \************************************************************************/
 
-#include "memory/BuddyAllocator.h"
+#include "memory/Buddy-Allocator.h"
 
 #include "arch/Memory.h"
 #include "text/CoreString.h"
@@ -51,9 +51,7 @@ typedef struct tag_BUDDY_NODE {
 /************************************************************************/
 // inlines
 
-static inline UINT BuddyBlockPages(UINT Order) {
-    return ((UINT)1) << Order;
-}
+static inline UINT BuddyBlockPages(UINT Order) { return ((UINT)1) << Order; }
 
 /************************************************************************/
 // external symbols

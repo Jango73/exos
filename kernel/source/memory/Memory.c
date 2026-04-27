@@ -25,13 +25,13 @@
 
 #include "Arch.h"
 #include "Base.h"
-#include "memory/BuddyAllocator.h"
-#include "text/CoreString.h"
 #include "console/Console-EarlyBoot.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
-#include "system/System.h"
+#include "memory/Buddy-Allocator.h"
 #include "process/Schedule.h"
+#include "system/System.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
@@ -47,9 +47,7 @@ static BOOL DATA_SECTION G_AllocPhysicalPageTraceEnabled = FALSE;
  * @brief Enable or disable focused early-boot tracing in AllocPhysicalPage.
  * @param Enabled TRUE to print trace lines, FALSE otherwise.
  */
-void SetAllocPhysicalPageTraceEnabled(BOOL Enabled) {
-    G_AllocPhysicalPageTraceEnabled = Enabled;
-}
+void SetAllocPhysicalPageTraceEnabled(BOOL Enabled) { G_AllocPhysicalPageTraceEnabled = Enabled; }
 
 /************************************************************************/
 
@@ -72,8 +70,7 @@ BOOL ReadPhysicalMemory(PHYSICAL PhysicalAddress, LPVOID Buffer, UINT Length) {
         PHYSICAL PagePhysical = (PhysicalAddress + Copied) & ~((PHYSICAL)(PAGE_SIZE - 1));
         LINEAR Mapping = MapTemporaryPhysicalPage1(PagePhysical);
         if (Mapping == 0) {
-            DEBUG(TEXT("Failed to map physical %p"),
-                  (LPVOID)(LINEAR)(PhysicalAddress + Copied));
+            DEBUG(TEXT("Failed to map physical %p"), (LPVOID)(LINEAR)(PhysicalAddress + Copied));
             return FALSE;
         }
 
@@ -117,9 +114,7 @@ void SetPhysicalPageMark(UINT Page, UINT Used) {
  * @param PageCount Number of pages.
  * @param Used Non-zero to mark used.
  */
-void SetPhysicalPageRangeMark(UINT FirstPage, UINT PageCount, UINT Used) {
-    BuddySetRange(FirstPage, PageCount, Used);
-}
+void SetPhysicalPageRangeMark(UINT FirstPage, UINT PageCount, UINT Used) { BuddySetRange(FirstPage, PageCount, Used); }
 
 /************************************************************************/
 
@@ -267,11 +262,7 @@ BOOL FindAvailableMemoryRange(PHYSICAL MinimumAddress, UINT Size, PHYSICAL* OutA
  * @return TRUE on success.
  */
 BOOL FindAvailableMemoryRangeInWindow(
-    PHYSICAL MinimumAddress,
-    PHYSICAL MaximumAddress,
-    PHYSICAL ExcludedStart,
-    PHYSICAL ExcludedEnd,
-    UINT Size,
+    PHYSICAL MinimumAddress, PHYSICAL MaximumAddress, PHYSICAL ExcludedStart, PHYSICAL ExcludedEnd, UINT Size,
     PHYSICAL* OutAddress) {
     if (OutAddress == NULL || Size == 0) {
         return FALSE;

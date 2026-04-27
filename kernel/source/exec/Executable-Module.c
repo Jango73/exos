@@ -22,11 +22,11 @@
 
 \************************************************************************/
 
-#include "exec/ExecutableModule.h"
-#include "exec/ExecutableELF.h"
+#include "exec/Executable-Module.h"
 
 #include "core/Kernel.h"
 #include "core/KernelData.h"
+#include "exec/Executable-ELF.h"
 #include "fs/File.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
@@ -125,8 +125,7 @@ static void ReleaseExecutableModuleFileIdentity(LPEXECUTABLE_MODULE_FILE_IDENTIT
  * @return TRUE when both identities describe the same source file revision.
  */
 static BOOL ExecutableModuleFileIdentityEquals(
-    const EXECUTABLE_MODULE_FILE_IDENTITY* Left,
-    const EXECUTABLE_MODULE_FILE_IDENTITY* Right) {
+    const EXECUTABLE_MODULE_FILE_IDENTITY* Left, const EXECUTABLE_MODULE_FILE_IDENTITY* Right) {
     if (Left == NULL || Right == NULL) {
         return FALSE;
     }
@@ -156,8 +155,7 @@ static BOOL ExecutableModuleFileIdentityEquals(
  * @return Matching cached image or NULL.
  */
 static LPEXECUTABLE_MODULE_IMAGE FindExecutableModuleImage(
-    const EXECUTABLE_MODULE_FILE_IDENTITY* Identity,
-    const EXECUTABLE_METADATA* Metadata) {
+    const EXECUTABLE_MODULE_FILE_IDENTITY* Identity, const EXECUTABLE_METADATA* Metadata) {
     LPLIST ModuleImageList = NULL;
 
     if (Identity == NULL || Metadata == NULL) {
@@ -283,9 +281,7 @@ static void DeleteExecutableModuleSharedSegment(LPEXECUTABLE_MODULE_SHARED_SEGME
  * @return TRUE on success, FALSE on allocation or validation failure.
  */
 static BOOL BuildExecutableModuleSharedSegment(
-    LPFILE File,
-    const EXECUTABLE_SEGMENT_DESCRIPTOR* Segment,
-    UINT SegmentIndex,
+    LPFILE File, const EXECUTABLE_SEGMENT_DESCRIPTOR* Segment, UINT SegmentIndex,
     LPEXECUTABLE_MODULE_SHARED_SEGMENT SharedSegment) {
     UINT VirtualAddressOffset;
     UINT FileBackedStart;
@@ -302,9 +298,8 @@ static BOOL BuildExecutableModuleSharedSegment(
 
     VirtualAddressOffset = Segment->VirtualAddress & PAGE_SIZE_MASK;
     if ((Segment->FileOffset & PAGE_SIZE_MASK) != VirtualAddressOffset) {
-        WARNING(TEXT("Misaligned file-backed segment index=%u offset=%u vaddr=%p"),
-            SegmentIndex,
-            Segment->FileOffset,
+        WARNING(
+            TEXT("Misaligned file-backed segment index=%u offset=%u vaddr=%p"), SegmentIndex, Segment->FileOffset,
             Segment->VirtualAddress);
         return FALSE;
     }
@@ -343,9 +338,7 @@ static BOOL BuildExecutableModuleSharedSegment(
         UINT PageReadOffset = PageIndex << PAGE_SIZE_MUL;
 
         if (PhysicalPage == 0) {
-            ERROR(TEXT("AllocPhysicalPage failed index=%u page=%u"),
-                SegmentIndex,
-                PageIndex);
+            ERROR(TEXT("AllocPhysicalPage failed index=%u page=%u"), SegmentIndex, PageIndex);
             KernelHeapFree(PageBuffer);
             DeleteExecutableModuleSharedSegment(SharedSegment);
             return FALSE;
@@ -367,11 +360,11 @@ static BOOL BuildExecutableModuleSharedSegment(
                 ReadOffset = Segment->FileOffset + (DataStart - FileBackedStart);
                 ReadSize = DataEnd - DataStart;
 
-                if (!ReadExecutableModuleFileBytes(File, ReadOffset, (LPVOID)(PageBuffer + DestinationOffset), ReadSize)) {
-                    ERROR(TEXT("ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"),
-                        SegmentIndex,
-                        ReadOffset,
-                        ReadSize);
+                if (!ReadExecutableModuleFileBytes(
+                        File, ReadOffset, (LPVOID)(PageBuffer + DestinationOffset), ReadSize)) {
+                    ERROR(
+                        TEXT("ReadExecutableModuleFileBytes failed index=%u offset=%u size=%u"), SegmentIndex,
+                        ReadOffset, ReadSize);
                     KernelHeapFree(PageBuffer);
                     DeleteExecutableModuleSharedSegment(SharedSegment);
                     return FALSE;
@@ -382,9 +375,7 @@ static BOOL BuildExecutableModuleSharedSegment(
         {
             LINEAR MappedPage = MapTemporaryPhysicalPage1(PhysicalPage);
             if (MappedPage == 0) {
-                ERROR(TEXT("MapTemporaryPhysicalPage1 failed index=%u page=%u"),
-                    SegmentIndex,
-                    PageIndex);
+                ERROR(TEXT("MapTemporaryPhysicalPage1 failed index=%u page=%u"), SegmentIndex, PageIndex);
                 KernelHeapFree(PageBuffer);
                 DeleteExecutableModuleSharedSegment(SharedSegment);
                 return FALSE;
@@ -477,16 +468,15 @@ static BOOL BuildExecutableModulePrivateSegments(LPFILE File, LPEXECUTABLE_MODUL
  * @return New module image or NULL on failure.
  */
 static LPEXECUTABLE_MODULE_IMAGE CreateExecutableModuleImage(
-    LPFILE File,
-    LPEXECUTABLE_MODULE_FILE_IDENTITY Identity,
-    const EXECUTABLE_METADATA* Metadata) {
+    LPFILE File, LPEXECUTABLE_MODULE_FILE_IDENTITY Identity, const EXECUTABLE_METADATA* Metadata) {
     LPEXECUTABLE_MODULE_IMAGE Image = NULL;
 
     if (File == NULL || Identity == NULL || Metadata == NULL) {
         return NULL;
     }
 
-    Image = (LPEXECUTABLE_MODULE_IMAGE)CreateKernelObject(sizeof(EXECUTABLE_MODULE_IMAGE), KOID_EXECUTABLE_MODULE_IMAGE);
+    Image =
+        (LPEXECUTABLE_MODULE_IMAGE)CreateKernelObject(sizeof(EXECUTABLE_MODULE_IMAGE), KOID_EXECUTABLE_MODULE_IMAGE);
     if (Image == NULL) {
         return NULL;
     }
@@ -602,9 +592,7 @@ LPEXECUTABLE_MODULE_IMAGE AcquireExecutableModuleImage(LPFILE File) {
  * @param Image Module image to retain.
  */
 void RetainExecutableModuleImage(LPEXECUTABLE_MODULE_IMAGE Image) {
-    SAFE_USE_VALID_ID(Image, KOID_EXECUTABLE_MODULE_IMAGE) {
-        Image->References++;
-    }
+    SAFE_USE_VALID_ID(Image, KOID_EXECUTABLE_MODULE_IMAGE) { Image->References++; }
 }
 
 /***************************************************************************/
@@ -615,9 +603,7 @@ void RetainExecutableModuleImage(LPEXECUTABLE_MODULE_IMAGE Image) {
  * @param Image Module image to release.
  */
 void ReleaseExecutableModuleImage(LPEXECUTABLE_MODULE_IMAGE Image) {
-    SAFE_USE_VALID_ID(Image, KOID_EXECUTABLE_MODULE_IMAGE) {
-        ReleaseKernelObject(Image);
-    }
+    SAFE_USE_VALID_ID(Image, KOID_EXECUTABLE_MODULE_IMAGE) { ReleaseKernelObject(Image); }
 }
 
 /***************************************************************************/

@@ -23,11 +23,11 @@
 
 #include "package/PackageManifest.h"
 
-#include "text/CoreString.h"
-#include "memory/Heap.h"
-#include "log/Log.h"
 #include "User.h"
-#include "package/EpkParser.h"
+#include "log/Log.h"
+#include "memory/Heap.h"
+#include "package/Epk-Parser.h"
+#include "text/CoreString.h"
 #include "utils/TOML.h"
 
 /***************************************************************************/
@@ -269,8 +269,7 @@ static BOOL PackageManifestIsValidCommandName(LPCSTR Name) {
 
     for (Index = 0; Name[Index] != STR_NULL; Index++) {
         STR Character = Name[Index];
-        BOOL IsNameCharacter =
-            IsAlphaNumeric(Character) || Character == '-' || Character == '_' || Character == '.';
+        BOOL IsNameCharacter = IsAlphaNumeric(Character) || Character == '-' || Character == '_' || Character == '.';
 
         if (!IsNameCharacter) {
             return FALSE;
@@ -361,9 +360,7 @@ static U32 PackageManifestParseCommands(LPTOML Toml, LPPACKAGE_MANIFEST OutManif
         }
 
         if (!PackageManifestIsValidPackageRelativePath(Item->Value)) {
-            ERROR(TEXT("Invalid command target name=%s target=%s"),
-                CommandName,
-                Item->Value);
+            ERROR(TEXT("Invalid command target name=%s target=%s"), CommandName, Item->Value);
             return PACKAGE_MANIFEST_STATUS_INVALID_COMMAND_MAP;
         }
 
@@ -374,11 +371,11 @@ static U32 PackageManifestParseCommands(LPTOML Toml, LPPACKAGE_MANIFEST OutManif
             }
         }
 
-        StringCopyLimit(OutManifest->Commands[CommandIndex].Name,
-            CommandName,
+        StringCopyLimit(
+            OutManifest->Commands[CommandIndex].Name, CommandName,
             sizeof(OutManifest->Commands[CommandIndex].Name) - 1);
-        StringCopyLimit(OutManifest->Commands[CommandIndex].Target,
-            Item->Value,
+        StringCopyLimit(
+            OutManifest->Commands[CommandIndex].Target, Item->Value,
             sizeof(OutManifest->Commands[CommandIndex].Target) - 1);
 
         CommandIndex++;
@@ -486,13 +483,8 @@ U32 PackageManifestParseText(LPCSTR ManifestText, LPPACKAGE_MANIFEST OutManifest
  * @param OutManifest Receives parsed manifest model.
  * @return PACKAGE_MANIFEST_STATUS_* result.
  */
-U32 PackageManifestParseFromPackageBuffer(LPCVOID PackageBytes,
-                                          U32 PackageSize,
-                                          LPPACKAGE_MANIFEST OutManifest) {
-    EPK_PARSER_OPTIONS Options = {
-        .VerifyPackageHash = TRUE,
-        .VerifySignature = TRUE,
-        .RequireSignature = FALSE};
+U32 PackageManifestParseFromPackageBuffer(LPCVOID PackageBytes, U32 PackageSize, LPPACKAGE_MANIFEST OutManifest) {
+    EPK_PARSER_OPTIONS Options = {.VerifyPackageHash = TRUE, .VerifySignature = TRUE, .RequireSignature = FALSE};
     EPK_VALIDATED_PACKAGE Package;
     U8* ManifestText;
     U32 Status;
@@ -559,9 +551,7 @@ U32 PackageManifestCheckCompatibility(const PACKAGE_MANIFEST* Manifest) {
 
     CurrentArchitecture = PackageManifestGetCurrentArchitecture();
     if (StringCompare(Manifest->Arch, CurrentArchitecture) != 0) {
-        ERROR(TEXT("Incompatible arch required=%s current=%s"),
-            Manifest->Arch,
-            CurrentArchitecture);
+        ERROR(TEXT("Incompatible arch required=%s current=%s"), Manifest->Arch, CurrentArchitecture);
         return PACKAGE_MANIFEST_STATUS_INCOMPATIBLE_ARCH;
     }
 
@@ -571,10 +561,8 @@ U32 PackageManifestCheckCompatibility(const PACKAGE_MANIFEST* Manifest) {
     }
 
     if (RequiredMajor != CurrentMajor || RequiredMinor > CurrentMinor) {
-        ERROR(TEXT("Incompatible kernel_api required=%u.%u current=%u.%u"),
-            RequiredMajor,
-            RequiredMinor,
-            CurrentMajor,
+        ERROR(
+            TEXT("Incompatible kernel_api required=%u.%u current=%u.%u"), RequiredMajor, RequiredMinor, CurrentMajor,
             CurrentMinor);
         return PACKAGE_MANIFEST_STATUS_INCOMPATIBLE_KERNEL_API;
     }

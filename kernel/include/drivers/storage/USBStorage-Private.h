@@ -29,7 +29,7 @@
 #include "drivers/storage/USBStorage.h"
 #include "drivers/usb/XHCI-Internal.h"
 #include "fs/Disk.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "utils/RateLimiter.h"
 
 /************************************************************************/

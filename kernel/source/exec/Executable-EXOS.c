@@ -22,7 +22,7 @@
 
 \************************************************************************/
 
-#include "exec/ExecutableEXOS.h"
+#include "exec/Executable-EXOS.h"
 
 #include "log/Log.h"
 

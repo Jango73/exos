@@ -25,9 +25,9 @@
 #ifndef FAT32_PRIVATE_H_INCLUDED
 #define FAT32_PRIVATE_H_INCLUDED
 
-#include "drivers/filesystems/FAT.h"
-#include "fs/FileSystem.h"
 #include "core/Kernel.h"
+#include "drivers/filesystems/FAT.h"
+#include "fs/File-System.h"
 #include "log/Log.h"
 #include "text/CoreString.h"
 

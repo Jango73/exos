@@ -21,10 +21,9 @@
 
 \************************************************************************/
 
-#include "expose/Exposed.h"
-
-#include "fs/FileSystem.h"
 #include "core/KernelData.h"
+#include "expose/Exposed.h"
+#include "fs/File-System.h"
 
 /************************************************************************/
 
@@ -43,11 +42,7 @@ SCRIPT_HOST_HANDLE FileSystemRootHandle = &FileSystemRootSentinel;
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR FileSystemRootGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
     UNUSED(Parent);
 
@@ -71,11 +66,7 @@ SCRIPT_ERROR FileSystemRootGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR FileSystemGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     DISKINFO DiskInfo;
     LPSTORAGE_UNIT StorageUnit = NULL;
     BOOL DiskInfoValid = FALSE;
@@ -163,11 +154,7 @@ SCRIPT_ERROR FileSystemGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR FileSystemArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -192,12 +179,7 @@ SCRIPT_ERROR FileSystemArrayGetProperty(
  * @param OutValue Output holder for the resulting file system handle
  * @return SCRIPT_OK when the file system exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR FileSystemArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR FileSystemArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -222,25 +204,11 @@ SCRIPT_ERROR FileSystemArrayGetElement(
 
 /************************************************************************/
 
-const SCRIPT_HOST_DESCRIPTOR FileSystemRootDescriptor = {
-    FileSystemRootGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR FileSystemRootDescriptor = {FileSystemRootGetProperty, NULL, NULL, NULL};
 
-const SCRIPT_HOST_DESCRIPTOR FileSystemDescriptor = {
-    FileSystemGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR FileSystemDescriptor = {FileSystemGetProperty, NULL, NULL, NULL};
 
 const SCRIPT_HOST_DESCRIPTOR FileSystemArrayDescriptor = {
-    FileSystemArrayGetProperty,
-    FileSystemArrayGetElement,
-    NULL,
-    NULL
-};
+    FileSystemArrayGetProperty, FileSystemArrayGetElement, NULL, NULL};
 
 /************************************************************************/

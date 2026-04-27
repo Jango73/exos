@@ -26,7 +26,7 @@
 
 /************************************************************************/
 
-#include "exec/ExecutableELF.h"
+#include "exec/Executable-ELF.h"
 
 /************************************************************************/
 
@@ -84,32 +84,14 @@ void ELFInitializeFileOperation(LPFILE File, LPFILE_OPERATION FileOperation);
 BOOL ELFReadBytes(LPFILE_OPERATION FileOperation, UINT Offset, LPVOID Buffer, UINT Size);
 BOOL ELFReadIdent(LPFILE_OPERATION FileOperation, U32 FileSize, U8 Ident[EI_NIDENT]);
 BOOL ELFReadHeader(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    U8 Class,
-    const U8 Ident[EI_NIDENT],
-    LPELF_FILE_HEADER Header
-);
+    LPFILE_OPERATION FileOperation, U32 FileSize, U8 Class, const U8 Ident[EI_NIDENT], LPELF_FILE_HEADER Header);
 BOOL ELFValidateProgramHeaderTable(U32 FileSize, const ELF_FILE_HEADER* Header);
 BOOL ELFReadProgramHeader(
-    LPFILE_OPERATION FileOperation,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    U32 Index,
-    LPELF_PROGRAM_HEADER ProgramHeader
-);
+    LPFILE_OPERATION FileOperation, const ELF_FILE_HEADER* Header, U8 Class, U32 Index,
+    LPELF_PROGRAM_HEADER ProgramHeader);
 BOOL ELFAnalyzeLayout(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    LPELF_LAYOUT_INFO Layout
-);
-void ELFStoreExecutableInfo(
-    const ELF_FILE_HEADER* Header,
-    const ELF_LAYOUT_INFO* Layout,
-    LPEXECUTABLE_INFO Info
-);
+    LPFILE_OPERATION FileOperation, U32 FileSize, const ELF_FILE_HEADER* Header, U8 Class, LPELF_LAYOUT_INFO Layout);
+void ELFStoreExecutableInfo(const ELF_FILE_HEADER* Header, const ELF_LAYOUT_INFO* Layout, LPEXECUTABLE_INFO Info);
 
 /************************************************************************/
 

@@ -35,7 +35,7 @@
 #include "drivers/usb/XHCI.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "text/CoreString.h"
 #include "utils/FailureGate.h"
 #include "utils/RateLimiter.h"

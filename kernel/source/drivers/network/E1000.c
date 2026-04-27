@@ -25,18 +25,18 @@
 #include "drivers/network/E1000.h"
 
 #include "Base.h"
+#include "User.h"
 #include "core/Driver.h"
 #include "core/Kernel.h"
+#include "drivers/bus/PCI.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
-#include "sync/DeferredWork.h"
 #include "drivers/interrupts/InterruptController.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "network/Network.h"
 #include "network/NetworkManager.h"
-#include "drivers/bus/PCI.h"
+#include "sync/Deferred-Work.h"
 #include "text/CoreString.h"
-#include "User.h"
 
 /************************************************************************/
 
@@ -203,9 +203,7 @@ PCI_DRIVER DATA_SECTION E1000Driver = {
  * @brief Retrieves the E1000 PCI driver descriptor.
  * @return Pointer to the E1000 PCI driver.
  */
-LPDRIVER E1000GetDriver(void) {
-    return (LPDRIVER)&E1000Driver;
-}
+LPDRIVER E1000GetDriver(void) { return (LPDRIVER)&E1000Driver; }
 
 /************************************************************************/
 // Small busy wait
@@ -235,7 +233,8 @@ static U16 E1000_EepromReadWord(LPE1000DEVICE Device, U32 Address) {
     U32 Value = 0;
     U32 Count = 0;
 
-    E1000_WriteReg32(Device->MmioBase, E1000_REG_EERD, ((Address & MAX_U8) << E1000_EERD_ADDR_SHIFT) | E1000_EERD_START);
+    E1000_WriteReg32(
+        Device->MmioBase, E1000_REG_EERD, ((Address & MAX_U8) << E1000_EERD_ADDR_SHIFT) | E1000_EERD_START);
 
     while (Count < E1000_RESET_TIMEOUT_ITER) {
         Value = E1000_ReadReg32(Device->MmioBase, E1000_REG_EERD);
@@ -261,7 +260,6 @@ static void E1000_ReadMac(LPE1000DEVICE Device) {
     U32 low = E1000_ReadReg32(Device->MmioBase, E1000_REG_RAL0);
     U32 high = E1000_ReadReg32(Device->MmioBase, E1000_REG_RAH0);
 
-
     // Check if RAL/RAH contain a valid, non-zero MAC (AV bit set, not all zeros, not broadcast)
     if ((high & (1u << 31)) && (low != 0) && !((low == MAX_U32) && ((high & 0xFFFF) == 0xFFFF))) {
         // Additional check: ensure it's not a multicast address (first bit of first byte)
@@ -282,7 +280,6 @@ static void E1000_ReadMac(LPE1000DEVICE Device) {
     U16 w0 = E1000_EepromReadWord(Device, 0);
     U16 w1 = E1000_EepromReadWord(Device, 1);
     U16 w2 = E1000_EepromReadWord(Device, 2);
-
 
     if (w0 == 0 && w1 == 0 && w2 == 0) {
         // EEPROM is empty, use fallback MAC address
@@ -305,7 +302,6 @@ static void E1000_ReadMac(LPE1000DEVICE Device) {
     high = (U32)Device->Mac[4] | ((U32)Device->Mac[5] << 8) | (1u << 31);  // Set AV (Address Valid) bit
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAL0, low);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAH0, high);
-
 }
 
 /************************************************************************/
@@ -343,26 +339,19 @@ static BOOL E1000_Reset(LPE1000DEVICE Device) {
  * @param Device Target E1000 device.
  */
 static void E1000_SetupMacFilters(LPE1000DEVICE Device) {
-
     // Program our MAC address into Receive Address Register 0
-    U32 RAL = (U32)Device->Mac[0] |
-              ((U32)Device->Mac[1] << 8) |
-              ((U32)Device->Mac[2] << 16) |
-              ((U32)Device->Mac[3] << 24);
+    U32 RAL =
+        (U32)Device->Mac[0] | ((U32)Device->Mac[1] << 8) | ((U32)Device->Mac[2] << 16) | ((U32)Device->Mac[3] << 24);
 
-    U32 RAH = (U32)Device->Mac[4] |
-              ((U32)Device->Mac[5] << 8) |
-              (1U << 31);  // Address Valid bit
+    U32 RAH = (U32)Device->Mac[4] | ((U32)Device->Mac[5] << 8) | (1U << 31);  // Address Valid bit
 
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAL0, RAL);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAH0, RAH);
-
 
     // Clear multicast table array (accept no multicast by default)
     for (U32 i = 0; i < 128; i++) {
         E1000_WriteReg32(Device->MmioBase, E1000_REG_MTA + (i * 4), 0);
     }
-
 }
 
 /************************************************************************/
@@ -397,19 +386,12 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
     Device->RxRingCount = E1000_RX_DESC_COUNT;
 
     if (!DMABufferAllocate(
-            &Device->RxRingBuffer,
-            Device->RxRingCount * sizeof(E1000_RXDESC),
-            FALSE,
-            TEXT("E1000RxRing"))) {
+            &Device->RxRingBuffer, Device->RxRingCount * sizeof(E1000_RXDESC), FALSE, TEXT("E1000RxRing"))) {
         ERROR(TEXT("RX ring allocation failed"));
         return FALSE;
     }
 
-    if (!DMABufferAllocate(
-            &Device->RxBufferPool,
-            Device->RxRingCount * PAGE_SIZE,
-            FALSE,
-            TEXT("E1000RxPool"))) {
+    if (!DMABufferAllocate(&Device->RxBufferPool, Device->RxRingCount * PAGE_SIZE, FALSE, TEXT("E1000RxPool"))) {
         ERROR(TEXT("RX pool allocation failed"));
         return FALSE;
     }
@@ -425,9 +407,7 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
         }
 
         if ((BufferPhys & 0xF) != 0) {
-            ERROR(TEXT("Invalid/unaligned buffer physical address %p at index %u"),
-                  BufferPhys,
-                  Index);
+            ERROR(TEXT("Invalid/unaligned buffer physical address %p at index %u"), BufferPhys, Index);
             return FALSE;
         }
 
@@ -440,22 +420,20 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
         Ring[Index].Special = 0;
 
         if (Index < 3) {
-            DEBUG(TEXT("RX[%u]: PhysAddr=%x Linear=%x (aligned=%s)"),
-                  Index,
-                  (U32)BufferPhys,
-                  (U32)BufferLinear,
-                  ((BufferPhys & 0xF) == 0) ? TEXT("YES") : TEXT("NO"));
+            DEBUG(
+                TEXT("RX[%u]: PhysAddr=%x Linear=%x (aligned=%s)"), Index, (U32)BufferPhys, (U32)BufferLinear,
+                ((BufferPhys & 0xF) == 0) ? TEXT("YES") : TEXT("NO"));
         }
     }
 
     if ((DMABufferGetPhysical(&Device->RxRingBuffer, 0) & 0xF) != 0) {
-        ERROR(TEXT("Descriptor ring not 16-byte aligned: %p"),
-              DMABufferGetPhysical(&Device->RxRingBuffer, 0));
+        ERROR(TEXT("Descriptor ring not 16-byte aligned: %p"), DMABufferGetPhysical(&Device->RxRingBuffer, 0));
         return FALSE;
     }
 
     // Then program NIC registers
-    E1000_WriteReg32(Device->MmioBase, E1000_REG_RDBAL, (U32)(DMABufferGetPhysical(&Device->RxRingBuffer, 0) & MAX_U32));
+    E1000_WriteReg32(
+        Device->MmioBase, E1000_REG_RDBAL, (U32)(DMABufferGetPhysical(&Device->RxRingBuffer, 0) & MAX_U32));
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RDBAH, 0);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RDLEN, Device->RxRingCount * sizeof(E1000_RXDESC));
 
@@ -468,14 +446,14 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RDT, Device->RxTail);
     // CRITICAL: Some QEMU versions require TCTL to be set before RCTL for proper link establishment
     // Set TCTL first with basic TX configuration
-    U32 Tctl = E1000_TCTL_EN | E1000_TCTL_PSP |
-               (E1000_TCTL_CT_DEFAULT << E1000_TCTL_CT_SHIFT) |
+    U32 Tctl = E1000_TCTL_EN | E1000_TCTL_PSP | (E1000_TCTL_CT_DEFAULT << E1000_TCTL_CT_SHIFT) |
                (E1000_TCTL_COLD_DEFAULT << E1000_TCTL_COLD_SHIFT);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_TCTL, Tctl);
 
     {
         // Force promiscuous mode to capture all packets
-        U32 Rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_BSIZE_2048 | E1000_RCTL_SECRC;
+        U32 Rctl =
+            E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_BSIZE_2048 | E1000_RCTL_SECRC;
         E1000_WriteReg32(Device->MmioBase, E1000_REG_RCTL, Rctl);
 
         // Add small delay to let hardware stabilize
@@ -498,8 +476,9 @@ static BOOL E1000_SetupReceive(LPE1000DEVICE Device) {
     }
 
     // Set MAC address in Receive Address Register (RAL0/RAH0)
-    U32 RalValue = (U32)Device->Mac[0] | ((U32)Device->Mac[1] << 8) | ((U32)Device->Mac[2] << 16) | ((U32)Device->Mac[3] << 24);
-    U32 RahValue = (U32)Device->Mac[4] | ((U32)Device->Mac[5] << 8) | (1 << 31); // AV=1 (Address Valid)
+    U32 RalValue =
+        (U32)Device->Mac[0] | ((U32)Device->Mac[1] << 8) | ((U32)Device->Mac[2] << 16) | ((U32)Device->Mac[3] << 24);
+    U32 RahValue = (U32)Device->Mac[4] | ((U32)Device->Mac[5] << 8) | (1 << 31);  // AV=1 (Address Valid)
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAL0, RalValue);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_RAH0, RahValue);
 
@@ -520,19 +499,12 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
     Device->TxRingCount = E1000_TX_DESC_COUNT;
 
     if (!DMABufferAllocate(
-            &Device->TxRingBuffer,
-            Device->TxRingCount * sizeof(E1000_TXDESC),
-            FALSE,
-            TEXT("E1000TxRing"))) {
+            &Device->TxRingBuffer, Device->TxRingCount * sizeof(E1000_TXDESC), FALSE, TEXT("E1000TxRing"))) {
         ERROR(TEXT("TX ring allocation failed"));
         return FALSE;
     }
 
-    if (!DMABufferAllocate(
-            &Device->TxBufferPool,
-            Device->TxRingCount * PAGE_SIZE,
-            FALSE,
-            TEXT("E1000TxPool"))) {
+    if (!DMABufferAllocate(&Device->TxBufferPool, Device->TxRingCount * PAGE_SIZE, FALSE, TEXT("E1000TxPool"))) {
         ERROR(TEXT("TX pool allocation failed"));
         return FALSE;
     }
@@ -546,9 +518,7 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
         }
 
         if ((BufferPhys & 0xF) != 0) {
-            ERROR(TEXT("Invalid/unaligned TX buffer physical address %p at index %u"),
-                  BufferPhys,
-                  Index);
+            ERROR(TEXT("Invalid/unaligned TX buffer physical address %p at index %u"), BufferPhys, Index);
             return FALSE;
         }
 
@@ -563,13 +533,13 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
     }
 
     if ((DMABufferGetPhysical(&Device->TxRingBuffer, 0) & 0xF) != 0) {
-        ERROR(TEXT("TX descriptor ring not 16-byte aligned: %p"),
-              DMABufferGetPhysical(&Device->TxRingBuffer, 0));
+        ERROR(TEXT("TX descriptor ring not 16-byte aligned: %p"), DMABufferGetPhysical(&Device->TxRingBuffer, 0));
         return FALSE;
     }
 
     // Program NIC registers
-    E1000_WriteReg32(Device->MmioBase, E1000_REG_TDBAL, (U32)(DMABufferGetPhysical(&Device->TxRingBuffer, 0) & MAX_U32));
+    E1000_WriteReg32(
+        Device->MmioBase, E1000_REG_TDBAL, (U32)(DMABufferGetPhysical(&Device->TxRingBuffer, 0) & MAX_U32));
     E1000_WriteReg32(Device->MmioBase, E1000_REG_TDBAH, 0);
     E1000_WriteReg32(Device->MmioBase, E1000_REG_TDLEN, Device->TxRingCount * sizeof(E1000_TXDESC));
 
@@ -607,17 +577,14 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
     Device->InterruptRegistered = FALSE;
     Device->InterruptArmed = FALSE;
 
-
     U32 Bar0Phys = PCI_GetBARBase(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, 0);
     U32 Bar0Size = PCI_GetBARSize(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, 0);
-
 
     if (Bar0Phys == NULL || Bar0Size == 0) {
         ERROR(TEXT("Invalid BAR0"));
         KernelHeapFree(Device);
         return NULL;
     }
-
 
     Device->MmioBase = MapIOMemory(Bar0Phys, Bar0Size);
     Device->MmioSize = Bar0Size;
@@ -628,7 +595,6 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
         return NULL;
     }
 
-
     PCI_EnableBusMaster(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, TRUE);
 
     if (!E1000_Reset(Device)) {
@@ -636,7 +602,6 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
         KernelHeapFree(Device);
         return NULL;
     }
-
 
     E1000_ReadMac(Device);
 
@@ -652,7 +617,6 @@ static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
         KernelHeapFree(Device);
         return NULL;
     }
-
 
     if (!E1000_SetupTransmit(Device)) {
         ERROR(TEXT("TX setup failed"));
@@ -794,10 +758,9 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
 
         Device->AckTraceCount++;
         if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-            WARNING(TEXT("Cause=%x Armed=%s Polling=%s"),
-                    InterruptCause,
-                    Device->InterruptArmed ? TEXT("YES") : TEXT("NO"),
-                    DeferredWorkIsPollingMode() ? TEXT("YES") : TEXT("NO"));
+            WARNING(
+                TEXT("Cause=%x Armed=%s Polling=%s"), InterruptCause, Device->InterruptArmed ? TEXT("YES") : TEXT("NO"),
+                DeferredWorkIsPollingMode() ? TEXT("YES") : TEXT("NO"));
         }
 
         if (InterruptCause == 0U) {
@@ -810,14 +773,12 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
         if (Device->InterruptArmed) {
             if (DeferredWorkIsPollingMode()) {
                 if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-                    WARNING(TEXT("Polling mode - masking interrupts (IMC=%x)"),
-                            MAX_U32);
+                    WARNING(TEXT("Polling mode - masking interrupts (IMC=%x)"), MAX_U32);
                 }
                 E1000_WriteReg32(Device->MmioBase, E1000_REG_IMC, MAX_U32);
             } else {
                 if (Device->AckTraceCount <= E1000_ACK_TRACE_LIMIT) {
-                    WARNING(TEXT("Re-arming interrupts with mask=%x"),
-                            E1000_DEFAULT_INTERRUPT_MASK);
+                    WARNING(TEXT("Re-arming interrupts with mask=%x"), E1000_DEFAULT_INTERRUPT_MASK);
                 }
                 E1000_WriteReg32(Device->MmioBase, E1000_REG_IMS, E1000_DEFAULT_INTERRUPT_MASK);
             }
@@ -849,16 +810,15 @@ static BOOL E1000_InterruptTopHalf(LPDEVICE DevicePointer, LPVOID Context) {
 
     if (!E1000_AcknowledgeInterrupt(Device, &Cause)) {
         if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-            WARNING(TEXT("No cause reported (trace=%u)"),
-                    Device->InterruptTraceCount);
+            WARNING(TEXT("No cause reported (trace=%u)"), Device->InterruptTraceCount);
         }
         return FALSE;
     }
 
     if (Device->InterruptTraceCount <= E1000_INTERRUPT_TRACE_LIMIT) {
-        WARNING(TEXT("Cause=%x RelevantMask=%x"),
-                Cause,
-                (E1000_INT_RXT0 | E1000_INT_RXO | E1000_INT_RXDMT0 | E1000_INT_LSC));
+        WARNING(
+            TEXT("Cause=%x RelevantMask=%x"), Cause,
+            (E1000_INT_RXT0 | E1000_INT_RXO | E1000_INT_RXDMT0 | E1000_INT_LSC));
     }
 
     if ((Cause & (E1000_INT_RXT0 | E1000_INT_RXO | E1000_INT_RXDMT0 | E1000_INT_LSC)) == 0) {
@@ -899,9 +859,7 @@ static void E1000_DeferredRoutine(LPDEVICE DevicePointer, LPVOID Context) {
         E1000_ReceivePoll(Device);
 
         LPNETWORK_DEVICE_CONTEXT NetContext = (LPNETWORK_DEVICE_CONTEXT)Device->RxUserData;
-        SAFE_USE_VALID_ID(NetContext, KOID_NETWORKDEVICE) {
-            NetworkManager_MaintenanceTick(NetContext);
-        }
+        SAFE_USE_VALID_ID(NetContext, KOID_NETWORKDEVICE) { NetworkManager_MaintenanceTick(NetContext); }
     }
 }
 
@@ -913,9 +871,7 @@ static void E1000_DeferredRoutine(LPDEVICE DevicePointer, LPVOID Context) {
  * @param DevicePointer Device pointer from polling context.
  * @param Context Driver context (E1000DEVICE).
  */
-static void E1000_PollRoutine(LPDEVICE DevicePointer, LPVOID Context) {
-    E1000_DeferredRoutine(DevicePointer, Context);
-}
+static void E1000_PollRoutine(LPDEVICE DevicePointer, LPVOID Context) { E1000_DeferredRoutine(DevicePointer, Context); }
 
 /************************************************************************/
 // Receive/Transmit operations
@@ -929,7 +885,6 @@ static void E1000_PollRoutine(LPDEVICE DevicePointer, LPVOID Context) {
  */
 static U32 E1000_TransmitSend(LPE1000DEVICE Device, const U8 *Data, U32 Length) {
     if (Length == 0 || Length > E1000_TX_BUF_SIZE) return DF_RETURN_BAD_PARAMETER;
-
 
     U32 Index = Device->TxTail;
     LPE1000_TXDESC Ring = (LPE1000_TXDESC)Device->TxRingBuffer.LinearBase;
@@ -974,7 +929,7 @@ static U32 E1000_TransmitSend(LPE1000DEVICE Device, const U8 *Data, U32 Length) 
 static U32 E1000_ReceivePoll(LPE1000DEVICE Device) {
     LPE1000_RXDESC Ring = (LPE1000_RXDESC)Device->RxRingBuffer.LinearBase;
     U32 Count = 0;
-    U32 MaxIterations = Device->RxRingCount * 2; // Safety limit: twice the ring size
+    U32 MaxIterations = Device->RxRingCount * 2;  // Safety limit: twice the ring size
     U32 ConsecutiveEmptyChecks = 0;
 
     while (Count < MaxIterations) {
@@ -986,14 +941,13 @@ static U32 E1000_ReceivePoll(LPE1000DEVICE Device) {
 
             // If we've checked multiple times with no new packets, break to prevent spinning
             if (ConsecutiveEmptyChecks >= 3) {
-
                 // No data available - show RX register state every 100 polls
                 static U32 DATA_SECTION PollCount = 0;
                 if ((PollCount++ % 100) == 0) {
-                    DEBUG(TEXT("RDH=%x RDT=%x RCTL=%x"),
-                          E1000_ReadReg32(Device->MmioBase, E1000_REG_RDH),
-                          E1000_ReadReg32(Device->MmioBase, E1000_REG_RDT),
-                          E1000_ReadReg32(Device->MmioBase, E1000_REG_RCTL));
+                    DEBUG(
+                        TEXT("RDH=%x RDT=%x RCTL=%x"), E1000_ReadReg32(Device->MmioBase, E1000_REG_RDH),
+                        E1000_ReadReg32(Device->MmioBase, E1000_REG_RDT),
+                        E1000_ReadReg32(Device->MmioBase, E1000_REG_RCTL));
                 }
                 break;
             }

@@ -26,7 +26,7 @@
 #include "Arch.h"
 #include "input/MouseDispatcher.h"
 #include "log/Log.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 
 static void MouseCommonDeferredWork(LPVOID Context);
 

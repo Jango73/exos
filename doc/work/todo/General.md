@@ -43,19 +43,19 @@
 
 - [x] Implement stdin/stdout/stderr
 
-- [ ] Renaming
-  - Rename ExecutableELF-Metadata.* -> Executable-ELF-Metadata.*
-  - Rename ExecutableELF-Private.* -> Executable-ELF-Private.*
-  - Rename ExecutableELF.* -> Executable-ELF.*
-  - Rename ExecutableEXOS.* -> Executable-EXOS.*
-  - Rename ExecutableModule-Relocation.* -> Executable-Module-Relocation.*
-  - Rename ExecutableModule.* -> Executable-Module.*
-  - Rename FileSystem.* -> File-System.*
-  - Rename BuddyAllocator.* -> Buddy-Allocator.*
-  - Rename EpkParser.* -> Epk-Parser.*
-  - Rename Shell-EmbeddedScripts.* -> Shell-Embedded-Scripts.*
-  - Rename DeferredWork.* -> Deferred-Work.*
-  - Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
+- [x] Renaming
+  - [x] Rename ExecutableELF-Metadata.* -> Executable-ELF-Metadata.*
+  - [x] Rename ExecutableELF-Private.* -> Executable-ELF-Private.*
+  - [x] Rename ExecutableELF.* -> Executable-ELF.*
+  - [x] Rename ExecutableEXOS.* -> Executable-EXOS.*
+  - [x] Rename ExecutableModule-Relocation.* -> Executable-Module-Relocation.*
+  - [x] Rename ExecutableModule.* -> Executable-Module.*
+  - [x] Rename FileSystem.* -> File-System.*
+  - [x] Rename BuddyAllocator.* -> Buddy-Allocator.*
+  - [x] Rename EpkParser.* -> Epk-Parser.*
+  - [x] Rename Shell-EmbeddedScripts.* -> Shell-Embedded-Scripts.*
+  - [x] Rename DeferredWork.* -> Deferred-Work.*
+  - [x] Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
 
 - [ ] Remove UI components from kernel and cleanup
   - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.

@@ -21,7 +21,7 @@
 
 \************************************************************************/
 
-#include "sync/DeferredWorkQueue.h"
+#include "sync/Deferred-Work-Queue.h"
 
 #include "Arch.h"
 #include "core/Kernel.h"
@@ -268,9 +268,7 @@ U32 DeferredWorkQueueRegister(LPDEFERRED_WORK_QUEUE Queue, const DEFERRED_WORK_R
 
             RestoreFlags(&Flags);
 
-            DEBUG(
-                TEXT("Queue=%s slot=%u name=%s"), Queue->Name, Index,
-                Queue->WorkItems[Index].Name);
+            DEBUG(TEXT("Queue=%s slot=%u name=%s"), Queue->Name, Index, Queue->WorkItems[Index].Name);
             return Index;
         }
 

@@ -21,7 +21,7 @@
 
 \************************************************************************/
 
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 
 #include "core/Kernel.h"
 #include "log/Log.h"
@@ -418,8 +418,7 @@ static U32 DeferredWorkQueueDispatcherTask(LPVOID Param) {
         }
 
         if (WaitResult != WAIT_OBJECT_0) {
-            WARNING(
-                TEXT("Queue=%s unexpected wait result %u"), Queue->Name, WaitResult);
+            WARNING(TEXT("Queue=%s unexpected wait result %u"), Queue->Name, WaitResult);
             continue;
         }
 

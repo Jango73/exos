@@ -31,7 +31,7 @@
 #include "User.h"
 #include "core/Driver.h"
 #include "process/Process.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 
 /***************************************************************************/
 

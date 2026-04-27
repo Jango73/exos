@@ -28,7 +28,7 @@
 #include "drivers/interrupts/InterruptController.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "text/CoreString.h"
 #include "utils/Helpers.h"
 
@@ -149,9 +149,7 @@ static void DeviceInterruptApplyConfiguration(void) {
         }
 
         if (Requested > DEVICE_INTERRUPT_VECTOR_MAX) {
-            WARNING(
-                TEXT("Requested slot count %u exceeds capacity %u"), Requested,
-                DEVICE_INTERRUPT_VECTOR_MAX);
+            WARNING(TEXT("Requested slot count %u exceeds capacity %u"), Requested, DEVICE_INTERRUPT_VECTOR_MAX);
             Requested = DEVICE_INTERRUPT_VECTOR_MAX;
         }
 
@@ -162,9 +160,7 @@ static void DeviceInterruptApplyConfiguration(void) {
         g_DeviceInterruptSlotCount = 1;
     }
 
-    DEBUG(
-        TEXT("Active slots=%u (capacity=%u)"), g_DeviceInterruptSlotCount,
-        DEVICE_INTERRUPT_VECTOR_MAX);
+    DEBUG(TEXT("Active slots=%u (capacity=%u)"), g_DeviceInterruptSlotCount, DEVICE_INTERRUPT_VECTOR_MAX);
 }
 
 /************************************************************************/
@@ -326,17 +322,15 @@ BOOL DeviceInterruptRegister(const DEVICE_INTERRUPT_REGISTRATION *Registration, 
                     WARNING(TEXT("Failed to enable IRQ %u"), Registration->LegacyIRQ);
                 }
             } else {
-                WARNING(
-                    TEXT("Failed to configure IRQ %u for vector %u"), Registration->LegacyIRQ,
-                    Vector);
+                WARNING(TEXT("Failed to configure IRQ %u for vector %u"), Registration->LegacyIRQ, Vector);
             }
         }
 
         Slot->InterruptEnabled = InterruptConfigured;
 
         DEBUG(
-            TEXT("Slot %u assigned to device %p IRQ %u vector %u"), Index,
-            Registration->Device, Registration->LegacyIRQ, GetDeviceInterruptVector((U8)Index));
+            TEXT("Slot %u assigned to device %p IRQ %u vector %u"), Index, Registration->Device,
+            Registration->LegacyIRQ, GetDeviceInterruptVector((U8)Index));
 
         if (!ShouldConfigureInterrupt) {
             DEBUG(TEXT("Slot %u operating in polling mode (IRQ setup skipped)"), Index);
@@ -425,8 +419,8 @@ void DeviceInterruptHandler(U8 SlotIndex) {
     Entry->InterruptCount++;
     if (Entry->InterruptCount <= INTERRUPT_LOG_SAMPLE_LIMIT) {
         DEBUG(
-            TEXT("Slot=%u IRQ=%u Device=%p Count=%u Enabled=%s"), SlotIndex, Slot->LegacyIRQ,
-            Slot->Device, Entry->InterruptCount, Slot->InterruptEnabled ? TEXT("YES") : TEXT("NO"));
+            TEXT("Slot=%u IRQ=%u Device=%p Count=%u Enabled=%s"), SlotIndex, Slot->LegacyIRQ, Slot->Device,
+            Entry->InterruptCount, Slot->InterruptEnabled ? TEXT("YES") : TEXT("NO"));
     }
 
     SAFE_USE_VALID_ID((LPLISTNODE)Slot->Device, Slot->DeviceTypeID) {
@@ -457,8 +451,8 @@ void DeviceInterruptHandler(U8 SlotIndex) {
 
                 if (Entry->SuppressedCount >= DEVICE_INTERRUPT_SPURIOUS_THRESHOLD && Slot->LegacyIRQ != 0xFF) {
                     WARNING(
-                        TEXT("Slot=%u IRQ=%u disabled after %u suppressed signals"), SlotIndex,
-                        Slot->LegacyIRQ, Entry->SuppressedCount);
+                        TEXT("Slot=%u IRQ=%u disabled after %u suppressed signals"), SlotIndex, Slot->LegacyIRQ,
+                        Entry->SuppressedCount);
                     DisableDeviceInterrupt(Slot->LegacyIRQ);
                     Slot->InterruptEnabled = FALSE;
                     Entry->SuppressedCount = 0;
@@ -471,8 +465,8 @@ void DeviceInterruptHandler(U8 SlotIndex) {
             Entry->SuppressedCount = 0;
             if (Entry->InterruptCount <= INTERRUPT_LOG_SAMPLE_LIMIT) {
                 DEBUG(
-                    TEXT("Slot=%u signaling deferred queue=%u slot=%u"), SlotIndex,
-                    Slot->DeferredToken.QueueID, Slot->DeferredToken.SlotID);
+                    TEXT("Slot=%u signaling deferred queue=%u slot=%u"), SlotIndex, Slot->DeferredToken.QueueID,
+                    Slot->DeferredToken.SlotID);
             }
             DeferredWorkSignal(Slot->DeferredToken);
         }
@@ -527,9 +521,7 @@ static void DeviceInterruptDeferredThunk(LPVOID Context) {
     if (SlotIndex < (U32)DeviceInterruptGetSlotCount()) {
         Entry->DeferredCount++;
         if (Entry->DeferredCount <= INTERRUPT_LOG_SAMPLE_LIMIT) {
-            DEBUG(
-                TEXT("Slot=%u Name=%s Count=%u"), SlotIndex, Slot->Name,
-                Entry->DeferredCount);
+            DEBUG(TEXT("Slot=%u Name=%s Count=%u"), SlotIndex, Slot->Name, Entry->DeferredCount);
         }
     }
 

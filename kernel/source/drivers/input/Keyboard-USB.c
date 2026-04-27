@@ -30,7 +30,7 @@
 #include "drivers/usb/XHCI-Internal.h"
 #include "input/VKey.h"
 #include "log/Log.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "utils/HIDReport.h"
 #include "utils/RateLimiter.h"
@@ -675,8 +675,7 @@ static void USBKeyboardLogUnknownConsumerUsage(U16 Usage) {
         return;
     }
 
-    WARNING(
-        TEXT("Unmapped consumer usage=%x suppressed=%u"), (U32)Usage, Suppressed);
+    WARNING(TEXT("Unmapped consumer usage=%x suppressed=%u"), (U32)Usage, Suppressed);
 }
 
 /***************************************************************************/
@@ -1035,8 +1034,8 @@ static BOOL USBKeyboardInitializeConsumerControl(
     XHCI_ReferenceUsbEndpoint(Endpoint);
 
     DEBUG(
-        TEXT("Consumer if=%u ep=%x fields=%u"), (U32)Interface->Number,
-        (U32)Endpoint->Address, (U32)USBKeyboardState.ConsumerLayout.FieldCount);
+        TEXT("Consumer if=%u ep=%x fields=%u"), (U32)Interface->Number, (U32)Endpoint->Address,
+        (U32)USBKeyboardState.ConsumerLayout.FieldCount);
 
     return TRUE;
 }
@@ -1112,9 +1111,7 @@ static BOOL USBKeyboardStartDevice(
 
     USBKeyboardState.ReferencesHeld = TRUE;
 
-    DEBUG(
-        TEXT("Keyboard addr=%x if=%u ep=%x"), UsbDevice->Address, (U32)Interface->Number,
-        (U32)Endpoint->Address);
+    DEBUG(TEXT("Keyboard addr=%x if=%u ep=%x"), UsbDevice->Address, (U32)Interface->Number, (U32)Endpoint->Address);
 
     (void)USBKeyboardSubmitInterruptReport(
         Device, USBKeyboardState.Endpoint, USBKeyboardState.ReportLength, USBKeyboardState.ReportPhysical,

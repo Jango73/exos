@@ -24,21 +24,21 @@
 
 #include "core/Kernel.h"
 
+#include "DisplaySession.h"
 #include "autotest/Autotest.h"
-#include "memory/BuddyAllocator.h"
-#include "system/Clock.h"
 #include "console/Console.h"
 #include "desktop/Desktop.h"
-#include "DisplaySession.h"
-#include "drivers/platform/ACPI.h"
 #include "drivers/input/Keyboard.h"
+#include "drivers/platform/ACPI.h"
 #include "fs/File.h"
-#include "text/Lang.h"
 #include "log/Log.h"
-#include "text/Quotes.h"
+#include "memory/Buddy-Allocator.h"
 #include "process/Process.h"
 #include "process/Task.h"
+#include "system/Clock.h"
 #include "system/SerialPort.h"
+#include "text/Lang.h"
+#include "text/Quotes.h"
 #include "utils/BusyWait.h"
 #include "utils/Helpers.h"
 #include "utils/Pipe.h"
@@ -51,28 +51,28 @@ extern U32 DeadBeef;
 
 /************************************************************************/
 
-#define KERNEL_LAYOUT_OFFSET_OF(Type, Member) ((UINT)__builtin_offsetof(Type, Member))
+#define KERNEL_LAYOUT_OFFSET_OF(Type, Member) ((UINT) __builtin_offsetof(Type, Member))
 
 #if defined(__EXOS_ARCH_X86_32__)
-typedef char KERNEL_STARTUP_INFO_OFFSET_KERNELRESERVEDBYTES_X86_32[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, KernelReservedBytes) == 0x08) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_STACKTOP_X86_32[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, StackTop) == 0x0C) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASK21PM_X86_32[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_21_PM) == 0x14) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASKA1PM_X86_32[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_A1_PM) == 0x18) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_KERNELRESERVEDBYTES_X86_32
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, KernelReservedBytes) == 0x08) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_STACKTOP_X86_32
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, StackTop) == 0x0C) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASK21PM_X86_32
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_21_PM) == 0x14) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASKA1PM_X86_32
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_A1_PM) == 0x18) ? 1 : -1];
 #endif
 
 #if defined(__EXOS_ARCH_X86_64__)
-typedef char KERNEL_STARTUP_INFO_OFFSET_KERNELRESERVEDBYTES_X86_64[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, KernelReservedBytes) == 0x10) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_STACKTOP_X86_64[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, StackTop) == 0x18) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASK21PM_X86_64[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_21_PM) == 0x28) ? 1 : -1];
-typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASKA1PM_X86_64[
-    (KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_A1_PM) == 0x2C) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_KERNELRESERVEDBYTES_X86_64
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, KernelReservedBytes) == 0x10) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_STACKTOP_X86_64
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, StackTop) == 0x18) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASK21PM_X86_64
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_21_PM) == 0x28) ? 1 : -1];
+typedef char KERNEL_STARTUP_INFO_OFFSET_IRQMASKA1PM_X86_64
+    [(KERNEL_LAYOUT_OFFSET_OF(KERNEL_STARTUP_INFO, IRQMask_A1_PM) == 0x2C) ? 1 : -1];
 #endif
 
 /************************************************************************/
@@ -253,7 +253,8 @@ BOOL DeleteObject(HANDLE Object) {
                     Result = 0;
                     break;
             }
-        } else {
+        }
+        else {
             WARNING(TEXT("Invalid object pointer object=%p"), ObjectAddress);
         }
 
@@ -382,8 +383,8 @@ void DumpCriticalInformation(void) {
     DEBUG(TEXT("  Multiboot entry count = %d"), KernelStartup.MultibootMemoryEntryCount);
 
     for (U32 Index = 0; Index < KernelStartup.MultibootMemoryEntryCount; Index++) {
-        DEBUG(TEXT("Multiboot entry %d : %p, %d, %d"), Index,
-            U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Base),
+        DEBUG(
+            TEXT("Multiboot entry %d : %p, %d, %d"), Index, U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Base),
             U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Length),
             (U32)KernelStartup.MultibootMemoryEntries[Index].Type);
     }
@@ -414,58 +415,53 @@ void DumpCriticalInformation(void) {
  */
 
 static void Welcome(void) {
+    /*
+        ConsolePrint(TEXT("███████╗██╗  ██╗ ██████╗ ███████╗\n"));
+        ConsolePrint(TEXT("██╔════╝╚██╗██╔╝██╔═══██╗██╔════╝\n"));
+        ConsolePrint(TEXT("█████╗   ╚═╝╚═╝ ██║   ██║███████╗\n"));
+        ConsolePrint(TEXT("██╔══╝   ██╔██╗ ██║   ██║╚════██║\n"));
+        ConsolePrint(TEXT("███████╗██╔╝ ██╗╚██████╔╝███████║\n"));
+        ConsolePrint(TEXT("╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝\n"));
+    */
 
-/*
-    ConsolePrint(TEXT("███████╗██╗  ██╗ ██████╗ ███████╗\n"));
-    ConsolePrint(TEXT("██╔════╝╚██╗██╔╝██╔═══██╗██╔════╝\n"));
-    ConsolePrint(TEXT("█████╗   ╚═╝╚═╝ ██║   ██║███████╗\n"));
-    ConsolePrint(TEXT("██╔══╝   ██╔██╗ ██║   ██║╚════██║\n"));
-    ConsolePrint(TEXT("███████╗██╔╝ ██╗╚██████╔╝███████║\n"));
-    ConsolePrint(TEXT("╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝\n"));
-*/
-
-/*
-    ConsolePrint(TEXT("#######\\ ##\\  ##\\  ######\\  #######\\ \n"));
-    ConsolePrint(TEXT("##<----/ \\##\\##// ##/---##\\ ##/----/ \n"));
-    ConsolePrint(TEXT("#####\\    \\-/\\-/  ##|   ##| #######\\ \n"));
-    ConsolePrint(TEXT("##/--/    ##/##\\  ##|   ##| \\----##|  \n"));
-    ConsolePrint(TEXT("#######\\ ##// ##\\ \\######// #######| \n"));
-    ConsolePrint(TEXT("\\------/ \\-/  \\-/  \\-----/  \\------/ \n\n"));
-*/
+    /*
+        ConsolePrint(TEXT("#######\\ ##\\  ##\\  ######\\  #######\\ \n"));
+        ConsolePrint(TEXT("##<----/ \\##\\##// ##/---##\\ ##/----/ \n"));
+        ConsolePrint(TEXT("#####\\    \\-/\\-/  ##|   ##| #######\\ \n"));
+        ConsolePrint(TEXT("##/--/    ##/##\\  ##|   ##| \\----##|  \n"));
+        ConsolePrint(TEXT("#######\\ ##// ##\\ \\######// #######| \n"));
+        ConsolePrint(TEXT("\\------/ \\-/  \\-/  \\-----/  \\------/ \n\n"));
+    */
 
     ConsolePrint(
-        TEXT(
-            "Extensible Operating System for %s computers\n"
-            "Version %u.%u.%u - Copyright (c) %u-%u Jango73\n"
-            ),
-        Text_Architecture,
-        EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH,
-        EXOS_COPYRIGHT_FROM, EXOS_COPYRIGHT_TO
-        );
+        TEXT("Extensible Operating System for %s computers\n"
+             "Version %u.%u.%u - Copyright (c) %u-%u Jango73\n"),
+        Text_Architecture, EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH, EXOS_COPYRIGHT_FROM,
+        EXOS_COPYRIGHT_TO);
 
     ConsolePrint(TEXT("\n%s\n\n"), GetRandomQuote());
 
-/*
-    ConsolePrint(TEXT("\nEXOS - "));
-    SetConsoleBackColor(CONSOLE_BLUE);
-    SetConsoleForeColor(CONSOLE_WHITE);
-    ConsolePrint("Extensible");
-    SetConsoleBackColor(CONSOLE_WHITE);
-    SetConsoleForeColor(CONSOLE_BLACK);
-    ConsolePrint(" Operating");
-    SetConsoleBackColor(CONSOLE_RED);
-    SetConsoleForeColor(CONSOLE_WHITE);
-    ConsolePrint(" System   ");
-    SetConsoleBackColor(0);
-    SetConsoleForeColor(CONSOLE_GRAY);
-    ConsolePrint(
-        TEXT("\n"
-        "EXOS - Extensible Operating System for %s computers\n"
-        "Version %u.%u.%u - Copyright (c) 1999-2026 Jango73\n"),
-        Text_Architecture,
-        EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH
-        );
-*/
+    /*
+        ConsolePrint(TEXT("\nEXOS - "));
+        SetConsoleBackColor(CONSOLE_BLUE);
+        SetConsoleForeColor(CONSOLE_WHITE);
+        ConsolePrint("Extensible");
+        SetConsoleBackColor(CONSOLE_WHITE);
+        SetConsoleForeColor(CONSOLE_BLACK);
+        ConsolePrint(" Operating");
+        SetConsoleBackColor(CONSOLE_RED);
+        SetConsoleForeColor(CONSOLE_WHITE);
+        ConsolePrint(" System   ");
+        SetConsoleBackColor(0);
+        SetConsoleForeColor(CONSOLE_GRAY);
+        ConsolePrint(
+            TEXT("\n"
+            "EXOS - Extensible Operating System for %s computers\n"
+            "Version %u.%u.%u - Copyright (c) 1999-2026 Jango73\n"),
+            Text_Architecture,
+            EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH
+            );
+    */
 
     SetConsoleBackColor(0);
 }
@@ -524,9 +520,7 @@ LPVOID CreateKernelObject(UINT Size, U32 ObjectTypeID) {
 void SetKernelObjectDestructor(LPVOID Object, OBJECTDESTRUCTOR Destructor) {
     LPLISTNODE Node = (LPLISTNODE)Object;
 
-    SAFE_USE(Node) {
-        Node->Destructor = Destructor;
-    }
+    SAFE_USE(Node) { Node->Destructor = Destructor; }
 }
 
 /************************************************************************/
@@ -583,7 +577,7 @@ void DeleteUnreferencedObjects(void) {
 
     // Helper function to process a single list
     auto void ProcessList(LPLIST List, LPCSTR ListName) {
-        UNUSED(ListName);   // To avoid warnings in release
+        UNUSED(ListName);  // To avoid warnings in release
 
         if (List == NULL) return;
 
@@ -696,8 +690,8 @@ void StoreObjectTerminationState(LPVOID Object, UINT ExitCode) {
     LPOBJECT KernelObject = (LPOBJECT)Object;
 
     SAFE_USE_VALID(KernelObject) {
-        LPOBJECT_TERMINATION_STATE TermState = (LPOBJECT_TERMINATION_STATE)
-            KernelHeapAlloc(sizeof(OBJECT_TERMINATION_STATE));
+        LPOBJECT_TERMINATION_STATE TermState =
+            (LPOBJECT_TERMINATION_STATE)KernelHeapAlloc(sizeof(OBJECT_TERMINATION_STATE));
 
         SAFE_USE(TermState) {
             U32 InstanceIDHigh = U64_High32(KernelObject->InstanceID);
@@ -823,7 +817,9 @@ UINT GetPhysicalMemoryUsed(void) {
 void LoadDriver(LPDRIVER Driver) {
     SAFE_USE(Driver) {
         if (Driver->TypeID != KOID_DRIVER) {
-            ERROR(TEXT("%s driver not valid (at address %X). ID = %X. Halting."), TEXT(Driver->Product), Driver, Driver->TypeID);
+            ERROR(
+                TEXT("%s driver not valid (at address %X). ID = %X. Halting."), TEXT(Driver->Product), Driver,
+                Driver->TypeID);
 
             // Wait forever
             DO_THE_SLEEPING_BEAUTY;
@@ -859,7 +855,8 @@ void LoadDriver(LPDRIVER Driver) {
 void UnloadDriver(LPDRIVER Driver) {
     SAFE_USE(Driver) {
         if (Driver->TypeID != KOID_DRIVER) {
-            WARNING(TEXT("%s driver not valid (at address %X). ID = %X."), TEXT(Driver->Product), Driver, Driver->TypeID);
+            WARNING(
+                TEXT("%s driver not valid (at address %X). ID = %X."), TEXT(Driver->Product), Driver, Driver->TypeID);
             return;
         }
 
@@ -878,10 +875,8 @@ void UnloadDriver(LPDRIVER Driver) {
 void LoadAllDrivers(void) {
     DEBUG(TEXT("Start"));
 
-
     InitializeDriverList();
     DEBUG(TEXT("Driver list initialized"));
-
 
     LPLIST DriverList = GetStartupDriverList();
     if (DriverList == NULL || DriverList->First == NULL) {
@@ -963,9 +958,7 @@ static U32 KernelMonitor(LPVOID Parameter) {
 void KernelIdle(void) {
     ConsoleSetPagingActive(TRUE);
 
-    FOREVER {
-        Sleep(4000);
-    }
+    FOREVER { Sleep(4000); }
 }
 
 /************************************************************************/
@@ -1002,9 +995,7 @@ static void KillActiveUserlandProcesses(void) {
 
     for (LPLISTNODE Node = ProcessesToKill->First; Node; Node = Node->Next) {
         LPPROCESS Process = (LPPROCESS)Node;
-        SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
-            KillProcess(Process);
-        }
+        SAFE_USE_VALID_ID(Process, KOID_PROCESS) { KillProcess(Process); }
     }
 
     DeleteList(ProcessesToKill);
@@ -1070,9 +1061,9 @@ void InitializeKernel(void) {
     GetCPUInformation(GetKernelCPUInfo());
     DEBUG(TEXT("CPU information captured"));
     BusyWaitSetFrequencyMHz(GetKernelCPUInfo()->BaseFrequencyMHz);
-    DEBUG(TEXT("BusyWait profile base_mhz=%u loops_per_ms=%u"),
-          GetKernelCPUInfo()->BaseFrequencyMHz,
-          BusyWaitGetLoopsPerMillisecond());
+    DEBUG(
+        TEXT("BusyWait profile base_mhz=%u loops_per_ms=%u"), GetKernelCPUInfo()->BaseFrequencyMHz,
+        BusyWaitGetLoopsPerMillisecond());
     PreInitializeKernel();
     DEBUG(TEXT("Architecture pre-initialization complete"));
     //-------------------------------------

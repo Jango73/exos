@@ -23,10 +23,10 @@
 \************************************************************************/
 #include "drivers/filesystems/EXFS.h"
 
-#include "fs/FileSystem.h"
 #include "core/Kernel.h"
-#include "log/Log.h"
 #include "drivers/filesystems/FileSystem-Common.h"
+#include "fs/File-System.h"
+#include "log/Log.h"
 #include "utils/Path.h"
 
 /************************************************************************/
@@ -56,9 +56,7 @@ DRIVER DATA_SECTION EXFSDriver = {
  * @brief Retrieves the EXFS driver descriptor.
  * @return Pointer to the EXFS driver.
  */
-LPDRIVER EXFSGetDriver(void) {
-    return &EXFSDriver;
-}
+LPDRIVER EXFSGetDriver(void) { return &EXFSDriver; }
 
 U8 Dummy[128] = {1, 1};
 
@@ -270,14 +268,9 @@ static BOOL ReadCluster(LPEXFSFILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Buf
 
     Sector = FileSystem->DataStart + (Cluster * FileSystem->Master.SectorsPerCluster);
 
-    return PartitionTransferSectors(FileSystem->Disk,
-                                    FileSystem->PartitionStart,
-                                    FileSystem->PartitionSize,
-                                    Sector,
-                                    FileSystem->Master.SectorsPerCluster,
-                                    Buffer,
-                                    FileSystem->Master.SectorsPerCluster * SECTOR_SIZE,
-                                    DF_DISK_READ);
+    return PartitionTransferSectors(
+        FileSystem->Disk, FileSystem->PartitionStart, FileSystem->PartitionSize, Sector,
+        FileSystem->Master.SectorsPerCluster, Buffer, FileSystem->Master.SectorsPerCluster * SECTOR_SIZE, DF_DISK_READ);
 }
 
 /***************************************************************************/
@@ -372,8 +365,7 @@ static BOOL LocateFile(LPEXFSFILESYSTEM FileSystem, LPCSTR Path, LPEXFSFILELOC F
             }
 
             if (FileRec->ClusterTable > 0 && FileRec->ClusterTable != EXFS_CLUSTER_END) {
-                if (StringCompare(Component->Name, TEXT("*")) == 0 ||
-                    STRINGS_EQUAL(Component->Name, FileRec->Name)) {
+                if (StringCompare(Component->Name, TEXT("*")) == 0 || STRINGS_EQUAL(Component->Name, FileRec->Name)) {
                     if (Component->Next == NULL) {
                         FileLoc->DataCluster = FileRec->ClusterTable;
                         goto Out_Success;
@@ -435,8 +427,7 @@ static BOOL LocateFile(LPEXFSFILESYSTEM FileSystem, LPCSTR Path, LPEXFSFILELOC F
             }
         }
 
-    NextComponent:
-        ;
+    NextComponent:;
     }
 
 Out_Success:
@@ -502,7 +493,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     U32 RootCluster = 0;
     U32 CurrentSector = Create->PartitionStartSector;
 
-
     //-------------------------------------
     // Check validity of parameters
 
@@ -515,7 +505,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     MemorySet(Buffer1, 0, SECTOR_SIZE * 2);
     MemorySet(Buffer2, 0, SECTOR_SIZE * 2);
     MemorySet(Buffer3, 0, SECTOR_SIZE * 2);
-
 
     //-------------------------------------
     // Compute size in clusters of bitmap
@@ -541,7 +530,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     }
 
     CurrentSector += 2;
-
 
     //-------------------------------------
     // Fill the superblock
@@ -572,7 +560,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     CurrentSector += 2;
 
-
     //-------------------------------------
     // Cluster 0 is empty because 0 is not a valid
     // cluster index (like NULL)
@@ -596,7 +583,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     CurrentSector += Create->SectorsPerCluster;
 
-
     //-------------------------------------
     // Write the first file record
 
@@ -607,7 +593,6 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     if (WriteSectors(Create->Disk, CurrentSector, 1, Buffer3) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
-
 
     //-------------------------------------
 

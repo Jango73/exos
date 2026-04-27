@@ -25,8 +25,8 @@
 #define PACKAGEFS_H_INCLUDED
 
 #include "Base.h"
-#include "fs/FileSystem.h"
-#include "package/EpkParser.h"
+#include "fs/File-System.h"
+#include "package/Epk-Parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,11 +36,9 @@ extern "C" {
 
 extern DRIVER PackageFSDriver;
 
-U32 PackageFSMountFromBuffer(LPCVOID PackageBytes,
-                             U32 PackageSize,
-                             LPCSTR VolumeName,
-                             const EPK_PARSER_OPTIONS* Options,
-                             LPFILESYSTEM* MountedFileSystemOut);
+U32 PackageFSMountFromBuffer(
+    LPCVOID PackageBytes, U32 PackageSize, LPCSTR VolumeName, const EPK_PARSER_OPTIONS* Options,
+    LPFILESYSTEM* MountedFileSystemOut);
 
 BOOL PackageFSUnmount(LPFILESYSTEM FileSystem);
 

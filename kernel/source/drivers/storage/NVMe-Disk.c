@@ -21,11 +21,10 @@
 
 \************************************************************************/
 
-#include "drivers/storage/NVMe-Internal.h"
-
-#include "text/CoreString.h"
-#include "fs/FileSystem.h"
 #include "core/KernelData.h"
+#include "drivers/storage/NVMe-Internal.h"
+#include "fs/File-System.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
@@ -69,9 +68,7 @@ void NVMeInitDiskDriver(LPNVME_DEVICE Device) {
  * @param Buffer Buffer pointer.
  * @return TRUE when aligned, FALSE otherwise.
  */
-static BOOL NVMeIsAlignedBuffer(LPVOID Buffer) {
-    return (((LINEAR)Buffer & (N_4KB - 1)) == 0);
-}
+static BOOL NVMeIsAlignedBuffer(LPVOID Buffer) { return (((LINEAR)Buffer & (N_4KB - 1)) == 0); }
 
 /************************************************************************/
 
@@ -115,8 +112,9 @@ static BOOL NVMeIsContiguousBuffer(LPVOID Buffer, U32 TransferBytes) {
  * @param BufferBytes Buffer size in bytes.
  * @return TRUE on success, FALSE on failure.
  */
-static BOOL NVMeReadSectorsBuffered(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount,
-                                    U32 BytesPerSector, LPVOID Buffer, U32 BufferBytes) {
+static BOOL NVMeReadSectorsBuffered(
+    LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount, U32 BytesPerSector, LPVOID Buffer,
+    U32 BufferBytes) {
     if (Device == NULL || Buffer == NULL) {
         return FALSE;
     }
@@ -170,8 +168,9 @@ static BOOL NVMeReadSectorsBuffered(LPNVME_DEVICE Device, U32 NamespaceId, U64 L
  * @param BufferBytes Buffer size in bytes.
  * @return TRUE on success, FALSE on failure.
  */
-static BOOL NVMeWriteSectorsBuffered(LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount,
-                                     U32 BytesPerSector, LPCVOID Buffer, U32 BufferBytes) {
+static BOOL NVMeWriteSectorsBuffered(
+    LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount, U32 BytesPerSector, LPCVOID Buffer,
+    U32 BufferBytes) {
     if (Device == NULL || Buffer == NULL) {
         return FALSE;
     }
@@ -249,7 +248,6 @@ static LPNVME_DISK NVMeCreateDisk(LPNVME_DEVICE Device, U32 NamespaceId, U64 Num
  */
 BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
-
         UINT MaxIds = (N_4KB / sizeof(U32));
         U32* NamespaceIds = (U32*)KernelHeapAlloc(N_4KB);
         if (NamespaceIds == NULL) {
@@ -385,17 +383,11 @@ static UINT NVMeDiskRead(LPIOCONTROL Control) {
                 U32 Chunk = Remaining > MaxSectors ? MaxSectors : Remaining;
                 U32 ChunkBytes = Chunk * Disk->BytesPerSector;
 
-                if (!NVMeReadSectorsBuffered(Disk->Controller,
-                                             Disk->NamespaceId,
-                                             Lba,
-                                             Chunk,
-                                             Disk->BytesPerSector,
-                                             Out,
-                                             ChunkBytes)) {
-                    WARNING(TEXT("Read failed LBA=%x:%x sectors=%u"),
-                            (U32)U64_High32(Lba),
-                            (U32)U64_Low32(Lba),
-                            (U32)Chunk);
+                if (!NVMeReadSectorsBuffered(
+                        Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, Out, ChunkBytes)) {
+                    WARNING(
+                        TEXT("Read failed LBA=%x:%x sectors=%u"), (U32)U64_High32(Lba), (U32)U64_Low32(Lba),
+                        (U32)Chunk);
                     return DF_RETURN_UNEXPECTED;
                 }
 
@@ -455,17 +447,11 @@ static UINT NVMeDiskWrite(LPIOCONTROL Control) {
                 U32 Chunk = Remaining > MaxSectors ? MaxSectors : Remaining;
                 U32 ChunkBytes = Chunk * Disk->BytesPerSector;
 
-                if (!NVMeWriteSectorsBuffered(Disk->Controller,
-                                              Disk->NamespaceId,
-                                              Lba,
-                                              Chunk,
-                                              Disk->BytesPerSector,
-                                              In,
-                                              ChunkBytes)) {
-                    WARNING(TEXT("Write failed LBA=%x:%x sectors=%u"),
-                            (U32)U64_High32(Lba),
-                            (U32)U64_Low32(Lba),
-                            (U32)Chunk);
+                if (!NVMeWriteSectorsBuffered(
+                        Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, In, ChunkBytes)) {
+                    WARNING(
+                        TEXT("Write failed LBA=%x:%x sectors=%u"), (U32)U64_High32(Lba), (U32)U64_Low32(Lba),
+                        (U32)Chunk);
                     return DF_RETURN_UNEXPECTED;
                 }
 

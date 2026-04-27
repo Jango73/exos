@@ -22,8 +22,7 @@
 
 \************************************************************************/
 
-#include "ExecutableELF-Private.h"
-
+#include "Executable-ELF-Private.h"
 #include "log/Log.h"
 #include "text/CoreString.h"
 
@@ -182,12 +181,7 @@ BOOL ELFReadIdent(LPFILE_OPERATION FileOperation, U32 FileSize, U8 Ident[EI_NIDE
  * @return TRUE on success.
  */
 BOOL ELFReadHeader(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    U8 Class,
-    const U8 Ident[EI_NIDENT],
-    LPELF_FILE_HEADER Header
-) {
+    LPFILE_OPERATION FileOperation, U32 FileSize, U8 Class, const U8 Ident[EI_NIDENT], LPELF_FILE_HEADER Header) {
     if (Header == NULL) return FALSE;
 
     if (Class == ELFCLASS32) {
@@ -196,11 +190,7 @@ BOOL ELFReadHeader(
         if (FileSize < sizeof(RawHeader)) return FALSE;
 
         MemoryCopy(RawHeader.e_ident, Ident, EI_NIDENT);
-        if (!ELFReadBytes(
-                FileOperation,
-                EI_NIDENT,
-                ((U8*)&RawHeader) + EI_NIDENT,
-                sizeof(RawHeader) - EI_NIDENT)) {
+        if (!ELFReadBytes(FileOperation, EI_NIDENT, ((U8*)&RawHeader) + EI_NIDENT, sizeof(RawHeader) - EI_NIDENT)) {
             return FALSE;
         }
 
@@ -227,11 +217,7 @@ BOOL ELFReadHeader(
         if (FileSize < sizeof(RawHeader)) return FALSE;
 
         MemoryCopy(RawHeader.e_ident, Ident, EI_NIDENT);
-        if (!ELFReadBytes(
-                FileOperation,
-                EI_NIDENT,
-                ((U8*)&RawHeader) + EI_NIDENT,
-                sizeof(RawHeader) - EI_NIDENT)) {
+        if (!ELFReadBytes(FileOperation, EI_NIDENT, ((U8*)&RawHeader) + EI_NIDENT, sizeof(RawHeader) - EI_NIDENT)) {
             return FALSE;
         }
 
@@ -291,19 +277,13 @@ BOOL ELFValidateProgramHeaderTable(U32 FileSize, const ELF_FILE_HEADER* Header) 
  * @return TRUE on success.
  */
 BOOL ELFReadProgramHeader(
-    LPFILE_OPERATION FileOperation,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    U32 Index,
-    LPELF_PROGRAM_HEADER ProgramHeader
-) {
+    LPFILE_OPERATION FileOperation, const ELF_FILE_HEADER* Header, U8 Class, U32 Index,
+    LPELF_PROGRAM_HEADER ProgramHeader) {
     UINT ProgramHeaderOffset;
 
     if (Header == NULL || ProgramHeader == NULL) return FALSE;
     if (!AddUIntOverflow(
-            Header->ProgramHeaderOffset,
-            (UINT)Index * Header->ProgramHeaderEntrySize,
-            &ProgramHeaderOffset)) {
+            Header->ProgramHeaderOffset, (UINT)Index * Header->ProgramHeaderEntrySize, &ProgramHeaderOffset)) {
         return FALSE;
     }
 
@@ -376,12 +356,7 @@ static void ELFResetLayout(LPELF_LAYOUT_INFO Layout) {
  * @return TRUE on success.
  */
 BOOL ELFAnalyzeLayout(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    const ELF_FILE_HEADER* Header,
-    U8 Class,
-    LPELF_LAYOUT_INFO Layout
-) {
+    LPFILE_OPERATION FileOperation, U32 FileSize, const ELF_FILE_HEADER* Header, U8 Class, LPELF_LAYOUT_INFO Layout) {
     U32 Index;
 
     if (Layout == NULL) return FALSE;
@@ -453,11 +428,7 @@ BOOL ELFAnalyzeLayout(
  * @param Layout Computed layout ranges.
  * @param Info Receives executable information.
  */
-void ELFStoreExecutableInfo(
-    const ELF_FILE_HEADER* Header,
-    const ELF_LAYOUT_INFO* Layout,
-    LPEXECUTABLE_INFO Info
-) {
+void ELFStoreExecutableInfo(const ELF_FILE_HEADER* Header, const ELF_LAYOUT_INFO* Layout, LPEXECUTABLE_INFO Info) {
     Info->EntryPoint = Header->EntryPoint;
 
     if (Layout->CodeMin != MAX_UINT && Layout->CodeMax > Layout->CodeMin) {
@@ -505,15 +476,8 @@ void ELFStoreExecutableInfo(
  * @return TRUE on success.
  */
 static BOOL ELFLoadSegments(
-    LPFILE_OPERATION FileOperation,
-    U32 FileSize,
-    const ELF_FILE_HEADER* Header,
-    const ELF_LAYOUT_INFO* Layout,
-    U8 Class,
-    LPEXECUTABLE_INFO Info,
-    LINEAR CodeBase,
-    LINEAR DataBase
-) {
+    LPFILE_OPERATION FileOperation, U32 FileSize, const ELF_FILE_HEADER* Header, const ELF_LAYOUT_INFO* Layout,
+    U8 Class, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LINEAR DataBase) {
     U32 Index;
     UINT CodeRef;
     UINT DataRef;
@@ -547,12 +511,13 @@ static BOOL ELFLoadSegments(
         if (FileEnd > FileSize) return FALSE;
 
         if (ProgramHeader.FileSize > 0) {
-            if (!ELFReadBytes(FileOperation, ProgramHeader.Offset, (LPVOID)Destination, ProgramHeader.FileSize)) return FALSE;
+            if (!ELFReadBytes(FileOperation, ProgramHeader.Offset, (LPVOID)Destination, ProgramHeader.FileSize))
+                return FALSE;
         }
 
         ZeroSize = (ProgramHeader.MemorySize > ProgramHeader.FileSize)
-            ? (ProgramHeader.MemorySize - ProgramHeader.FileSize)
-            : 0;
+                       ? (ProgramHeader.MemorySize - ProgramHeader.FileSize)
+                       : 0;
         if (ZeroSize > 0) {
             MemorySet((LPVOID)(Destination + ProgramHeader.FileSize), 0, ZeroSize);
         }

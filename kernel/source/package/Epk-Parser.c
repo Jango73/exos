@@ -21,11 +21,11 @@
 
 \************************************************************************/
 
-#include "package/EpkParser.h"
+#include "package/Epk-Parser.h"
 
-#include "text/CoreString.h"
-#include "memory/Heap.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
+#include "text/CoreString.h"
 #include "utils/Crypt.h"
 #include "utils/Signature.h"
 
@@ -74,11 +74,7 @@ static BOOL EpkU64ToU32(U64 Value, U32* Out) {
  * @param SizeOut Receives converted size.
  * @return TRUE when range is valid.
  */
-static BOOL EpkExtractRange(U64 Offset64,
-                            U64 Size64,
-                            U32 BlobSize,
-                            U32* OffsetOut,
-                            U32* SizeOut) {
+static BOOL EpkExtractRange(U64 Offset64, U64 Size64, U32 BlobSize, U32* OffsetOut, U32* SizeOut) {
     U32 Offset;
     U32 Size;
     U32 End;
@@ -124,9 +120,7 @@ static BOOL EpkExtractRange(U64 Offset64,
  * @param PackageSize Total package size.
  * @return Validation status.
  */
-static U32 EpkValidateSections(const EPK_HEADER* Header,
-                               EPK_RUNTIME_SECTIONS* Sections,
-                               U32 PackageSize) {
+static U32 EpkValidateSections(const EPK_HEADER* Header, EPK_RUNTIME_SECTIONS* Sections, U32 PackageSize) {
     U32 TocEnd;
     U32 BlockEnd;
     U32 ManifestEnd;
@@ -136,35 +130,25 @@ static U32 EpkValidateSections(const EPK_HEADER* Header,
         return EPK_VALIDATION_INVALID_ARGUMENT;
     }
 
-    if (!EpkExtractRange(Header->TocOffset,
-                         Header->TocSize,
-                         PackageSize,
-                         &Sections->TocOffset,
-                         &Sections->TocSize)) {
+    if (!EpkExtractRange(Header->TocOffset, Header->TocSize, PackageSize, &Sections->TocOffset, &Sections->TocSize)) {
         return EPK_VALIDATION_INVALID_BOUNDS;
     }
 
-    if (!EpkExtractRange(Header->BlockTableOffset,
-                         Header->BlockTableSize,
-                         PackageSize,
-                         &Sections->BlockTableOffset,
-                         &Sections->BlockTableSize)) {
+    if (!EpkExtractRange(
+            Header->BlockTableOffset, Header->BlockTableSize, PackageSize, &Sections->BlockTableOffset,
+            &Sections->BlockTableSize)) {
         return EPK_VALIDATION_INVALID_BOUNDS;
     }
 
-    if (!EpkExtractRange(Header->ManifestOffset,
-                         Header->ManifestSize,
-                         PackageSize,
-                         &Sections->ManifestOffset,
-                         &Sections->ManifestSize)) {
+    if (!EpkExtractRange(
+            Header->ManifestOffset, Header->ManifestSize, PackageSize, &Sections->ManifestOffset,
+            &Sections->ManifestSize)) {
         return EPK_VALIDATION_INVALID_BOUNDS;
     }
 
-    if (!EpkExtractRange(Header->SignatureOffset,
-                         Header->SignatureSize,
-                         PackageSize,
-                         &Sections->SignatureOffset,
-                         &Sections->SignatureSize)) {
+    if (!EpkExtractRange(
+            Header->SignatureOffset, Header->SignatureSize, PackageSize, &Sections->SignatureOffset,
+            &Sections->SignatureSize)) {
         return EPK_VALIDATION_INVALID_BOUNDS;
     }
 
@@ -213,9 +197,8 @@ static U32 EpkValidateSections(const EPK_HEADER* Header,
  * @param OutPackage Target validated package descriptor.
  * @return Validation status.
  */
-static U32 EpkParseToc(const U8* PackageBytes,
-                       const EPK_RUNTIME_SECTIONS* Sections,
-                       LPEPK_VALIDATED_PACKAGE OutPackage) {
+static U32 EpkParseToc(
+    const U8* PackageBytes, const EPK_RUNTIME_SECTIONS* Sections, LPEPK_VALIDATED_PACKAGE OutPackage) {
     EPK_TOC_HEADER TocHeader;
     U32 Cursor;
     U32 TocEnd;
@@ -337,9 +320,7 @@ static U32 EpkParseToc(const U8* PackageBytes,
             if (HasInlineData || HasBlocks) {
                 return EPK_VALIDATION_INVALID_ENTRY_FORMAT;
             }
-            if (U64_Cmp(Entry.FileSize, U64_FromU32(0)) != 0 ||
-                Entry.BlockCount != 0 ||
-                Entry.InlineDataSize != 0) {
+            if (U64_Cmp(Entry.FileSize, U64_FromU32(0)) != 0 || Entry.BlockCount != 0 || Entry.InlineDataSize != 0) {
                 return EPK_VALIDATION_INVALID_ENTRY_FORMAT;
             }
         } else {
@@ -384,10 +365,8 @@ static U32 EpkParseToc(const U8* PackageBytes,
  * @param OutPackage Target validated package descriptor.
  * @return Validation status.
  */
-static U32 EpkParseBlockTable(const U8* PackageBytes,
-                              U32 PackageSize,
-                              const EPK_RUNTIME_SECTIONS* Sections,
-                              LPEPK_VALIDATED_PACKAGE OutPackage) {
+static U32 EpkParseBlockTable(
+    const U8* PackageBytes, U32 PackageSize, const EPK_RUNTIME_SECTIONS* Sections, LPEPK_VALIDATED_PACKAGE OutPackage) {
     U32 BlockCount;
     U32 BlockIndex;
 
@@ -566,9 +545,8 @@ static U32 EpkComputePackageHash(const EPK_VALIDATED_PACKAGE* Package, U8 OutHas
         }
 
         if (SignatureEnd < Package->PackageSize) {
-            MemoryCopy(HashInput + SignatureStart,
-                       Package->PackageBytes + SignatureEnd,
-                       Package->PackageSize - SignatureEnd);
+            MemoryCopy(
+                HashInput + SignatureStart, Package->PackageBytes + SignatureEnd, Package->PackageSize - SignatureEnd);
         }
     }
 
@@ -589,8 +567,7 @@ static U32 EpkComputePackageHash(const EPK_VALIDATED_PACKAGE* Package, U8 OutHas
  * @param Options Parser options.
  * @return Validation status.
  */
-static U32 EpkValidateSecurity(const EPK_VALIDATED_PACKAGE* Package,
-                               const EPK_PARSER_OPTIONS* Options) {
+static U32 EpkValidateSecurity(const EPK_VALIDATED_PACKAGE* Package, const EPK_PARSER_OPTIONS* Options) {
     U8 ComputedHash[SHA256_SIZE];
     U32 Status;
 
@@ -610,10 +587,9 @@ static U32 EpkValidateSecurity(const EPK_VALIDATED_PACKAGE* Package,
     }
 
     if (Options->VerifySignature && Package->SignatureSize != 0) {
-        U32 SignatureStatus = SignatureVerifyDetachedBlob(Package->PackageBytes + Package->SignatureOffset,
-                                                          Package->SignatureSize,
-                                                          Package->Header.PackageHash,
-                                                          EPK_HASH_SIZE);
+        U32 SignatureStatus = SignatureVerifyDetachedBlob(
+            Package->PackageBytes + Package->SignatureOffset, Package->SignatureSize, Package->Header.PackageHash,
+            EPK_HASH_SIZE);
         if (SignatureStatus != SIGNATURE_STATUS_OK) {
             return EPK_VALIDATION_SIGNATURE_FAILED;
         }
@@ -654,10 +630,8 @@ void EpkReleaseValidatedPackage(LPEPK_VALIDATED_PACKAGE Package) {
  * @param OutPackage Receives parsed descriptor on success.
  * @return Validation status.
  */
-U32 EpkValidatePackageBuffer(const void* PackageBytes,
-                             U32 PackageSize,
-                             const EPK_PARSER_OPTIONS* Options,
-                             LPEPK_VALIDATED_PACKAGE OutPackage) {
+U32 EpkValidatePackageBuffer(
+    const void* PackageBytes, U32 PackageSize, const EPK_PARSER_OPTIONS* Options, LPEPK_VALIDATED_PACKAGE OutPackage) {
     EPK_PARSER_OPTIONS EffectiveOptions;
     EPK_RUNTIME_SECTIONS Sections;
     EPK_HEADER Header;
