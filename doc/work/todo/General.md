@@ -57,6 +57,15 @@
   - Rename DeferredWork.* -> Deferred-Work.*
   - Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
 
+- [ ] Remove UI components from kernel and cleanup
+  - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.
+  - Clean up kernel (no kernel module should include "exos.h") :
+    - Rename KernelPeekMessage -> PeekMessage
+    - Rename KernelGetMessage -> GetMessage
+    - Rename KernelDispatchMessage -> DispatchMessage
+    - Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
+    - There must be no conflict between functions in kernel and functions in runtime
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
