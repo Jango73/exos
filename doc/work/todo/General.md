@@ -57,6 +57,17 @@
   - [x] Rename DeferredWork.* -> Deferred-Work.*
   - [x] Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
 
+- [ ] Clean up runtime folder
+  - Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
+  - Move exos headers from runtime/include/ to runtime/include/exos/
+  - Rename exos-runtime.h -> exos-runtime-main.h
+  - Rename exos-string.h -> exos-runtime-string.h
+  - Rename http.h -> exos-runtime-http.h
+  - Rename exos-runtime-c.c -> exos-runtime-main.c
+  - Rename exos-string.c -> exos-runtime-string.c
+  - Rename http.c -> exos-runtime-http.c
+  - Create exos-window.c and move windowing functions from exos.c to exos-window.c
+
 - [ ] Remove UI components from kernel and cleanup
   - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.
   - Clean up kernel (no kernel module should include "exos.h") :
@@ -67,6 +78,7 @@
     - There must be no conflict between functions in kernel and functions in runtime
 
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
+- [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
 - [ ] Execute iGPU.md : Step 11
@@ -97,19 +109,6 @@
 ### Building
 
 - [x] Implement Native-C-Compiler.md
-
-### Runtime
-
-- [ ] Clean up runtime folder
-  - Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
-  - Move exos headers from runtime/include/ to runtime/include/exos/
-  - Rename exos-runtime.h -> exos-runtime-main.h
-  - Rename exos-string.h -> exos-runtime-string.h
-  - Rename http.h -> exos-runtime-http.h
-  - Rename exos-runtime-c.c -> exos-runtime-main.c
-  - Rename exos-string.c -> exos-runtime-string.c
-  - Rename http.c -> exos-runtime-http.c
-  - Create exos-window.c and move windowing functions from exos.c to exos-window.c
 
 ### Scheduling
 
