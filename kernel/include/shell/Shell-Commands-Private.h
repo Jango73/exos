@@ -64,6 +64,7 @@ U32 CMD_autotest(LPSHELLCONTEXT Context);
 U32 CMD_usb(LPSHELLCONTEXT Context);
 U32 CMD_nvme(LPSHELLCONTEXT Context);
 U32 CMD_dataview(LPSHELLCONTEXT Context);
+U32 CMD_credits(LPSHELLCONTEXT Context);
 
 void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, BOOL Recurse, U32* NumListed);
 BOOL RunScriptFile(LPSHELLCONTEXT Context, LPCSTR ScriptFileName);

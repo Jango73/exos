@@ -25,6 +25,7 @@
 #include "autotest/Autotest.h"
 #include "shell/Shell-Commands-Private.h"
 #include "shell/Shell-Embedded-Scripts.h"
+#include "text/Text.h"
 #include "utils/SizeFormat.h"
 
 /************************************************************************/
@@ -366,4 +367,14 @@ U32 CMD_nvme(LPSHELLCONTEXT Context) {
         return DF_RETURN_SUCCESS;
     }
     return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_NVME_LIST));
+}
+
+/************************************************************************/
+
+U32 CMD_credits(LPSHELLCONTEXT Context) {
+    UNUSED(Context);
+
+    ConsolePrint(Text_Credits);
+
+    return DF_RETURN_SUCCESS;
 }
