@@ -26,8 +26,6 @@
 #include "text/CoreString.h"
 #include "memory/Heap.h"
 #include "core/Kernel.h"
-#include "log/Log.h"
-#include "sync/Mutex.h"
 #include "User.h"
 #include "drivers/input/Keyboard.h"
 #include "process/Task.h"

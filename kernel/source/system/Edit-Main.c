@@ -25,8 +25,6 @@
 #include "system/Edit-Private.h"
 #include "text/CoreString.h"
 #include "memory/Heap.h"
-#include "core/Kernel.h"
-#include "log/Log.h"
 #include "User.h"
 #include "drivers/input/Keyboard.h"
 #include "process/Task.h"
@@ -729,8 +727,6 @@ static BOOL SaveFile(LPEDITFILE File) {
 
         File->Modified = FALSE;
         DoSystemCall(SYSCALL_DeleteObject, SYSCALL_PARAM(Handle));
-    } else {
-        VERBOSE(TEXT("Could not save file '%s'\n"), File->Name);
     }
 
     return FALSE;
