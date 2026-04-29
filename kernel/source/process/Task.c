@@ -35,12 +35,39 @@
 #include "text/CoreString.h"
 #include "utils/BusyWait.h"
 #include "utils/Helpers.h"
+#include "utils/ReservedHeap.h"
 
 /************************************************************************/
 
 static UINT DATA_SECTION TaskMinimumTaskStackSize = TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT;
 static UINT DATA_SECTION TaskMinimumSystemStackSize = TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT;
 static BOOL DATA_SECTION TaskStackConfigInitialized = FALSE;
+static RESERVED_HEAP DATA_SECTION TaskMessageQueueReservedHeap;
+static BOOL DATA_SECTION TaskMessageQueueReservedHeapInitialized = FALSE;
+
+#define TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE N_256KB
+#define TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE N_4MB
+
+/************************************************************************/
+
+static BOOL TaskEnsureMessageQueueReservedHeap(void) {
+    if (TaskMessageQueueReservedHeapInitialized) {
+        return TRUE;
+    }
+
+    if (ReservedHeapInit(&TaskMessageQueueReservedHeap,
+                         &KernelProcess,
+                         TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE,
+                         TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE,
+                         ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
+                         TEXT("TaskMessageQueueHeap")) == FALSE) {
+        ERROR(TEXT("[TaskEnsureMessageQueueReservedHeap] Could not initialize task message queue reserved heap"));
+        return FALSE;
+    }
+
+    TaskMessageQueueReservedHeapInitialized = TRUE;
+    return TRUE;
+}
 
 /************************************************************************/
 
@@ -93,12 +120,13 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
         return FALSE;
     }
 
-    MessageBufferBase = ProcessArenaAllocateSystem(Task->OwnerProcess,
-                                                   MessageBufferSize,
-                                                   ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
-                                                   TEXT("TaskMessageBuffer"));
+    if (TaskEnsureMessageQueueReservedHeap() == FALSE) {
+        return FALSE;
+    }
+
+    MessageBufferBase = (LINEAR)ReservedHeapAlloc(&TaskMessageQueueReservedHeap, MessageBufferSize);
     if (MessageBufferBase == NULL) {
-        ERROR(TEXT("Could not allocate message buffer for task %p"), Task);
+        ERROR(TEXT("[TaskInitializeMessageBuffer] Could not allocate message buffer for task %p"), Task);
         return FALSE;
     }
 
@@ -125,7 +153,9 @@ static void TaskReleaseMessageBuffer(LPTASK Task) {
     }
 
     if (Task->MessageQueue.MessageBufferBase != 0 && Task->MessageQueue.MessageBufferSize > 0) {
-        FreeRegion(Task->MessageQueue.MessageBufferBase, Task->MessageQueue.MessageBufferSize);
+        if (TaskMessageQueueReservedHeapInitialized) {
+            ReservedHeapFree(&TaskMessageQueueReservedHeap, (LPVOID)Task->MessageQueue.MessageBufferBase);
+        }
     }
 
     Task->MessageQueue.MessageBufferBase = 0;
