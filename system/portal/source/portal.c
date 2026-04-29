@@ -1,448 +1,109 @@
-
 /************************************************************************\
 
-    EXOS Kernel
-    Copyright (c) 1999-2025 Jango73
+    EXOS Portal
+    Copyright (c) 1999-2026 Jango73
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-
-    Portal - Desktop manager & file system display
+    Desktop portal
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos/exos.h"
+#include "exos.h"
+#include "exos-runtime-main.h"
+#include "ui/Startup-Desktop-Components.h"
+#include "ui/WindowDockHost.h"
 
 /************************************************************************/
 
-HANDLE MainWindow = NULL;
-HANDLE RedPen = NULL;
-HANDLE RedBrush = NULL;
-HANDLE GreenPen = NULL;
-HANDLE GreenBrush = NULL;
-HANDLE PortalDesktopHandle = NULL;
-HANDLE PortalDesktopWindow = NULL;
-
-int main(int argc, char** argv);
-
-static STR Prop_Over[] = "OVER";
-static STR Prop_Down[] = "DOWN";
-
-// static void* TestFuncPtr = (void*)main;
+#define PORTAL_ROOT_WINDOW_CLASS_NAME TEXT("PortalRootWindowClass")
 
 /************************************************************************/
 
-void DrawFrame3D(HANDLE GC, LPRECT Rect, BOOL Invert, BOOL Fill) {
-    LINE_INFO LineInfo;
-
-    LineInfo.Header.Size = sizeof(LINE_INFO);
-    LineInfo.Header.Version = EXOS_ABI_VERSION;
-    LineInfo.Header.Flags = 0;
-    LineInfo.GC = GC;
-
-    if (Fill == TRUE) {
-        SelectPen(GC, NULL);
-        SelectBrush(GC, GetSystemBrush(SM_COLOR_NORMAL));
-        Rectangle(GC, Rect->X1, Rect->Y1, Rect->X2, Rect->Y2, 0);
-    }
-    if (Invert == FALSE) {
-        SelectPen(GC, GetSystemPen(SM_COLOR_HIGHLIGHT));
-        LineInfo.X1 = Rect->X1;
-        LineInfo.Y1 = Rect->Y2;
-        LineInfo.X2 = Rect->X1;
-        LineInfo.Y2 = Rect->Y1;
-        (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X1;
-        LineInfo.Y1 = Rect->Y1;
-        LineInfo.X2 = Rect->X2;
-        LineInfo.Y2 = Rect->Y1;
-        (void)Line(&LineInfo);
-        SelectPen(GC, GetSystemPen(SM_COLOR_DARK_SHADOW));
-        LineInfo.X1 = Rect->X2;
-        LineInfo.Y1 = Rect->Y1;
-        LineInfo.X2 = Rect->X2;
-        LineInfo.Y2 = Rect->Y2;
-        (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2;
-        LineInfo.Y1 = Rect->Y2;
-        LineInfo.X2 = Rect->X1;
-        LineInfo.Y2 = Rect->Y2;
-        (void)Line(&LineInfo);
-        SelectPen(GC, GetSystemPen(SM_COLOR_LIGHT_SHADOW));
-        LineInfo.X1 = Rect->X2 - 1;
-        LineInfo.Y1 = Rect->Y1 + 1;
-        LineInfo.X2 = Rect->X2 - 1;
-        LineInfo.Y2 = Rect->Y2 - 1;
-        (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2 - 1;
-        LineInfo.Y1 = Rect->Y2 - 1;
-        LineInfo.X2 = Rect->X1 + 1;
-        LineInfo.Y2 = Rect->Y2 - 1;
-        (void)Line(&LineInfo);
-    } else {
-        SelectPen(GC, GetSystemPen(SM_COLOR_DARK_SHADOW));
-        LineInfo.X1 = Rect->X1;
-        LineInfo.Y1 = Rect->Y2;
-        LineInfo.X2 = Rect->X1;
-        LineInfo.Y2 = Rect->Y1;
-        (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X1;
-        LineInfo.Y1 = Rect->Y1;
-        LineInfo.X2 = Rect->X2;
-        LineInfo.Y2 = Rect->Y1;
-        (void)Line(&LineInfo);
-        SelectPen(GC, GetSystemPen(SM_COLOR_HIGHLIGHT));
-        LineInfo.X1 = Rect->X2;
-        LineInfo.Y1 = Rect->Y1;
-        LineInfo.X2 = Rect->X2;
-        LineInfo.Y2 = Rect->Y2;
-        (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2;
-        LineInfo.Y1 = Rect->Y2;
-        LineInfo.X2 = Rect->X1;
-        LineInfo.Y2 = Rect->Y2;
-        (void)Line(&LineInfo);
-    }
-}
-
-/************************************************************************/
-
-U32 OnButtonCreate(HANDLE Window, U32 Param1, U32 Param2) {
-    UNUSED(Param1);
-    UNUSED(Param2);
-
-    SetWindowProp(Window, Prop_Down, 0);
-    SetWindowProp(Window, Prop_Over, 0);
-
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 OnButtonLeftButtonDown(HANDLE Window, U32 Param1, U32 Param2) {
-    UNUSED(Param1);
-    UNUSED(Param2);
-
-    SetWindowProp(Window, Prop_Down, 1);
-    InvalidateClientRect(Window, NULL);
-
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 OnButtonLeftButtonUp(HANDLE Window, U32 Param1, U32 Param2) {
-    UNUSED(Param1);
-    UNUSED(Param2);
-
-    InvalidateClientRect(Window, NULL);
-    SetWindowProp(Window, Prop_Down, 0);
-
-    /*
-      if (GetProp(Window, Prop_Over))
-      {
-    U32 ID = GetWindowID(Window);
-    PostMessage(GetWindowParent(Window), EWM_COMMAND, MAKEU32(ID,
-      BN_CLICKED), (U32) Window);
-      }
-    */
-
-    SetWindowProp(Window, Prop_Over, 0);
-    ReleaseMouse();
-
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 OnButtonMouseMove(HANDLE Window, U32 Param1, U32 Param2) {
-    RECT Rect;
-    POINT Size;
-    POINT Mouse;
-
-    GetWindowRect(Window, &Rect);
-
-    Size.X = (Rect.X2 - Rect.X1) + 1;
-    Size.Y = (Rect.Y2 - Rect.Y1) + 1;
-    Mouse.X = SIGNED(Param1);
-    Mouse.Y = SIGNED(Param2);
-
-    if (Mouse.X >= 0 && Mouse.Y >= 0 && Mouse.X <= Size.X && Mouse.Y <= Size.Y) {
-        if (!GetWindowProp(Window, Prop_Over)) {
-            InvalidateClientRect(Window, NULL);
-            SetWindowProp(Window, Prop_Over, 1);
-            CaptureMouse(Window);
-        }
-    } else {
-        if (GetWindowProp(Window, Prop_Over)) {
-            InvalidateClientRect(Window, NULL);
-            SetWindowProp(Window, Prop_Over, 0);
-            if (!GetWindowProp(Window, Prop_Down)) ReleaseMouse();
-        }
-    }
-
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 OnButtonDraw(HANDLE Window, U32 Param1, U32 Param2) {
-    UNUSED(Param1);
-    UNUSED(Param2);
-
-    RECT Rect;
-
-    HANDLE GC = GetWindowGC(Window);
-
-    // if (GC = BeginWindowDraw(Window))
-    if (GC != NULL) {
-        GetWindowRect(Window, &Rect);
-
-        if (GetWindowProp(Window, Prop_Down)) {
-            DrawFrame3D(GC, &Rect, 1, TRUE);
-        } else {
-            DrawFrame3D(GC, &Rect, 0, TRUE);
-        }
-
-        ReleaseWindowGC(Window);
-    }
-
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 ButtonFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
+static U32 PortalRootWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
     switch (Message) {
-        case EWM_CREATE:
-            return OnButtonCreate(Window, Param1, Param2);
         case EWM_DRAW:
-            return OnButtonDraw(Window, Param1, Param2);
-
-        case EWM_MOUSEDOWN: {
-            switch (Param1) {
-                case MB_LEFT:
-                    return OnButtonLeftButtonDown(Window, Param1, Param2);
-            }
-        } break;
-
-        case EWM_MOUSEUP: {
-            switch (Param1) {
-                case MB_LEFT:
-                    return OnButtonLeftButtonUp(Window, Param1, Param2);
-            }
-        } break;
-
-        default:
-            return BaseWindowFunc(Window, Message, Param1, Param2);
+            return BaseWindowFunc(Window, EWM_CLEAR, THEME_TOKEN_WINDOW_BACKGROUND_DESKTOP, Param2);
     }
 
-    return 0;
-}
-
-/***************************************************************************/
-
-U32 MainWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
-    switch (Message) {
-        case EWM_CREATE: {
-        } break;
-
-        case EWM_DELETE: {
-        } break;
-
-        case EWM_DRAW: {
-            RECT Rect;
-            HANDLE GC = GetWindowGC(Window);
-
-            if (GC != NULL) {
-                GetWindowRect(Window, &Rect);
-
-                DrawFrame3D(GC, &Rect, 0, FALSE);
-
-                Rect.X1++;
-                Rect.Y1++;
-                Rect.X2--;
-                Rect.Y2--;
-
-                SelectPen(GC, NULL);
-
-                SelectBrush(GC, GetSystemBrush(SM_COLOR_TITLE_BAR));
-                Rectangle(GC, Rect.X1, Rect.Y1, Rect.X2, Rect.Y1 + 19, 0);
-
-                SelectBrush(GC, GetSystemBrush(SM_COLOR_NORMAL));
-                Rectangle(GC, Rect.X1, Rect.Y1 + 20, Rect.X2, Rect.Y2, 0);
-
-                ReleaseWindowGC(GC);
-            } else {
-            }
-        } break;
-
-        default:
-            return BaseWindowFunc(Window, Message, Param1, Param2);
-    }
-
-    return 0;
+    return BaseWindowFunc(Window, Message, Param1, Param2);
 }
 
 /************************************************************************/
 
-U32 DesktopTask(LPVOID Param) {
-    UNUSED(Param);
+static HANDLE PortalCreateRootWindow(void) {
+    WINDOW_INFO WindowInfo;
 
-    HANDLE Window;
-    POINT MousePos;
-    POINT NewMousePos;
-    U32 MouseButtons;
-    U32 NewMouseButtons;
-
-    PortalDesktopHandle = GetCurrentDesktop();
-
-    if (PortalDesktopHandle == NULL) {
-        PortalDesktopHandle = CreateDesktop();
+    if (WindowDockHostClassEnsureDerivedRegistered(PORTAL_ROOT_WINDOW_CLASS_NAME, PortalRootWindowFunc) == FALSE) {
+        debug("[PortalCreateRootWindow] root class registration failed");
+        return NULL;
     }
 
-    if (PortalDesktopHandle == NULL) {
-        return MAX_U32;
-    }
+    WindowInfo.Header.Size = sizeof(WINDOW_INFO);
+    WindowInfo.Header.Version = EXOS_ABI_VERSION;
+    WindowInfo.Header.Flags = 0;
+    WindowInfo.Window = NULL;
+    WindowInfo.Parent = NULL;
+    WindowInfo.WindowClass = 0;
+    WindowInfo.WindowClassName = PORTAL_ROOT_WINDOW_CLASS_NAME;
+    WindowInfo.Function = NULL;
+    WindowInfo.Style = EWS_VISIBLE | EWS_BARE_SURFACE;
+    WindowInfo.ID = 0;
+    WindowInfo.WindowPosition.X = 0;
+    WindowInfo.WindowPosition.Y = 0;
+    WindowInfo.WindowSize.X = 1;
+    WindowInfo.WindowSize.Y = 1;
+    WindowInfo.ShowHide = TRUE;
 
-    PortalDesktopWindow = GetDesktopWindow(PortalDesktopHandle);
-    if (PortalDesktopWindow == NULL) {
-        return MAX_U32;
-    }
-
-    if (ShowDesktop(PortalDesktopHandle) == FALSE) {
-        return MAX_U32;
-    }
-
-    Window = PortalDesktopWindow;
-
-    MousePos.X = 0;
-    MousePos.Y = 0;
-    MouseButtons = 0;
-
-    while (1) {
-        GetMousePosition(&NewMousePos);
-
-        if (NewMousePos.X != MousePos.X || NewMousePos.Y != MousePos.Y) {
-            MousePos.X = NewMousePos.X;
-            MousePos.Y = NewMousePos.Y;
-
-            SendMessage(Window, EWM_MOUSEMOVE, UNSIGNED(MousePos.X), UNSIGNED(MousePos.Y));
-        }
-
-        NewMouseButtons = GetMouseButtons();
-
-        if (NewMouseButtons != MouseButtons) {
-            U32 DownButtons = 0;
-            U32 UpButtons = 0;
-
-            if ((MouseButtons & MB_LEFT) != (NewMouseButtons & MB_LEFT)) {
-                if (NewMouseButtons & MB_LEFT)
-                    DownButtons |= MB_LEFT;
-                else
-                    UpButtons |= MB_LEFT;
-            }
-
-            if ((MouseButtons & MB_RIGHT) != (NewMouseButtons & MB_RIGHT)) {
-                if (NewMouseButtons & MB_RIGHT)
-                    DownButtons |= MB_RIGHT;
-                else
-                    UpButtons |= MB_RIGHT;
-            }
-
-            if ((MouseButtons & MB_MIDDLE) != (NewMouseButtons & MB_MIDDLE)) {
-                if (NewMouseButtons & MB_MIDDLE)
-                    DownButtons |= MB_MIDDLE;
-                else
-                    UpButtons |= MB_MIDDLE;
-            }
-
-            MouseButtons = NewMouseButtons;
-
-            // if (DownButtons) PostMessage(Window, EWM_MOUSEDOWN, DownButtons,
-            // 0); if (UpButtons)   PostMessage(Window, EWM_MOUSEUP, UpButtons,
-            // 0);
-
-            if (DownButtons) SendMessage(Window, EWM_MOUSEDOWN, DownButtons, 0);
-            if (UpButtons) SendMessage(Window, EWM_MOUSEUP, UpButtons, 0);
-        }
-
-        /*
-            if (GC = GetWindowGC(Window))
-            {
-              Sequence = 1 - Sequence;
-              SelectBrush(GC, Sequence ? RedBrush : GreenBrush);
-              Rectangle(GC, 20, 20, 40, 40, 0);
-              ReleaseWindowGC(GC);
-            }
-        */
-    }
-
-    // DeleteObject(Desktop);
+    return CreateWindow(&WindowInfo);
 }
 
 /************************************************************************/
 
-BOOL InitApplication(void) {
-    TASK_INFO TaskInfo;
-    PEN_INFO PenInfo;
-    BRUSH_INFO BrushInfo;
+/**
+ * @brief Retrieve or create the desktop associated with this process.
+ * @return Desktop handle or NULL on failure.
+ */
+static HANDLE PortalGetOrCreateDesktop(void) {
+    HANDLE Desktop;
+    HANDLE RootWindow;
 
-    TaskInfo.Header.Size = sizeof(TASK_INFO);
-    TaskInfo.Header.Version = EXOS_ABI_VERSION;
-    TaskInfo.Header.Flags = 0;
-    TaskInfo.Func = DesktopTask;
-    TaskInfo.Parameter = NULL;
-    TaskInfo.StackSize = 65536;
-    TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
-    TaskInfo.Flags = 0;
-    TaskInfo.Task = NULL;
+    Desktop = GetCurrentDesktop();
+    if (Desktop != NULL) return Desktop;
 
-    if (!ExosIsSuccess(CreateTask(&TaskInfo)) || TaskInfo.Task == NULL) return FALSE;
+    RootWindow = PortalCreateRootWindow();
+    if (RootWindow == NULL) {
+        debug("[PortalGetOrCreateDesktop] root window creation failed");
+        return NULL;
+    }
 
-    Sleep(500);
+    return CreateDesktop(RootWindow);
+}
 
-    PenInfo.Header.Size = sizeof(PEN_INFO);
-    PenInfo.Header.Version = EXOS_ABI_VERSION;
-    PenInfo.Header.Flags = 0;
-    PenInfo.Color = MAKERGB(255, 0, 0);
-    PenInfo.Pattern = 0xFFFFFFFF;
-    PenInfo.Flags = 0;
-    RedPen = CreatePen(&PenInfo);
+/************************************************************************/
 
-    BrushInfo.Header.Size = sizeof(BRUSH_INFO);
-    BrushInfo.Header.Version = EXOS_ABI_VERSION;
-    BrushInfo.Header.Flags = 0;
-    BrushInfo.Color = MAKERGB(255, 0, 0);
-    BrushInfo.Pattern = 0xFFFFFFFF;
-    BrushInfo.Flags = 0;
-    RedBrush = CreateBrush(&BrushInfo);
+/**
+ * @brief Initialize and show the desktop owned by portal.
+ * @return TRUE on success.
+ */
+static BOOL PortalShowDesktop(void) {
+    HANDLE Desktop;
 
-    PenInfo.Color = MAKERGB(0, 255, 0);
-    GreenPen = CreatePen(&PenInfo);
+    Desktop = PortalGetOrCreateDesktop();
+    if (Desktop == NULL) {
+        debug("[PortalShowDesktop] desktop creation failed");
+        return FALSE;
+    }
 
-    BrushInfo.Color = MAKERGB(0, 255, 0);
-    GreenBrush = CreateBrush(&BrushInfo);
+    if (ShowDesktop(Desktop) == FALSE) {
+        debug("[PortalShowDesktop] unable to switch to desktop");
+        return FALSE;
+    }
 
-    MainWindow = CreateWindowWithClass(NULL, 0, NULL, MainWindowFunc, 0, 0, 100, 100, 400, 300);
+    if (StartupDesktopComponentsInitialize(Desktop) == FALSE) {
+        debug("[PortalShowDesktop] startup desktop components initialization failed");
+        return FALSE;
+    }
 
-    if (MainWindow == NULL) return FALSE;
-
-    CreateWindowWithClass(MainWindow, 0, NULL, ButtonFunc, EWS_VISIBLE, 0, 400 - 90, 300 - 60, 80, 20);
-    CreateWindowWithClass(MainWindow, 0, NULL, ButtonFunc, EWS_VISIBLE, 0, 400 - 90, 300 - 30, 80, 20);
-
-    ShowWindow(MainWindow);
+    debug("[PortalShowDesktop] desktop ready");
 
     return TRUE;
 }
@@ -450,13 +111,13 @@ BOOL InitApplication(void) {
 /************************************************************************/
 
 int main(int argc, char** argv) {
+    MESSAGE Message;
+
     UNUSED(argc);
     UNUSED(argv);
 
-    MESSAGE Message;
-
-    if (InitApplication() == FALSE) {
-        return MAX_U32;
+    if (PortalShowDesktop() == FALSE) {
+        return (int)MAX_U32;
     }
 
     while (GetMessage(NULL, &Message, 0, 0)) {
@@ -465,3 +126,5 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
+/************************************************************************/

@@ -93,8 +93,6 @@ SRC_C  = $(wildcard source/*.c) \
          $(wildcard source/user/*.c) \
          $(wildcard source/text/*.c) \
          $(wildcard source/text/font/*.c) \
-         $(wildcard source/ui/layout/*.c) \
-         $(wildcard source/ui/*.c) \
          $(wildcard source/desktop/*.c) \
          $(wildcard source/console/*.c) \
          $(wildcard source/input/*.c) \

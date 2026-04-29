@@ -2150,7 +2150,7 @@ The windowing system is implemented in the kernel desktop layer. It owns desktop
 
 The shell entry point is the `desktop` command.
 
-- `desktop show` creates or reuses the shell desktop, starts the dispatcher task, selects one graphics backend and mode, and switches the session to graphics mode.
+- `desktop show` creates or reuses the shell desktop, starts the dispatcher task, selects one graphics backend and mode, switches the session to graphics mode, and launches `/system/apps/portal`.
 - `desktop status` reports desktop state and theme runtime state.
 - `desktop theme <path-or-name>` loads and/or activates one theme.
 
@@ -2433,8 +2433,8 @@ The retained view is intentionally small and bounded:
 - latest `500` lines maximum,
 - about `96 KiB` of recent formatted text.
 
-This retained view is consumed by the floating desktop log viewer component in `kernel/source/ui/LogViewer.c`.
-The UI component does not access desktop internals or log storage internals directly; it only polls the public log snapshot API and redraws when the retained sequence changes.
+This retained view is consumed by the floating desktop log viewer component in `system/portal/source/ui/LogViewer.c`.
+The UI component does not access desktop internals or log storage internals directly; it only polls the public log snapshot syscall and redraws when the retained sequence changes.
 
 #### Threshold-based one-shot logging
 

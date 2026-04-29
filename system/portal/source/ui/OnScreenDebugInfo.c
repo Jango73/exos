@@ -22,7 +22,9 @@
 \************************************************************************/
 
 #include "ui/OnScreenDebugInfo.h"
-#include "text/CoreString.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
 /***************************************************************************/
 
@@ -102,7 +104,7 @@ static void OnScreenDebugInfoDrawLines(HANDLE GraphicsContext, LPRECT ClientRect
     LineY = DrawInfo.Y;
 
     while (LineIndex < ON_SCREEN_DEBUG_INFO_LINE_COUNT && Line != NULL && *Line != 0) {
-        NextLine = StringFindChar(Line, '\n');
+        NextLine = (LPSTR)strchr((const char*)Line, '\n');
         if (NextLine != NULL) {
             *NextLine = 0;
         }

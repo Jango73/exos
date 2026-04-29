@@ -24,6 +24,7 @@
 #include "shell/Shell-Commands-Private.h"
 #include "DisplaySession.h"
 #include "Desktop.h"
+#include "process/Process.h"
 #include "system/System.h"
 
 /***************************************************************************/
@@ -79,6 +80,25 @@ static LPCSTR DesktopFrontEndToText(U32 FrontEnd) {
         default:
             return TEXT("none");
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Launch the portal application that owns desktop userland components.
+ * @return TRUE when the process was created.
+ */
+static BOOL ShellLaunchPortal(void) {
+    PROCESS_INFO ProcessInfo;
+
+    MemorySet(&ProcessInfo, 0, sizeof(PROCESS_INFO));
+    ProcessInfo.Header.Size = sizeof(PROCESS_INFO);
+    ProcessInfo.Header.Version = EXOS_ABI_VERSION;
+    ProcessInfo.Header.Flags = 0;
+    StringCopy(ProcessInfo.CommandLine, TEXT("/system/apps/portal"));
+    StringCopy(ProcessInfo.WorkFolder, TEXT("/system"));
+
+    return CreateProcess(&ProcessInfo);
 }
 
 /************************************************************************/
@@ -240,7 +260,12 @@ U32 ShowMainDesktopFromShell(void) {
         return DF_RETURN_SUCCESS;
     }
 
-    ConsolePrint(TEXT("desktop show: desktop active\n"));
+    if (ShellLaunchPortal() == FALSE) {
+        ConsolePrint(TEXT("desktop show: portal launch failed\n"));
+        return DF_RETURN_SUCCESS;
+    }
+
+    ConsolePrint(TEXT("desktop show: portal launched\n"));
 
     // A configured theme path is optional and must never block desktop activation.
     ConfiguredThemePath = GetConfigurationValue(TEXT("Desktop.ThemePath"));

@@ -29,6 +29,7 @@
 #include "exec/Executable.h"
 #include "fs/File.h"
 #include "core/Kernel.h"
+#include "memory/Heap.h"
 #include "process/Process-Module.h"
 #include "utils/List.h"
 #include "log/Log.h"
@@ -341,7 +342,7 @@ void DeleteProcessCommit(LPPROCESS This) {
         }
 
         if (This->MessageQueue.MessageBufferBase != 0 && This->MessageQueue.MessageBufferSize > 0) {
-            FreeRegionForProcess(This, This->MessageQueue.MessageBufferBase, This->MessageQueue.MessageBufferSize);
+            KernelHeapFree((LPVOID)This->MessageQueue.MessageBufferBase);
             This->MessageQueue.MessageBufferBase = 0;
             This->MessageQueue.MessageBufferSize = 0;
         }

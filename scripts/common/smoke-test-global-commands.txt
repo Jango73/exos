@@ -32,7 +32,7 @@ command: "scripts/test-clock.e0" | log: "TEST > [ShellPrintScriptReturnValue] 42
 command: "/system/apps/memory-stress" | log: "memory stress: OK"
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/index.html /temp/index.html" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/index.html" "/exos/temp/index.html"
 command: "package run test" | log: "TEST > [Spawn] Executable finished normally : /package/binary/master"
-command: "desktop show"
+command: "/system/apps/portal"
 hotkey: "ctrl-alt-f1" | before: 5
 command: "clear"
 command: "shutdown"

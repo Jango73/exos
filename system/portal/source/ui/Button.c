@@ -22,9 +22,10 @@
 \************************************************************************/
 
 #include "ui/Button.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "text/CoreString.h"
-#include "core/Kernel.h"
 
 /***************************************************************************/
 // Macros
@@ -73,10 +74,10 @@ static BOOL ButtonEnsureState(HANDLE Window) {
     State = ButtonGetState(Window);
     if (State != NULL) return TRUE;
 
-    State = (LPDESKTOP_BUTTON_STATE)HeapAlloc(sizeof(DESKTOP_BUTTON_STATE));
+    State = (LPDESKTOP_BUTTON_STATE)malloc(sizeof(DESKTOP_BUTTON_STATE));
     if (State == NULL) return FALSE;
 
-    MemorySet(State, 0, sizeof(DESKTOP_BUTTON_STATE));
+    memset(State, 0, sizeof(DESKTOP_BUTTON_STATE));
     (void)SetWindowProp(Window, DESKTOP_BUTTON_PROP_STATE, (UINT)(LINEAR)State);
     return TRUE;
 }
@@ -93,7 +94,7 @@ static void ButtonDeleteState(HANDLE Window) {
     State = ButtonGetState(Window);
     if (State == NULL) return;
 
-    HeapFree(State);
+    free(State);
     (void)SetWindowProp(Window, DESKTOP_BUTTON_PROP_STATE, 0);
 }
 

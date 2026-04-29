@@ -155,6 +155,7 @@ void InitializeSystemCallTable(void) {
     SysCallTable[SYSCALL_ShowDesktop] = (SYSCALL_ENTRY){SysCall_ShowDesktop, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetDesktopWindow] = (SYSCALL_ENTRY){SysCall_GetDesktopWindow, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetCurrentDesktop] = (SYSCALL_ENTRY){SysCall_GetCurrentDesktop, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_GetDesktopScreenRect] = (SYSCALL_ENTRY){SysCall_GetDesktopScreenRect, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_ApplyDesktopTheme] = (SYSCALL_ENTRY){SysCall_ApplyDesktopTheme, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_CreateWindow] = (SYSCALL_ENTRY){SysCall_CreateWindow, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_ShowWindow] = (SYSCALL_ENTRY){SysCall_ShowWindow, EXOS_PRIVILEGE_USER};
@@ -168,6 +169,8 @@ void InitializeSystemCallTable(void) {
     SysCallTable[SYSCALL_GetWindowStyle] = (SYSCALL_ENTRY){SysCall_GetWindowStyle, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_SetWindowProp] = (SYSCALL_ENTRY){SysCall_SetWindowProp, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetWindowProp] = (SYSCALL_ENTRY){SysCall_GetWindowProp, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_FindWindow] = (SYSCALL_ENTRY){SysCall_FindWindow, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_GetWindowCaption] = (SYSCALL_ENTRY){SysCall_GetWindowCaption, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_SetWindowCaption] = (SYSCALL_ENTRY){SysCall_SetWindowCaption, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_SetWindowTimer] = (SYSCALL_ENTRY){SysCall_SetWindowTimer, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetWindowRect] = (SYSCALL_ENTRY){SysCall_GetWindowRect, EXOS_PRIVILEGE_USER};
@@ -200,9 +203,14 @@ void InitializeSystemCallTable(void) {
     SysCallTable[SYSCALL_GetPixel] = (SYSCALL_ENTRY){SysCall_GetPixel, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_Line] = (SYSCALL_ENTRY){SysCall_Line, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_Rectangle] = (SYSCALL_ENTRY){SysCall_Rectangle, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_Arc] = (SYSCALL_ENTRY){SysCall_Arc, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_Triangle] = (SYSCALL_ENTRY){SysCall_Triangle, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_DrawText] = (SYSCALL_ENTRY){SysCall_DrawText, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_MeasureText] = (SYSCALL_ENTRY){SysCall_MeasureText, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_DrawWindowBackground] = (SYSCALL_ENTRY){SysCall_DrawWindowBackground, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_SetGraphicsDriver] = (SYSCALL_ENTRY){SysCall_SetGraphicsDriver, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetGCSurface] = (SYSCALL_ENTRY){SysCall_GetGCSurface, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_GetKernelLogRecent] = (SYSCALL_ENTRY){SysCall_GetKernelLogRecent, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_GetGraphicsDebugInfo] = (SYSCALL_ENTRY){SysCall_GetGraphicsDebugInfo, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_GetMouseDebugInfo] = (SYSCALL_ENTRY){SysCall_GetMouseDebugInfo, EXOS_PRIVILEGE_USER};
 }

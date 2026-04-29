@@ -22,6 +22,10 @@
 \************************************************************************/
 
 #include "ui/ShellBar.h"
+#include "exos-runtime-main.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "ui/Button.h"
 #include "ui/WindowDockable.h"
@@ -42,7 +46,11 @@
 /************************************************************************/
 
 BOOL ShellBarEnsureClassRegistered(void) {
-    return WindowDockableClassEnsureDerivedRegistered(SHELL_BAR_WINDOW_CLASS_NAME, ShellBarWindowFunc);
+    BOOL Result;
+
+    Result = WindowDockableClassEnsureDerivedRegistered(SHELL_BAR_WINDOW_CLASS_NAME, ShellBarWindowFunc);
+    debug("[ShellBarEnsureClassRegistered] result=%u", Result);
+    return Result;
 }
 
 /************************************************************************/
@@ -59,13 +67,26 @@ static HANDLE ShellBarFindDirectChildByProp(HANDLE Parent, LPCSTR Name, U32 Valu
     U32 ChildIndex;
     HANDLE ChildWindow;
 
-    if (Parent == NULL) return NULL;
-    if (Name == NULL) return NULL;
+    if (Parent == NULL) {
+        debug("[ShellBarFindDirectChildByProp] missing parent value=%x", Value);
+        return NULL;
+    }
+    if (Name == NULL) {
+        debug("[ShellBarFindDirectChildByProp] missing name parent=%x", (UINT)(LINEAR)Parent);
+        return NULL;
+    }
 
     ChildCount = GetWindowChildCount(Parent);
+    debug("[ShellBarFindDirectChildByProp] parent=%x value=%x child_count=%u",
+        (UINT)(LINEAR)Parent,
+        Value,
+        ChildCount);
     for (ChildIndex = 0; ChildIndex < ChildCount; ChildIndex++) {
         ChildWindow = GetWindowChild(Parent, ChildIndex);
         if (ChildWindow == NULL) continue;
+        debug("[ShellBarFindDirectChildByProp] child=%x prop=%x",
+            (UINT)(LINEAR)ChildWindow,
+            GetWindowProp(ChildWindow, Name));
         if (GetWindowProp(ChildWindow, Name) == Value) return ChildWindow;
     }
 
@@ -90,11 +111,24 @@ static void ShellBarLayoutComponents(HANDLE ComponentsSlotWindow) {
     BOOL FoundSelection;
     I32 RightEdge;
 
-    if (ComponentsSlotWindow == NULL) return;
-    if (GetWindowClientRect(ComponentsSlotWindow, &ClientRect) == FALSE) return;
+    if (ComponentsSlotWindow == NULL) {
+        debug("[ShellBarLayoutComponents] missing slot");
+        return;
+    }
+    if (GetWindowClientRect(ComponentsSlotWindow, &ClientRect) == FALSE) {
+        debug("[ShellBarLayoutComponents] client rect failed slot=%x", (UINT)(LINEAR)ComponentsSlotWindow);
+        return;
+    }
 
     RightEdge = ClientRect.X2 - SHELL_BAR_COMPONENTS_PADDING;
     ChildCount = GetWindowChildCount(ComponentsSlotWindow);
+    debug("[ShellBarLayoutComponents] slot=%x rect=%d,%d,%d,%d child_count=%u",
+        (UINT)(LINEAR)ComponentsSlotWindow,
+        ClientRect.X1,
+        ClientRect.Y1,
+        ClientRect.X2,
+        ClientRect.Y2,
+        ChildCount);
     PreviousOrder = 0xFFFFFFFF;
     for (SelectionPass = 0; SelectionPass < ChildCount; SelectionPass++) {
         SelectedWindow = NULL;
@@ -126,6 +160,14 @@ static void ShellBarLayoutComponents(HANDLE ComponentsSlotWindow) {
         ChildRect.X2 = RightEdge;
         ChildRect.X1 = ChildRect.X2 - (I32)SelectedWidth + 1;
         if (ChildRect.X1 < ClientRect.X1) ChildRect.X1 = ClientRect.X1;
+        debug("[ShellBarLayoutComponents] move child=%x order=%u width=%u rect=%d,%d,%d,%d",
+            (UINT)(LINEAR)SelectedWindow,
+            BestOrder,
+            SelectedWidth,
+            ChildRect.X1,
+            ChildRect.Y1,
+            ChildRect.X2,
+            ChildRect.Y2);
         (void)MoveWindow(SelectedWindow, &ChildRect);
         RightEdge = ChildRect.X1 - SHELL_BAR_COMPONENTS_GAP;
         PreviousOrder = BestOrder;
@@ -178,11 +220,25 @@ static void ShellBarLayoutSlots(HANDLE ShellBarWindow) {
     I32 LeftWidth;
     I32 ComponentsWidth;
 
-    if (ShellBarWindow == NULL) return;
-    if (GetWindowClientRect(ShellBarWindow, &ClientRect) == FALSE) return;
+    if (ShellBarWindow == NULL) {
+        debug("[ShellBarLayoutSlots] missing shellbar");
+        return;
+    }
+    if (GetWindowClientRect(ShellBarWindow, &ClientRect) == FALSE) {
+        debug("[ShellBarLayoutSlots] client rect failed shellbar=%x", (UINT)(LINEAR)ShellBarWindow);
+        return;
+    }
 
     ClientWidth = ClientRect.X2 - ClientRect.X1 + 1;
-    if (ClientWidth <= 0) return;
+    if (ClientWidth <= 0) {
+        debug("[ShellBarLayoutSlots] invalid client width shellbar=%x rect=%d,%d,%d,%d",
+            (UINT)(LINEAR)ShellBarWindow,
+            ClientRect.X1,
+            ClientRect.Y1,
+            ClientRect.X2,
+            ClientRect.Y2);
+        return;
+    }
 
     LeftWidth = SHELL_BAR_SLOT_LEFT_WIDTH;
     ComponentsWidth = SHELL_BAR_SLOT_COMPONENTS_WIDTH;
@@ -197,6 +253,17 @@ static void ShellBarLayoutSlots(HANDLE ShellBarWindow) {
     }
 
     ComponentsSlotWindow = ShellBarFindDirectChildByProp(ShellBarWindow, SHELL_BAR_SLOT_PROP, SHELL_BAR_SLOT_COMPONENTS);
+    debug("[ShellBarLayoutSlots] shellbar=%x rect=%d,%d,%d,%d components=%x components_rect=%d,%d,%d,%d",
+        (UINT)(LINEAR)ShellBarWindow,
+        ClientRect.X1,
+        ClientRect.Y1,
+        ClientRect.X2,
+        ClientRect.Y2,
+        (UINT)(LINEAR)ComponentsSlotWindow,
+        ComponentsRect.X1,
+        ComponentsRect.Y1,
+        ComponentsRect.X2,
+        ComponentsRect.Y2);
     if (ComponentsSlotWindow != NULL) (void)MoveWindow(ComponentsSlotWindow, &ComponentsRect);
 }
 
@@ -232,6 +299,7 @@ static BOOL ShellBarCreateSlotWindow(HANDLE ShellBarWindow, U32 WindowID) {
     WINDOW_INFO WindowInfo;
     HANDLE Window;
 
+    debug("[ShellBarCreateSlotWindow] enter shellbar=%x id=%x", (UINT)(LINEAR)ShellBarWindow, WindowID);
     if (ShellBarWindow == NULL) return FALSE;
 
     WindowInfo.Header.Size = sizeof(WINDOW_INFO);
@@ -251,6 +319,7 @@ static BOOL ShellBarCreateSlotWindow(HANDLE ShellBarWindow, U32 WindowID) {
     WindowInfo.ShowHide = TRUE;
 
     Window = (HANDLE)CreateWindow(&WindowInfo);
+    debug("[ShellBarCreateSlotWindow] created window=%x", (UINT)(LINEAR)Window);
     if (Window != NULL) {
         U32 SlotID = 0;
 
@@ -300,8 +369,15 @@ static U32 ShellBarSlotWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Pa
  * @return TRUE on success.
  */
 static BOOL ShellBarEnsureSlotClassRegistered(void) {
-    if (FindWindowClass(SHELL_BAR_SLOT_WINDOW_CLASS_NAME) != NULL) return TRUE;
-    return RegisterWindowClass(SHELL_BAR_SLOT_WINDOW_CLASS_NAME, 0, NULL, ShellBarSlotWindowFunc, 0) != NULL;
+    BOOL Result;
+
+    if (FindWindowClass(SHELL_BAR_SLOT_WINDOW_CLASS_NAME) != NULL) {
+        debug("[ShellBarEnsureSlotClassRegistered] already registered");
+        return TRUE;
+    }
+    Result = RegisterWindowClass(SHELL_BAR_SLOT_WINDOW_CLASS_NAME, 0, NULL, ShellBarSlotWindowFunc, 0) != NULL;
+    debug("[ShellBarEnsureSlotClassRegistered] result=%u", Result);
+    return Result;
 }
 
 /************************************************************************/
@@ -312,11 +388,18 @@ static BOOL ShellBarEnsureSlotClassRegistered(void) {
  * @return TRUE on success.
  */
 static BOOL ShellBarEnsureSlotWindows(HANDLE ShellBarWindow) {
+    debug("[ShellBarEnsureSlotWindows] enter shellbar=%x", (UINT)(LINEAR)ShellBarWindow);
     if (ShellBarWindow == NULL) return FALSE;
-    if (ShellBarEnsureSlotClassRegistered() == FALSE) return FALSE;
+    if (ShellBarEnsureSlotClassRegistered() == FALSE) {
+        debug("[ShellBarEnsureSlotWindows] slot class registration failed");
+        return FALSE;
+    }
 
     if (ShellBarFindDirectChildByProp(ShellBarWindow, SHELL_BAR_SLOT_PROP, SHELL_BAR_SLOT_COMPONENTS) == NULL) {
-        if (ShellBarCreateSlotWindow(ShellBarWindow, SHELL_BAR_SLOT_COMPONENTS_WINDOW_ID) == FALSE) return FALSE;
+        if (ShellBarCreateSlotWindow(ShellBarWindow, SHELL_BAR_SLOT_COMPONENTS_WINDOW_ID) == FALSE) {
+            debug("[ShellBarEnsureSlotWindows] components slot creation failed");
+            return FALSE;
+        }
     }
 
     ShellBarLayoutSlots(ShellBarWindow);
@@ -329,8 +412,12 @@ BOOL ShellBarCreate(HANDLE ParentWindow) {
     WINDOW_INFO WindowInfo;
     HANDLE Window;
 
+    debug("[ShellBarCreate] enter parent=%x", (UINT)(LINEAR)ParentWindow);
     if (ParentWindow == NULL) return FALSE;
-    if (ShellBarEnsureClassRegistered() == FALSE) return FALSE;
+    if (ShellBarEnsureClassRegistered() == FALSE) {
+        debug("[ShellBarCreate] class registration failed");
+        return FALSE;
+    }
 
     WindowInfo.Header.Size = sizeof(WINDOW_INFO);
     WindowInfo.Header.Version = EXOS_ABI_VERSION;
@@ -349,6 +436,7 @@ BOOL ShellBarCreate(HANDLE ParentWindow) {
     WindowInfo.ShowHide = TRUE;
 
     Window = (HANDLE)CreateWindow(&WindowInfo);
+    debug("[ShellBarCreate] created window=%x", (UINT)(LINEAR)Window);
     if (Window == NULL) return FALSE;
 
     (void)SetWindowProp(Window, SHELL_BAR_ROLE_PROP, SHELL_BAR_ROLE_MAIN);
@@ -381,8 +469,15 @@ HANDLE ShellBarGetSlotWindow(HANDLE ShellBarWindow, U32 SlotID) {
 /************************************************************************/
 
 U32 ShellBarWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
+    debug("[ShellBarWindowFunc] window=%x message=%x param1=%x param2=%x",
+        (UINT)(LINEAR)Window,
+        Message,
+        Param1,
+        Param2);
+
     switch (Message) {
         case EWM_CREATE:
+            debug("[ShellBarWindowFunc] create window=%x", (UINT)(LINEAR)Window);
             (void)SetWindowProp(Window, SHELL_BAR_ROLE_PROP, SHELL_BAR_ROLE_MAIN);
             (void)SetWindowProp(Window, WINDOW_DOCK_PROP_ENABLED, 1);
             (void)SetWindowProp(Window, WINDOW_DOCK_PROP_EDGE, DOCK_EDGE_TOP);
@@ -405,6 +500,7 @@ U32 ShellBarWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
 
         case EWM_NOTIFY:
             if (Param1 == EWN_WINDOW_RECT_CHANGED) {
+                debug("[ShellBarWindowFunc] rect changed window=%x", (UINT)(LINEAR)Window);
                 ShellBarLayoutSlots(Window);
                 return BaseWindowFunc(Window, Message, Param1, Param2);
             }

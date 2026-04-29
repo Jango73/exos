@@ -83,6 +83,38 @@ BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info) {
 
 /***************************************************************************/
 
+U32 KernelLogGetRecentSequence(void) {
+    KERNEL_LOG_RECENT_INFO Info;
+
+    Info.Header.Size = sizeof Info;
+    Info.Header.Version = EXOS_ABI_VERSION;
+    Info.Header.Flags = 0;
+    Info.Text = NULL;
+    Info.TextBufferSize = 0;
+    Info.MaxLines = 0;
+    Info.Sequence = 0;
+    Info.TotalLines = 0;
+    Info.CopiedLines = 0;
+    Info.Truncated = FALSE;
+
+    if (exoscall(SYSCALL_GetKernelLogRecent, EXOS_PARAM(&Info)) == FALSE) return 0;
+    return Info.Sequence;
+}
+
+/***************************************************************************/
+
+BOOL KernelLogCaptureRecentLines(LPKERNEL_LOG_RECENT_INFO Info) {
+    if (Info == NULL) return FALSE;
+
+    Info->Header.Size = sizeof *Info;
+    Info->Header.Version = EXOS_ABI_VERSION;
+    Info->Header.Flags = 0;
+
+    return (BOOL)exoscall(SYSCALL_GetKernelLogRecent, EXOS_PARAM(Info));
+}
+
+/***************************************************************************/
+
 BOOL GetMessage(HANDLE Target, LPMESSAGE Message, U32 First, U32 Last) {
     MESSAGE_INFO MessageInfo;
     BOOL Result;
@@ -158,13 +190,12 @@ BOOL DispatchMessage(LPMESSAGE Message) {
 /***************************************************************************/
 
 BOOL PostMessage(HANDLE Target, U32 Message, U32 Param1, U32 Param2) {
-    UNUSED(Target);
-
     MESSAGE_INFO MessageInfo;
 
     MessageInfo.Header.Size = sizeof MessageInfo;
     MessageInfo.Header.Version = EXOS_ABI_VERSION;
     MessageInfo.Header.Flags = 0;
+    MessageInfo.Target = Target;
     MessageInfo.Message = Message;
     MessageInfo.Param1 = Param1;
     MessageInfo.Param2 = Param2;
@@ -205,6 +236,22 @@ U32 FindNextFile(FILE_FIND_INFO* Info) {
 /***************************************************************************/
 
 BOOL Line(LPLINE_INFO LineInfo) { return (BOOL)exoscall(SYSCALL_Line, EXOS_PARAM(LineInfo)); }
+
+/***************************************************************************/
+
+BOOL Arc(LPARC_INFO ArcInfo) {
+    if (ArcInfo == NULL) return FALSE;
+
+    return (BOOL)exoscall(SYSCALL_Arc, EXOS_PARAM(ArcInfo));
+}
+
+/***************************************************************************/
+
+BOOL Triangle(LPTRIANGLE_INFO TriangleInfo) {
+    if (TriangleInfo == NULL) return FALSE;
+
+    return (BOOL)exoscall(SYSCALL_Triangle, EXOS_PARAM(TriangleInfo));
+}
 
 /***************************************************************************/
 
@@ -270,6 +317,28 @@ BOOL GetMousePosition(LPPOINT Point) { return (BOOL)exoscall(SYSCALL_GetMousePos
 /***************************************************************************/
 
 U32 GetMouseButtons(void) { return (U32)exoscall(SYSCALL_GetMouseButtons, EXOS_PARAM(0)); }
+
+/***************************************************************************/
+
+BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info) {
+    if (Info == NULL) return FALSE;
+
+    Info->Header.Size = sizeof *Info;
+    Info->Header.Version = EXOS_ABI_VERSION;
+    Info->Header.Flags = 0;
+    return (BOOL)exoscall(SYSCALL_GetGraphicsDebugInfo, EXOS_PARAM(Info));
+}
+
+/***************************************************************************/
+
+BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info) {
+    if (Info == NULL) return FALSE;
+
+    Info->Header.Size = sizeof *Info;
+    Info->Header.Version = EXOS_ABI_VERSION;
+    Info->Header.Flags = 0;
+    return (BOOL)exoscall(SYSCALL_GetMouseDebugInfo, EXOS_PARAM(Info));
+}
 
 /***************************************************************************/
 

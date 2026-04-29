@@ -249,6 +249,10 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_GetWindowProp 0x00000051
 #define SYSCALL_SetWindowCaption 0x00000096
 #define SYSCALL_SetWindowTimer 0x00000097
+#define SYSCALL_FindWindow 0x00000098
+#define SYSCALL_GetWindowCaption 0x00000099
+#define SYSCALL_GetDesktopScreenRect 0x0000009A
+#define SYSCALL_GetKernelLogRecent 0x0000009B
 #define SYSCALL_GetWindowRect 0x00000052
 #define SYSCALL_GetWindowClientRect 0x0000007C
 #define SYSCALL_GetWindowParent 0x0000008B
@@ -287,7 +291,11 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_DrawWindowBackground 0x00000082
 #define SYSCALL_ApplyDesktopTheme 0x00000088
 #define SYSCALL_SetGraphicsDriver 0x0000008A
-#define SYSCALL_GetGCSurface 0x0000008B
+#define SYSCALL_GetGCSurface 0x0000009C
+#define SYSCALL_Arc 0x0000009D
+#define SYSCALL_Triangle 0x0000009E
+#define SYSCALL_GetGraphicsDebugInfo 0x0000009F
+#define SYSCALL_GetMouseDebugInfo 0x000000A0
 
 /************************************************************************/
 // Network Socket Services
@@ -310,7 +318,7 @@ typedef struct PACKED tag_ABI_HEADER {
 
 /************************************************************************/
 
-#define SYSCALL_Last 0x00000097
+#define SYSCALL_Last 0x000000A1
 
 /************************************************************************/
 // Structure limits
@@ -642,12 +650,25 @@ typedef struct PACKED tag_WINDOW_RECT {
 
 #define WINDOW_RECT_FLAG_ALL 0x00000001
 
+typedef struct PACKED tag_DESKTOP_RECT_INFO {
+    ABI_HEADER Header;
+    HANDLE Desktop;
+    RECT Rect;
+} DESKTOP_RECT_INFO, *LPDESKTOP_RECT_INFO;
+
 typedef struct PACKED tag_WINDOW_POINT_INFO {
     ABI_HEADER Header;
     HANDLE Window;
     POINT ScreenPoint;
     POINT WindowPoint;
 } WINDOW_POINT_INFO, *LPWINDOW_POINT_INFO;
+
+typedef struct PACKED tag_WINDOW_FIND_INFO {
+    ABI_HEADER Header;
+    HANDLE Parent;
+    U32 WindowID;
+    HANDLE Window;
+} WINDOW_FIND_INFO, *LPWINDOW_FIND_INFO;
 
 typedef struct PACKED tag_WINDOW_CHILD_INFO {
     ABI_HEADER Header;
@@ -784,6 +805,17 @@ typedef struct PACKED tag_DRIVER_DEBUG_INFO {
     ABI_HEADER Header;
     STR Text[MAX_STRING_BUFFER];
 } DRIVER_DEBUG_INFO, *LPDRIVER_DEBUG_INFO;
+
+typedef struct PACKED tag_KERNEL_LOG_RECENT_INFO {
+    ABI_HEADER Header;
+    LPSTR Text;
+    UINT TextBufferSize;
+    UINT MaxLines;
+    U32 Sequence;
+    UINT TotalLines;
+    UINT CopiedLines;
+    BOOL Truncated;
+} KERNEL_LOG_RECENT_INFO, *LPKERNEL_LOG_RECENT_INFO;
 
 typedef struct PACKED tag_LOGIN_INFO {
     ABI_HEADER Header;

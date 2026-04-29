@@ -1627,13 +1627,26 @@ UINT SysCall_ConsoleGetCurrentMode(UINT Parameter) {
 /**
  * @brief Create a new desktop for the current process.
  *
- * @param Parameter Reserved.
+ * @param Parameter Optional root window handle, or 0 to create a default root.
  * @return UINT Desktop handle on success, 0 otherwise.
  */
 UINT SysCall_CreateDesktop(UINT Parameter) {
-    UNUSED(Parameter);
+    LPWINDOW RootWindow = NULL;
 
-    LPDESKTOP Desktop = KernelCreateDesktop();
+    if (Parameter != 0) {
+        RootWindow = (LPWINDOW)HandleToPointer(Parameter);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(RootWindow, KOID_WINDOW, TRUE) {}
+        else {
+            return 0;
+        }
+
+        if (GetWindowParent((HANDLE)RootWindow) != NULL) {
+            return 0;
+        }
+    }
+
+    LPDESKTOP Desktop = KernelCreateDesktop(RootWindow);
     SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
         HANDLE Handle = PointerToHandle((LINEAR)Desktop);
 
@@ -1715,6 +1728,28 @@ UINT SysCall_GetCurrentDesktop(UINT Parameter) {
     }
 
     return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve the screen rectangle for a desktop.
+ *
+ * @param Parameter Pointer to DESKTOP_RECT_INFO.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetDesktopScreenRect(UINT Parameter) {
+    LPDESKTOP_RECT_INFO Info = (LPDESKTOP_RECT_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, DESKTOP_RECT_INFO) {
+        LPDESKTOP Desktop = (LPDESKTOP)HandleToPointer(Info->Desktop);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Desktop, KOID_DESKTOP, TRUE) {
+            return (UINT)GetDesktopScreenRect(Desktop, &(Info->Rect));
+        }
+    }
+
+    return FALSE;
 }
 
 /************************************************************************/
@@ -1952,7 +1987,20 @@ UINT SysCall_ClearWindowStyle(UINT Parameter) {
  * @return UINT Always returns 0.
  */
 UINT SysCall_GetWindowStyle(UINT Parameter) {
-    UNUSED(Parameter);
+    LPWINDOW_INFO WindowInfo = (LPWINDOW_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(WindowInfo, WINDOW_INFO) {
+        LPWINDOW Window = (LPWINDOW)HandleToPointer(WindowInfo->Window);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
+            U32 Style = 0;
+            UINT Result = (UINT)GetWindowStyle((HANDLE)Window, &Style);
+
+            WindowInfo->Style = Style;
+            return Result;
+        }
+    }
+
     return 0;
 }
 
@@ -1996,6 +2044,57 @@ UINT SysCall_GetWindowProp(UINT Parameter) {
     }
 
     return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Find one descendant window by identifier.
+ *
+ * @param Parameter Pointer to WINDOW_FIND_INFO.
+ * @return UINT Window handle or 0 on failure.
+ */
+UINT SysCall_FindWindow(UINT Parameter) {
+    LPWINDOW_FIND_INFO FindInfo = (LPWINDOW_FIND_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(FindInfo, WINDOW_FIND_INFO) {
+        LPWINDOW ParentWindow = (LPWINDOW)HandleToPointer(FindInfo->Parent);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(ParentWindow, KOID_WINDOW, TRUE) {
+            LPWINDOW Window = (LPWINDOW)FindWindow((HANDLE)ParentWindow, FindInfo->WindowID);
+
+            SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
+                HANDLE Handle = PointerToHandle((LINEAR)Window);
+
+                FindInfo->Window = Handle;
+                return (UINT)Handle;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve one window caption.
+ *
+ * @param Parameter Pointer to WINDOW_CAPTION.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetWindowCaption(UINT Parameter) {
+    LPWINDOW_CAPTION Caption = (LPWINDOW_CAPTION)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Caption, WINDOW_CAPTION) {
+        LPWINDOW Window = (LPWINDOW)HandleToPointer(Caption->Window);
+
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Window, KOID_WINDOW, TRUE) {
+            return (UINT)GetWindowCaption((HANDLE)Window, Caption->Text, MAX_WINDOW_CAPTION);
+        }
+    }
+
+    return FALSE;
 }
 
 /************************************************************************/
@@ -2744,6 +2843,72 @@ UINT SysCall_Rectangle(UINT Parameter) {
 /************************************************************************/
 
 /**
+ * @brief Draw an arc using the current graphics context pen and brush.
+ *
+ * @param Parameter Pointer to ARC_INFO with GC handle and arc parameters.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_Arc(UINT Parameter) {
+    LPARC_INFO ArcInfo = (LPARC_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(ArcInfo, ARC_INFO) {
+        HANDLE OriginalGC = ArcInfo->GC;
+        LPGRAPHICSCONTEXT Context = (LPGRAPHICSCONTEXT)HandleToPointer(OriginalGC);
+
+        SAFE_USE_VALID_ID(Context, KOID_GRAPHICSCONTEXT) {
+            if (!ProcessAccessCanCurrentProcessTargetObject(Context, TRUE)) {
+                ArcInfo->GC = OriginalGC;
+                return 0;
+            }
+
+            ArcInfo->GC = (HANDLE)Context;
+            UINT Result = (UINT)Arc(ArcInfo);
+            ArcInfo->GC = OriginalGC;
+            return Result;
+        }
+
+        ArcInfo->GC = OriginalGC;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Draw a triangle using the current graphics context pen and brush.
+ *
+ * @param Parameter Pointer to TRIANGLE_INFO with GC handle and points.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_Triangle(UINT Parameter) {
+    LPTRIANGLE_INFO TriangleInfo = (LPTRIANGLE_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(TriangleInfo, TRIANGLE_INFO) {
+        HANDLE OriginalGC = TriangleInfo->GC;
+        LPGRAPHICSCONTEXT Context = (LPGRAPHICSCONTEXT)HandleToPointer(OriginalGC);
+
+        SAFE_USE_VALID_ID(Context, KOID_GRAPHICSCONTEXT) {
+            if (!ProcessAccessCanCurrentProcessTargetObject(Context, TRUE)) {
+                TriangleInfo->GC = OriginalGC;
+                return 0;
+            }
+
+            TriangleInfo->GC = (HANDLE)Context;
+            UINT Result = (UINT)Triangle(TriangleInfo);
+            TriangleInfo->GC = OriginalGC;
+            return Result;
+        }
+
+        TriangleInfo->GC = OriginalGC;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
  * @brief Draw one text string using the current graphics context colors.
  *
  * @param Parameter Pointer to TEXT_DRAW_INFO with GC handle and text parameters.
@@ -3479,6 +3644,85 @@ UINT SysCall_GetGCSurface(UINT Parameter) {
             return TRUE;
         }
     }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve recent kernel log metadata and text.
+ *
+ * @param Parameter Pointer to KERNEL_LOG_RECENT_INFO.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetKernelLogRecent(UINT Parameter) {
+    LPKERNEL_LOG_RECENT_INFO Info = (LPKERNEL_LOG_RECENT_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, KERNEL_LOG_RECENT_INFO) {
+        KERNEL_LOG_RECENT_VIEW View;
+
+        Info->Sequence = KernelLogGetRecentSequence();
+        Info->TotalLines = 0;
+        Info->CopiedLines = 0;
+        Info->Truncated = FALSE;
+
+        if (Info->Text == NULL || Info->TextBufferSize == 0) {
+            return TRUE;
+        }
+
+        SAFE_USE_VALID(Info->Text) {
+            View.Text = Info->Text;
+            View.TextBufferSize = Info->TextBufferSize;
+            View.MaxLines = Info->MaxLines;
+            View.Sequence = 0;
+            View.TotalLines = 0;
+            View.CopiedLines = 0;
+            View.Truncated = FALSE;
+
+            if (KernelLogCaptureRecentLines(&View) == FALSE) {
+                return FALSE;
+            }
+
+            Info->Sequence = View.Sequence;
+            Info->TotalLines = View.TotalLines;
+            Info->CopiedLines = View.CopiedLines;
+            Info->Truncated = View.Truncated;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve graphics driver debug text.
+ *
+ * @param Parameter Pointer to DRIVER_DEBUG_INFO.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetGraphicsDebugInfo(UINT Parameter) {
+    LPDRIVER_DEBUG_INFO Info = (LPDRIVER_DEBUG_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) { return (UINT)GetGraphicsDebugInfo(Info); }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Retrieve mouse driver debug text.
+ *
+ * @param Parameter Pointer to DRIVER_DEBUG_INFO.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_GetMouseDebugInfo(UINT Parameter) {
+    LPDRIVER_DEBUG_INFO Info = (LPDRIVER_DEBUG_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) { return (UINT)GetMouseDebugInfo(Info); }
 
     return FALSE;
 }

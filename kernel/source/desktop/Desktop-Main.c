@@ -36,8 +36,6 @@
 #include "log/Log.h"
 #include "console/Console.h"
 #include "process/Task-Messaging.h"
-#include "ui/Startup-Desktop-Components.h"
-#include "ui/WindowDockHost.h"
 
 /***************************************************************************/
 
@@ -367,7 +365,7 @@ static I32 SortDesktops_Order(LPCVOID Item1, LPCVOID Item2) {
  * @brief Create a new desktop and its main window.
  * @return Pointer to the created desktop or NULL on failure.
  */
-LPDESKTOP KernelCreateDesktop(void) {
+LPDESKTOP KernelCreateDesktop(LPWINDOW RootWindow) {
     LPDESKTOP This;
     WINDOW_INFO WindowInfo;
     LPDESKTOP PreviousDesktop;
@@ -393,43 +391,61 @@ LPDESKTOP KernelCreateDesktop(void) {
     This->Graphics = &ConsoleDriver;
     This->Mode = DESKTOP_MODE_CONSOLE;
 
-    if (DesktopEnsureDispatcherTask(This) == FALSE) {
+    if (RootWindow == NULL && DesktopEnsureDispatcherTask(This) == FALSE) {
         DeleteList(This->Timers);
         ReleaseKernelObject(This);
         return NULL;
     }
-
-    WindowInfo.Header.Size = sizeof(WINDOW_INFO);
-    WindowInfo.Header.Version = EXOS_ABI_VERSION;
-    WindowInfo.Header.Flags = 0;
-    WindowInfo.Window = NULL;
-    WindowInfo.Parent = NULL;
-    if (WindowDockHostClassEnsureDerivedRegistered(ROOT_WINDOW_CLASS_NAME, DesktopWindowFunc) == FALSE) {
-        DeleteList(This->Timers);
-        ReleaseKernelObject(This);
-        return NULL;
-    }
-
-    WindowInfo.WindowClass = 0;
-    WindowInfo.WindowClassName = ROOT_WINDOW_CLASS_NAME;
-    WindowInfo.Function = NULL;
-    WindowInfo.Style = EWS_BARE_SURFACE;
-    WindowInfo.ID = 0;
-    WindowInfo.WindowPosition.X = 0;
-    WindowInfo.WindowPosition.Y = 0;
-    WindowInfo.WindowSize.X = (I32)Console.Width;
-    WindowInfo.WindowSize.Y = (I32)Console.Height;
-    WindowInfo.ShowHide = TRUE;
 
     PreviousDesktop = GetCurrentProcess()->Desktop;
     GetCurrentProcess()->Desktop = This;
 
-    This->Window = DesktopCreateWindow(&WindowInfo);
+    if (RootWindow != NULL) {
+        This->Window = RootWindow;
+        (void)DesktopSetWindowTask(RootWindow, This->Task);
+
+        LockMutex(&(RootWindow->Mutex), INFINITY);
+        RootWindow->ParentWindow = NULL;
+        UnlockMutex(&(RootWindow->Mutex));
+    } else {
+        WindowInfo.Header.Size = sizeof(WINDOW_INFO);
+        WindowInfo.Header.Version = EXOS_ABI_VERSION;
+        WindowInfo.Header.Flags = 0;
+        WindowInfo.Window = NULL;
+        WindowInfo.Parent = NULL;
+        if (FindWindowClass(ROOT_WINDOW_CLASS_NAME) == NULL &&
+            RegisterWindowClass(ROOT_WINDOW_CLASS_NAME, 0, NULL, DesktopWindowFunc, 0) == NULL) {
+            GetCurrentProcess()->Desktop = PreviousDesktop;
+            DeleteList(This->Timers);
+            ReleaseKernelObject(This);
+            return NULL;
+        }
+
+        WindowInfo.WindowClass = 0;
+        WindowInfo.WindowClassName = ROOT_WINDOW_CLASS_NAME;
+        WindowInfo.Function = NULL;
+        WindowInfo.Style = EWS_BARE_SURFACE;
+        WindowInfo.ID = 0;
+        WindowInfo.WindowPosition.X = 0;
+        WindowInfo.WindowPosition.Y = 0;
+        WindowInfo.WindowSize.X = (I32)Console.Width;
+        WindowInfo.WindowSize.Y = (I32)Console.Height;
+        WindowInfo.ShowHide = TRUE;
+
+        This->Window = DesktopCreateWindow(&WindowInfo);
+    }
 
     if (This->Window == NULL) {
         GetCurrentProcess()->Desktop = PreviousDesktop;
         ReleaseKernelObject(This);
         return NULL;
+    }
+
+    // A desktop and its root window are shared session anchors, not private
+    // resources of the shell process that created them.
+    This->OwnerProcess = NULL;
+    if (RootWindow == NULL) {
+        This->Window->OwnerProcess = NULL;
     }
 
     UpdateDesktopWindowRect(This, (I32)Console.Width, (I32)Console.Height);
@@ -650,10 +666,6 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
 
     SetActiveDesktop(This);
     DesktopCursorOnDesktopActivated(This);
-    if (StartupDesktopComponentsInitialize(This) == FALSE) {
-        WARNING(TEXT("Startup desktop components initialization failed"));
-    }
-
     //-------------------------------------
     // Force the desktop root window to repaint
 

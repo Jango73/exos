@@ -22,6 +22,10 @@
 \************************************************************************/
 
 #include "ui/Startup-Desktop-Components.h"
+#include "exos-runtime-main.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "ui/Button.h"
 #include "ui/ClockWidget.h"
@@ -61,14 +65,24 @@ static BOOL EnsureShellBarClockWidget(HANDLE ShellBarWindow) {
     HANDLE ClockWindow;
     WINDOW_INFO WindowInfo;
 
-    if (ShellBarWindow == NULL) return FALSE;
-    if (DesktopClockWidgetEnsureClassRegistered() == FALSE) return FALSE;
+    debug("[EnsureShellBarClockWidget] enter shellbar=%x", (UINT)(LINEAR)ShellBarWindow);
+
+    if (ShellBarWindow == NULL) {
+        debug("[EnsureShellBarClockWidget] missing shellbar");
+        return FALSE;
+    }
+    if (DesktopClockWidgetEnsureClassRegistered() == FALSE) {
+        debug("[EnsureShellBarClockWidget] class registration failed");
+        return FALSE;
+    }
 
     ComponentsSlotWindow = ShellBarGetSlotWindow(ShellBarWindow, SHELL_BAR_SLOT_COMPONENTS);
+    debug("[EnsureShellBarClockWidget] components_slot=%x", (UINT)(LINEAR)ComponentsSlotWindow);
     if (ComponentsSlotWindow == NULL) return FALSE;
 
     ClockWindow = FindWindow(ComponentsSlotWindow, SHELL_BAR_CLOCK_WINDOW_ID);
     if (ClockWindow != NULL) {
+        debug("[EnsureShellBarClockWidget] existing clock=%x", (UINT)(LINEAR)ClockWindow);
         return MarkShellBarComponentLayout(
             ClockWindow,
             SHELL_BAR_COMPONENT_ORDER_CLOCK,
@@ -92,6 +106,7 @@ static BOOL EnsureShellBarClockWidget(HANDLE ShellBarWindow) {
     WindowInfo.ShowHide = TRUE;
 
     ClockWindow = (HANDLE)CreateWindow(&WindowInfo);
+    debug("[EnsureShellBarClockWidget] created clock=%x", (UINT)(LINEAR)ClockWindow);
     if (ClockWindow == NULL) return FALSE;
 
     return MarkShellBarComponentLayout(
@@ -113,10 +128,22 @@ static BOOL EnsureShellBarButton(
     HANDLE ButtonWindow;
     RECT ButtonRect;
 
-    if (ShellBarWindow == NULL || Caption == NULL) return FALSE;
-    if (ButtonEnsureClassRegistered() == FALSE) return FALSE;
+    debug("[EnsureShellBarButton] enter shellbar=%x button_id=%x target_id=%x",
+        (UINT)(LINEAR)ShellBarWindow,
+        ButtonWindowID,
+        TargetWindowID);
+
+    if (ShellBarWindow == NULL || Caption == NULL) {
+        debug("[EnsureShellBarButton] invalid parameter");
+        return FALSE;
+    }
+    if (ButtonEnsureClassRegistered() == FALSE) {
+        debug("[EnsureShellBarButton] button class registration failed");
+        return FALSE;
+    }
 
     ComponentsSlotWindow = ShellBarGetSlotWindow(ShellBarWindow, SHELL_BAR_SLOT_COMPONENTS);
+    debug("[EnsureShellBarButton] components_slot=%x", (UINT)(LINEAR)ComponentsSlotWindow);
     if (ComponentsSlotWindow == NULL) return FALSE;
 
     ButtonWindow = FindWindow(ComponentsSlotWindow, ButtonWindowID);
@@ -126,7 +153,10 @@ static BOOL EnsureShellBarButton(
         ButtonRect.X2 = SHELL_BAR_COMPONENT_WIDTH_BUTTON - 1;
         ButtonRect.Y2 = 1;
         ButtonWindow = ButtonCreate(ComponentsSlotWindow, ButtonWindowID, &ButtonRect, Caption);
+        debug("[EnsureShellBarButton] created button=%x", (UINT)(LINEAR)ButtonWindow);
         if (ButtonWindow == NULL) return FALSE;
+    } else {
+        debug("[EnsureShellBarButton] existing button=%x", (UINT)(LINEAR)ButtonWindow);
     }
 
     (void)SetWindowProp(ButtonWindow, DESKTOP_BUTTON_PROP_NOTIFY_VALUE, TargetWindowID);
@@ -140,7 +170,7 @@ static BOOL EnsureShellBarButton(
  * @param Desktop Target desktop.
  * @return TRUE on success.
  */
-static BOOL EnsureCube3DWindow(LPDESKTOP Desktop) {
+static BOOL EnsureCube3DWindow(HANDLE Desktop) {
     HANDLE RootWindow;
     HANDLE CubeWindow;
     WINDOW_INFO WindowInfo;
@@ -235,7 +265,7 @@ static BOOL EnsureCube3DWindow(LPDESKTOP Desktop) {
  * @param Desktop Target desktop.
  * @return TRUE on success.
  */
-static BOOL EnsureLogViewerWindow(LPDESKTOP Desktop) {
+static BOOL EnsureLogViewerWindow(HANDLE Desktop) {
     HANDLE RootWindow;
     HANDLE LogViewerWindow;
     WINDOW_INFO WindowInfo;
@@ -319,7 +349,7 @@ static BOOL EnsureLogViewerWindow(LPDESKTOP Desktop) {
  * @param Desktop Target desktop.
  * @return TRUE on success.
  */
-static BOOL EnsureOnScreenDebugInfoWindow(LPDESKTOP Desktop) {
+static BOOL EnsureOnScreenDebugInfoWindow(HANDLE Desktop) {
     HANDLE RootWindow;
     HANDLE DebugInfoWindow;
     WINDOW_INFO WindowInfo;
@@ -398,7 +428,7 @@ static BOOL EnsureOnScreenDebugInfoWindow(LPDESKTOP Desktop) {
 
 /***************************************************************************/
 
-BOOL StartupDesktopComponentsInitialize(LPDESKTOP Desktop) {
+BOOL StartupDesktopComponentsInitialize(HANDLE Desktop) {
     HANDLE RootWindow;
     HANDLE ShellBarWindow;
     BOOL ShellBarClockResult = TRUE;
@@ -408,22 +438,29 @@ BOOL StartupDesktopComponentsInitialize(LPDESKTOP Desktop) {
     BOOL LogViewerResult;
     BOOL OnScreenDebugInfoResult;
 
+    debug("[StartupDesktopComponentsInitialize] enter desktop=%x", (UINT)(LINEAR)Desktop);
+
     if (Desktop == NULL) {
+        debug("[StartupDesktopComponentsInitialize] missing desktop");
         return FALSE;
     }
 
     RootWindow = GetDesktopWindow((HANDLE)Desktop);
+    debug("[StartupDesktopComponentsInitialize] root=%x", (UINT)(LINEAR)RootWindow);
     if (RootWindow == NULL) {
         return FALSE;
     }
 
     ShellBarWindow = ShellBarGetWindow(RootWindow);
+    debug("[StartupDesktopComponentsInitialize] existing shellbar=%x", (UINT)(LINEAR)ShellBarWindow);
     if (ShellBarWindow == NULL) {
         if (ShellBarCreate(RootWindow) == FALSE) {
+            debug("[StartupDesktopComponentsInitialize] shellbar creation failed");
             // Shell bar injection is best-effort; continue with other startup components.
         }
 
         ShellBarWindow = ShellBarGetWindow(RootWindow);
+        debug("[StartupDesktopComponentsInitialize] shellbar after create=%x", (UINT)(LINEAR)ShellBarWindow);
     }
     if (ShellBarWindow != NULL) {
         ShellBarClockResult = EnsureShellBarClockWidget(ShellBarWindow);
@@ -443,6 +480,13 @@ BOOL StartupDesktopComponentsInitialize(LPDESKTOP Desktop) {
     Cube3DResult = EnsureCube3DWindow(Desktop);
     LogViewerResult = EnsureLogViewerWindow(Desktop);
     OnScreenDebugInfoResult = EnsureOnScreenDebugInfoWindow(Desktop);
+    debug("[StartupDesktopComponentsInitialize] results shell_clock=%u log_button=%u cube_button=%u cube=%u log=%u debug=%u",
+        ShellBarClockResult,
+        ShellBarLogViewerButtonResult,
+        ShellBarCube3DButtonResult,
+        Cube3DResult,
+        LogViewerResult,
+        OnScreenDebugInfoResult);
     return (ShellBarClockResult != FALSE) &&
            (ShellBarLogViewerButtonResult != FALSE) &&
            (ShellBarCube3DButtonResult != FALSE) &&

@@ -22,7 +22,10 @@
 \************************************************************************/
 
 #include "ui/DockHost.h"
-#include "text/CoreString.h"
+#include "exos-runtime-main.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
 /************************************************************************/
 
@@ -728,11 +731,32 @@ U32 DockHostApplyLayoutFrame(LPDOCK_HOST Host, LPDOCK_LAYOUT_FRAME Frame, LPDOCK
     if (Host == NULL || Frame == NULL || Result == NULL) return DOCK_LAYOUT_STATUS_INVALID_PARAMETER;
 
     Status = Frame->Status;
+    debug("[DockHostApplyLayoutFrame] host=%x frame_status=%u assignments=%u host_rect=%d,%d,%d,%d work_rect=%d,%d,%d,%d",
+        (UINT)(LINEAR)Host,
+        Frame->Status,
+        Frame->AssignmentCount,
+        Frame->HostRect.X1,
+        Frame->HostRect.Y1,
+        Frame->HostRect.X2,
+        Frame->HostRect.Y2,
+        Frame->WorkRect.X1,
+        Frame->WorkRect.Y1,
+        Frame->WorkRect.X2,
+        Frame->WorkRect.Y2);
     for (Index = 0; Index < Frame->AssignmentCount; Index++) {
         Assignment = &(Frame->Assignments[Index]);
         if (Assignment->Dockable == NULL) continue;
         if (Assignment->Dockable->Callbacks.ApplyRect == NULL) continue;
 
+        debug("[DockHostApplyLayoutFrame] assignment index=%u dockable=%x context=%x rect=%d,%d,%d,%d status=%u",
+            Index,
+            (UINT)(LINEAR)Assignment->Dockable,
+            (UINT)(LINEAR)Assignment->Dockable->Context,
+            Assignment->AssignedRect.X1,
+            Assignment->AssignedRect.Y1,
+            Assignment->AssignedRect.X2,
+            Assignment->AssignedRect.Y2,
+            Assignment->Status);
         CallbackStatus = Assignment->Dockable->Callbacks.ApplyRect(
             Assignment->Dockable,
             Host,
@@ -742,6 +766,7 @@ U32 DockHostApplyLayoutFrame(LPDOCK_HOST Host, LPDOCK_LAYOUT_FRAME Frame, LPDOCK
         if (CallbackStatus != DOCK_LAYOUT_STATUS_SUCCESS) {
             Frame->RejectedCount++;
             if (Status == DOCK_LAYOUT_STATUS_SUCCESS) Status = CallbackStatus;
+            debug("[DockHostApplyLayoutFrame] callback rejected index=%u status=%u", Index, CallbackStatus);
         }
     }
 

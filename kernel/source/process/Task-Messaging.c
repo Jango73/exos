@@ -26,6 +26,7 @@
 #include "DisplaySession.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
 #include "Desktop.h"
 #include "../desktop/Desktop-Private.h"
 #include "process/Process-Control.h"
@@ -206,17 +207,17 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
         if (Process->MessageQueue.MessageBuffer.Entries == NULL ||
             Process->MessageQueue.MessageBuffer.Capacity == 0) {
+            UINT MessageBufferSize;
+            LINEAR MessageBufferBase;
+
             if (CreateIfMissing == FALSE) {
                 return FALSE;
             }
 
-            UINT MessageBufferSize = TASK_MESSAGE_QUEUE_MAX_MESSAGES * sizeof(MESSAGE);
-            LINEAR MessageBufferBase = ProcessArenaAllocateSystem(Process,
-                                                                   MessageBufferSize,
-                                                                   ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
-                                                                   TEXT("ProcessMessageBuffer"));
+            MessageBufferSize = TASK_MESSAGE_QUEUE_MAX_MESSAGES * sizeof(MESSAGE);
+            MessageBufferBase = (LINEAR)KernelHeapAlloc(MessageBufferSize);
             if (MessageBufferBase == 0) {
-                ERROR(TEXT("Failed to allocate queue for process %p"), Process);
+                ERROR(TEXT("[EnsureProcessMessageQueue] Failed to allocate queue for process %p"), Process);
                 return FALSE;
             }
 
@@ -709,22 +710,29 @@ BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
         if (Task == NULL) {
             Window = (LPWINDOW)Target;
             SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
-                SAFE_USE_VALID_ID(Window->Task, KOID_TASK) {
-                    SAFE_USE_VALID_ID(Window->Task->OwnerProcess, KOID_PROCESS) {
-                        Desktop = Window->Task->OwnerProcess->Desktop;
-                    }
-                }
-            }
-
-            SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
-                (void)DesktopResolveWindowTarget(Desktop, Target, &Window);
-            } else {
-                Window = NULL;
-            }
-
-            SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
                 Task = Window->Task;
                 MessageTarget = (HANDLE)Window;
+            }
+
+            if (Task == NULL) {
+                SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
+                    SAFE_USE_VALID_ID(Window->Task, KOID_TASK) {
+                        SAFE_USE_VALID_ID(Window->Task->OwnerProcess, KOID_PROCESS) {
+                            Desktop = Window->Task->OwnerProcess->Desktop;
+                        }
+                    }
+                }
+
+                SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
+                    (void)DesktopResolveWindowTarget(Desktop, Target, &Window);
+                } else {
+                    Window = NULL;
+                }
+
+                SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
+                    Task = Window->Task;
+                    MessageTarget = (HANDLE)Window;
+                }
             }
         }
     }
@@ -1006,10 +1014,20 @@ BOOL KernelDispatchMessage(LPMESSAGE_INFO Message) {
     if (Process->TypeID != KOID_PROCESS) return FALSE;
 
     Desktop = Process->Desktop;
-    if (Desktop == NULL) return FALSE;
-    if (Desktop->TypeID != KOID_DESKTOP) return FALSE;
 
-    (void)DesktopResolveWindowTarget(Desktop, Message->Target, &Window);
+    if (Process->Privilege == CPU_PRIVILEGE_KERNEL) {
+        Window = (LPWINDOW)Message->Target;
+        SAFE_USE_VALID_ID(Window, KOID_WINDOW) {}
+        else {
+            Window = NULL;
+        }
+    } else {
+        if (Desktop == NULL) return FALSE;
+        if (Desktop->TypeID != KOID_DESKTOP) return FALSE;
+
+        (void)DesktopResolveWindowTarget(Desktop, Message->Target, &Window);
+    }
+
     SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
         SAFE_USE(Window->Function) {
             TargetHandle = EnsureHandle((LINEAR)Window);

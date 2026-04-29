@@ -22,8 +22,9 @@
 \************************************************************************/
 
 #include "ui/ClockWidget.h"
-#include "text/CoreString.h"
-#include "memory/Heap.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 #include "exos.h"
 
 /***************************************************************************/
@@ -131,12 +132,12 @@ U32 DesktopClockWidgetWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Par
 
     switch (Message) {
         case EWM_CREATE: {
-            State = (LPCLOCK_WIDGET_STATE)HeapAlloc(sizeof(CLOCK_WIDGET_STATE));
+            State = (LPCLOCK_WIDGET_STATE)malloc(sizeof(CLOCK_WIDGET_STATE));
             if (State == NULL) {
                 return 0;
             }
 
-            MemorySet(State, 0, sizeof(CLOCK_WIDGET_STATE));
+            memset(State, 0, sizeof(CLOCK_WIDGET_STATE));
             BrushInfo.Header.Size = sizeof(BrushInfo);
             BrushInfo.Header.Version = EXOS_ABI_VERSION;
             BrushInfo.Header.Flags = 0;
@@ -145,7 +146,7 @@ U32 DesktopClockWidgetWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Par
             BrushInfo.Flags = 0;
             State->Brush = CreateBrush(&BrushInfo);
             if (State->Brush == NULL) {
-                HeapFree(State);
+                free(State);
                 return 0;
             }
 
@@ -161,7 +162,7 @@ U32 DesktopClockWidgetWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Par
                 if (State->Brush != NULL) {
                     (void)DeleteObject(State->Brush);
                 }
-                HeapFree(State);
+                free(State);
                 (void)SetWindowProp(Window, CLOCK_WIDGET_PROP_STATE, 0);
             }
             break;

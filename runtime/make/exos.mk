@@ -104,4 +104,4 @@ $(TARGET_SYMBOLS): $(TARGET)
 	$(NM) $< | awk '{if($$2=="T" || $$2=="t") print $$1 " " $$3}' > $@
 
 clean:
-	rm -rf $(APP_OUT_DIR)/*.o $(TARGET) $(APP_OUT_DIR)/*.elf $(APP_OUT_DIR)/*.bin $(APP_OUT_DIR)/*.map $(TARGET_SYMBOLS)
+	rm -rf $(OBJS) $(TARGET) $(APP_OUT_DIR)/*.elf $(APP_OUT_DIR)/*.bin $(APP_OUT_DIR)/*.map $(TARGET_SYMBOLS)

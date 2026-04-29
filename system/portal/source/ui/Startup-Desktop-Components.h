@@ -30,7 +30,7 @@
 
 /***************************************************************************/
 
-BOOL StartupDesktopComponentsInitialize(LPDESKTOP Desktop);
+BOOL StartupDesktopComponentsInitialize(HANDLE Desktop);
 
 /***************************************************************************/
 
