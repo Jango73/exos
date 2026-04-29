@@ -28,24 +28,24 @@
 /************************************************************************/
 
 #include "Base.h"
+#include "DisplaySession.h"
+#include "User.h"
+#include "core/ID.h"
+#include "fs/File-System.h"
+#include "fs/SystemFS.h"
+#include "memory/Heap.h"
+#include "memory/Memory.h"
+#include "process/Process.h"
+#include "process/Task.h"
+#include "text/CoreString.h"
+#include "text/Text.h"
+#include "user/Account.h"
 #include "utils/Cache.h"
 #include "utils/Database.h"
 #include "utils/HandleMap.h"
-#include "utils/TOML.h"
-#include "fs/FileSystem.h"
-#include "memory/Heap.h"
-#include "core/ID.h"
 #include "utils/List.h"
-#include "memory/Memory.h"
+#include "utils/TOML.h"
 #include "vbr-multiboot.h"
-#include "text/CoreString.h"
-#include "text/Text.h"
-#include "User.h"
-#include "user/Account.h"
-#include "fs/SystemFS.h"
-#include "DisplaySession.h"
-#include "process/Process.h"
-#include "process/Task.h"
 
 /************************************************************************/
 
@@ -124,8 +124,8 @@ typedef struct tag_STARTUP_DRIVER_ENTRY {
 /************************************************************************/
 
 typedef struct tag_KERNEL_DEBUG_STATE {
-    BOOL UseDeadlockMonitor;         // Enable/disable mutex deadlock diagnostics hooks
-    BOOL WindowPipelineTraceEnabled; // Enable/disable visual tracing of the desktop window pipeline
+    BOOL UseDeadlockMonitor;          // Enable/disable mutex deadlock diagnostics hooks
+    BOOL WindowPipelineTraceEnabled;  // Enable/disable visual tracing of the desktop window pipeline
 } KERNEL_DEBUG_STATE, *LPKERNEL_DEBUG_STATE;
 
 /************************************************************************/
@@ -151,28 +151,28 @@ typedef struct tag_KERNEL_DATA {
     LPLIST ExecutableModuleImage;
     LPLIST TCPConnection;
     LPLIST Socket;
-    LPLIST StartupDrivers;          // Driver list in initialization order
-    LPLIST Drivers;                 // List of all known drivers
-    LPLIST WindowClass;             // List of registered window classes
-    LPLIST UserSessions;            // List of active user sessions
-    LPLIST UserAccount;             // List of user accounts
-    DISPLAY_SESSION DisplaySession; // Active display ownership state
-    LPDESKTOP ActiveDesktop;        // Current desktop
-    LPPROCESS FocusedProcess;       // Process with input focus
-    DESKTOP_THEME Theme;           // Global desktop theme runtime state
-    CACHE ObjectTerminationCache;   // Cache for terminated object states with TTL
+    LPLIST StartupDrivers;           // Driver list in initialization order
+    LPLIST Drivers;                  // List of all known drivers
+    LPLIST WindowClass;              // List of registered window classes
+    LPLIST UserSessions;             // List of active user sessions
+    LPLIST UserAccount;              // List of user accounts
+    DISPLAY_SESSION DisplaySession;  // Active display ownership state
+    LPDESKTOP ActiveDesktop;         // Current desktop
+    LPPROCESS FocusedProcess;        // Process with input focus
+    DESKTOP_THEME Theme;             // Global desktop theme runtime state
+    CACHE ObjectTerminationCache;    // Cache for terminated object states with TTL
     FILESYSTEM_GLOBAL_INFO FileSystemInfo;
     SYSTEMFSFILESYSTEM SystemFS;
-    HANDLE_MAP HandleMap;           // Global handle to pointer mapping
+    HANDLE_MAP HandleMap;  // Global handle to pointer mapping
     CPU_INFORMATION CPU;
     LPTOML Configuration;
-    UINT MinimumQuantum;            // Minimum quantum time in milliseconds (adjusted for emulation)
-    UINT MaximumQuantum;            // Maximum quantum time in milliseconds (adjusted for emulation)
-    UINT DeferredWorkWaitTimeoutMS; // Wait timeout for deferred work dispatcher in milliseconds
-    UINT DeferredWorkPollDelayMS;   // Polling delay for deferred work dispatcher in milliseconds
-    BOOL DoLogin;                   // Enable/disable login sequence (TRUE=enable, FALSE=disable)
-    BOOL ShowDesktop;               // Enable/disable automatic desktop activation (TRUE=enable, FALSE=disable)
-    DATETIME BootTime;              // Local date-time recorded during clock initialization
+    UINT MinimumQuantum;             // Minimum quantum time in milliseconds (adjusted for emulation)
+    UINT MaximumQuantum;             // Maximum quantum time in milliseconds (adjusted for emulation)
+    UINT DeferredWorkWaitTimeoutMS;  // Wait timeout for deferred work dispatcher in milliseconds
+    UINT DeferredWorkPollDelayMS;    // Polling delay for deferred work dispatcher in milliseconds
+    BOOL DoLogin;                    // Enable/disable login sequence (TRUE=enable, FALSE=disable)
+    BOOL ShowDesktop;                // Enable/disable automatic desktop activation (TRUE=enable, FALSE=disable)
+    DATETIME BootTime;               // Local date-time recorded during clock initialization
     KERNEL_DEBUG_STATE Debug;
     STR LanguageCode[8];
     STR KeyboardCode[8];

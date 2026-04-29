@@ -16,13 +16,11 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - NEVER create a commit unless the user explicitly asks for it in the current conversation.
 
 ## Architecture and Reuse Rules
-- Never implement one-off local mechanisms when a cross-kernel pattern is involved.
 - Bidirectional coupling is **STRICTLY FORBIDDEN**, both when writing code from scratch and when delivering a fix. Keep dependencies unidirectional and break cycles instead of introducing or preserving them.
 - Any behavior likely to appear in multiple places (rate limit, retry, timeout policy, backoff, filtering, counters) MUST be implemented as a reusable module in `kernel/include/utils` + `kernel/source/utils`.
-- Before adding local logic in a driver/subsystem, check `kernel/include/utils` and `kernel/source/utils` first.
-- If no suitable module exists, create a generic one and use it from the caller.
+- Before adding local logic in a driver/subsystem, check `kernel/include/utils` and `kernel/source/utils` first. If no suitable module exists, create a generic one and use it from the caller.
 - Driver code should only express policy/usage, not duplicate generic mechanics.
-- For log-flood control, use the shared `RateLimiter` helper; do not hardcode ad-hoc counters/cooldowns inside drivers.
+- For log-flood control, use the shared `RateLimiter` helper; do not hardcode ad-hoc counters/cooldowns inside modules.
 - **Mutex ownership**: this rule applies to the whole kernel. Never lock another object's mutex directly to inspect or mutate its internal state. Expose owner-side getters/setters/snapshot helpers, keep critical sections short, and never recurse or call callbacks/messages while holding structural object locks.
 
 ## Coding Conventions

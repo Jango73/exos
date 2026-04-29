@@ -22,8 +22,8 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos.h"
-#include "../../../runtime/include/http.h"
+#include "../../../runtime/include/exos/exos-runtime-http.h"
+#include "../../../runtime/include/exos/exos.h"
 
 /************************************************************************/
 
@@ -167,8 +167,6 @@ int HTTP_ReceiveResponseProgressive(HTTP_CONNECTION* connection, const char* fil
     printf("Finished (%u bytes)\n", bytesWritten);
     return HTTP_SUCCESS;
 }
-
-
 
 /************************************************************************/
 

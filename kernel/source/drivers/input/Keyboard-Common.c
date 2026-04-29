@@ -31,7 +31,7 @@
 #include "memory/Memory.h"
 #include "process/Process.h"
 #include "process/Task.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
 

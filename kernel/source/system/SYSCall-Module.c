@@ -21,26 +21,25 @@
 
 \************************************************************************/
 
-#include "system/SYSCall.h"
-
 #include "core/Kernel.h"
-#include "exec/ExecutableModule.h"
+#include "exec/Executable-Module.h"
 #include "fs/File.h"
 #include "log/Log.h"
 #include "process/Process-Module.h"
 #include "process/Schedule.h"
+#include "system/SYSCall.h"
 #include "utils/ProcessAccess.h"
 
 /***************************************************************************/
 
 // Module load diagnostic stages written to MODULE_LOAD_INFO.Flags.
-#define MODULE_LOAD_STAGE_NONE            0x0
-#define MODULE_LOAD_STAGE_BAD_INPUT       0x1
-#define MODULE_LOAD_STAGE_OPEN_FILE       0x2
-#define MODULE_LOAD_STAGE_IMAGE_ACQUIRE   0x3
+#define MODULE_LOAD_STAGE_NONE 0x0
+#define MODULE_LOAD_STAGE_BAD_INPUT 0x1
+#define MODULE_LOAD_STAGE_OPEN_FILE 0x2
+#define MODULE_LOAD_STAGE_IMAGE_ACQUIRE 0x3
 #define MODULE_LOAD_STAGE_BINDING_ACQUIRE 0x4
 #define MODULE_LOAD_STAGE_INSTALL_SEGMENT 0x5
-#define MODULE_LOAD_STAGE_HANDLE_EXPORT   0x6
+#define MODULE_LOAD_STAGE_HANDLE_EXPORT 0x6
 
 /***************************************************************************/
 
@@ -148,8 +147,7 @@ UINT SysCall_LoadModule(UINT Parameter) {
 
                 if (Handle == 0) {
                     Info->Flags = MODULE_LOAD_STAGE_HANDLE_EXPORT;
-                    WARNING(TEXT("[SysCall_LoadModule] Handle export failed path=%s"),
-                            Info->Path);
+                    WARNING(TEXT("[SysCall_LoadModule] Handle export failed path=%s"), Info->Path);
                     ReleaseProcessModuleBinding(Binding);
                     return DF_RETURN_GENERIC;
                 }
@@ -162,9 +160,7 @@ UINT SysCall_LoadModule(UINT Parameter) {
             }
 
             Info->Flags = FailureStage;
-            WARNING(TEXT("[SysCall_LoadModule] Load failed path=%s stage=%u"),
-                    Info->Path,
-                    FailureStage);
+            WARNING(TEXT("[SysCall_LoadModule] Load failed path=%s stage=%u"), Info->Path, FailureStage);
             return DF_RETURN_GENERIC;
         }
     }
@@ -191,9 +187,7 @@ UINT SysCall_GetModuleSymbol(UINT Parameter) {
         SAFE_USE_VALID((LPCSTR)Info->Name) {
             Binding = (LPEXECUTABLE_MODULE_BINDING)HandleToPointer(Info->Module);
             if (Binding == NULL) {
-                WARNING(TEXT("Invalid module handle=%p name=%s"),
-                        Info->Module,
-                        Info->Name);
+                WARNING(TEXT("Invalid module handle=%p name=%s"), Info->Module, Info->Name);
                 return DF_RETURN_BAD_PARAMETER;
             }
 
@@ -207,36 +201,26 @@ UINT SysCall_GetModuleSymbol(UINT Parameter) {
                 }
 
                 if (SymbolTable != NULL) {
-                    WARNING(TEXT("Resolve failed module=%p name=%s arch=%u sym=%x str=%x sym_size=%u ent=%u str_size=%u"),
-                            Info->Module,
-                            Info->Name,
-                            Binding->Image->Metadata.Architecture,
-                            SymbolTable->SymbolTableAddress,
-                            SymbolTable->StringTableAddress,
-                            SymbolTable->SymbolTableSize,
-                            SymbolTable->SymbolEntrySize,
-                            SymbolTable->StringTableSize);
+                    WARNING(
+                        TEXT("Resolve failed module=%p name=%s arch=%u sym=%x str=%x sym_size=%u ent=%u str_size=%u"),
+                        Info->Module, Info->Name, Binding->Image->Metadata.Architecture,
+                        SymbolTable->SymbolTableAddress, SymbolTable->StringTableAddress, SymbolTable->SymbolTableSize,
+                        SymbolTable->SymbolEntrySize, SymbolTable->StringTableSize);
                 } else {
-                    WARNING(TEXT("Resolve failed module=%p name=%s no-image"),
-                            Info->Module,
-                            Info->Name);
+                    WARNING(TEXT("Resolve failed module=%p name=%s no-image"), Info->Module, Info->Name);
                 }
                 return DF_RETURN_GENERIC;
             }
 
-            WARNING(TEXT("Module access denied handle=%p name=%s"),
-                    Info->Module,
-                    Info->Name);
+            WARNING(TEXT("Module access denied handle=%p name=%s"), Info->Module, Info->Name);
             return DF_RETURN_BAD_PARAMETER;
         }
 
-        WARNING(TEXT("Invalid symbol name pointer module=%p"),
-                Info->Module);
+        WARNING(TEXT("Invalid symbol name pointer module=%p"), Info->Module);
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    WARNING(TEXT("Invalid input pointer param=%x"),
-            Parameter);
+    WARNING(TEXT("Invalid input pointer param=%x"), Parameter);
     return DF_RETURN_BAD_PARAMETER;
 }
 

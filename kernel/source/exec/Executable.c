@@ -24,8 +24,8 @@
 
 #include "exec/Executable.h"
 
-#include "exec/ExecutableELF.h"
-#include "exec/ExecutableEXOS.h"
+#include "exec/Executable-ELF.h"
+#include "exec/Executable-EXOS.h"
 #include "log/Log.h"
 #include "text/CoreString.h"
 

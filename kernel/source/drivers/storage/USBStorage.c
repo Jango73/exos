@@ -26,11 +26,11 @@
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "drivers/storage/USBStorage-Private.h"
-#include "fs/FileSystem.h"
+#include "fs/File-System.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Task-Messaging.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
 #include "utils/Helpers.h"
@@ -84,8 +84,8 @@ static void USBStorageLogScan(LPXHCI_USB_DEVICE UsbDevice, LPXHCI_USB_INTERFACE 
     }
 
     WARNING(
-        TEXT("Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"),
-        (U32)UsbDevice->PortNumber, (U32)UsbDevice->Address, (U32)Interface->Number, (U32)Interface->InterfaceClass,
+        TEXT("Port=%u Addr=%u If=%u Class=%x/%x/%x reason=%s suppressed=%u"), (U32)UsbDevice->PortNumber,
+        (U32)UsbDevice->Address, (U32)Interface->Number, (U32)Interface->InterfaceClass,
         (U32)Interface->InterfaceSubClass, (U32)Interface->InterfaceProtocol, (Reason != NULL) ? Reason : TEXT("?"),
         Suppressed);
 }
@@ -472,8 +472,8 @@ static BOOL USBStorageStartDevice(
     }
 
     DEBUG(
-        TEXT("USB disk addr=%x blocks=%u block_size=%u"), (U32)UsbDevice->Address,
-        Device->BlockCount, Device->BlockSize);
+        TEXT("USB disk addr=%x blocks=%u block_size=%u"), (U32)UsbDevice->Address, Device->BlockCount,
+        Device->BlockSize);
 
     return TRUE;
 }

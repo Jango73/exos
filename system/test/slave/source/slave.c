@@ -22,8 +22,8 @@
 
 \************************************************************************/
 
-#include "../../../../runtime/include/exos-runtime.h"
-#include "../../../../runtime/include/exos.h"
+#include "../../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../../runtime/include/exos/exos.h"
 
 /***************************************************************************/
 
@@ -54,7 +54,9 @@ void WorkerTask(void* arg) {
             ElapsedTime += 100;
         }
 
-        printf("Task %d completed iteration %d (calculation result: %d)\n", TaskId, IterationCount + 1, calculation % 1000);
+        printf(
+            "Task %d completed iteration %d (calculation result: %d)\n", TaskId, IterationCount + 1,
+            calculation % 1000);
         IterationCount++;
     }
 

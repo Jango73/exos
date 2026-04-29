@@ -59,7 +59,7 @@ CFLAGS          = -D__KERNEL__ $(DEBUG_CFLAGS) -Wall -Wextra -O0 -falign-functio
                   -DDEBUG_OUTPUT=$(DEBUG_OUTPUT) -DDEBUG_SPLIT=$(DEBUG_SPLIT) -DFORCE_PIC=$(FORCE_PIC) -DSCHEDULING_DEBUG_OUTPUT=$(SCHEDULING_DEBUG_OUTPUT) -DTRACE_STACK_USAGE=$(TRACE_STACK_USAGE) -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) -DSYSTEM_DATA_VIEW=$(SYSTEM_DATA_VIEW) \
                   -DCONFIG_VMA_KERNEL=$(VMA_KERNEL) \
                   -DKERNEL_CONFIG_NAME=\"$(CONFIG_TOML_NAME)\" -DKERNEL_CONFIG_NAME_UPPER=\"$(CONFIG_TOML_NAME_UPPER)\" \
-                  -Iinclude -Iinclude/desktop -I../third -I../third/include -I../runtime/include -I../third/bearssl/inc -I../third/bearssl/src -I../third/miniz -I../third/monocypher/src -I../third/monocypher/src/optional
+                  -Iinclude -Iinclude/desktop -I../third -I../third/include -I../runtime/include -I../runtime/include/stdlib -I../runtime/include/exos -I../third/bearssl/inc -I../third/bearssl/src -I../third/miniz -I../third/monocypher/src -I../third/monocypher/src/optional
 CFLAGS         += $(ARCH_CFLAGS)
 ifeq ($(KERNEL_LOG_DEFAULT_TAG_FILTER_SET),1)
 CFLAGS         += -DKERNEL_LOG_DEFAULT_TAG_FILTER=\"$(KERNEL_LOG_DEFAULT_TAG_FILTER)\"
@@ -135,7 +135,7 @@ SRC_C  = $(wildcard source/*.c) \
          ../third/monocypher/src/monocypher.c \
          ../third/monocypher/src/optional/monocypher-ed25519.c \
          ../third/utf8-hoehrmann/utf8-hoehrmann.c \
-         ../runtime/source/exos-runtime-c.c
+         ../runtime/source/exos-runtime-main.c
 SRC_S  = $(wildcard source/asm/*.asm) \
          $(wildcard source/arch/$(ARCH)/asm/*.asm)
 

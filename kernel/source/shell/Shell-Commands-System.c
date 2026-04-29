@@ -22,9 +22,10 @@
 
 \************************************************************************/
 
-#include "shell/Shell-Commands-Private.h"
-#include "shell/Shell-EmbeddedScripts.h"
 #include "autotest/Autotest.h"
+#include "shell/Shell-Commands-Private.h"
+#include "shell/Shell-Embedded-Scripts.h"
+#include "text/Text.h"
 #include "utils/SizeFormat.h"
 
 /************************************************************************/
@@ -35,9 +36,7 @@
  * @param Alias Driver alias.
  * @return `DF_RETURN_*` status code.
  */
-static UINT RunEmbeddedDriverDetailsScript(
-    LPSHELLCONTEXT Context,
-    LPCSTR Alias) {
+static UINT RunEmbeddedDriverDetailsScript(LPSHELLCONTEXT Context, LPCSTR Alias) {
     STR ScriptText[4096];
 
     if (Context == NULL || Alias == NULL || StringLength(Alias) == 0) {
@@ -45,9 +44,7 @@ static UINT RunEmbeddedDriverDetailsScript(
     }
 
     StringPrintFormat(
-        ScriptText,
-        TEXT("target_alias = \"%s\";\n%s"),
-        Alias,
+        ScriptText, TEXT("target_alias = \"%s\";\n%s"), Alias,
         ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DRIVER_DETAILS));
     return RunEmbeddedScript(Context, ScriptText);
 }
@@ -85,8 +82,7 @@ U32 CMD_driver(LPSHELLCONTEXT Context) {
 U32 CMD_task(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("list")) != 0) {
         ConsolePrint(TEXT("Usage: task list\n"));
         return DF_RETURN_SUCCESS;
     }
@@ -112,7 +108,6 @@ U32 CMD_memorymap(LPSHELLCONTEXT Context) {
 /************************************************************************/
 
 U32 CMD_disasm(LPSHELLCONTEXT Context) {
-
     U32 Address = 0;
     U32 InstrCount = 0;
     STR Buffer[MAX_STRING_BUFFER];
@@ -137,7 +132,6 @@ U32 CMD_disasm(LPSHELLCONTEXT Context) {
         ConsolePrint(TEXT("Missing parameter\n"));
     }
 
-
     return DF_RETURN_SUCCESS;
 }
 
@@ -146,8 +140,7 @@ U32 CMD_disasm(LPSHELLCONTEXT Context) {
 U32 CMD_network(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        StringCompareNC(Context->Command, TEXT("devices")) != 0) {
+    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("devices")) != 0) {
         ConsolePrint(TEXT("Usage: network devices\n"));
         return DF_RETURN_SUCCESS;
     }
@@ -230,14 +223,8 @@ static void PrintProfileEntry(LPPROFILE_ENTRY_INFO Entry) {
     }
 
     PrintProfileDumpLine(
-        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us"),
-        Entry->Name,
-        Entry->CallCount,
-        Entry->TimedCallCount,
-        Entry->LastTicks,
-        Average,
-        Entry->MaxTicks,
-        Entry->TotalTicks);
+        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us"), Entry->Name, Entry->CallCount,
+        Entry->TimedCallCount, Entry->LastTicks, Average, Entry->MaxTicks, Entry->TotalTicks);
 }
 
 /************************************************************************/
@@ -283,12 +270,10 @@ U32 CMD_prof(LPSHELLCONTEXT Context) {
         PrintProfileEntry(&Entries[Index]);
     }
 
-    PrintProfileDumpLine(TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s"),
-                         Query.EntryCount,
-                         Query.TotalEntryCount,
-                         Query.SampleCount,
-                         Query.DroppedCount,
-                         (Query.Flags & PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
+    PrintProfileDumpLine(
+        TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s"), Query.EntryCount, Query.TotalEntryCount,
+        Query.SampleCount, Query.DroppedCount,
+        (Query.Flags & PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
     return DF_RETURN_SUCCESS;
 }
 
@@ -343,12 +328,11 @@ U32 CMD_dataview(LPSHELLCONTEXT Context) {
 U32 CMD_usb(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        (StringCompareNC(Context->Command, TEXT("ports")) != 0 &&
-         StringCompareNC(Context->Command, TEXT("devices")) != 0 &&
-         StringCompareNC(Context->Command, TEXT("device-tree")) != 0 &&
-         StringCompareNC(Context->Command, TEXT("drives")) != 0 &&
-         StringCompareNC(Context->Command, TEXT("probe")) != 0)) {
+    if (StringLength(Context->Command) == 0 || (StringCompareNC(Context->Command, TEXT("ports")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("devices")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("device-tree")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("drives")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("probe")) != 0)) {
         ConsolePrint(TEXT("Usage: usb ports|devices|device-tree|drives|probe\n"));
         return DF_RETURN_SUCCESS;
     }
@@ -378,10 +362,19 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
 U32 CMD_nvme(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("list")) != 0) {
         ConsolePrint(TEXT("Usage: nvme list\n"));
         return DF_RETURN_SUCCESS;
     }
     return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_NVME_LIST));
+}
+
+/************************************************************************/
+
+U32 CMD_credits(LPSHELLCONTEXT Context) {
+    UNUSED(Context);
+
+    ConsolePrint(Text_Credits);
+
+    return DF_RETURN_SUCCESS;
 }

@@ -26,8 +26,8 @@
 
 /***************************************************************************/
 
+#include "exec/Executable-Module.h"
 #include "process/Process.h"
-#include "exec/ExecutableModule.h"
 
 /***************************************************************************/
 
@@ -78,28 +78,15 @@ LPEXECUTABLE_MODULE_BINDING FindProcessModuleBinding(LPPROCESS Process, LPEXECUT
 LPEXECUTABLE_MODULE_BINDING AcquireProcessModuleBinding(LPPROCESS Process, LPEXECUTABLE_MODULE_IMAGE Image);
 void ReleaseProcessModuleBinding(LPEXECUTABLE_MODULE_BINDING Binding);
 BOOL SetProcessModuleBindingSegmentBase(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    UINT SegmentIndex,
-    LINEAR Base);
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, UINT SegmentIndex, LINEAR Base);
 BOOL SetProcessModuleBindingLayout(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LINEAR WritableDataBase,
-    LINEAR GlobalOffsetTableBase,
-    LINEAR ProcedureLinkageTableBase,
-    LINEAR BookkeepingBase,
-    U32 StateFlags);
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR WritableDataBase, LINEAR GlobalOffsetTableBase,
+    LINEAR ProcedureLinkageTableBase, LINEAR BookkeepingBase, U32 StateFlags);
 BOOL AddProcessModuleBindingDependency(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPEXECUTABLE_MODULE_BINDING Dependency);
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LPEXECUTABLE_MODULE_BINDING Dependency);
 LINEAR MapProcessModuleBindingAddress(LPVOID Context, UINT VirtualAddress);
 BOOL ResolveProcessModuleBindingExport(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPCSTR Name,
-    LINEAR* Address);
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LPCSTR Name, LINEAR* Address);
 BOOL InitializeProcessModuleTls(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding);
 BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding);
 void DeleteExecutableModuleBinding(LPEXECUTABLE_MODULE_BINDING Binding);

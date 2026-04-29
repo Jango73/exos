@@ -47,6 +47,9 @@ Quick note on license "contamination" (copyleft propagation):
 
 ./scripts/linux/setup/setup-qemu.sh		<- if you want a recent QEMU (9.0.2)
 
+./scripts/linux/setup/update-submodules.sh   <- initialize/sync submodules
+./scripts/linux/setup/update-submodules.sh --remote   <- update submodules from remotes
+
 #### Build (Disk image with ext2)
 
 ./scripts/linux/build/build --arch <x86-32|x86-64> --fs ext2 --release (or --debug)
@@ -169,11 +172,11 @@ Bm437_IBM_VGA_8x16.otb from the Ultimate Oldschool PC Font Pack by VileR, licens
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C                              375          35649          36727         121576
-C/C++ Header                   274           6576           7051          16699
+C                              378          35737          36873         121370
+C/C++ Header                   274           6581           7051          16695
 Assembly                        22           1994           1249           6952
 -------------------------------------------------------------------------------
-SUM:                           671          44219          45027         145227
+SUM:                           674          44312          45173         145017
 -------------------------------------------------------------------------------
 ```
 

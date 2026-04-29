@@ -43,7 +43,42 @@
 
 - [x] Implement stdin/stdout/stderr
 
+- [x] Renaming
+  - [x] Rename ExecutableELF-Metadata.* -> Executable-ELF-Metadata.*
+  - [x] Rename ExecutableELF-Private.* -> Executable-ELF-Private.*
+  - [x] Rename ExecutableELF.* -> Executable-ELF.*
+  - [x] Rename ExecutableEXOS.* -> Executable-EXOS.*
+  - [x] Rename ExecutableModule-Relocation.* -> Executable-Module-Relocation.*
+  - [x] Rename ExecutableModule.* -> Executable-Module.*
+  - [x] Rename FileSystem.* -> File-System.*
+  - [x] Rename BuddyAllocator.* -> Buddy-Allocator.*
+  - [x] Rename EpkParser.* -> Epk-Parser.*
+  - [x] Rename Shell-EmbeddedScripts.* -> Shell-Embedded-Scripts.*
+  - [x] Rename DeferredWork.* -> Deferred-Work.*
+  - [x] Rename DeferredWorkQueue.* -> Deferred-Work-Queue.*
+
+- [x] Clean up runtime folder
+  - [x] Move stdlib & posix headers from runtime/include/ to runtime/include/stdlib/
+  - [x] Move exos headers from runtime/include/ to runtime/include/exos/
+  - [x] Rename exos-runtime.h -> exos-runtime-main.h
+  - [x] Rename exos-string.h -> exos-runtime-string.h
+  - [x] Rename http.h -> exos-runtime-http.h
+  - [x] Rename exos-runtime-c.c -> exos-runtime-main.c
+  - [x] Rename exos-string.c -> exos-runtime-string.c
+  - [x] Rename http.c -> exos-runtime-http.c
+  - [x] Create exos-window.c and move windowing functions from exos.c to exos-window.c
+
+- [ ] Remove UI components from kernel and cleanup
+  - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.
+  - Clean up kernel (no kernel module should include "exos.h") :
+    - Rename KernelPeekMessage -> PeekMessage
+    - Rename KernelGetMessage -> GetMessage
+    - Rename KernelDispatchMessage -> DispatchMessage
+    - Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
+    - There must be no conflict between functions in kernel and functions in runtime
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
+- [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
 - [ ] Execute iGPU.md : Step 11

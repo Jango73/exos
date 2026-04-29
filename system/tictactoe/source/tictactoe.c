@@ -22,9 +22,9 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos-runtime.h"
-#include "../../../runtime/include/exos.h"
 #include "../../../kernel/include/input/VKey.h"
+#include "../../../runtime/include/exos/exos-runtime-main.h"
+#include "../../../runtime/include/exos/exos.h"
 
 /************************************************************************/
 
@@ -39,13 +39,7 @@ typedef struct {
 } GAME_STATE;
 
 volatile GAME_STATE gameState = {
-    .cursorX = 0,
-    .cursorY = 0,
-    .playerWins = 0,
-    .computerWins = 0,
-    .ties = 0,
-    .gamesPlayed = 0
-};
+    .cursorX = 0, .cursorY = 0, .playerWins = 0, .computerWins = 0, .ties = 0, .gamesPlayed = 0};
 
 /************************************************************************/
 
@@ -81,8 +75,9 @@ void DisplayFullScreen(void) {
     printf("==============================================================================");
 
     GotoCursor(0, 4);
-    printf("Games Played: %d  |  Player Wins: %d  |  Computer Wins: %d  |  Ties: %d",
-           gameState.gamesPlayed, gameState.playerWins, gameState.computerWins, gameState.ties);
+    printf(
+        "Games Played: %d  |  Player Wins: %d  |  Computer Wins: %d  |  Ties: %d", gameState.gamesPlayed,
+        gameState.playerWins, gameState.computerWins, gameState.ties);
 
     GotoCursor(0, 6);
     printf("                          Use Arrow Keys to Move");
@@ -136,10 +131,8 @@ int CheckWin(char player) {
         if (gameState.board[0][i] == player && gameState.board[1][i] == player && gameState.board[2][i] == player)
             return 1;
     }
-    if (gameState.board[0][0] == player && gameState.board[1][1] == player && gameState.board[2][2] == player)
-        return 1;
-    if (gameState.board[0][2] == player && gameState.board[1][1] == player && gameState.board[2][0] == player)
-        return 1;
+    if (gameState.board[0][0] == player && gameState.board[1][1] == player && gameState.board[2][2] == player) return 1;
+    if (gameState.board[0][2] == player && gameState.board[1][1] == player && gameState.board[2][0] == player) return 1;
     return 0;
 }
 
@@ -148,8 +141,7 @@ int CheckWin(char player) {
 int IsBoardFull(void) {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            if (gameState.board[i][j] == ' ')
-                return 0;
+            if (gameState.board[i][j] == ' ') return 0;
         }
     }
     return 1;
@@ -247,7 +239,7 @@ int PlayGame(void) {
     gameState.cursorX = 1;
     gameState.cursorY = 1;
 
-    while(1) {
+    while (1) {
         DisplayFullScreen();
 
         int key = getkey();
@@ -321,14 +313,15 @@ int main(int argc, char** argv) {
 
     ConsoleClear();
 
-    while(1) {
+    while (1) {
         if (!PlayGame()) {
             ConsoleClear();
             GotoCursor(0, 0);
             printf("Thanks for playing Tic-Tac-Toe!");
             GotoCursor(0, 1);
-            printf("Final Stats - Games: %d, Player Wins: %d, Computer Wins: %d, Ties: %d\n",
-                   gameState.gamesPlayed, gameState.playerWins, gameState.computerWins, gameState.ties);
+            printf(
+                "Final Stats - Games: %d, Player Wins: %d, Computer Wins: %d, Ties: %d\n", gameState.gamesPlayed,
+                gameState.playerWins, gameState.computerWins, gameState.ties);
             break;
         }
     }

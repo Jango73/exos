@@ -28,7 +28,7 @@
 /***************************************************************************/
 
 #include "core/ID.h"
-#include "fs/FileSystem.h"
+#include "fs/File-System.h"
 
 /***************************************************************************/
 
@@ -268,8 +268,7 @@ BOOL NtfsReadFileRecord(LPFILESYSTEM FileSystem, U32 Index, LPNTFS_FILE_RECORD_I
  * @param BytesReadOut Optional output for number of bytes copied to Buffer.
  * @return TRUE on success, FALSE on read or validation failure.
  */
-BOOL NtfsReadFileDataByIndex(
-    LPFILESYSTEM FileSystem, U32 Index, LPVOID Buffer, U32 BufferSize, U32* BytesReadOut);
+BOOL NtfsReadFileDataByIndex(LPFILESYSTEM FileSystem, U32 Index, LPVOID Buffer, U32 BufferSize, U32* BytesReadOut);
 
 /***************************************************************************/
 
@@ -284,8 +283,7 @@ BOOL NtfsReadFileDataByIndex(
  * @param IsFolderOut Optional output folder/file flag for resolved record.
  * @return TRUE on success, FALSE when one component is missing or invalid.
  */
-BOOL NtfsResolvePathToIndex(
-    LPFILESYSTEM FileSystem, LPCSTR Path, U32* IndexOut, BOOL* IsFolderOut);
+BOOL NtfsResolvePathToIndex(LPFILESYSTEM FileSystem, LPCSTR Path, U32* IndexOut, BOOL* IsFolderOut);
 
 /***************************************************************************/
 
@@ -302,8 +300,7 @@ BOOL NtfsResolvePathToIndex(
  * @param BytesReadOut Optional output for number of bytes copied to Buffer.
  * @return TRUE on success, FALSE on lookup or read failure.
  */
-BOOL NtfsReadFileDataByPath(
-    LPFILESYSTEM FileSystem, LPCSTR Path, LPVOID Buffer, U32 BufferSize, U32* BytesReadOut);
+BOOL NtfsReadFileDataByPath(LPFILESYSTEM FileSystem, LPCSTR Path, LPVOID Buffer, U32 BufferSize, U32* BytesReadOut);
 
 /***************************************************************************/
 
@@ -322,11 +319,7 @@ BOOL NtfsReadFileDataByPath(
  * @return TRUE on success, FALSE on malformed metadata or read failure.
  */
 BOOL NtfsEnumerateFolderByIndex(
-    LPFILESYSTEM FileSystem,
-    U32 FolderIndex,
-    LPNTFS_FOLDER_ENTRY_INFO Entries,
-    U32 MaxEntries,
-    U32* EntryCountOut,
+    LPFILESYSTEM FileSystem, U32 FolderIndex, LPNTFS_FOLDER_ENTRY_INFO Entries, U32 MaxEntries, U32* EntryCountOut,
     U32* TotalEntriesOut);
 
 /***************************************************************************/
@@ -346,11 +339,7 @@ BOOL NtfsEnumerateFolderByIndex(
  * @return TRUE on success, FALSE on malformed metadata or read failure.
  */
 BOOL NtfsEnumerateFolderByIndexWindow(
-    LPFILESYSTEM FileSystem,
-    U32 FolderIndex,
-    U32 StartEntryIndex,
-    LPNTFS_FOLDER_ENTRY_INFO Entries,
-    U32 MaxEntries,
+    LPFILESYSTEM FileSystem, U32 FolderIndex, U32 StartEntryIndex, LPNTFS_FOLDER_ENTRY_INFO Entries, U32 MaxEntries,
     U32* EntryCountOut);
 
 /***************************************************************************/

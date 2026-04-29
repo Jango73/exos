@@ -181,30 +181,30 @@ typedef struct PACKED tag_ABI_HEADER {
 /* Console Colors                                                        */
 /************************************************************************/
 
-#define CONSOLE_BLACK           0
-#define CONSOLE_BLUE            1
-#define CONSOLE_GREEN           2
-#define CONSOLE_CYAN            3
-#define CONSOLE_RED             4
-#define CONSOLE_MAGENTA         5
-#define CONSOLE_BROWN           6
-#define CONSOLE_GRAY            7
-#define CONSOLE_DARK_GRAY       8
-#define CONSOLE_LIGHT_BLUE      9
-#define CONSOLE_LIGHT_GREEN     10
-#define CONSOLE_LIGHT_CYAN      11
-#define CONSOLE_SALMON          12
-#define CONSOLE_LIGHT_MAGENTA   13
-#define CONSOLE_YELLOW          14
-#define CONSOLE_WHITE           15
+#define CONSOLE_BLACK 0
+#define CONSOLE_BLUE 1
+#define CONSOLE_GREEN 2
+#define CONSOLE_CYAN 3
+#define CONSOLE_RED 4
+#define CONSOLE_MAGENTA 5
+#define CONSOLE_BROWN 6
+#define CONSOLE_GRAY 7
+#define CONSOLE_DARK_GRAY 8
+#define CONSOLE_LIGHT_BLUE 9
+#define CONSOLE_LIGHT_GREEN 10
+#define CONSOLE_LIGHT_CYAN 11
+#define CONSOLE_SALMON 12
+#define CONSOLE_LIGHT_MAGENTA 13
+#define CONSOLE_YELLOW 14
+#define CONSOLE_WHITE 15
 
 /************************************************************************/
 /* Key modifier flags                                                   */
 /************************************************************************/
 
-#define KEYMOD_SHIFT            0x00000001
-#define KEYMOD_CONTROL          0x00000002
-#define KEYMOD_ALT              0x00000004
+#define KEYMOD_SHIFT 0x00000001
+#define KEYMOD_CONTROL 0x00000002
+#define KEYMOD_ALT 0x00000004
 
 /************************************************************************/
 // Authentication Services
@@ -247,6 +247,8 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_GetWindowStyle 0x0000004F
 #define SYSCALL_SetWindowProp 0x00000050
 #define SYSCALL_GetWindowProp 0x00000051
+#define SYSCALL_SetWindowCaption 0x00000096
+#define SYSCALL_SetWindowTimer 0x00000097
 #define SYSCALL_GetWindowRect 0x00000052
 #define SYSCALL_GetWindowClientRect 0x0000007C
 #define SYSCALL_GetWindowParent 0x0000008B
@@ -285,36 +287,37 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_DrawWindowBackground 0x00000082
 #define SYSCALL_ApplyDesktopTheme 0x00000088
 #define SYSCALL_SetGraphicsDriver 0x0000008A
+#define SYSCALL_GetGCSurface 0x0000008B
 
 /************************************************************************/
 // Network Socket Services
 
-#define SYSCALL_SocketCreate      0x00000068
-#define SYSCALL_SocketShutdown    0x00000069
-#define SYSCALL_SocketBind        0x0000006A
-#define SYSCALL_SocketListen      0x0000006B
-#define SYSCALL_SocketAccept      0x0000006C
-#define SYSCALL_SocketConnect     0x0000006D
-#define SYSCALL_SocketSend        0x0000006E
-#define SYSCALL_SocketReceive     0x0000006F
-#define SYSCALL_SocketSendTo      0x00000070
+#define SYSCALL_SocketCreate 0x00000068
+#define SYSCALL_SocketShutdown 0x00000069
+#define SYSCALL_SocketBind 0x0000006A
+#define SYSCALL_SocketListen 0x0000006B
+#define SYSCALL_SocketAccept 0x0000006C
+#define SYSCALL_SocketConnect 0x0000006D
+#define SYSCALL_SocketSend 0x0000006E
+#define SYSCALL_SocketReceive 0x0000006F
+#define SYSCALL_SocketSendTo 0x00000070
 #define SYSCALL_SocketReceiveFrom 0x00000071
-#define SYSCALL_SocketClose       0x00000072
-#define SYSCALL_SocketGetOption   0x00000073
-#define SYSCALL_SocketSetOption   0x00000074
+#define SYSCALL_SocketClose 0x00000072
+#define SYSCALL_SocketGetOption 0x00000073
+#define SYSCALL_SocketSetOption 0x00000074
 #define SYSCALL_SocketGetPeerName 0x00000075
 #define SYSCALL_SocketGetSocketName 0x00000076
 
 /************************************************************************/
 
-#define SYSCALL_Last 0x00000095
+#define SYSCALL_Last 0x00000097
 
 /************************************************************************/
 // Structure limits
 
 #define WAIT_INFO_MAX_OBJECTS 32
-#define PROFILE_MAX_ENTRIES   64
-#define PROFILE_NAME_LENGTH   64
+#define PROFILE_MAX_ENTRIES 64
+#define PROFILE_NAME_LENGTH 64
 
 /************************************************************************/
 // ABI Data Structures
@@ -332,13 +335,13 @@ typedef BOOL (*ENUMVOLUMESFUNC)(HANDLE, LPVOID);
 // A datetime
 
 typedef struct tag_DATETIME {
-    U32 Year : 26;              // 67 108 863
-    U32 Month : 4;              // 15
-    U32 Day : 6;                // 63
-    U32 Hour : 6;               // 63
-    U32 Minute : 6;             // 63
-    U32 Second : 6;             // 63
-    U32 Milli : 10;             // 1023
+    U32 Year : 26;   // 67 108 863
+    U32 Month : 4;   // 15
+    U32 Day : 6;     // 63
+    U32 Hour : 6;    // 63
+    U32 Minute : 6;  // 63
+    U32 Second : 6;  // 63
+    U32 Milli : 10;  // 1023
 } DATETIME, *LPDATETIME;
 
 typedef struct PACKED tag_SYSTEM_INFO {
@@ -435,8 +438,8 @@ typedef struct PACKED tag_CONSOLE_BLIT_BUFFER {
     UINT ForeColor;
     UINT BackColor;
     UINT TextPitch;
-    const U8* Attr;      /* Fore | (Back << 4) per cell, optional */
-    UINT AttrPitch;      /* Bytes per row in Attr when provided */
+    const U8* Attr; /* Fore | (Back << 4) per cell, optional */
+    UINT AttrPitch; /* Bytes per row in Attr when provided */
 } CONSOLE_BLIT_BUFFER, *LPCONSOLE_BLIT_BUFFER;
 
 typedef struct PACKED tag_CONSOLE_MODE_INFO {
@@ -549,9 +552,9 @@ typedef struct PACKED tag_PIPE_INFO {
 
 typedef struct PACKED tag_FILE_FIND_INFO {
     ABI_HEADER Header;
-    LPCSTR Path;         // Base directory to search
-    LPCSTR Pattern;      // Wildcard pattern (supports '*')
-    HANDLE SearchHandle; // Internal search state
+    LPCSTR Path;          // Base directory to search
+    LPCSTR Pattern;       // Wildcard pattern (supports '*')
+    HANDLE SearchHandle;  // Internal search state
     U32 Attributes;
     STR Name[MAX_FILE_NAME];
 } FILE_FIND_INFO, *LPFILE_FIND_INFO;
@@ -610,6 +613,19 @@ typedef struct PACKED tag_PROP_INFO {
     LPCSTR Name;
     UINT Value;
 } PROP_INFO, *LPPROP_INFO;
+
+typedef struct PACKED tag_WINDOW_CAPTION {
+    ABI_HEADER Header;
+    HANDLE Window;
+    U8 Text[MAX_WINDOW_CAPTION];
+} WINDOW_CAPTION, *LPWINDOW_CAPTION;
+
+typedef struct PACKED tag_TIMER_INFO {
+    ABI_HEADER Header;
+    HANDLE Window;
+    U32 TimerID;
+    U32 Interval;
+} TIMER_INFO, *LPTIMER_INFO;
 
 typedef struct PACKED tag_WINDOW_CLASS_QUERY_INFO {
     ABI_HEADER Header;
@@ -704,6 +720,15 @@ typedef struct PACKED tag_RECT_INFO {
     I32 CornerRadius;
     U32 CornerStyle;
 } RECT_INFO, *LPRECT_INFO;
+
+typedef struct PACKED tag_GC_SURFACE_INFO {
+    ABI_HEADER Header;
+    HANDLE GC;
+    I32 Width;
+    I32 Height;
+    I32 Pitch;
+    U8* MemoryBase;
+} GC_SURFACE_INFO, *LPGC_SURFACE_INFO;
 
 typedef struct PACKED tag_WINDOW_BACKGROUND_INFO {
     ABI_HEADER Header;
@@ -804,9 +829,9 @@ typedef struct PACKED tag_CURRENT_USER_INFO {
 
 typedef struct PACKED tag_SOCKET_CREATE_INFO {
     ABI_HEADER Header;
-    U16 AddressFamily;    // SOCKET_AF_INET
-    U16 SocketType;       // SOCKET_TYPE_STREAM, SOCKET_TYPE_DGRAM
-    U16 Protocol;         // SOCKET_PROTOCOL_TCP, SOCKET_PROTOCOL_UDP
+    U16 AddressFamily;  // SOCKET_AF_INET
+    U16 SocketType;     // SOCKET_TYPE_STREAM, SOCKET_TYPE_DGRAM
+    U16 Protocol;       // SOCKET_PROTOCOL_TCP, SOCKET_PROTOCOL_UDP
 } SOCKET_CREATE_INFO, *LPSOCKET_CREATE_INFO;
 
 typedef struct PACKED tag_SOCKET_BIND_INFO {
@@ -866,14 +891,14 @@ typedef struct PACKED tag_SOCKET_SHUTDOWN_INFO {
 
 typedef struct PACKED tag_SOCKET_ADDRESS {
     U16 AddressFamily;
-    U8  Data[14];
+    U8 Data[14];
 } SOCKET_ADDRESS, *LPSOCKET_ADDRESS;
 
 typedef struct PACKED tag_SOCKET_ADDRESS_INET {
-    U16 AddressFamily;      // SOCKET_AF_INET
-    U16 Port;               // Port in network byte order
-    U32 Address;            // IPv4 address in network byte order
-    U8  Zero[8];            // Padding to 16 bytes
+    U16 AddressFamily;  // SOCKET_AF_INET
+    U16 Port;           // Port in network byte order
+    U32 Address;        // IPv4 address in network byte order
+    U8 Zero[8];         // Padding to 16 bytes
 } SOCKET_ADDRESS_INET, *LPSOCKET_ADDRESS_INET;
 
 #define ROOT "/"
@@ -961,7 +986,7 @@ typedef struct PACKED tag_SOCKET_ADDRESS_INET {
 #define EWS_CLOSE_BUTTON_VISIBLE 0x0080
 #define EWS_MINIMIZE_BUTTON_VISIBLE 0x0100
 #define EWS_MAXIMIZE_BUTTON_VISIBLE 0x0200
-#define EWS_TITLE_BAR_BUTTONS_VISIBLE_MASK                                                                  \
+#define EWS_TITLE_BAR_BUTTONS_VISIBLE_MASK \
     (EWS_CLOSE_BUTTON_VISIBLE | EWS_MINIMIZE_BUTTON_VISIBLE | EWS_MAXIMIZE_BUTTON_VISIBLE)
 #define EWS_DECORATION_MASK (EWS_SYSTEM_DECORATED | EWS_CLIENT_DECORATED | EWS_BARE_SURFACE)
 
@@ -1117,47 +1142,47 @@ typedef struct PACKED tag_SOCKET_ADDRESS_INET {
 // Socket Constants
 
 // Socket Address Family
-#define SOCKET_AF_UNSPEC    0
-#define SOCKET_AF_INET      2
-#define SOCKET_AF_INET6     10
+#define SOCKET_AF_UNSPEC 0
+#define SOCKET_AF_INET 2
+#define SOCKET_AF_INET6 10
 
 // Socket Type
-#define SOCKET_TYPE_STREAM     1  // TCP
-#define SOCKET_TYPE_DGRAM      2  // UDP
-#define SOCKET_TYPE_RAW        3  // Raw socket
+#define SOCKET_TYPE_STREAM 1  // TCP
+#define SOCKET_TYPE_DGRAM 2   // UDP
+#define SOCKET_TYPE_RAW 3     // Raw socket
 
 // Socket Protocol
-#define SOCKET_PROTOCOL_IP     0
-#define SOCKET_PROTOCOL_TCP    6
-#define SOCKET_PROTOCOL_UDP    17
+#define SOCKET_PROTOCOL_IP 0
+#define SOCKET_PROTOCOL_TCP 6
+#define SOCKET_PROTOCOL_UDP 17
 
 // Socket States
-#define SOCKET_STATE_CLOSED       0
-#define SOCKET_STATE_CREATED      1
-#define SOCKET_STATE_BOUND        2
-#define SOCKET_STATE_LISTENING    3
-#define SOCKET_STATE_CONNECTING   4
-#define SOCKET_STATE_CONNECTED    5
-#define SOCKET_STATE_CLOSING      6
+#define SOCKET_STATE_CLOSED 0
+#define SOCKET_STATE_CREATED 1
+#define SOCKET_STATE_BOUND 2
+#define SOCKET_STATE_LISTENING 3
+#define SOCKET_STATE_CONNECTING 4
+#define SOCKET_STATE_CONNECTED 5
+#define SOCKET_STATE_CLOSING 6
 
 // Socket Error Codes
-#define SOCKET_ERROR_NONE         0
-#define SOCKET_ERROR_INVALID      -1
-#define SOCKET_ERROR_NOMEM        -2
-#define SOCKET_ERROR_INUSE        -3
-#define SOCKET_ERROR_NOTBOUND     -4
+#define SOCKET_ERROR_NONE 0
+#define SOCKET_ERROR_INVALID -1
+#define SOCKET_ERROR_NOMEM -2
+#define SOCKET_ERROR_INUSE -3
+#define SOCKET_ERROR_NOTBOUND -4
 #define SOCKET_ERROR_NOTLISTENING -5
 #define SOCKET_ERROR_NOTCONNECTED -6
-#define SOCKET_ERROR_WOULDBLOCK   -7
-#define SOCKET_ERROR_CONNREFUSED  -8
-#define SOCKET_ERROR_TIMEOUT      -9
-#define SOCKET_ERROR_MSGSIZE      -10
-#define SOCKET_ERROR_OVERFLOW     -11
+#define SOCKET_ERROR_WOULDBLOCK -7
+#define SOCKET_ERROR_CONNREFUSED -8
+#define SOCKET_ERROR_TIMEOUT -9
+#define SOCKET_ERROR_MSGSIZE -10
+#define SOCKET_ERROR_OVERFLOW -11
 
 // Socket Shutdown Types
-#define SOCKET_SHUTDOWN_READ      0
-#define SOCKET_SHUTDOWN_WRITE     1
-#define SOCKET_SHUTDOWN_BOTH      2
+#define SOCKET_SHUTDOWN_READ 0
+#define SOCKET_SHUTDOWN_WRITE 1
+#define SOCKET_SHUTDOWN_BOTH 2
 
 #ifdef __cplusplus
 }

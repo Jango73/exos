@@ -23,7 +23,7 @@
 \************************************************************************/
 
 #include "shell/Shell-Commands-Private.h"
-#include "shell/Shell-EmbeddedScripts.h"
+#include "shell/Shell-Embedded-Scripts.h"
 #include "utils/SizeFormat.h"
 
 /***************************************************************************/
@@ -208,8 +208,7 @@ U32 CMD_edit(LPSHELLCONTEXT Context) {
 U32 CMD_disk(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("list")) != 0) {
         ConsolePrint(TEXT("Usage: disk list\n"));
         return DF_RETURN_SUCCESS;
     }
@@ -222,8 +221,7 @@ U32 CMD_disk(LPSHELLCONTEXT Context) {
 U32 CMD_filesystem(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 ||
-        StringCompareNC(Context->Command, TEXT("list")) != 0) {
+    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("list")) != 0) {
         ConsolePrint(TEXT("Usage: fs list\n"));
         return DF_RETURN_SUCCESS;
     }

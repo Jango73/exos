@@ -46,6 +46,8 @@ CFLAGS  = $(DEBUG_CFLAGS) -Wall -Wextra -O0 -nostdinc \
         -DPROFILING=$(PROFILING) -DUSE_SYSCALL=$(USE_SYSCALL) \
         -I../kernel/include \
         -Iinclude \
+        -I../runtime/include/stdlib \
+        -I../runtime/include/exos \
         $(CFLAGS_ARCH)
 
 CXXFLAGS = $(DEBUG_CFLAGS) -Wall -Wextra -O0 -std=c++11 \
@@ -69,10 +71,12 @@ SRC_C_ORDERED = \
 	source/exos-adaptive-delay.c \
 	source/exos.c \
 	source/exos-module.c \
-	source/exos-runtime-c.c \
+	source/exos-window.c \
+	source/exos-runtime-main.c \
+	source/exos-runtime-math.c \
 	source/exos-runtime-stdlib.c \
-	source/exos-string.c \
-	source/http.c \
+	source/exos-runtime-string.c \
+	source/exos-runtime-http.c \
 	source/tcc-crt-empty.c
 SRC_C_EXTRA = $(filter-out $(SRC_C_ORDERED),$(wildcard source/*.c))
 SRC_C   = $(SRC_C_ORDERED) $(SRC_C_EXTRA)

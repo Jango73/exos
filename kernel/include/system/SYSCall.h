@@ -27,8 +27,8 @@
 
 /************************************************************************/
 
-#include "core/Kernel.h"
 #include "User.h"
+#include "core/Kernel.h"
 
 /************************************************************************/
 
@@ -125,6 +125,8 @@ UINT SysCall_ClearWindowStyle(UINT Parameter);
 UINT SysCall_GetWindowStyle(UINT Parameter);
 UINT SysCall_SetWindowProp(UINT Parameter);
 UINT SysCall_GetWindowProp(UINT Parameter);
+UINT SysCall_SetWindowCaption(UINT Parameter);
+UINT SysCall_SetWindowTimer(UINT Parameter);
 UINT SysCall_GetWindowRect(UINT Parameter);
 UINT SysCall_GetWindowClientRect(UINT Parameter);
 UINT SysCall_ScreenPointToWindowPoint(UINT Parameter);
@@ -172,6 +174,7 @@ UINT SysCall_CreateUser(UINT Parameter);
 UINT SysCall_DeleteUser(UINT Parameter);
 UINT SysCall_ListUsers(UINT Parameter);
 UINT SysCall_SetGraphicsDriver(UINT Parameter);
+UINT SysCall_GetGCSurface(UINT Parameter);
 
 UINT SysCall_SocketCreate(UINT Parameter);
 UINT SysCall_SocketBind(UINT Parameter);

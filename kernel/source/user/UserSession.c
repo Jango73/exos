@@ -30,7 +30,7 @@
 #include "memory/Memory.h"
 #include "process/Schedule.h"
 #include "process/Task.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "sync/Mutex.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"

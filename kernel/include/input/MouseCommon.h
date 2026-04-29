@@ -29,7 +29,7 @@
 
 #include "Base.h"
 #include "input/Mouse.h"
-#include "sync/DeferredWork.h"
+#include "sync/Deferred-Work.h"
 #include "sync/Mutex.h"
 
 /************************************************************************/

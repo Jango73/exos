@@ -1,0 +1,1 @@
+command: "/apps/tinygl-demo" | log: "TEST > [Spawn] Executable finished normally"

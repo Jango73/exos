@@ -24,7 +24,7 @@
 #include "process/Process-Module.h"
 
 #include "core/Kernel.h"
-#include "exec/ExecutableELF.h"
+#include "exec/Executable-ELF.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Process-Arena.h"
@@ -46,9 +46,7 @@ typedef struct tag_PROCESS_MODULE_SYMBOL_RESOLVER_CONTEXT {
  * @param Image Shared module image to match.
  * @return Matching binding or NULL.
  */
-static LPEXECUTABLE_MODULE_BINDING FindProcessModuleBindingLocked(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_IMAGE Image) {
+static LPEXECUTABLE_MODULE_BINDING FindProcessModuleBindingLocked(LPPROCESS Process, LPEXECUTABLE_MODULE_IMAGE Image) {
     LPLIST BindingList = NULL;
 
     if (Process == NULL || Image == NULL) {
@@ -182,20 +180,13 @@ LINEAR MapProcessModuleBindingAddress(LPVOID Context, UINT VirtualAddress) {
 /**
  * @brief Resolve one symbol against a mapped module binding.
  */
-static BOOL ResolveProcessModuleBindingSymbol(
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPCSTR Name,
-    LINEAR* Address) {
+static BOOL ResolveProcessModuleBindingSymbol(LPEXECUTABLE_MODULE_BINDING Binding, LPCSTR Name, LINEAR* Address) {
     if (Binding == NULL || Binding->Image == NULL || Name == NULL || Address == NULL) {
         return FALSE;
     }
 
     return ResolveExecutableMappedSymbol(
-        &(Binding->Image->Metadata),
-        MapProcessModuleBindingAddress,
-        Binding,
-        Name,
-        Address);
+        &(Binding->Image->Metadata), MapProcessModuleBindingAddress, Binding, Name, Address);
 }
 
 /***************************************************************************/
@@ -204,8 +195,7 @@ static BOOL ResolveProcessModuleBindingSymbol(
  * @brief Record one dependency while the owning process is already locked.
  */
 static BOOL AddProcessModuleBindingDependencyLocked(
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPEXECUTABLE_MODULE_BINDING Dependency) {
+    LPEXECUTABLE_MODULE_BINDING Binding, LPEXECUTABLE_MODULE_BINDING Dependency) {
     LPEXECUTABLE_MODULE_BINDING_DEPENDENCY Edge = NULL;
 
     if (Binding == NULL || Dependency == NULL || Binding == Dependency || Binding->Dependencies == NULL) {
@@ -255,10 +245,7 @@ static BOOL ResolveProcessModuleSymbol(LPVOID Context, LPEXECUTABLE_SYMBOL_RESOL
     }
 
     if (ResolveExecutableMappedSymbol(
-            &(Process->MainExecutableMetadata),
-            MapProcessMainExecutableAddress,
-            Process,
-            Resolution->Name,
+            &(Process->MainExecutableMetadata), MapProcessMainExecutableAddress, Process, Resolution->Name,
             &(Resolution->Address))) {
         return TRUE;
     }
@@ -309,9 +296,7 @@ static BOOL ResolveProcessModuleSymbol(LPVOID Context, LPEXECUTABLE_SYMBOL_RESOL
 /**
  * @brief Copy one template backing into a private process mapping.
  */
-static BOOL CopyProcessModulePrivateSegmentTemplate(
-    LPEXECUTABLE_MODULE_SHARED_SEGMENT Template,
-    LINEAR MappingBase) {
+static BOOL CopyProcessModulePrivateSegmentTemplate(LPEXECUTABLE_MODULE_SHARED_SEGMENT Template, LINEAR MappingBase) {
     if (Template == NULL || MappingBase == 0) {
         return FALSE;
     }
@@ -321,8 +306,7 @@ static BOOL CopyProcessModulePrivateSegmentTemplate(
         LINEAR Destination = MappingBase + (PageIndex << PAGE_SIZE_MUL);
 
         if (Source == 0) {
-            ERROR(TEXT("MapTemporaryPhysicalPage1 failed page=%u"),
-                  PageIndex);
+            ERROR(TEXT("MapTemporaryPhysicalPage1 failed page=%u"), PageIndex);
             return FALSE;
         }
 
@@ -338,9 +322,7 @@ static BOOL CopyProcessModulePrivateSegmentTemplate(
  * @brief Install one read-only shared segment into a process binding.
  */
 static BOOL InstallProcessModuleSharedSegment(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPEXECUTABLE_MODULE_SHARED_SEGMENT SharedSegment) {
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LPEXECUTABLE_MODULE_SHARED_SEGMENT SharedSegment) {
     LINEAR MappingBase;
     LINEAR SegmentBase;
 
@@ -348,12 +330,9 @@ static BOOL InstallProcessModuleSharedSegment(
         return FALSE;
     }
 
-    MappingBase = ProcessArenaMapModulePages(Process,
-                                             PROCESS_MODULE_ALLOCATION_SHARED,
-                                             SharedSegment->PhysicalPages,
-                                             SharedSegment->PageCount,
-                                             ALLOC_PAGES_READONLY,
-                                             TEXT("ModuleShared"));
+    MappingBase = ProcessArenaMapModulePages(
+        Process, PROCESS_MODULE_ALLOCATION_SHARED, SharedSegment->PhysicalPages, SharedSegment->PageCount,
+        ALLOC_PAGES_READONLY, TEXT("ModuleShared"));
     if (MappingBase == 0) {
         return FALSE;
     }
@@ -370,9 +349,7 @@ static BOOL InstallProcessModuleSharedSegment(
  * @brief Install one writable private segment into a process binding.
  */
 static BOOL InstallProcessModulePrivateSegment(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPEXECUTABLE_MODULE_SHARED_SEGMENT PrivateSegment) {
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LPEXECUTABLE_MODULE_SHARED_SEGMENT PrivateSegment) {
     LINEAR MappingBase;
     LINEAR SegmentBase;
 
@@ -380,11 +357,9 @@ static BOOL InstallProcessModulePrivateSegment(
         return FALSE;
     }
 
-    MappingBase = ProcessArenaAllocateModule(Process,
-                                             PROCESS_MODULE_ALLOCATION_PRIVATE,
-                                             PrivateSegment->MemorySize,
-                                             ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
-                                             TEXT("ModulePrivate"));
+    MappingBase = ProcessArenaAllocateModule(
+        Process, PROCESS_MODULE_ALLOCATION_PRIVATE, PrivateSegment->MemorySize,
+        ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ModulePrivate"));
     if (MappingBase == 0) {
         return FALSE;
     }
@@ -512,14 +487,11 @@ static void DeleteExecutableModuleBindingDependencies(LPEXECUTABLE_MODULE_BINDIN
  * @param Image Shared module image.
  * @return New binding or NULL.
  */
-static LPEXECUTABLE_MODULE_BINDING CreateProcessModuleBinding(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_IMAGE Image) {
+static LPEXECUTABLE_MODULE_BINDING CreateProcessModuleBinding(LPPROCESS Process, LPEXECUTABLE_MODULE_IMAGE Image) {
     LPEXECUTABLE_MODULE_BINDING Binding = NULL;
 
     Binding = (LPEXECUTABLE_MODULE_BINDING)CreateKernelObject(
-        sizeof(EXECUTABLE_MODULE_BINDING),
-        KOID_EXECUTABLE_MODULE_BINDING);
+        sizeof(EXECUTABLE_MODULE_BINDING), KOID_EXECUTABLE_MODULE_BINDING);
     if (Binding == NULL) {
         return NULL;
     }
@@ -578,8 +550,7 @@ void DeleteProcessModuleBindings(LPPROCESS Process) {
 
         if (Process->ModuleBindings != NULL) {
             while (Process->ModuleBindings->First != NULL) {
-                LPEXECUTABLE_MODULE_BINDING Binding =
-                    (LPEXECUTABLE_MODULE_BINDING)Process->ModuleBindings->First;
+                LPEXECUTABLE_MODULE_BINDING Binding = (LPEXECUTABLE_MODULE_BINDING)Process->ModuleBindings->First;
 
                 ListRemove(Process->ModuleBindings, Binding);
                 if (Process->ModuleBindingCount > 0) {
@@ -726,10 +697,7 @@ void ReleaseProcessModuleBinding(LPEXECUTABLE_MODULE_BINDING Binding) {
  * @return TRUE on success.
  */
 BOOL SetProcessModuleBindingSegmentBase(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    UINT SegmentIndex,
-    LINEAR Base) {
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, UINT SegmentIndex, LINEAR Base) {
     BOOL Result = FALSE;
 
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
@@ -768,13 +736,8 @@ BOOL SetProcessModuleBindingSegmentBase(
  * @return TRUE on success.
  */
 BOOL SetProcessModuleBindingLayout(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LINEAR WritableDataBase,
-    LINEAR GlobalOffsetTableBase,
-    LINEAR ProcedureLinkageTableBase,
-    LINEAR BookkeepingBase,
-    U32 StateFlags) {
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR WritableDataBase, LINEAR GlobalOffsetTableBase,
+    LINEAR ProcedureLinkageTableBase, LINEAR BookkeepingBase, U32 StateFlags) {
     BOOL Result = FALSE;
 
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
@@ -809,9 +772,7 @@ BOOL SetProcessModuleBindingLayout(
  * @return TRUE when the dependency edge exists.
  */
 BOOL AddProcessModuleBindingDependency(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LPEXECUTABLE_MODULE_BINDING Dependency) {
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LPEXECUTABLE_MODULE_BINDING Dependency) {
     BOOL Result = FALSE;
 
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
@@ -912,8 +873,7 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
                 }
 
                 if (ProcessModuleSegmentIsWritableExecutable(Segment)) {
-                    ERROR(TEXT("Writable executable segment rejected index=%u"),
-                          SegmentIndex);
+                    ERROR(TEXT("Writable executable segment rejected index=%u"), SegmentIndex);
                     UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                     UnlockMutex(&(Process->Mutex));
                     return FALSE;
@@ -921,8 +881,9 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
 
                 if (PrivateSegment->Present != FALSE) {
                     if (!InstallProcessModulePrivateSegment(Process, Binding, PrivateSegment)) {
-                        WARNING(TEXT("[InstallProcessModuleBindingSegments] Private segment install failed index=%u"),
-                                SegmentIndex);
+                        WARNING(
+                            TEXT("[InstallProcessModuleBindingSegments] Private segment install failed index=%u"),
+                            SegmentIndex);
                         UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                         UnlockMutex(&(Process->Mutex));
                         return FALSE;
@@ -932,8 +893,9 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
 
                 if (SharedSegment->Present != FALSE) {
                     if (!InstallProcessModuleSharedSegment(Process, Binding, SharedSegment)) {
-                        WARNING(TEXT("[InstallProcessModuleBindingSegments] Shared segment install failed index=%u"),
-                                SegmentIndex);
+                        WARNING(
+                            TEXT("[InstallProcessModuleBindingSegments] Shared segment install failed index=%u"),
+                            SegmentIndex);
                         UninstallProcessModuleBindingSegmentsLocked(Process, Binding);
                         UnlockMutex(&(Process->Mutex));
                         return FALSE;
@@ -945,10 +907,7 @@ BOOL InstallProcessModuleBindingSegments(LPPROCESS Process, LPEXECUTABLE_MODULE_
             ResolverContext.Process = Process;
             ResolverContext.TargetBinding = Binding;
             if (!RelocateExecutableModuleBinding(
-                    Binding->Image,
-                    Binding->SegmentBases,
-                    Binding->SegmentSizes,
-                    ResolveProcessModuleSymbol,
+                    Binding->Image, Binding->SegmentBases, Binding->SegmentSizes, ResolveProcessModuleSymbol,
                     &ResolverContext)) {
                 WARNING(TEXT("[InstallProcessModuleBindingSegments] Relocation failed"));
                 UninstallProcessModuleBindingSegmentsLocked(Process, Binding);

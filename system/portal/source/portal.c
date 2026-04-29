@@ -22,7 +22,7 @@
 
 \************************************************************************/
 
-#include "../../../runtime/include/exos.h"
+#include "../../../runtime/include/exos/exos.h"
 
 /************************************************************************/
 
@@ -58,30 +58,60 @@ void DrawFrame3D(HANDLE GC, LPRECT Rect, BOOL Invert, BOOL Fill) {
     }
     if (Invert == FALSE) {
         SelectPen(GC, GetSystemPen(SM_COLOR_HIGHLIGHT));
-        LineInfo.X1 = Rect->X1; LineInfo.Y1 = Rect->Y2; LineInfo.X2 = Rect->X1; LineInfo.Y2 = Rect->Y1;
+        LineInfo.X1 = Rect->X1;
+        LineInfo.Y1 = Rect->Y2;
+        LineInfo.X2 = Rect->X1;
+        LineInfo.Y2 = Rect->Y1;
         (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X1; LineInfo.Y1 = Rect->Y1; LineInfo.X2 = Rect->X2; LineInfo.Y2 = Rect->Y1;
+        LineInfo.X1 = Rect->X1;
+        LineInfo.Y1 = Rect->Y1;
+        LineInfo.X2 = Rect->X2;
+        LineInfo.Y2 = Rect->Y1;
         (void)Line(&LineInfo);
         SelectPen(GC, GetSystemPen(SM_COLOR_DARK_SHADOW));
-        LineInfo.X1 = Rect->X2; LineInfo.Y1 = Rect->Y1; LineInfo.X2 = Rect->X2; LineInfo.Y2 = Rect->Y2;
+        LineInfo.X1 = Rect->X2;
+        LineInfo.Y1 = Rect->Y1;
+        LineInfo.X2 = Rect->X2;
+        LineInfo.Y2 = Rect->Y2;
         (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2; LineInfo.Y1 = Rect->Y2; LineInfo.X2 = Rect->X1; LineInfo.Y2 = Rect->Y2;
+        LineInfo.X1 = Rect->X2;
+        LineInfo.Y1 = Rect->Y2;
+        LineInfo.X2 = Rect->X1;
+        LineInfo.Y2 = Rect->Y2;
         (void)Line(&LineInfo);
         SelectPen(GC, GetSystemPen(SM_COLOR_LIGHT_SHADOW));
-        LineInfo.X1 = Rect->X2 - 1; LineInfo.Y1 = Rect->Y1 + 1; LineInfo.X2 = Rect->X2 - 1; LineInfo.Y2 = Rect->Y2 - 1;
+        LineInfo.X1 = Rect->X2 - 1;
+        LineInfo.Y1 = Rect->Y1 + 1;
+        LineInfo.X2 = Rect->X2 - 1;
+        LineInfo.Y2 = Rect->Y2 - 1;
         (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2 - 1; LineInfo.Y1 = Rect->Y2 - 1; LineInfo.X2 = Rect->X1 + 1; LineInfo.Y2 = Rect->Y2 - 1;
+        LineInfo.X1 = Rect->X2 - 1;
+        LineInfo.Y1 = Rect->Y2 - 1;
+        LineInfo.X2 = Rect->X1 + 1;
+        LineInfo.Y2 = Rect->Y2 - 1;
         (void)Line(&LineInfo);
     } else {
         SelectPen(GC, GetSystemPen(SM_COLOR_DARK_SHADOW));
-        LineInfo.X1 = Rect->X1; LineInfo.Y1 = Rect->Y2; LineInfo.X2 = Rect->X1; LineInfo.Y2 = Rect->Y1;
+        LineInfo.X1 = Rect->X1;
+        LineInfo.Y1 = Rect->Y2;
+        LineInfo.X2 = Rect->X1;
+        LineInfo.Y2 = Rect->Y1;
         (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X1; LineInfo.Y1 = Rect->Y1; LineInfo.X2 = Rect->X2; LineInfo.Y2 = Rect->Y1;
+        LineInfo.X1 = Rect->X1;
+        LineInfo.Y1 = Rect->Y1;
+        LineInfo.X2 = Rect->X2;
+        LineInfo.Y2 = Rect->Y1;
         (void)Line(&LineInfo);
         SelectPen(GC, GetSystemPen(SM_COLOR_HIGHLIGHT));
-        LineInfo.X1 = Rect->X2; LineInfo.Y1 = Rect->Y1; LineInfo.X2 = Rect->X2; LineInfo.Y2 = Rect->Y2;
+        LineInfo.X1 = Rect->X2;
+        LineInfo.Y1 = Rect->Y1;
+        LineInfo.X2 = Rect->X2;
+        LineInfo.Y2 = Rect->Y2;
         (void)Line(&LineInfo);
-        LineInfo.X1 = Rect->X2; LineInfo.Y1 = Rect->Y2; LineInfo.X2 = Rect->X1; LineInfo.Y2 = Rect->Y2;
+        LineInfo.X1 = Rect->X2;
+        LineInfo.Y1 = Rect->Y2;
+        LineInfo.X2 = Rect->X1;
+        LineInfo.Y2 = Rect->Y2;
         (void)Line(&LineInfo);
     }
 }
@@ -253,8 +283,8 @@ U32 MainWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
                 SelectBrush(GC, GetSystemBrush(SM_COLOR_NORMAL));
                 Rectangle(GC, Rect.X1, Rect.Y1 + 20, Rect.X2, Rect.Y2, 0);
 
-        ReleaseWindowGC(GC);
-    } else {
+                ReleaseWindowGC(GC);
+            } else {
             }
         } break;
 
@@ -301,7 +331,7 @@ U32 DesktopTask(LPVOID Param) {
     MousePos.Y = 0;
     MouseButtons = 0;
 
-    while(1) {
+    while (1) {
         GetMousePosition(&NewMousePos);
 
         if (NewMousePos.X != MousePos.X || NewMousePos.Y != MousePos.Y) {

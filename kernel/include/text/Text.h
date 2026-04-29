@@ -45,6 +45,7 @@ extern STR Text_KB[];
 extern STR Text_Exit[];
 extern STR Text_Image[];
 extern STR Text_Architecture[];
+extern STR Text_Credits[];
 
 /***************************************************************************/
 

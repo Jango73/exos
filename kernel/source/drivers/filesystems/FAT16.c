@@ -22,9 +22,9 @@
 
 \************************************************************************/
 
-#include "drivers/filesystems/FAT.h"
-#include "fs/FileSystem.h"
 #include "core/Kernel.h"
+#include "drivers/filesystems/FAT.h"
+#include "fs/File-System.h"
 
 /***************************************************************************/
 
@@ -279,8 +279,7 @@ static BOOL ReadCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Bu
  * @param Buffer Source buffer (BytesPerCluster bytes).
  * @return TRUE on success, FALSE on failure.
  */
-static BOOL WriteCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster,
-                         LPVOID Buffer) {
+static BOOL WriteCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Buffer) {
     IOCONTROL Control;
     SECTOR Sector;
     U32 NumSectors;
@@ -296,13 +295,12 @@ static BOOL WriteCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster,
             NumSectors = FileSystem->Master.SectorsPerCluster;
         }
     } else {
-        Sector = FileSystem->DataStart + FileSystem->SectorsInRoot +
-                 ((Cluster - 2) * FileSystem->Master.SectorsPerCluster);
+        Sector =
+            FileSystem->DataStart + FileSystem->SectorsInRoot + ((Cluster - 2) * FileSystem->Master.SectorsPerCluster);
         NumSectors = FileSystem->Master.SectorsPerCluster;
     }
 
-    if (Sector < FileSystem->PartitionStart ||
-        Sector >= FileSystem->PartitionStart + FileSystem->PartitionSize) {
+    if (Sector < FileSystem->PartitionStart || Sector >= FileSystem->PartitionStart + FileSystem->PartitionSize) {
         return FALSE;
     }
 
@@ -620,7 +618,8 @@ static U32 OpenNext(LPFATFILE File) {
 
     if (!File->DirectoryBufferValid || File->DirectoryBufferCluster != File->Location.FileCluster ||
         File->DirectoryBufferGeneration != FileSystem->IOBufferGeneration) {
-        if (ReadCluster(FileSystem, File->Location.FileCluster, FileSystem->IOBuffer) == FALSE) return DF_RETURN_INPUT_OUTPUT;
+        if (ReadCluster(FileSystem, File->Location.FileCluster, FileSystem->IOBuffer) == FALSE)
+            return DF_RETURN_INPUT_OUTPUT;
     }
 
     FOREVER {
@@ -634,7 +633,8 @@ static U32 OpenNext(LPFATFILE File) {
             if (File->Location.FileCluster == 0 || File->Location.FileCluster >= FAT16_CLUSTER_RESERVED)
                 return DF_RETURN_GENERIC;
 
-            if (ReadCluster(FileSystem, File->Location.FileCluster, FileSystem->IOBuffer) == FALSE) return DF_RETURN_INPUT_OUTPUT;
+            if (ReadCluster(FileSystem, File->Location.FileCluster, FileSystem->IOBuffer) == FALSE)
+                return DF_RETURN_INPUT_OUTPUT;
         }
 
         DirEntry = (LPFATDIRENTRY)(FileSystem->IOBuffer + File->Location.Offset);
@@ -762,7 +762,8 @@ static U32 ReadFile(LPFATFILE File) {
         // Copy the data to the user buffer
 
         MemoryCopy(
-            ((U8*)File->Header.Buffer) + File->Header.BytesTransferred, FileSystem->IOBuffer + OffsetInCluster, ByteCount);
+            ((U8*)File->Header.Buffer) + File->Header.BytesTransferred, FileSystem->IOBuffer + OffsetInCluster,
+            ByteCount);
 
         //-------------------------------------
         // Update counters
@@ -948,8 +949,9 @@ static U32 WriteFile(LPFATFILE File) {
             BytesToTransfer = BytesRemaining;
         }
 
-        MemoryCopy(FileSystem->IOBuffer + OffsetInCluster,
-                   ((U8*)File->Header.Buffer) + File->Header.BytesTransferred, BytesToTransfer);
+        MemoryCopy(
+            FileSystem->IOBuffer + OffsetInCluster, ((U8*)File->Header.Buffer) + File->Header.BytesTransferred,
+            BytesToTransfer);
 
         //-------------------------------------
         // Write the current data cluster

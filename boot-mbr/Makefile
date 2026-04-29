@@ -166,6 +166,8 @@ MODULE_IMPORT_ELF = $(CORE_BUILD_DIR)/system/test/module-import/module-import
 PIPE_SOURCE_ELF = $(CORE_BUILD_DIR)/system/test/pipe-source/pipe-source
 PIPE_UPPER_ELF = $(CORE_BUILD_DIR)/system/test/pipe-upper/pipe-upper
 PIPE_SUMMARY_ELF = $(CORE_BUILD_DIR)/system/test/pipe-summary/pipe-summary
+TINYGL_DEMO_ELF = $(CORE_BUILD_DIR)/system/tinygl-demo/tinygl-demo
+TINYGL_AVAILABLE = $(if $(wildcard ../third/tinygl/include/tinygl.h),1,0)
 SYSTEM_TEST_EPK_STAGING_DIR = $(MBR_BUILD_DIR)/system-test-epk-root
 SYSTEM_TEST_EPK = $(MBR_BUILD_DIR)/test.epk
 EXOS_VERSION_MAJOR = $(shell awk '/#define EXOS_VERSION_MAJOR/ {print $$3; exit}' ../kernel/include/User.h)
@@ -321,6 +323,10 @@ $(CYCLE_BIN):
 FINAL_IMG_DEPS_COMMON = check_tools $(MBR_BIN) $(VBR_BIN) $(PAYLOAD_BIN)
 FINAL_IMG_DEPS_FULL = $(FINAL_IMG_DEPS_COMMON) $(KERNEL_BIN) $(PORTAL_ELF) $(NETGET_ELF) $(HELLO_ELF) $(TICTACTOE_ELF) $(TERMTACTICS_ELF) $(INPUTINFO_ELF) $(MASTER_ELF) $(SLAVE_ELF) $(MODULE_HOST_ELF) $(MODULE_SAMPLE_ELF) $(MODULE_IMPORT_ELF) $(PIPE_SOURCE_ELF) $(PIPE_UPPER_ELF) $(PIPE_SUMMARY_ELF) $(SYSTEM_SCRIPT_FILES)
 
+ifeq ($(TINYGL_AVAILABLE),1)
+FINAL_IMG_DEPS_FULL += $(TINYGL_DEMO_ELF)
+endif
+
 ifeq ($(TEST_PAYLOAD),1)
 FINAL_IMG_DEPS = $(FINAL_IMG_DEPS_COMMON)
 UPDATE_TARGET = update-test-image
@@ -398,6 +404,7 @@ update-fat32: check_payload_size $(FINAL_IMG) $(KERNEL_CFG_FAT32) $(SYSTEM_TEST_
 		$(call MCOPY_IF_NEEDED,$(MEMORY_SMOKE_ELF),z:/EXOS/APPS/memory-stress)\
 		$(call MCOPY_IF_NEEDED,$(MEMORY_SMOKE_ELF),z:/EXOS/APPS/memory-fragmentation)\
 		$(call MCOPY_IF_NEEDED,$(MEMORY_SMOKE_ELF),z:/EXOS/APPS/memory-growth)\
+		if [ -f "$(TINYGL_DEMO_ELF)" ]; then $(call MCOPY_IF_NEEDED,$(TINYGL_DEMO_ELF),z:/EXOS/APPS/tinygl-demo); fi; \
 		if [ -f "$(TCC_ELF)" ]; then $(call MCOPY_IF_NEEDED,$(TCC_ELF),z:/EXOS/APPS/TCC/tcc); fi; \
 		$(call MCOPY_IF_NEEDED,$(MASTER_ELF),z:/EXOS/APPS/TEST/MASTER)\
 		$(call MCOPY_IF_NEEDED,$(SLAVE_ELF),z:/EXOS/APPS/TEST/SLAVE)\

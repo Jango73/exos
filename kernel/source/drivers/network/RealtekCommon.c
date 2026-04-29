@@ -23,32 +23,24 @@
 
 #include "drivers/network/RealtekCommon.h"
 
-#include "system/Clock.h"
-#include "text/CoreString.h"
-#include "sync/DeferredWork.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "system/System.h"
 #include "network/NetworkManager.h"
+#include "sync/Deferred-Work.h"
+#include "system/Clock.h"
+#include "system/System.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
 static BOOL RealtekNetworkConfigurePCICommand(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName);
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName);
 static BOOL RealtekNetworkSelectRegisterWindowForMode(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName);
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName);
 static BOOL RealtekNetworkFinalizeRegisterWindow(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U8 BarIndex,
-    PHYSICAL RegisterBase,
-    UINT RegisterSize,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName);
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U8 BarIndex, PHYSICAL RegisterBase, UINT RegisterSize,
+    REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName);
 static void RealtekNetworkClearRegisterWindow(LPREALTEK_NETWORK_COMMON_DEVICE Device);
 static BOOL RealtekNetworkInterruptTopHalf(LPDEVICE Device, LPVOID Context);
 static void RealtekNetworkDeferredRoutine(LPDEVICE Device, LPVOID Context);
@@ -82,8 +74,8 @@ static void RealtekNetworkClearRegisterWindow(LPREALTEK_NETWORK_COMMON_DEVICE De
  * @param Device Target common device state.
  */
 static void RealtekNetworkRearmInterrupts(LPREALTEK_NETWORK_COMMON_DEVICE Device) {
-    if (Device == NULL || Device->InterruptArmed == FALSE ||
-        Device->InterruptMaskRegisterOffset == 0 || DeferredWorkIsPollingMode()) {
+    if (Device == NULL || Device->InterruptArmed == FALSE || Device->InterruptMaskRegisterOffset == 0 ||
+        DeferredWorkIsPollingMode()) {
         return;
     }
 
@@ -122,9 +114,7 @@ static BOOL RealtekNetworkInterruptTopHalf(LPDEVICE Device, LPVOID Context) {
         if ((InterruptStatus & CommonDevice->InterruptRelevantMask) == 0) {
             if (CommonDevice->PendingInterruptStatus != 0) {
                 RealtekNetworkWriteRegister16(
-                    CommonDevice,
-                    CommonDevice->InterruptStatusRegisterOffset,
-                    CommonDevice->PendingInterruptStatus);
+                    CommonDevice, CommonDevice->InterruptStatusRegisterOffset, CommonDevice->PendingInterruptStatus);
                 CommonDevice->PendingInterruptStatus = 0;
             }
             RealtekNetworkRearmInterrupts(CommonDevice);
@@ -168,15 +158,11 @@ static void RealtekNetworkPollRoutine(LPDEVICE Device, LPVOID Context) {
         }
 
         NetworkContext = (LPNETWORK_DEVICE_CONTEXT)CommonDevice->RxUserData;
-        SAFE_USE_VALID_ID(NetworkContext, KOID_NETWORKDEVICE) {
-            NetworkManager_MaintenanceTick(NetworkContext);
-        }
+        SAFE_USE_VALID_ID(NetworkContext, KOID_NETWORKDEVICE) { NetworkManager_MaintenanceTick(NetworkContext); }
 
         if (CommonDevice->PendingInterruptStatus != 0) {
             RealtekNetworkWriteRegister16(
-                CommonDevice,
-                CommonDevice->InterruptStatusRegisterOffset,
-                CommonDevice->PendingInterruptStatus);
+                CommonDevice, CommonDevice->InterruptStatusRegisterOffset, CommonDevice->PendingInterruptStatus);
             CommonDevice->PendingInterruptStatus = 0;
         }
 
@@ -194,9 +180,7 @@ static void RealtekNetworkPollRoutine(LPDEVICE Device, LPVOID Context) {
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL RealtekNetworkConfigurePCICommand(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName) {
     U16 Command;
 
     if (Device == NULL || StringEmpty(FunctionName)) {
@@ -232,12 +216,8 @@ static BOOL RealtekNetworkConfigurePCICommand(
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL RealtekNetworkFinalizeRegisterWindow(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U8 BarIndex,
-    PHYSICAL RegisterBase,
-    UINT RegisterSize,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U8 BarIndex, PHYSICAL RegisterBase, UINT RegisterSize,
+    REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName) {
     if (Device == NULL || RegisterBase == 0 || RegisterSize == 0 || StringEmpty(FunctionName)) {
         return FALSE;
     }
@@ -249,30 +229,23 @@ static BOOL RealtekNetworkFinalizeRegisterWindow(
 
     if (AccessMode == REALTEK_REGISTER_ACCESS_MODE_IO) {
         Device->RegisterPort = (U32)RegisterBase;
-        DEBUG(TEXT("Selected IO BAR%u base=%x size=%u cmd=%x"),
-              (UINT)BarIndex,
-              (UINT)RegisterBase,
-              RegisterSize,
-              (UINT)Device->PCICommand);
+        DEBUG(
+            TEXT("Selected IO BAR%u base=%x size=%u cmd=%x"), (UINT)BarIndex, (UINT)RegisterBase, RegisterSize,
+            (UINT)Device->PCICommand);
         return TRUE;
     }
 
     Device->RegisterLinear = MapIOMemory(RegisterBase, RegisterSize);
     if (Device->RegisterLinear == 0) {
-        ERROR(TEXT("MapIOMemory failed base=%p size=%u"),
-              (LPVOID)(LINEAR)RegisterBase,
-              RegisterSize);
+        ERROR(TEXT("MapIOMemory failed base=%p size=%u"), (LPVOID)(LINEAR)RegisterBase, RegisterSize);
         RealtekNetworkClearRegisterWindow(Device);
         return FALSE;
     }
 
     Device->BARMapped[BarIndex] = (LPVOID)Device->RegisterLinear;
-    DEBUG(TEXT("Selected MMIO BAR%u base=%p size=%u linear=%p cmd=%x"),
-              (UINT)BarIndex,
-          (LPVOID)(LINEAR)RegisterBase,
-          RegisterSize,
-          (LPVOID)Device->RegisterLinear,
-          (UINT)Device->PCICommand);
+    DEBUG(
+        TEXT("Selected MMIO BAR%u base=%p size=%u linear=%p cmd=%x"), (UINT)BarIndex, (LPVOID)(LINEAR)RegisterBase,
+        RegisterSize, (LPVOID)Device->RegisterLinear, (UINT)Device->PCICommand);
     return TRUE;
 }
 
@@ -286,9 +259,7 @@ static BOOL RealtekNetworkFinalizeRegisterWindow(
  * @return TRUE on success, FALSE otherwise.
  */
 static BOOL RealtekNetworkSelectRegisterWindowForMode(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    REALTEK_REGISTER_ACCESS_MODE AccessMode,
-    LPCSTR FunctionName) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, REALTEK_REGISTER_ACCESS_MODE AccessMode, LPCSTR FunctionName) {
     UINT BarIndex;
 
     if (Device == NULL || StringEmpty(FunctionName)) {
@@ -327,12 +298,7 @@ static BOOL RealtekNetworkSelectRegisterWindowForMode(
         }
 
         if (RealtekNetworkFinalizeRegisterWindow(
-                Device,
-                (U8)BarIndex,
-                RegisterBase,
-                RegisterSize,
-                AccessMode,
-                FunctionName)) {
+                Device, (U8)BarIndex, RegisterBase, RegisterSize, AccessMode, FunctionName)) {
             return TRUE;
         }
     }
@@ -396,11 +362,8 @@ LPPCI_DEVICE RealtekNetworkAttachCommon(UINT DeviceSize, LPPCI_DEVICE PciDevice,
  * @return DF_RETURN_SUCCESS on success or an error code.
  */
 U32 RealtekNetworkInitializeRegisterWindow(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    REALTEK_REGISTER_ACCESS_MODE PreferredMode,
-    REALTEK_REGISTER_ACCESS_MODE FallbackMode,
-    U16 ValidationRegisterOffset,
-    LPCSTR FunctionName) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, REALTEK_REGISTER_ACCESS_MODE PreferredMode,
+    REALTEK_REGISTER_ACCESS_MODE FallbackMode, U16 ValidationRegisterOffset, LPCSTR FunctionName) {
     U32 ValidationValue;
 
     if (Device == NULL || StringEmpty(FunctionName)) {
@@ -422,9 +385,7 @@ U32 RealtekNetworkInitializeRegisterWindow(
         return DF_RETURN_INPUT_OUTPUT;
     }
 
-    DEBUG(TEXT("Register validation value=%x at %x"),
-              ValidationValue,
-          (UINT)ValidationRegisterOffset);
+    DEBUG(TEXT("Register validation value=%x at %x"), ValidationValue, (UINT)ValidationRegisterOffset);
     return DF_RETURN_SUCCESS;
 }
 
@@ -439,10 +400,7 @@ U32 RealtekNetworkInitializeRegisterWindow(
  * @return DF_RETURN_SUCCESS on success or an error code.
  */
 U32 RealtekNetworkResetController(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U16 CommandRegisterOffset,
-    U8 ResetMask,
-    LPCSTR FunctionName) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U16 CommandRegisterOffset, U8 ResetMask, LPCSTR FunctionName) {
     UINT StartTime;
     UINT Loop;
 
@@ -451,16 +409,11 @@ U32 RealtekNetworkResetController(
     }
 
     RealtekNetworkWriteRegister8(
-        Device,
-        CommandRegisterOffset,
-        (U8)(RealtekNetworkReadRegister8(Device, CommandRegisterOffset) | ResetMask));
+        Device, CommandRegisterOffset, (U8)(RealtekNetworkReadRegister8(Device, CommandRegisterOffset) | ResetMask));
 
     StartTime = GetSystemTime();
     for (Loop = 0; HasOperationTimedOut(
-            StartTime,
-            Loop,
-            REALTEK_NETWORK_RESET_LOOP_LIMIT,
-            REALTEK_NETWORK_RESET_TIMEOUT_MS) == FALSE;
+                       StartTime, Loop, REALTEK_NETWORK_RESET_LOOP_LIMIT, REALTEK_NETWORK_RESET_TIMEOUT_MS) == FALSE;
          Loop++) {
         U8 Command = RealtekNetworkReadRegister8(Device, CommandRegisterOffset);
         if ((Command & ResetMask) == 0) {
@@ -482,9 +435,7 @@ U32 RealtekNetworkResetController(
  * @param InterruptStatusRegisterOffset Interrupt-status register offset.
  */
 void RealtekNetworkInitializeQuietState(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U16 CommandRegisterOffset,
-    U16 InterruptMaskRegisterOffset,
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U16 CommandRegisterOffset, U16 InterruptMaskRegisterOffset,
     U16 InterruptStatusRegisterOffset) {
     if (Device == NULL) {
         return;
@@ -637,10 +588,7 @@ void RealtekNetworkWriteRegister32(LPREALTEK_NETWORK_COMMON_DEVICE Device, U16 R
  * @param Mac Output MAC buffer.
  */
 void RealtekNetworkReadMacFromRegisters(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U16 LowRegisterOffset,
-    U16 HighRegisterOffset,
-    U8* Mac) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U16 LowRegisterOffset, U16 HighRegisterOffset, U8* Mac) {
     U32 LowValue;
     U32 HighValue;
 
@@ -705,12 +653,8 @@ void RealtekNetworkBuildPlaceholderMac(LPREALTEK_NETWORK_COMMON_DEVICE Device) {
  * @param InterruptRelevantMask Status bits that should schedule deferred work.
  */
 void RealtekNetworkConfigureInterruptSupport(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    U16 InterruptMaskRegisterOffset,
-    U16 InterruptStatusRegisterOffset,
-    U16 InterruptEnableMask,
-    U16 InterruptRelevantMask,
-    U16 InterruptAcknowledgeAfterPollMask) {
+    LPREALTEK_NETWORK_COMMON_DEVICE Device, U16 InterruptMaskRegisterOffset, U16 InterruptStatusRegisterOffset,
+    U16 InterruptEnableMask, U16 InterruptRelevantMask, U16 InterruptAcknowledgeAfterPollMask) {
     if (Device == NULL) {
         return;
     }
@@ -749,12 +693,7 @@ U32 RealtekNetworkOnReset(const NETWORK_RESET* Reset) {
  * @param Mtu MTU to report.
  * @return DF_RETURN_SUCCESS on success or an error code.
  */
-U32 RealtekNetworkOnGetInfo(
-    const NETWORK_GET_INFO* GetInfo,
-    BOOL LinkUp,
-    U32 SpeedMbps,
-    BOOL DuplexFull,
-    U32 Mtu) {
+U32 RealtekNetworkOnGetInfo(const NETWORK_GET_INFO* GetInfo, BOOL LinkUp, U32 SpeedMbps, BOOL DuplexFull, U32 Mtu) {
     LPREALTEK_NETWORK_COMMON_DEVICE Device;
 
     if (GetInfo == NULL || GetInfo->Device == NULL || GetInfo->Info == NULL) {
@@ -778,10 +717,7 @@ U32 RealtekNetworkOnGetInfo(
  * @param Frame Received frame payload.
  * @param Length Frame length in bytes.
  */
-void RealtekNetworkDeliverReceivedFrame(
-    LPREALTEK_NETWORK_COMMON_DEVICE Device,
-    const U8* Frame,
-    U32 Length) {
+void RealtekNetworkDeliverReceivedFrame(LPREALTEK_NETWORK_COMMON_DEVICE Device, const U8* Frame, U32 Length) {
     if (Device == NULL || Frame == NULL || Length == 0) {
         return;
     }
@@ -945,9 +881,7 @@ U32 RealtekNetworkOnDisableInterrupts(DEVICE_INTERRUPT_CONFIG* Config) {
  * @brief Shared driver-load callback for early Realtek drivers.
  * @return DF_RETURN_SUCCESS.
  */
-U32 RealtekNetworkOnLoad(void) {
-    return DF_RETURN_SUCCESS;
-}
+U32 RealtekNetworkOnLoad(void) { return DF_RETURN_SUCCESS; }
 
 /************************************************************************/
 
@@ -955,9 +889,7 @@ U32 RealtekNetworkOnLoad(void) {
  * @brief Shared driver-unload callback for early Realtek drivers.
  * @return DF_RETURN_SUCCESS.
  */
-U32 RealtekNetworkOnUnload(void) {
-    return DF_RETURN_SUCCESS;
-}
+U32 RealtekNetworkOnUnload(void) { return DF_RETURN_SUCCESS; }
 
 /************************************************************************/
 
@@ -965,9 +897,7 @@ U32 RealtekNetworkOnUnload(void) {
  * @brief Shared capability query for early Realtek drivers.
  * @return Zero because advanced capabilities are not exposed yet.
  */
-U32 RealtekNetworkOnGetCaps(void) {
-    return 0;
-}
+U32 RealtekNetworkOnGetCaps(void) { return 0; }
 
 /************************************************************************/
 
@@ -975,6 +905,4 @@ U32 RealtekNetworkOnGetCaps(void) {
  * @brief Shared highest-implemented function identifier.
  * @return DF_DEV_DISABLE_INTERRUPT for the polling-first skeleton.
  */
-U32 RealtekNetworkOnGetLastFunction(void) {
-    return DF_DEV_DISABLE_INTERRUPT;
-}
+U32 RealtekNetworkOnGetLastFunction(void) { return DF_DEV_DISABLE_INTERRUPT; }

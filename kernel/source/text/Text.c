@@ -44,11 +44,12 @@ const STR Text_KB[] = "KB";
 const STR Text_Exit[] = "Exit";
 const STR Text_Image[] = "Image :";
 const STR Text_Separator[] = "================\n";
+const STR Text_Credits[] = "EXOS - Extensible Operating System\nDesign and architecture: Jango73\nCoding: Codex\nFixing: Jango73\n";
 
 #ifdef __EXOS_ARCH_X86_32__
-    const STR Text_Architecture[] = "x86-32";
+const STR Text_Architecture[] = "x86-32";
 #endif
 
 #ifdef __EXOS_ARCH_X86_64__
-    const STR Text_Architecture[] = "x86-64";
+const STR Text_Architecture[] = "x86-64";
 #endif
