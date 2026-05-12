@@ -27,8 +27,6 @@
 # DeviceInterruptSlots=32
 # Enable or disable login sequence (1=enable, 0=disable)
 # DoLogin=1
-# Enable or disable automatic desktop activation after shell initialization (1=enable, 0=disable)
-# ShowDesktop=1
 
 [Session]
 # Inactivity timeout before session lock (in seconds)

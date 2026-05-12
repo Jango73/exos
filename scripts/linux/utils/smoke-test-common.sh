@@ -38,11 +38,9 @@ IMAGE_READY_POLL_SECONDS=0.5
 IMAGE_READY_STABLE_POLLS=3
 TEST_KEYBOARD_LAYOUT="en-US"
 GENERAL_DO_LOGIN_DISABLED_LINE="DoLogin=0"
-GENERAL_SHOW_DESKTOP_DISABLED_LINE="ShowDesktop=0"
 KEYBOARD_LAYOUT_KEY="Layout"
 KEYBOARD_LAYOUT_PATTERN='^Layout="'
 GENERAL_DO_LOGIN_DISABLED_PATTERN='^DoLogin=0$'
-GENERAL_SHOW_DESKTOP_DISABLED_PATTERN='^ShowDesktop=0$'
 PATCH_KEYBOARD_LAYOUT=1
 LOCAL_HTTP_SERVER_PID=""
 BOOT_READY_PATTERN="[InitializeKernel] Shell task created"
@@ -329,14 +327,12 @@ function SetImageKeyboardLayout() {
 
     awk -v layout="$Layout" \
         -v keyboard_layout_key="$KEYBOARD_LAYOUT_KEY" \
-        -v do_login_disabled_line="$GENERAL_DO_LOGIN_DISABLED_LINE" \
-        -v show_desktop_disabled_line="$GENERAL_SHOW_DESKTOP_DISABLED_LINE" '
+        -v do_login_disabled_line="$GENERAL_DO_LOGIN_DISABLED_LINE" '
     BEGIN {
         in_keyboard = 0;
         in_general = 0;
         layout_set = 0;
         do_login_set = 0;
-        show_desktop_set = 0;
     }
     {
         if ($0 ~ /^\[General\]/) {
@@ -352,10 +348,6 @@ function SetImageKeyboardLayout() {
                 print do_login_disabled_line;
                 do_login_set = 1;
             }
-            if (in_general == 1 && show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
-            }
             in_general = 0;
             print $0;
             next;
@@ -365,10 +357,6 @@ function SetImageKeyboardLayout() {
             if (in_general == 1 && do_login_set == 0) {
                 print do_login_disabled_line;
                 do_login_set = 1;
-            }
-            if (in_general == 1 && show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
             }
             if (in_keyboard == 1 && layout_set == 0) {
                 print keyboard_layout_key "=\"" layout "\"";
@@ -388,14 +376,6 @@ function SetImageKeyboardLayout() {
             next;
         }
 
-        if (in_general == 1 && $0 ~ /^ShowDesktop[[:space:]]*=/) {
-            if (show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
-            }
-            next;
-        }
-
         if (in_keyboard == 1 && $0 ~ /^Layout[[:space:]]*=/) {
             if (layout_set == 0) {
                 print keyboard_layout_key "=\"" layout "\"";
@@ -409,9 +389,6 @@ function SetImageKeyboardLayout() {
     END {
         if (in_general == 1 && do_login_set == 0) {
             print do_login_disabled_line;
-        }
-        if (in_general == 1 && show_desktop_set == 0) {
-            print show_desktop_disabled_line;
         }
         if (in_keyboard == 1 && layout_set == 0) {
             print keyboard_layout_key "=\"" layout "\"";
@@ -441,12 +418,6 @@ function SetImageKeyboardLayout() {
     if ! debugfs -R "cat /exos.toml" "$PartitionImage" 2>/dev/null | SearchRegex "$GENERAL_DO_LOGIN_DISABLED_PATTERN" >/dev/null; then
         rm -f "$PartitionImage" "$ConfigFile" "$PatchedConfigFile"
         echo "DoLogin patch verification failed for image: $ImagePath"
-        return 1
-    fi
-
-    if ! debugfs -R "cat /exos.toml" "$PartitionImage" 2>/dev/null | SearchRegex "$GENERAL_SHOW_DESKTOP_DISABLED_PATTERN" >/dev/null; then
-        rm -f "$PartitionImage" "$ConfigFile" "$PatchedConfigFile"
-        echo "ShowDesktop patch verification failed for image: $ImagePath"
         return 1
     fi
 

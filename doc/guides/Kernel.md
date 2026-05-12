@@ -2154,6 +2154,8 @@ The shell entry point is the `desktop` command.
 - `desktop status` reports desktop state and theme runtime state.
 - `desktop theme <path-or-name>` loads and/or activates one theme.
 
+After shell startup completes, the shell invokes the same desktop activation path automatically.
+
 `Desktop.ThemePath` in `exos.*.toml` is optional. If configured, `desktop show` tries to load and activate that theme after desktop activation succeeds. Theme errors never block desktop startup.
 
 ### Window model
