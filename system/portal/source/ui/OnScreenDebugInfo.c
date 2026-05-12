@@ -189,7 +189,6 @@ U32 OnScreenDebugInfoWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Para
                     GraphicsDebugInfo.Text,
                     TEXT("Manufacturer: unavailable\nProduct: unavailable\nResolution: 0x0x0"));
             }
-
             if (GetMouseDebugInfo(&MouseDebugInfo) == FALSE) {
                 StringCopy(MouseDebugInfo.Text, TEXT("Manufacturer: unavailable\nProduct: unavailable"));
             }

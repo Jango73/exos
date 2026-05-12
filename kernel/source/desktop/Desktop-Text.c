@@ -24,6 +24,7 @@
 #include "Desktop.h"
 
 #include "core/KernelData.h"
+#include "log/Log.h"
 
 /***************************************************************************/
 
@@ -135,7 +136,8 @@ BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info) {
     Driver = GetGraphicsDriver();
     if (Driver == NULL || Driver->Command == NULL) return FALSE;
 
-    return Driver->Command(DF_DEBUG_INFO, (UINT)(LPVOID)Info) == DF_RETURN_SUCCESS ? TRUE : FALSE;
+    BOOL Result = Driver->Command(DF_DEBUG_INFO, (UINT)(LPVOID)Info) == DF_RETURN_SUCCESS ? TRUE : FALSE;
+    return Result;
 }
 
 /***************************************************************************/
@@ -154,7 +156,8 @@ BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info) {
     Driver = GetMouseDriver();
     if (Driver == NULL || Driver->Command == NULL) return FALSE;
 
-    return Driver->Command(DF_DEBUG_INFO, (UINT)(LPVOID)Info) == DF_RETURN_SUCCESS ? TRUE : FALSE;
+    BOOL Result = Driver->Command(DF_DEBUG_INFO, (UINT)(LPVOID)Info) == DF_RETURN_SUCCESS ? TRUE : FALSE;
+    return Result;
 }
 
 /***************************************************************************/

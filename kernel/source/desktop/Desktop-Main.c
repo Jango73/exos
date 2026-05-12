@@ -362,6 +362,28 @@ static I32 SortDesktops_Order(LPCVOID Item1, LPCVOID Item2) {
 /***************************************************************************/
 
 /**
+ * @brief Resolve the process that should receive focus when one desktop activates.
+ * @param Desktop Desktop being shown.
+ * @return User process owning the desktop task, or NULL when desktop activation
+ *         should not change focused process.
+ */
+static LPPROCESS DesktopResolveActivationFocusProcess(LPDESKTOP Desktop) {
+    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) return NULL;
+
+    SAFE_USE_VALID_ID(Desktop->Task, KOID_TASK) {
+        SAFE_USE_VALID_ID(Desktop->Task->OwnerProcess, KOID_PROCESS) {
+            if (Desktop->Task->OwnerProcess->Privilege == CPU_PRIVILEGE_USER) {
+                return Desktop->Task->OwnerProcess;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+/***************************************************************************/
+
+/**
  * @brief Create a new desktop and its main window.
  * @return Pointer to the created desktop or NULL on failure.
  */
@@ -664,7 +686,17 @@ BOOL KernelShowDesktop(LPDESKTOP This) {
     UnlockMutex(&(This->Mutex));
     UnlockMutex(MUTEX_KERNEL);
 
-    SetActiveDesktop(This);
+    {
+        LPPROCESS FocusProcess;
+
+        FocusProcess = DesktopResolveActivationFocusProcess(This);
+        if (FocusProcess != NULL) {
+            SetFocusedProcess(FocusProcess);
+        } else {
+            SetActiveDesktop(This);
+        }
+    }
+
     DesktopCursorOnDesktopActivated(This);
     //-------------------------------------
     // Force the desktop root window to repaint

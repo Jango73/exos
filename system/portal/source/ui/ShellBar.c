@@ -493,7 +493,9 @@ U32 ShellBarWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
 
         case EWM_CLICKED:
             if (Param1 != 0) {
+                debug("[ShellBarWindowFunc] clicked target_id=%x", Param1);
                 (void)ShellBarToggleTargetWindow(Window, Param1);
+                debug("[ShellBarWindowFunc] clicked done target_id=%x", Param1);
                 return 1;
             }
             return BaseWindowFunc(Window, Message, Param1, Param2);

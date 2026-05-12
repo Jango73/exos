@@ -1003,6 +1003,43 @@ BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status) {
 /************************************************************************/
 
 /**
+ * @brief Updates one task wake-up time without taking the task mutex.
+ *
+ * The caller must already own whatever synchronization protects task-local
+ * scheduler state.
+ *
+ * @param Task Pointer to task to modify.
+ * @param WakeupTime Wake-up time in milliseconds.
+ */
+void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime) {
+    UINT CurrentTime;
+    UINT Quantum;
+    UINT BaseTime;
+    UINT TargetTime;
+
+    if (Task == NULL) return;
+
+    if (WakeupTime == INFINITY) {
+        Task->SchedulerState.WakeUpTime = INFINITY;
+        return;
+    }
+
+    CurrentTime = GetSystemTime();
+    Quantum = GetMinimumQuantum();
+    BaseTime = CurrentTime + Quantum;
+
+    if (BaseTime < CurrentTime) {
+        Task->SchedulerState.WakeUpTime = INFINITY;
+        return;
+    }
+
+    TargetTime = BaseTime + WakeupTime;
+    Task->SchedulerState.WakeUpTime = (TargetTime < BaseTime) ? INFINITY : TargetTime;
+}
+
+/************************************************************************/
+
+/**
  * @brief Sets the wake-up time for a task in a thread-safe manner.
  *
  * @param Task Pointer to task to modify
@@ -1012,25 +1049,7 @@ void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime) {
     if (Task == NULL) return;
 
     LockMutex(&(Task->Mutex), INFINITY);
-
-    if (WakeupTime == INFINITY) {
-        // INFINITY is treated as a sentinel meaning "sleep indefinitely"
-        Task->SchedulerState.WakeUpTime = INFINITY;
-    } else {
-        UINT CurrentTime = GetSystemTime();
-        UINT Quantum = GetMinimumQuantum();
-        UINT BaseTime = CurrentTime + Quantum;
-
-        if (BaseTime < CurrentTime) {
-            // Overflow occurred while adding the quantum, saturate to sentinel
-            Task->SchedulerState.WakeUpTime = INFINITY;
-        } else {
-            UINT TargetTime = BaseTime + WakeupTime;
-
-            // If addition overflows, keep the task asleep indefinitely
-            Task->SchedulerState.WakeUpTime = (TargetTime < BaseTime) ? INFINITY : TargetTime;
-        }
-    }
+    SetTaskWakeUpTimeDirect(Task, WakeupTime);
 
     UnlockMutex(&(Task->Mutex));
 }

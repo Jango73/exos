@@ -66,6 +66,65 @@ static void PopWindowDispatchContext(
     LPVOID PreviousClass,
     WINDOWFUNC PreviousFunction);
 static BOOL ShouldSuppressDesktopDrawMessage(U32 Message);
+static void EnterTaskMessageWaitLocked(LPTASK Task);
+static void WakeTaskMessageWaitLocked(LPTASK Task);
+U32 DesktopWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2);
+
+/************************************************************************/
+
+/**
+ * @brief Resolve whether one dispatched message must first flow through desktop root mouse handling.
+ * @param Window Target window.
+ * @param Message Message identifier.
+ * @return TRUE when one userland desktop root must execute DesktopWindowFunc.
+ */
+static BOOL ShouldDispatchDesktopRootMouseMessage(LPWINDOW Window, U32 Message) {
+    LPDESKTOP Desktop;
+    LPWINDOW RootWindow = NULL;
+
+    if (Message != EWM_MOUSEMOVE && Message != EWM_MOUSEDOWN && Message != EWM_MOUSEUP) {
+        return FALSE;
+    }
+    if (Window == NULL || Window->TypeID != KOID_WINDOW) {
+        return FALSE;
+    }
+
+    Desktop = DesktopGetWindowDesktop(Window);
+    if (Desktop == NULL || Desktop->TypeID != KOID_DESKTOP) {
+        return FALSE;
+    }
+    if (DesktopGetRootWindow(Desktop, &RootWindow) == FALSE || RootWindow != Window) {
+        return FALSE;
+    }
+
+    SAFE_USE_VALID_ID(Window->Task, KOID_TASK) {
+        SAFE_USE_VALID_ID(Window->Task->OwnerProcess, KOID_PROCESS) {
+            return Window->Task->OwnerProcess->Privilege == CPU_PRIVILEGE_USER;
+        }
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Execute kernel desktop root mouse routing before userland root processing.
+ * @param Window Target root window.
+ * @param Message Message identifier.
+ * @param Param1 First parameter.
+ * @param Param2 Second parameter.
+ */
+static void DispatchDesktopRootMouseMessage(LPWINDOW Window, U32 Message, U32 Param1, U32 Param2) {
+    if (ShouldDispatchDesktopRootMouseMessage(Window, Message) == FALSE) {
+        return;
+    }
+
+    (void)DesktopWindowFunc((HANDLE)Window, Message, Param1, Param2);
+}
+
+/************************************************************************/
+
 static LPWINDOW_CLASS ResolveWindowDispatchClass(LPWINDOW Window, WINDOWFUNC Function) {
     LPWINDOW_CLASS This;
 
@@ -132,6 +191,44 @@ static void PopWindowDispatchContext(
     if (Task->WindowDispatchDepth > 0) {
         Task->WindowDispatchDepth--;
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Atomically switch one task to message-wait state while holding its queue locks.
+ * @param Task Target task. Caller must hold `Task->Mutex` and `Task->MessageQueue.Mutex`.
+ */
+static void EnterTaskMessageWaitLocked(LPTASK Task) {
+    if (Task == NULL || Task->TypeID != KOID_TASK) {
+        return;
+    }
+
+    Task->MessageQueue.Waiting = TRUE;
+
+    FreezeScheduler();
+    SetTaskStatusDirect(Task, TASK_STATUS_WAITMESSAGE);
+    UnfreezeScheduler();
+
+    SetTaskWakeUpTimeDirect(Task, MAX_U16);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Atomically wake one task from message-wait state while holding its queue locks.
+ * @param Task Target task. Caller must hold `Task->Mutex` and `Task->MessageQueue.Mutex`.
+ */
+static void WakeTaskMessageWaitLocked(LPTASK Task) {
+    if (Task == NULL || Task->TypeID != KOID_TASK) {
+        return;
+    }
+
+    Task->MessageQueue.Waiting = FALSE;
+
+    FreezeScheduler();
+    SetTaskStatusDirect(Task, TASK_STATUS_RUNNING);
+    UnfreezeScheduler();
 }
 
 /**
@@ -449,9 +546,8 @@ static BOOL AddTaskMessage(LPTASK Task, LPMESSAGE Message) {
         return FALSE;
     }
 
-    if (Task->MessageQueue.Waiting && GetTaskStatus(Task) == TASK_STATUS_WAITMESSAGE) {
-        Task->MessageQueue.Waiting = FALSE;
-        SetTaskStatus(Task, TASK_STATUS_RUNNING);
+    if (Task->MessageQueue.Waiting != FALSE && Task->SchedulerState.Status == TASK_STATUS_WAITMESSAGE) {
+        WakeTaskMessageWaitLocked(Task);
     }
 
     UnlockMutex(&(Task->MessageQueue.Mutex));
@@ -871,6 +967,7 @@ U32 SendMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
             } else if (Msg == EWM_DRAW) {
                 Result = DesktopDispatchWindowDraw(Window, Target, Param1, Param2) != FALSE;
             } else {
+                DispatchDesktopRootMouseMessage(Window, Msg, Param1, Param2);
                 Result = Window->Function(Target, Msg, Param1, Param2);
             }
             (void)DesktopMarkWindowDispatchEnd(Window, Msg);
@@ -904,11 +1001,17 @@ void WaitForMessage(LPTASK Task) {
     // Change the task's status
 
     if (EnsureTaskMessageQueue(Task, TRUE) == TRUE) {
-        Task->MessageQueue.Waiting = TRUE;
-    }
+        LockMutex(&(Task->Mutex), INFINITY);
+        LockMutex(&(Task->MessageQueue.Mutex), INFINITY);
 
-    SetTaskStatus(Task, TASK_STATUS_WAITMESSAGE);
-    SetTaskWakeUpTime(Task, MAX_U16);
+        EnterTaskMessageWaitLocked(Task);
+
+        UnlockMutex(&(Task->MessageQueue.Mutex));
+        UnlockMutex(&(Task->Mutex));
+    } else {
+        SetTaskStatus(Task, TASK_STATUS_WAITMESSAGE);
+        SetTaskWakeUpTime(Task, MAX_U16);
+    }
 
     //-------------------------------------
     // The following loop is to make sure that
@@ -1060,6 +1163,7 @@ BOOL KernelDispatchMessage(LPMESSAGE_INFO Message) {
             } else if (Message->Message == EWM_DRAW) {
                 (void)DesktopDispatchWindowDraw(Window, TargetHandle, Message->Param1, Message->Param2);
             } else {
+                DispatchDesktopRootMouseMessage(Window, Message->Message, Message->Param1, Message->Param2);
                 Window->Function(TargetHandle, Message->Message, Message->Param1, Message->Param2);
             }
             (void)DesktopMarkWindowDispatchEnd(Window, Message->Message);

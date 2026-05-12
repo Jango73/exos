@@ -27,6 +27,7 @@
 #include "system/Clock.h"
 #include "console/Console.h"
 #include "core/KernelData.h"
+#include "log/Log.h"
 #include "input/Mouse.h"
 #include "Desktop.h"
 #include "Desktop-Cursor.h"

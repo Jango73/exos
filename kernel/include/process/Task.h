@@ -160,6 +160,7 @@ BOOL IsTaskExecutionSuspended(LPTASK Task);
 void SetTaskStatus(LPTASK Task, U32 Status);
 void SetTaskStatusDirect(LPTASK Task, U32 Status);
 BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status);
+void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime);
 void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime);
 U32 ComputeTaskQuantumTime(U32 Priority);
 BOOL TaskEnsureModuleTlsBlock(

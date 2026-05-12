@@ -2151,6 +2151,7 @@ The windowing system is implemented in the kernel desktop layer. It owns desktop
 The shell entry point is the `desktop` command.
 
 - `desktop show` creates or reuses the shell desktop, starts the dispatcher task, selects one graphics backend and mode, switches the session to graphics mode, and launches `/system/apps/portal`.
+- When one userland-owned desktop becomes active, desktop activation also transfers focused-process ownership to the desktop task owner so mouse and keyboard input continue to route through that desktop window tree.
 - `desktop status` reports desktop state and theme runtime state.
 - `desktop theme <path-or-name>` loads and/or activates one theme.
 

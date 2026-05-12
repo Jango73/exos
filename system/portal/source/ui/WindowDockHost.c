@@ -318,12 +318,6 @@ U32 WindowDockHostRelayout(HANDLE Window) {
 /************************************************************************/
 
 U32 WindowDockHostWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
-    debug("[WindowDockHostWindowFunc] window=%x message=%x param1=%x param2=%x",
-        (UINT)(LINEAR)Window,
-        Message,
-        Param1,
-        Param2);
-
     switch (Message) {
         case EWM_CREATE:
             if (WindowDockHostEnsureData(Window) == NULL) return 0;
