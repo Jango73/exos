@@ -268,7 +268,7 @@ static BOOL DesktopEnsureGraphicsShadowBuffer(LPDESKTOP Desktop, LPGRAPHICSCONTE
     Desktop->GraphicsContext->Driver = Desktop->Graphics;
     Desktop->GraphicsContext->References = 1;
     Desktop->GraphicsContext->OwnerProcess = Desktop->OwnerProcess;
-    InitMutex(&(Desktop->GraphicsContext->Mutex));
+    InitMutexWithDebugInfo(&(Desktop->GraphicsContext->Mutex), MUTEX_CLASS_GRAPHICS_CONTEXT, TEXT("GraphicsContext"));
     MemorySet(Desktop->GraphicsContext->MemoryBase, 0, RequiredSize);
     return TRUE;
 }
@@ -395,8 +395,8 @@ LPDESKTOP KernelCreateDesktop(LPWINDOW RootWindow) {
     This = (LPDESKTOP)CreateKernelObject(sizeof(DESKTOP), KOID_DESKTOP);
     if (This == NULL) return NULL;
 
-    InitMutex(&(This->Mutex));
-    InitMutex(&(This->TimerMutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_DESKTOP, TEXT("Desktop"));
+    InitMutexWithDebugInfo(&(This->TimerMutex), MUTEX_CLASS_DESKTOP_TIMER, TEXT("DesktopTimer"));
     This->Timers = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
     if (This->Timers == NULL) {
         ReleaseKernelObject(This);

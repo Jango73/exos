@@ -130,6 +130,7 @@ struct tag_TASK {
     UINT WaitingSince;        // Time at which the current mutex wait started
     U32 HeldMutexClassDepth;  // Number of held lock classes tracked for diagnostics
     U32 HeldMutexClasses[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];  // Held lock class stack
+    LPMUTEX HeldMutexes[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];  // Held mutex stack
     MESSAGEQUEUE MessageQueue;  // Message queue for this task
     LPVOID WindowDispatchWindow;          // Current window in nested window dispatch
     LPVOID WindowDispatchClass;           // Current class in nested window dispatch

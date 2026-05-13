@@ -239,7 +239,7 @@ static void WakeTaskMessageWaitLocked(LPTASK Task) {
 BOOL InitMessageQueue(LPMESSAGEQUEUE Queue) {
     if (Queue == NULL) return FALSE;
 
-    InitMutex(&(Queue->Mutex));
+    InitMutexWithDebugInfo(&(Queue->Mutex), MUTEX_CLASS_PROCESS_MESSAGE_QUEUE, TEXT("ProcessMessageQueue"));
     Queue->Capacity = 0;
     Queue->Flags = 0;
     Queue->Waiting = FALSE;
@@ -313,7 +313,7 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
                 return FALSE;
             }
 
-            InitMutex(&(Process->MessageQueue.Mutex));
+            InitMutexWithDebugInfo(&(Process->MessageQueue.Mutex), MUTEX_CLASS_PROCESS_MESSAGE_QUEUE, TEXT("ProcessMessageQueue"));
             Process->MessageQueue.MessageBufferBase = MessageBufferBase;
             Process->MessageQueue.MessageBufferSize = MessageBufferSize;
             Process->MessageQueue.Waiting = FALSE;

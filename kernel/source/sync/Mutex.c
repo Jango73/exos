@@ -59,6 +59,41 @@ MUTEX SessionMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = NULL, .Prev
 /***************************************************************************/
 
 /**
+ * @brief Resolve one mutex class identifier to its diagnostic name.
+ *
+ * @param DebugClass Lock class identifier.
+ * @return Immutable class name string.
+ */
+LPCSTR GetMutexClassName(U32 DebugClass) {
+    switch (DebugClass) {
+        case MUTEX_CLASS_NONE: return TEXT("None");
+        case MUTEX_CLASS_KERNEL: return TEXT("Kernel");
+        case MUTEX_CLASS_LOG: return TEXT("Log");
+        case MUTEX_CLASS_MEMORY: return TEXT("Memory");
+        case MUTEX_CLASS_SCHEDULE: return TEXT("Schedule");
+        case MUTEX_CLASS_PROCESS: return TEXT("Process");
+        case MUTEX_CLASS_PROCESS_HEAP: return TEXT("ProcessHeap");
+        case MUTEX_CLASS_PROCESS_MESSAGE_QUEUE: return TEXT("ProcessMessageQueue");
+        case MUTEX_CLASS_TASK: return TEXT("Task");
+        case MUTEX_CLASS_TASK_MESSAGE_QUEUE: return TEXT("TaskMessageQueue");
+        case MUTEX_CLASS_DESKTOP: return TEXT("Desktop");
+        case MUTEX_CLASS_DESKTOP_TIMER: return TEXT("DesktopTimer");
+        case MUTEX_CLASS_WINDOW: return TEXT("Window");
+        case MUTEX_CLASS_GRAPHICS_CONTEXT: return TEXT("GraphicsContext");
+        case MUTEX_CLASS_FILESYSTEM: return TEXT("FileSystem");
+        case MUTEX_CLASS_FILE: return TEXT("File");
+        case MUTEX_CLASS_CONSOLE_STATE: return TEXT("ConsoleState");
+        case MUTEX_CLASS_CONSOLE_RENDER: return TEXT("ConsoleRender");
+        case MUTEX_CLASS_USER_ACCOUNT: return TEXT("UserAccount");
+        case MUTEX_CLASS_SESSION: return TEXT("Session");
+    }
+
+    return TEXT("Unknown");
+}
+
+/***************************************************************************/
+
+/**
  * @brief Initializes a mutex structure.
  *
  * @param This Pointer to the mutex to initialize.
@@ -82,7 +117,22 @@ void InitMutex(LPMUTEX This) {
     This->Task = NULL;
     This->DebugClass = MUTEX_CLASS_NONE;
     This->DebugName = NULL;
+    This->DebugOwnerCaller = 0;
     This->Lock = 0;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Initializes one mutex structure and assigns diagnostic metadata.
+ *
+ * @param This Pointer to the mutex to initialize.
+ * @param DebugClass Lock-order prevention class.
+ * @param DebugName Optional diagnostic name.
+ */
+void InitMutexWithDebugInfo(LPMUTEX This, U32 DebugClass, LPCSTR DebugName) {
+    InitMutex(This);
+    SetMutexDebugInfo(This, DebugClass, DebugName);
 }
 
 /***************************************************************************/
@@ -101,6 +151,7 @@ LPMUTEX CreateMutex(void) {
         Mutex->Task = NULL;
         Mutex->DebugClass = MUTEX_CLASS_NONE;
         Mutex->DebugName = NULL;
+        Mutex->DebugOwnerCaller = 0;
         Mutex->Lock = 0;
 
         LPLIST MutexList = GetMutexList();
@@ -159,6 +210,7 @@ void SetMutexDebugInfo(LPMUTEX Mutex, U32 DebugClass, LPCSTR DebugName) {
 UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
     LPPROCESS Process;
     LPTASK Task;
+    LINEAR OwnerCaller = 0;
     UINT Flags;
     UINT Ret = 0;
     BOOL UseDeadlockMonitor = FALSE;
@@ -167,6 +219,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
     DisableInterrupts();
 
     UseDeadlockMonitor = GetUseDeadlockMonitor();
+    OwnerCaller = (LINEAR)__builtin_return_address(0);
 
     //-------------------------------------
     // Check validity of parameters
@@ -275,6 +328,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                                           Mutex->Lock,
                                           (U32)(Now - StartWaitTime));
                                     Mutex->Lock = 0;
+                                    Mutex->DebugOwnerCaller = 0;
                                     Mutex->Process = NULL;
                                     Mutex->Task = NULL;
                                     break;
@@ -311,6 +365,7 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                         Mutex->Process = Process;
                         Mutex->Task = Task;
                         Mutex->Lock = 1;
+                        Mutex->DebugOwnerCaller = OwnerCaller;
                         if (UseDeadlockMonitor != FALSE) {
                             DeadlockMonitorOnAcquire(Task, Mutex);
                         }
@@ -364,6 +419,7 @@ BOOL UnlockMutex(LPMUTEX Mutex) {
         if (GetUseDeadlockMonitor() != FALSE) {
             DeadlockMonitorOnRelease(Task, Mutex, NULL);
         }
+        Mutex->DebugOwnerCaller = 0;
         Mutex->Process = NULL;
         Mutex->Task = NULL;
     }

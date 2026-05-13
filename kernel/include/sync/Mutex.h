@@ -47,15 +47,21 @@ typedef enum tag_MUTEX_CLASS {
     MUTEX_CLASS_LOG = 2,
     MUTEX_CLASS_MEMORY = 3,
     MUTEX_CLASS_SCHEDULE = 4,
-    MUTEX_CLASS_DESKTOP = 5,
-    MUTEX_CLASS_PROCESS = 6,
-    MUTEX_CLASS_TASK = 7,
-    MUTEX_CLASS_FILESYSTEM = 8,
-    MUTEX_CLASS_FILE = 9,
-    MUTEX_CLASS_CONSOLE_STATE = 10,
-    MUTEX_CLASS_CONSOLE_RENDER = 11,
-    MUTEX_CLASS_USER_ACCOUNT = 12,
-    MUTEX_CLASS_SESSION = 13
+    MUTEX_CLASS_PROCESS = 5,
+    MUTEX_CLASS_PROCESS_HEAP = 6,
+    MUTEX_CLASS_PROCESS_MESSAGE_QUEUE = 7,
+    MUTEX_CLASS_TASK = 8,
+    MUTEX_CLASS_TASK_MESSAGE_QUEUE = 9,
+    MUTEX_CLASS_DESKTOP = 10,
+    MUTEX_CLASS_DESKTOP_TIMER = 11,
+    MUTEX_CLASS_WINDOW = 12,
+    MUTEX_CLASS_GRAPHICS_CONTEXT = 13,
+    MUTEX_CLASS_FILESYSTEM = 14,
+    MUTEX_CLASS_FILE = 15,
+    MUTEX_CLASS_CONSOLE_STATE = 16,
+    MUTEX_CLASS_CONSOLE_RENDER = 17,
+    MUTEX_CLASS_USER_ACCOUNT = 18,
+    MUTEX_CLASS_SESSION = 19
 } MUTEX_CLASS, *LPMUTEX_CLASS;
 
 /************************************************************************/
@@ -68,6 +74,7 @@ struct tag_MUTEX {
     LPTASK Task;            // Task that has locked this mutex.
     U32 DebugClass;         // Lock-order prevention class
     LPCSTR DebugName;       // Optional diagnostic name
+    LINEAR DebugOwnerCaller; // Return address of the current owning acquisition site
     UINT Lock;              // Lock count of this mutex.
 };
 
@@ -85,6 +92,7 @@ typedef struct tag_MUTEX MUTEX, *LPMUTEX;
     .Task = NULL, \
     .DebugClass = MUTEX_CLASS_NONE, \
     .DebugName = NULL, \
+    .DebugOwnerCaller = 0, \
     .Lock = 0 \
 }
 
@@ -125,9 +133,11 @@ extern MUTEX SessionMutex;
 // Mutex API
 
 void InitMutex(LPMUTEX Mutex);
+void InitMutexWithDebugInfo(LPMUTEX Mutex, U32 DebugClass, LPCSTR DebugName);
 LPMUTEX CreateMutex(void);
 BOOL DeleteMutex(LPMUTEX Mutex);
 void SetMutexDebugInfo(LPMUTEX Mutex, U32 DebugClass, LPCSTR DebugName);
+LPCSTR GetMutexClassName(U32 DebugClass);
 UINT LockMutex(LPMUTEX Mutex, UINT Timeout);
 BOOL UnlockMutex(LPMUTEX Mutex);
 

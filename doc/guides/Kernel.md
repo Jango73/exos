@@ -2361,7 +2361,7 @@ corner_radius = 6
 
 Desktop-owned `EWM_*` traffic is pumped by a dedicated dispatcher task. Lock ordering is:
 
-`TaskMessageMutex -> DesktopTreeMutex -> DesktopStateMutex -> WindowMutex -> GraphicsContextMutex`
+`Process -> ProcessHeap -> ProcessMessageQueue -> Task -> TaskMessageQueue -> Desktop -> DesktopTimer -> Window -> GraphicsContext`
 
 Structural desktop locks are not held across message dispatch, callbacks, or recursive tree traversal. Windowing follows the kernel-wide mutex ownership rule: one object mutex is manipulated by the code that owns that object state, and foreign callers access that state through owner-side helpers or snapshots.
 
@@ -2374,6 +2374,8 @@ Desktop and windowing code follow this same kernel-wide rule. Typical examples:
   holding the parent window lock,
 - graphics-context clip/origin mutation stays on graphics-context helpers
   instead of direct caller-side `GC->Mutex` access.
+
+Mutex diagnostics are assigned at initialization time through `InitMutexWithDebugInfo(...)` or `SetMutexDebugInfo(...)`. Each tracked mutex carries a stable class, a diagnostic name, and the owning acquisition return address. The deadlock monitor keeps a per-task held-mutex stack and aborts immediately in debug builds when one class inversion is detected, so lock-order regressions fail at the first illegal acquisition instead of requiring ad-hoc session instrumentation.
 
 ## Tooling and References
 

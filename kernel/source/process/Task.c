@@ -134,7 +134,7 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
 
     Task->MessageQueue.MessageBufferBase = MessageBufferBase;
     Task->MessageQueue.MessageBufferSize = MessageBufferSize;
-    InitMutex(&(Task->MessageQueue.Mutex));
+    InitMutexWithDebugInfo(&(Task->MessageQueue.Mutex), MUTEX_CLASS_TASK_MESSAGE_QUEUE, TEXT("TaskMessageQueue"));
     Task->MessageQueue.Capacity = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
     Task->MessageQueue.Flags = 0;
     Task->MessageQueue.Waiting = FALSE;
@@ -215,7 +215,7 @@ LPTASK NewTask(void) {
 
 
     // Initialize task-specific fields (LISTNODE_FIELDS already initialized by CreateKernelObject)
-    InitMutex(&(This->Mutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_TASK, TEXT("Task"));
     This->Type = TASK_TYPE_NONE;
     This->SchedulerState.Status = TASK_STATUS_READY;
     This->SchedulerState.WakeUpTime = INFINITY;
@@ -224,6 +224,7 @@ LPTASK NewTask(void) {
     This->WaitingSince = 0;
     This->HeldMutexClassDepth = 0;
     MemorySet(This->HeldMutexClasses, 0, sizeof(This->HeldMutexClasses));
+    MemorySet(This->HeldMutexes, 0, sizeof(This->HeldMutexes));
     MemorySet(&(This->MessageQueue), 0, sizeof(MESSAGEQUEUE));
 
 
@@ -254,6 +255,7 @@ static void ReleaseTaskMutexes(LPTASK Task) {
             Mutex = (LPMUTEX)Node;
 
             if (Mutex->TypeID == KOID_MUTEX && Mutex->Task == Task) {
+                Mutex->DebugOwnerCaller = 0;
                 Mutex->Process = NULL;
                 Mutex->Task = NULL;
                 Mutex->Lock = 0;
@@ -301,6 +303,7 @@ void DeleteTask(LPTASK This) {
         This->WaitingSince = 0;
         This->HeldMutexClassDepth = 0;
         MemorySet(This->HeldMutexClasses, 0, sizeof(This->HeldMutexClasses));
+        MemorySet(This->HeldMutexes, 0, sizeof(This->HeldMutexes));
         ReleaseTaskMutexes(This);
 
         //-------------------------------------
@@ -591,6 +594,7 @@ BOOL KernelKillTask(LPTASK Task) {
         Task->WaitingSince = 0;
         Task->HeldMutexClassDepth = 0;
         MemorySet(Task->HeldMutexClasses, 0, sizeof(Task->HeldMutexClasses));
+        MemorySet(Task->HeldMutexes, 0, sizeof(Task->HeldMutexes));
         ReleaseTaskMutexes(Task);
 
         SetTaskStatus(Task, TASK_STATUS_DEAD);

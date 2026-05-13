@@ -106,8 +106,8 @@ void InitializeKernelProcess(void) {
 
     DEBUG(TEXT("Enter"));
 
-    InitMutex(&(KernelProcess.Mutex));
-    InitMutex(&(KernelProcess.HeapMutex));
+    InitMutexWithDebugInfo(&(KernelProcess.Mutex), MUTEX_CLASS_PROCESS, TEXT("KernelProcess"));
+    InitMutexWithDebugInfo(&(KernelProcess.HeapMutex), MUTEX_CLASS_PROCESS_HEAP, TEXT("KernelProcessHeap"));
     InitSecurity(&(KernelProcess.Security));
     KernelProcess.PageDirectory = GetPageDirectory();
     KernelProcess.MaximumAllocatedMemory = N_HalfMemory;
@@ -268,8 +268,8 @@ LPPROCESS NewProcess(void) {
     //-------------------------------------
     // Initialize the process' mutex
 
-    InitMutex(&(This->Mutex));
-    InitMutex(&(This->HeapMutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_PROCESS, TEXT("Process"));
+    InitMutexWithDebugInfo(&(This->HeapMutex), MUTEX_CLASS_PROCESS_HEAP, TEXT("ProcessHeap"));
     if (!InitializeProcessModuleBindings(This)) {
         ReleaseKernelObject(This);
         TRACED_EPILOGUE("NewProcess");

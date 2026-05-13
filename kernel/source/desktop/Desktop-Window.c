@@ -128,7 +128,7 @@ static LPWINDOW NewWindow(void) {
     LPWINDOW This = (LPWINDOW)CreateKernelObject(sizeof(WINDOW), KOID_WINDOW);
     if (This == NULL) return NULL;
 
-    InitMutex(&(This->Mutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_WINDOW, TEXT("Window"));
 
     This->Properties = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
     This->Children = NewList(NULL, KernelHeapAlloc, KernelHeapFree);
