@@ -213,4 +213,6 @@ void InitializeSystemCallTable(void) {
     SysCallTable[SYSCALL_GetKernelLogRecent] = (SYSCALL_ENTRY){SysCall_GetKernelLogRecent, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetGraphicsDebugInfo] = (SYSCALL_ENTRY){SysCall_GetGraphicsDebugInfo, EXOS_PRIVILEGE_USER};
     SysCallTable[SYSCALL_GetMouseDebugInfo] = (SYSCALL_ENTRY){SysCall_GetMouseDebugInfo, EXOS_PRIVILEGE_USER};
+    SysCallTable[SYSCALL_SetMouseSerpentineMode] =
+        (SYSCALL_ENTRY){SysCall_SetMouseSerpentineMode, EXOS_PRIVILEGE_USER};
 }

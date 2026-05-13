@@ -109,15 +109,46 @@ static BOOL PortalShowDesktop(void) {
 }
 
 /************************************************************************/
+/**
+ * @brief Check whether portal should enable the diagnostic mouse serpentine mode.
+ * @param ArgCount Command-line argument count.
+ * @param Arguments Command-line argument array.
+ * @return TRUE when the matching flag is present.
+ */
+static BOOL PortalShouldEnableMouseSerpentine(int ArgCount, char** Arguments) {
+    int ArgIndex;
+
+    if (Arguments == NULL) {
+        return FALSE;
+    }
+
+    for (ArgIndex = 1; ArgIndex < ArgCount; ArgIndex++) {
+        if (strcmp(Arguments[ArgIndex], "--mouse-serpentine") == 0) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
 
 int main(int argc, char** argv) {
     MESSAGE Message;
+    BOOL EnableMouseSerpentine;
 
-    UNUSED(argc);
-    UNUSED(argv);
+    EnableMouseSerpentine = PortalShouldEnableMouseSerpentine(argc, argv);
 
     if (PortalShowDesktop() == FALSE) {
         return (int)MAX_U32;
+    }
+
+    if (EnableMouseSerpentine != FALSE) {
+        if (SetMouseSerpentineMode(TRUE) == FALSE) {
+            debug("[main] unable to enable mouse serpentine mode");
+        } else {
+            debug("[main] mouse serpentine mode enabled");
+        }
     }
 
     while (GetMessage(NULL, &Message, 0, 0)) {

@@ -328,6 +328,12 @@ U32 GetMouseButtons(void) { return (U32)exoscall(SYSCALL_GetMouseButtons, EXOS_P
 
 /***************************************************************************/
 
+BOOL SetMouseSerpentineMode(BOOL Enabled) {
+    return (BOOL)exoscall(SYSCALL_SetMouseSerpentineMode, EXOS_PARAM(Enabled ? 1 : 0));
+}
+
+/***************************************************************************/
+
 BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info) {
     if (Info == NULL) return FALSE;
 

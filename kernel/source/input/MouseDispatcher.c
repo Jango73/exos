@@ -35,11 +35,14 @@
 #include "process/Task.h"
 #include "User.h"
 #include "drivers/graphics/vga/VGA.h"
+#include "sync/Deferred-Work.h"
 #include "utils/Cooldown.h"
 
 /************************************************************************/
 
 #define MOUSE_MOVE_COOLDOWN_MS 10
+#define MOUSE_SERPENTINE_HORIZONTAL_STEP 20
+#define MOUSE_SERPENTINE_VERTICAL_STEP 20
 
 /************************************************************************/
 
@@ -52,6 +55,9 @@ typedef struct tag_MOUSE_DISPATCH_STATE {
     I32 ResidualX;
     I32 ResidualY;
     U32 Buttons;
+    BOOL SerpentineEnabled;
+    BOOL SerpentineMovingRight;
+    DEFERRED_WORK_TOKEN SerpentineToken;
 } MOUSE_DISPATCH_STATE, *LPMOUSE_DISPATCH_STATE;
 
 static MOUSE_DISPATCH_STATE g_MouseDispatch = {
@@ -62,7 +68,10 @@ static MOUSE_DISPATCH_STATE g_MouseDispatch = {
     .PosY = 0,
     .ResidualX = 0,
     .ResidualY = 0,
-    .Buttons = 0};
+    .Buttons = 0,
+    .SerpentineEnabled = FALSE,
+    .SerpentineMovingRight = TRUE,
+    .SerpentineToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}};
 
 /************************************************************************/
 /**
@@ -137,61 +146,13 @@ static void GetConsoleMouseScale(I32* ScaleX, I32* ScaleY) {
 }
 
 /************************************************************************/
-
 /**
- * @brief Initialize mouse dispatch state and cooldown.
- *
- * @return TRUE on success, FALSE if the structure could not be initialized.
- */
-BOOL InitializeMouseDispatcher(void) {
-    if (g_MouseDispatch.Initialized) {
-        return TRUE;
-    }
-
-    InitMutex(&(g_MouseDispatch.Mutex));
-
-    if (CooldownInit(&(g_MouseDispatch.MoveCooldown), MOUSE_MOVE_COOLDOWN_MS) == FALSE) {
-        return FALSE;
-    }
-
-    g_MouseDispatch.PosX = 0;
-    g_MouseDispatch.PosY = 0;
-    g_MouseDispatch.ResidualX = 0;
-    g_MouseDispatch.ResidualY = 0;
-    g_MouseDispatch.Buttons = 0;
-    g_MouseDispatch.Initialized = TRUE;
-
-    {
-        RECT Rect;
-        LPDESKTOP Desktop = GetActiveDesktop();
-        if (GetDesktopScreenRect(Desktop, &Rect) == TRUE) {
-            g_MouseDispatch.PosX = Rect.X1 + ((Rect.X2 - Rect.X1) / 2);
-            g_MouseDispatch.PosY = Rect.Y1 + ((Rect.Y2 - Rect.Y1) / 2);
-        }
-    }
-
-    return TRUE;
-}
-
-/************************************************************************/
-
-/**
- * @brief Process a raw mouse delta and broadcast throttled events.
- *
- * The first movement after any idle period is dispatched immediately.
- * Subsequent movement broadcasts are spaced by at least
- * MOUSE_MOVE_COOLDOWN_MS. Button transitions are always broadcast
- * immediately.
- *
+ * @brief Apply a mouse movement and broadcast the resulting events.
  * @param DeltaX Signed X delta.
  * @param DeltaY Signed Y delta.
  * @param Buttons Current button bitmask (MB_*).
  */
-void MouseDispatcherOnInput(I32 DeltaX, I32 DeltaY, U32 Buttons) {
-    if (g_MouseDispatch.Initialized == FALSE) {
-        return;
-    }
-
+static void MouseDispatcherApplyInput(I32 DeltaX, I32 DeltaY, U32 Buttons) {
     UINT Flags;
     RECT ScreenRect;
     BOOL HasRect = FALSE;
@@ -279,6 +240,148 @@ void MouseDispatcherOnInput(I32 DeltaX, I32 DeltaY, U32 Buttons) {
 }
 
 /************************************************************************/
+/**
+ * @brief Advance the diagnostic mouse serpentine pattern.
+ * @param Context Unused deferred-work context.
+ */
+static void MouseDispatcherSerpentinePoll(LPVOID Context) {
+    RECT ScreenRect;
+    UINT Flags;
+    BOOL SerpentineEnabled;
+    BOOL SerpentineMovingRight;
+    I32 PosX;
+    I32 PosY;
+    U32 Buttons;
+    I32 DeltaX = 0;
+    I32 DeltaY = 0;
+    I32 Remaining;
+
+    UNUSED(Context);
+
+    if (g_MouseDispatch.Initialized == FALSE) {
+        return;
+    }
+
+    if (GetDesktopScreenRect(GetActiveDesktop(), &ScreenRect) == FALSE) {
+        return;
+    }
+
+    SaveFlags(&Flags);
+    DisableInterrupts();
+
+    SerpentineEnabled = g_MouseDispatch.SerpentineEnabled;
+    SerpentineMovingRight = g_MouseDispatch.SerpentineMovingRight;
+    PosX = g_MouseDispatch.PosX;
+    PosY = g_MouseDispatch.PosY;
+    Buttons = g_MouseDispatch.Buttons;
+
+    if (SerpentineEnabled != FALSE) {
+        if (SerpentineMovingRight != FALSE) {
+            Remaining = ScreenRect.X2 - PosX;
+            if (Remaining > 0) {
+                DeltaX = (Remaining > MOUSE_SERPENTINE_HORIZONTAL_STEP) ? MOUSE_SERPENTINE_HORIZONTAL_STEP : Remaining;
+            } else if (PosY < ScreenRect.Y2) {
+                Remaining = ScreenRect.Y2 - PosY;
+                DeltaY = (Remaining > MOUSE_SERPENTINE_VERTICAL_STEP) ? MOUSE_SERPENTINE_VERTICAL_STEP : Remaining;
+                g_MouseDispatch.SerpentineMovingRight = FALSE;
+            } else {
+                DeltaX = ScreenRect.X1 - PosX;
+                DeltaY = ScreenRect.Y1 - PosY;
+                g_MouseDispatch.SerpentineMovingRight = TRUE;
+            }
+        } else {
+            Remaining = PosX - ScreenRect.X1;
+            if (Remaining > 0) {
+                DeltaX = (Remaining > MOUSE_SERPENTINE_HORIZONTAL_STEP) ? -MOUSE_SERPENTINE_HORIZONTAL_STEP : -Remaining;
+            } else if (PosY < ScreenRect.Y2) {
+                Remaining = ScreenRect.Y2 - PosY;
+                DeltaY = (Remaining > MOUSE_SERPENTINE_VERTICAL_STEP) ? MOUSE_SERPENTINE_VERTICAL_STEP : Remaining;
+                g_MouseDispatch.SerpentineMovingRight = TRUE;
+            } else {
+                DeltaX = ScreenRect.X1 - PosX;
+                DeltaY = ScreenRect.Y1 - PosY;
+                g_MouseDispatch.SerpentineMovingRight = TRUE;
+            }
+        }
+    }
+
+    RestoreFlags(&Flags);
+
+    if (SerpentineEnabled != FALSE && (DeltaX != 0 || DeltaY != 0)) {
+        MouseDispatcherApplyInput(DeltaX, DeltaY, Buttons);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Initialize mouse dispatch state and cooldown.
+ *
+ * @return TRUE on success, FALSE if the structure could not be initialized.
+ */
+BOOL InitializeMouseDispatcher(void) {
+    if (g_MouseDispatch.Initialized) {
+        return TRUE;
+    }
+
+    InitMutex(&(g_MouseDispatch.Mutex));
+
+    if (CooldownInit(&(g_MouseDispatch.MoveCooldown), MOUSE_MOVE_COOLDOWN_MS) == FALSE) {
+        return FALSE;
+    }
+
+    g_MouseDispatch.PosX = 0;
+    g_MouseDispatch.PosY = 0;
+    g_MouseDispatch.ResidualX = 0;
+    g_MouseDispatch.ResidualY = 0;
+    g_MouseDispatch.Buttons = 0;
+    g_MouseDispatch.SerpentineEnabled = FALSE;
+    g_MouseDispatch.SerpentineMovingRight = TRUE;
+    g_MouseDispatch.Initialized = TRUE;
+
+    {
+        RECT Rect;
+        LPDESKTOP Desktop = GetActiveDesktop();
+        if (GetDesktopScreenRect(Desktop, &Rect) == TRUE) {
+            g_MouseDispatch.PosX = Rect.X1 + ((Rect.X2 - Rect.X1) / 2);
+            g_MouseDispatch.PosY = Rect.Y1 + ((Rect.Y2 - Rect.Y1) / 2);
+        }
+    }
+
+    if (DeferredWorkTokenIsValid(g_MouseDispatch.SerpentineToken) == FALSE) {
+        g_MouseDispatch.SerpentineToken = DeferredWorkRegisterPollOnlyForQueue(
+            DEFERRED_WORK_QUEUE_FAST, MouseDispatcherSerpentinePoll, NULL, TEXT("MouseSerpentine"));
+        if (DeferredWorkTokenIsValid(g_MouseDispatch.SerpentineToken) == FALSE) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Process a raw mouse delta and broadcast throttled events.
+ *
+ * The first movement after any idle period is dispatched immediately.
+ * Subsequent movement broadcasts are spaced by at least
+ * MOUSE_MOVE_COOLDOWN_MS. Button transitions are always broadcast
+ * immediately.
+ *
+ * @param DeltaX Signed X delta.
+ * @param DeltaY Signed Y delta.
+ * @param Buttons Current button bitmask (MB_*).
+ */
+void MouseDispatcherOnInput(I32 DeltaX, I32 DeltaY, U32 Buttons) {
+    if (g_MouseDispatch.Initialized == FALSE) {
+        return;
+    }
+
+    MouseDispatcherApplyInput(DeltaX, DeltaY, Buttons);
+}
+
+/************************************************************************/
 
 /**
  * @brief Retrieve the current mouse cursor position.
@@ -309,6 +412,48 @@ BOOL GetMouseScreenPosition(I32* X, I32* Y) {
 
     *X = CurrentX;
     *Y = CurrentY;
+
+    return TRUE;
+}
+
+/************************************************************************/
+/**
+ * @brief Enable or disable the diagnostic mouse serpentine mode.
+ * @param Enabled TRUE to enable the autonomous serpentine sweep.
+ * @return TRUE when the dispatcher accepted the new state.
+ */
+BOOL SetMouseSerpentineMode(BOOL Enabled) {
+    UINT Flags;
+    RECT ScreenRect;
+    BOOL HasRect;
+    BOOL PreviousEnabled;
+    BOOL CurrentEnabled;
+    I32 PosX;
+    I32 PosY;
+    U32 Buttons;
+
+    if (g_MouseDispatch.Initialized == FALSE) {
+        return FALSE;
+    }
+
+    HasRect = GetDesktopScreenRect(GetActiveDesktop(), &ScreenRect);
+
+    SaveFlags(&Flags);
+    DisableInterrupts();
+
+    PreviousEnabled = g_MouseDispatch.SerpentineEnabled;
+    g_MouseDispatch.SerpentineEnabled = Enabled ? TRUE : FALSE;
+    g_MouseDispatch.SerpentineMovingRight = TRUE;
+    CurrentEnabled = g_MouseDispatch.SerpentineEnabled;
+    PosX = g_MouseDispatch.PosX;
+    PosY = g_MouseDispatch.PosY;
+    Buttons = g_MouseDispatch.Buttons;
+
+    RestoreFlags(&Flags);
+
+    if (PreviousEnabled == FALSE && CurrentEnabled != FALSE && HasRect != FALSE) {
+        MouseDispatcherApplyInput(ScreenRect.X1 - PosX, ScreenRect.Y1 - PosY, Buttons);
+    }
 
     return TRUE;
 }

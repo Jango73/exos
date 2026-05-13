@@ -159,6 +159,7 @@ BOOL MeasureText(LPTEXT_MEASURE_INFO MeasureInfo);
 BOOL DrawWindowBackground(HANDLE Window, HANDLE GC, LPRECT Rect, U32 ThemeToken);
 BOOL GetMousePosition(LPPOINT);
 U32 GetMouseButtons(void);
+BOOL SetMouseSerpentineMode(BOOL Enabled);
 BOOL GetGraphicsDebugInfo(LPDRIVER_DEBUG_INFO Info);
 BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info);
 HANDLE CaptureMouse(HANDLE);

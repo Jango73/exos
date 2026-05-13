@@ -38,6 +38,7 @@
 BOOL InitializeMouseDispatcher(void);
 void MouseDispatcherOnInput(I32 DeltaX, I32 DeltaY, U32 Buttons);
 BOOL GetMouseScreenPosition(I32* X, I32* Y);
+BOOL SetMouseSerpentineMode(BOOL Enabled);
 
 /************************************************************************/
 

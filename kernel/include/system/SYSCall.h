@@ -183,6 +183,7 @@ UINT SysCall_Arc(UINT Parameter);
 UINT SysCall_Triangle(UINT Parameter);
 UINT SysCall_GetGraphicsDebugInfo(UINT Parameter);
 UINT SysCall_GetMouseDebugInfo(UINT Parameter);
+UINT SysCall_SetMouseSerpentineMode(UINT Parameter);
 
 UINT SysCall_SocketCreate(UINT Parameter);
 UINT SysCall_SocketBind(UINT Parameter);

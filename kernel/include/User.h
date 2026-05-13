@@ -296,6 +296,7 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_Triangle 0x0000009E
 #define SYSCALL_GetGraphicsDebugInfo 0x0000009F
 #define SYSCALL_GetMouseDebugInfo 0x000000A0
+#define SYSCALL_SetMouseSerpentineMode 0x000000A1
 
 /************************************************************************/
 // Network Socket Services
@@ -318,7 +319,7 @@ typedef struct PACKED tag_ABI_HEADER {
 
 /************************************************************************/
 
-#define SYSCALL_Last 0x000000A1
+#define SYSCALL_Last 0x000000A2
 
 /************************************************************************/
 // Structure limits

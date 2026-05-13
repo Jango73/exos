@@ -36,6 +36,7 @@
 #include "drivers/input/Keyboard.h"
 #include "fs/File.h"
 #include "input/Mouse.h"
+#include "input/MouseDispatcher.h"
 #include "log/Log.h"
 #include "log/Profile.h"
 #include "memory/Heap.h"
@@ -3726,6 +3727,16 @@ UINT SysCall_GetMouseDebugInfo(UINT Parameter) {
 
     return FALSE;
 }
+
+/************************************************************************/
+
+/**
+ * @brief Enable or disable the diagnostic mouse serpentine mode.
+ *
+ * @param Parameter Non-zero enables the mode, zero disables it.
+ * @return UINT TRUE on success.
+ */
+UINT SysCall_SetMouseSerpentineMode(UINT Parameter) { return (UINT)SetMouseSerpentineMode((BOOL)(Parameter != 0)); }
 
 /************************************************************************/
 
