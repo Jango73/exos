@@ -196,8 +196,9 @@ static void PopWindowDispatchContext(
 /************************************************************************/
 
 /**
- * @brief Atomically switch one task to message-wait state while holding its queue locks.
- * @param Task Target task. Caller must hold `Task->Mutex` and `Task->MessageQueue.Mutex`.
+ * @brief Switch one task to message-wait state while holding its queue locks.
+ * @param Task Target task. Caller must hold `Task->Mutex`, `Task->MessageQueue.Mutex`
+ *             and the scheduler freeze.
  */
 static void EnterTaskMessageWaitLocked(LPTASK Task) {
     if (Task == NULL || Task->TypeID != KOID_TASK) {
@@ -205,19 +206,16 @@ static void EnterTaskMessageWaitLocked(LPTASK Task) {
     }
 
     Task->MessageQueue.Waiting = TRUE;
-
-    FreezeScheduler();
     SetTaskStatusDirect(Task, TASK_STATUS_WAITMESSAGE);
-    UnfreezeScheduler();
-
     SetTaskWakeUpTimeDirect(Task, MAX_U16);
 }
 
 /************************************************************************/
 
 /**
- * @brief Atomically wake one task from message-wait state while holding its queue locks.
- * @param Task Target task. Caller must hold `Task->Mutex` and `Task->MessageQueue.Mutex`.
+ * @brief Wake one task from message-wait state while holding its queue locks.
+ * @param Task Target task. Caller must hold `Task->Mutex`, `Task->MessageQueue.Mutex`
+ *             and the scheduler freeze.
  */
 static void WakeTaskMessageWaitLocked(LPTASK Task) {
     if (Task == NULL || Task->TypeID != KOID_TASK) {
@@ -225,10 +223,7 @@ static void WakeTaskMessageWaitLocked(LPTASK Task) {
     }
 
     Task->MessageQueue.Waiting = FALSE;
-
-    FreezeScheduler();
     SetTaskStatusDirect(Task, TASK_STATUS_RUNNING);
-    UnfreezeScheduler();
 }
 
 /**
@@ -547,7 +542,12 @@ static BOOL AddTaskMessage(LPTASK Task, LPMESSAGE Message) {
     }
 
     if (Task->MessageQueue.Waiting != FALSE && Task->SchedulerState.Status == TASK_STATUS_WAITMESSAGE) {
+        FreezeScheduler();
         WakeTaskMessageWaitLocked(Task);
+        UnlockMutex(&(Task->MessageQueue.Mutex));
+        UnlockMutex(&(Task->Mutex));
+        UnfreezeScheduler();
+        return TRUE;
     }
 
     UnlockMutex(&(Task->MessageQueue.Mutex));
@@ -1003,11 +1003,13 @@ void WaitForMessage(LPTASK Task) {
     if (EnsureTaskMessageQueue(Task, TRUE) == TRUE) {
         LockMutex(&(Task->Mutex), INFINITY);
         LockMutex(&(Task->MessageQueue.Mutex), INFINITY);
+        FreezeScheduler();
 
         EnterTaskMessageWaitLocked(Task);
 
         UnlockMutex(&(Task->MessageQueue.Mutex));
         UnlockMutex(&(Task->Mutex));
+        UnfreezeScheduler();
     } else {
         SetTaskStatus(Task, TASK_STATUS_WAITMESSAGE);
         SetTaskWakeUpTime(Task, MAX_U16);
@@ -1019,7 +1021,7 @@ void WaitForMessage(LPTASK Task) {
     // During the loop, the task does not get any
     // CPU cycles.
 
-    while (GetTaskStatus(Task) == TASK_STATUS_WAITMESSAGE) {
+    while (Task != NULL && Task->TypeID == KOID_TASK && Task->SchedulerState.Status == TASK_STATUS_WAITMESSAGE) {
         SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) {
             if (EnsureProcessMessageQueue(Task->OwnerProcess, TRUE) == TRUE) {
                 LockMutex(&(Task->OwnerProcess->MessageQueue.Mutex), INFINITY);
