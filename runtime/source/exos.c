@@ -83,6 +83,14 @@ BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info) {
 
 /***************************************************************************/
 
+LPVOID HeapAlloc(UINT Size) { return (LPVOID)exoscall(SYSCALL_HeapAlloc, EXOS_PARAM(Size)); }
+
+/***************************************************************************/
+
+void HeapFree(LPVOID Pointer) { exoscall(SYSCALL_HeapFree, EXOS_PARAM(Pointer)); }
+
+/***************************************************************************/
+
 U32 KernelLogGetRecentSequence(void) {
     KERNEL_LOG_RECENT_INFO Info;
 

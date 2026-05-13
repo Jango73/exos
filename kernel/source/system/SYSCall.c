@@ -756,7 +756,7 @@ UINT SysCall_PeekMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)KernelPeekMessage(Message);
+        UINT Result = (UINT)PeekMessage(Message);
         Message->Target = PointerToHandle((LINEAR)Message->Target);
         if (Message->Target == 0) {
             Message->Target = Filter;
@@ -774,7 +774,7 @@ UINT SysCall_PeekMessage(UINT Parameter) {
  * @brief Retrieve the next message, translating handles as needed.
  *
  * Accepts an optional handle filter in MESSAGE_INFO.Target, resolves it to a
- * kernel pointer before invoking KernelGetMessage(), then converts the returned
+ * kernel pointer before invoking GetMessage(), then converts the returned
  * pointer back into a handle.
  *
  * @param Parameter Pointer to MESSAGE_INFO supplied by userland.
@@ -792,7 +792,7 @@ UINT SysCall_GetMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)KernelGetMessage(Message);
+        UINT Result = (UINT)GetMessage(Message);
         Message->Target = PointerToHandle((LINEAR)Message->Target);
         if (Message->Target == 0) {
             Message->Target = Filter;
@@ -827,7 +827,7 @@ UINT SysCall_DispatchMessage(UINT Parameter) {
             return 0;
         }
 
-        UINT Result = (UINT)KernelDispatchMessage(Message);
+        UINT Result = (UINT)DispatchMessage(Message);
 
         Message->Target = Original;
         return Result;

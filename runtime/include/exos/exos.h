@@ -85,6 +85,8 @@ UINT GetSystemTime(void);
 BOOL GetLocalTime(LPDATETIME Time);
 BOOL GetProcessMemoryInfo(LPPROCESS_MEMORY_INFO Info);
 BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info);
+LPVOID HeapAlloc(UINT Size);
+void HeapFree(LPVOID Pointer);
 HANDLE LoadModule(LPCSTR Path);
 LPVOID GetModuleSymbol(HANDLE Module, LPCSTR Name);
 BOOL ReleaseModule(HANDLE Module);

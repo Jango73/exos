@@ -71,12 +71,12 @@
 - [x] Remove UI components from kernel and cleanup
   - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.
 
-- [ ] Clean up kernel (no kernel module should include "exos.h") :
-  - Rename KernelPeekMessage -> PeekMessage
-  - Rename KernelGetMessage -> GetMessage
-  - Rename KernelDispatchMessage -> DispatchMessage
-  - Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
-  - There must be no conflict between functions in kernel and functions in runtime
+- [x] Clean up kernel (no kernel module should include "exos.h") :
+  - [x] Rename KernelPeekMessage -> PeekMessage
+  - [x] Rename KernelGetMessage -> GetMessage
+  - [x] Rename KernelDispatchMessage -> DispatchMessage
+  - [x] Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
+  - [x] There must be no conflict between functions in kernel and functions in runtime
 
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps

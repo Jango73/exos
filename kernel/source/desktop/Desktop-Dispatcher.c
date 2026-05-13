@@ -104,11 +104,11 @@ static U32 DesktopDispatcherTask(LPVOID Parameter) {
         Message.Header.Flags = 0;
         Message.Target = NULL;
 
-        if (KernelGetMessage(&Message) == FALSE) {
+        if (GetMessage(&Message) == FALSE) {
             continue;
         }
 
-        if (KernelDispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
+        if (DispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
             DispatchFailureCount++;
         }
     }

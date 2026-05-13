@@ -379,7 +379,7 @@ static BOOL FetchTaskMessage(LPTASK Task, LPMESSAGE_INFO Message, BOOL Remove) {
  * @param Message Pointer to message info structure to fill
  * @return TRUE if a message was found, FALSE otherwise
  */
-BOOL KernelPeekMessage(LPMESSAGE_INFO Message) {
+BOOL PeekMessage(LPMESSAGE_INFO Message) {
     LPTASK Task;
     LPPROCESS TaskProcessPtr = NULL;
     LPPROCESS Process = NULL;
@@ -509,7 +509,7 @@ static BOOL FindTaskMessageOffset(
  *
  * Adds the specified message to the task's message queue. This function
  * locks both the task's mutex and message mutex to ensure thread safety.
- * The message will be processed when the task calls KernelGetMessage().
+ * The message will be processed when the task calls GetMessage().
  *
  * @param Task Pointer to the target task
  * @param Message Pointer to the message to add to the queue
@@ -614,7 +614,7 @@ static BOOL AddProcessMessage(LPPROCESS Process, LPMESSAGE Message) {
  *
  * Routes keyboard/mouse events to the focused window's task queue when a focused window exists,
  * otherwise to the focused process' message queue (created on-demand for the kernel process or
- * when the process has explicitly initialized its queue via KernelPeekMessage/KernelGetMessage).
+ * when the process has explicitly initialized its queue via PeekMessage/GetMessage).
  * If no suitable queue exists, the message is dropped.
  *
  * @param Msg Message identifier.
@@ -1053,7 +1053,7 @@ void WaitForMessage(LPTASK Task) {
  * @param Message Pointer to message info structure to fill
  * @return TRUE if message retrieved successfully, FALSE on ETM_QUIT or error
  */
-BOOL KernelGetMessage(LPMESSAGE_INFO Message) {
+BOOL GetMessage(LPMESSAGE_INFO Message) {
     LPTASK Task;
     LPPROCESS TaskProcessPtr = NULL;
     LPPROCESS Process = NULL;
@@ -1099,7 +1099,7 @@ BOOL KernelGetMessage(LPMESSAGE_INFO Message) {
  * @note Resolves and dispatches through desktop owner APIs without holding window mutex across callback
  * @note Only works within the context of the current process's desktop
  */
-BOOL KernelDispatchMessage(LPMESSAGE_INFO Message) {
+BOOL DispatchMessage(LPMESSAGE_INFO Message) {
     LPPROCESS Process = NULL;
     LPDESKTOP Desktop = NULL;
     LPWINDOW Window = NULL;
