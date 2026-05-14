@@ -55,6 +55,7 @@
   - [Legacy compatibility](#legacy-compatibility)
   - [Synchronization rules](#synchronization-rules)
 - [Tooling and References](#tooling-and-references)
+  - [String builder utility](#string-builder-utility)
   - [System Data View](#system-data-view)
   - [Logging](#logging)
   - [Automated debug validation script](#automated-debug-validation-script)
@@ -2381,6 +2382,12 @@ Desktop and windowing code follow this same kernel-wide rule. Typical examples:
 Mutex diagnostics are assigned at initialization time through `InitMutexWithDebugInfo(...)` or `SetMutexDebugInfo(...)`. Each tracked mutex carries a stable class, a diagnostic name, and the owning acquisition return address. The deadlock monitor keeps a per-task held-mutex stack and aborts immediately in debug builds when one class inversion is detected, so lock-order regressions fail at the first illegal acquisition instead of requiring ad-hoc session instrumentation.
 
 ## Tooling and References
+
+### String builder utility
+
+`utils/StringBuilder` provides bounded kernel-side string construction for large or incrementally assembled text buffers. It tracks the current text length, the required length when an append does not fit, and an overflow state so callers can reject unsafe paths without relying on raw `StringConcat()` sequences.
+
+Use it for repeated append workflows such as path assembly, command line construction, diagnostic text generation, and any logic that grows a fixed buffer across multiple steps.
 
 ### System Data View
 
