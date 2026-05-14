@@ -280,9 +280,15 @@ void ScriptNextToken(LPSCRIPT_PARSER Parser) {
         Parser->CurrentToken.Value[0] = Ch;
         (*Pos)++;
 
-        if ((Ch == '<' && Input[*Pos] == '=') ||
-            (Ch == '>' && Input[*Pos] == '=') ||
-            (Ch == '!' && Input[*Pos] == '=')) {
+        if ((Ch == '<' && Input[*Pos] == '<') ||
+            (Ch == '>' && Input[*Pos] == '>')) {
+            Parser->CurrentToken.Type = TOKEN_OPERATOR;
+            Parser->CurrentToken.Value[1] = Input[*Pos];
+            Parser->CurrentToken.Value[2] = STR_NULL;
+            (*Pos)++;
+        } else if ((Ch == '<' && Input[*Pos] == '=') ||
+                   (Ch == '>' && Input[*Pos] == '=') ||
+                   (Ch == '!' && Input[*Pos] == '=')) {
             Parser->CurrentToken.Type = TOKEN_COMPARISON;
             Parser->CurrentToken.Value[1] = Input[*Pos];
             Parser->CurrentToken.Value[2] = STR_NULL;
@@ -668,7 +674,7 @@ LPAST_NODE ScriptParseAssignmentAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error)
  * @return AST expression node or NULL on failure
  */
 static LPAST_NODE ScriptParseRelationalAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
-    LPAST_NODE Left = ScriptParseExpressionAST(Parser, Error);
+    LPAST_NODE Left = ScriptParseBitwiseOrAST(Parser, Error);
     if (*Error != SCRIPT_OK || Left == NULL) return NULL;
 
     while (Parser->CurrentToken.Type == TOKEN_COMPARISON) {
@@ -685,7 +691,7 @@ static LPAST_NODE ScriptParseRelationalAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR*
         CompNode->Data.Expression.Left = Left;
         ScriptNextToken(Parser);
 
-        LPAST_NODE Right = ScriptParseExpressionAST(Parser, Error);
+        LPAST_NODE Right = ScriptParseBitwiseOrAST(Parser, Error);
         if (*Error != SCRIPT_OK || Right == NULL) {
             ScriptDestroyAST(CompNode);
             return NULL;
@@ -693,6 +699,163 @@ static LPAST_NODE ScriptParseRelationalAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR*
 
         CompNode->Data.Expression.Right = Right;
         Left = CompNode;
+    }
+
+    return Left;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Parse bitwise OR operators and build AST node.
+ * @param Parser Parser state
+ * @param Error Pointer to error code
+ * @return AST expression node or NULL on failure
+ */
+LPAST_NODE ScriptParseBitwiseOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
+    LPAST_NODE Left = ScriptParseBitwiseXorAST(Parser, Error);
+    if (*Error != SCRIPT_OK || Left == NULL) return NULL;
+
+    while (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+           StringCompare(Parser->CurrentToken.Value, TEXT("|")) == 0) {
+        LPAST_NODE OperatorNode = ScriptCreateASTNode(Parser->Context, AST_EXPRESSION);
+        if (OperatorNode == NULL) {
+            *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+            ScriptDestroyAST(Left);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.TokenType = TOKEN_OPERATOR;
+        StringCopy(OperatorNode->Data.Expression.Value, Parser->CurrentToken.Value);
+        OperatorNode->Data.Expression.Left = Left;
+        ScriptNextToken(Parser);
+
+        LPAST_NODE Right = ScriptParseBitwiseXorAST(Parser, Error);
+        if (*Error != SCRIPT_OK || Right == NULL) {
+            ScriptDestroyAST(OperatorNode);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.Right = Right;
+        Left = OperatorNode;
+    }
+
+    return Left;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Parse bitwise XOR operators and build AST node.
+ * @param Parser Parser state
+ * @param Error Pointer to error code
+ * @return AST expression node or NULL on failure
+ */
+LPAST_NODE ScriptParseBitwiseXorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
+    LPAST_NODE Left = ScriptParseBitwiseAndAST(Parser, Error);
+    if (*Error != SCRIPT_OK || Left == NULL) return NULL;
+
+    while (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+           StringCompare(Parser->CurrentToken.Value, TEXT("^")) == 0) {
+        LPAST_NODE OperatorNode = ScriptCreateASTNode(Parser->Context, AST_EXPRESSION);
+        if (OperatorNode == NULL) {
+            *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+            ScriptDestroyAST(Left);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.TokenType = TOKEN_OPERATOR;
+        StringCopy(OperatorNode->Data.Expression.Value, Parser->CurrentToken.Value);
+        OperatorNode->Data.Expression.Left = Left;
+        ScriptNextToken(Parser);
+
+        LPAST_NODE Right = ScriptParseBitwiseAndAST(Parser, Error);
+        if (*Error != SCRIPT_OK || Right == NULL) {
+            ScriptDestroyAST(OperatorNode);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.Right = Right;
+        Left = OperatorNode;
+    }
+
+    return Left;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Parse bitwise AND operators and build AST node.
+ * @param Parser Parser state
+ * @param Error Pointer to error code
+ * @return AST expression node or NULL on failure
+ */
+LPAST_NODE ScriptParseBitwiseAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
+    LPAST_NODE Left = ScriptParseShiftAST(Parser, Error);
+    if (*Error != SCRIPT_OK || Left == NULL) return NULL;
+
+    while (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+           StringCompare(Parser->CurrentToken.Value, TEXT("&")) == 0) {
+        LPAST_NODE OperatorNode = ScriptCreateASTNode(Parser->Context, AST_EXPRESSION);
+        if (OperatorNode == NULL) {
+            *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+            ScriptDestroyAST(Left);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.TokenType = TOKEN_OPERATOR;
+        StringCopy(OperatorNode->Data.Expression.Value, Parser->CurrentToken.Value);
+        OperatorNode->Data.Expression.Left = Left;
+        ScriptNextToken(Parser);
+
+        LPAST_NODE Right = ScriptParseShiftAST(Parser, Error);
+        if (*Error != SCRIPT_OK || Right == NULL) {
+            ScriptDestroyAST(OperatorNode);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.Right = Right;
+        Left = OperatorNode;
+    }
+
+    return Left;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Parse shift operators and build AST node.
+ * @param Parser Parser state
+ * @param Error Pointer to error code
+ * @return AST expression node or NULL on failure
+ */
+LPAST_NODE ScriptParseShiftAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
+    LPAST_NODE Left = ScriptParseExpressionAST(Parser, Error);
+    if (*Error != SCRIPT_OK || Left == NULL) return NULL;
+
+    while (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
+           (StringCompare(Parser->CurrentToken.Value, TEXT("<<")) == 0 ||
+            StringCompare(Parser->CurrentToken.Value, TEXT(">>")) == 0)) {
+        LPAST_NODE OperatorNode = ScriptCreateASTNode(Parser->Context, AST_EXPRESSION);
+        if (OperatorNode == NULL) {
+            *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+            ScriptDestroyAST(Left);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.TokenType = TOKEN_OPERATOR;
+        StringCopy(OperatorNode->Data.Expression.Value, Parser->CurrentToken.Value);
+        OperatorNode->Data.Expression.Left = Left;
+        ScriptNextToken(Parser);
+
+        LPAST_NODE Right = ScriptParseExpressionAST(Parser, Error);
+        if (*Error != SCRIPT_OK || Right == NULL) {
+            ScriptDestroyAST(OperatorNode);
+            return NULL;
+        }
+
+        OperatorNode->Data.Expression.Right = Right;
+        Left = OperatorNode;
     }
 
     return Left;
@@ -935,11 +1098,12 @@ static LPAST_NODE ScriptCreateUnaryOperatorNode(
  * @return AST expression node or NULL on failure
  */
 LPAST_NODE ScriptParseFactorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
-    // UNARY +/-. and !.
+    // UNARY +/-, ! and ~.
     if (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
         (Parser->CurrentToken.Value[0] == '+' ||
          Parser->CurrentToken.Value[0] == '-' ||
-         Parser->CurrentToken.Value[0] == '!')) {
+         Parser->CurrentToken.Value[0] == '!' ||
+         Parser->CurrentToken.Value[0] == '~')) {
         STR UnaryOperator = Parser->CurrentToken.Value[0];
 
         ScriptNextToken(Parser);
@@ -949,7 +1113,7 @@ LPAST_NODE ScriptParseFactorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
             return NULL;
         }
 
-        if (UnaryOperator == '!') {
+        if (UnaryOperator == '!' || UnaryOperator == '~') {
             LPAST_NODE OperatorNode = ScriptCreateASTNode(Parser->Context, AST_EXPRESSION);
             if (OperatorNode == NULL) {
                 *Error = SCRIPT_ERROR_OUT_OF_MEMORY;

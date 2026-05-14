@@ -38,6 +38,10 @@ void ScriptInitParser(LPSCRIPT_PARSER Parser, LPCSTR Input, LPSCRIPT_CONTEXT Con
 void ScriptNextToken(LPSCRIPT_PARSER Parser);
 void ScriptParseStringToken(LPSCRIPT_PARSER Parser, LPCSTR Input, U32* Pos, STR QuoteChar);
 LPAST_NODE ScriptParseExpressionAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseShiftAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseXorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseComparisonAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseLogicalOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseLogicalAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);

@@ -63,6 +63,68 @@ BOOL ScriptValueIsTrue(const SCRIPT_VALUE* Value, BOOL* OutValue) {
 /************************************************************************/
 
 /**
+ * @brief Evaluate one binary integer-only operator.
+ * @param LeftValue Left operand.
+ * @param RightValue Right operand.
+ * @param Operator Operator token text.
+ * @param Result Receives the integer result.
+ * @return SCRIPT_OK on success, otherwise an error code.
+ */
+static SCRIPT_ERROR ScriptEvaluateBinaryIntegerOperator(
+    const SCRIPT_VALUE* LeftValue,
+    const SCRIPT_VALUE* RightValue,
+    LPCSTR Operator,
+    SCRIPT_VALUE* Result) {
+    INT LeftInteger = 0;
+    INT RightInteger = 0;
+    UINT ShiftBits = (UINT)(sizeof(INT) * 8);
+
+    if (LeftValue == NULL || RightValue == NULL || Operator == NULL || Result == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    if (!ScriptValueToInteger(LeftValue, &LeftInteger) ||
+        !ScriptValueToInteger(RightValue, &RightInteger)) {
+        return SCRIPT_ERROR_TYPE_MISMATCH;
+    }
+
+    Result->Type = SCRIPT_VAR_INTEGER;
+
+    if (StringCompare(Operator, TEXT("&")) == 0) {
+        Result->Value.Integer = LeftInteger & RightInteger;
+        return SCRIPT_OK;
+    }
+
+    if (StringCompare(Operator, TEXT("|")) == 0) {
+        Result->Value.Integer = LeftInteger | RightInteger;
+        return SCRIPT_OK;
+    }
+
+    if (StringCompare(Operator, TEXT("^")) == 0) {
+        Result->Value.Integer = LeftInteger ^ RightInteger;
+        return SCRIPT_OK;
+    }
+
+    if (RightInteger < 0 || (UINT)RightInteger >= ShiftBits) {
+        return SCRIPT_ERROR_TYPE_MISMATCH;
+    }
+
+    if (StringCompare(Operator, TEXT("<<")) == 0) {
+        Result->Value.Integer = LeftInteger << RightInteger;
+        return SCRIPT_OK;
+    }
+
+    if (StringCompare(Operator, TEXT(">>")) == 0) {
+        Result->Value.Integer = LeftInteger >> RightInteger;
+        return SCRIPT_OK;
+    }
+
+    return SCRIPT_ERROR_SYNTAX;
+}
+
+/************************************************************************/
+
+/**
  * @brief Release one temporary function-call argument vector.
  * @param Context Script context that owns the temporary allocations.
  * @param Arguments Argument string array.
@@ -613,6 +675,30 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
             }
 
             if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR &&
+                StringCompare(Expr->Data.Expression.Value, TEXT("~")) == 0) {
+                SCRIPT_VALUE RightValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Right, Error);
+                INT RightInteger = 0;
+
+                if (Error && *Error != SCRIPT_OK) {
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                if (!ScriptValueToInteger(&RightValue, &RightInteger)) {
+                    if (Error) {
+                        *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    }
+                    ScriptValueRelease(&RightValue);
+                    return Result;
+                }
+
+                Result.Type = SCRIPT_VAR_INTEGER;
+                Result.Value.Integer = ~RightInteger;
+                ScriptValueRelease(&RightValue);
+                return Result;
+            }
+
+            if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR &&
                 StringCompare(Expr->Data.Expression.Value, TEXT("&&")) == 0) {
                 SCRIPT_VALUE LeftValue = ScriptEvaluateExpression(Parser, Expr->Data.Expression.Left, Error);
                 BOOL LeftIsTrue = FALSE;
@@ -727,6 +813,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
 
             if (Expr->Data.Expression.TokenType == TOKEN_OPERATOR) {
                 STR Operator = Expr->Data.Expression.Value[0];
+                LPCSTR OperatorText = Expr->Data.Expression.Value;
                 SCRIPT_ERROR StringError = SCRIPT_OK;
 
                 if (Operator == '+') {
@@ -749,6 +836,24 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                         ScriptValueRelease(&RightValue);
                         return Result;
                     }
+                }
+
+                if (StringCompare(OperatorText, TEXT("&")) == 0 ||
+                    StringCompare(OperatorText, TEXT("|")) == 0 ||
+                    StringCompare(OperatorText, TEXT("^")) == 0 ||
+                    StringCompare(OperatorText, TEXT("<<")) == 0 ||
+                    StringCompare(OperatorText, TEXT(">>")) == 0) {
+                    SCRIPT_ERROR IntegerError = ScriptEvaluateBinaryIntegerOperator(
+                        &LeftValue,
+                        &RightValue,
+                        OperatorText,
+                        &Result);
+                    if (IntegerError != SCRIPT_OK && Error) {
+                        *Error = IntegerError;
+                    }
+                    ScriptValueRelease(&LeftValue);
+                    ScriptValueRelease(&RightValue);
+                    return Result;
                 }
 
                 F32 LeftNumeric;
