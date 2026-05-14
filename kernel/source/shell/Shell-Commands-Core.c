@@ -567,8 +567,10 @@ static void ChangeFolder(LPSHELLCONTEXT Context) {
 
     if (GetSystemFS()->Driver->Command(DF_FS_PATHEXISTS, (UINT)&Control)) {
         StringCopy(Context->CurrentFolder, NewPath);
+        TEST(TEXT("cf %s : OK"), NewPath);
     } else {
         ConsolePrint(TEXT("Unknown folder : %s\n"), NewPath);
+        TEST(TEXT("cf %s : KO"), NewPath);
     }
 }
 
@@ -771,15 +773,13 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
 
 U32 CMD_commands(LPSHELLCONTEXT Context) {
     UNUSED(Context);
-
     U32 Index;
-
     for (Index = 0; COMMANDS[Index].Command != NULL; Index++) {
         ConsolePrint(
             TEXT("%s (%s) %s - %s\n"), COMMANDS[Index].Name, COMMANDS[Index].AltName, COMMANDS[Index].Usage,
             COMMANDS[Index].Description);
     }
-
+    TEST(TEXT("commands : OK"));
     return DF_RETURN_SUCCESS;
 }
 
@@ -787,9 +787,8 @@ U32 CMD_commands(LPSHELLCONTEXT Context) {
 
 U32 CMD_clearScreen(LPSHELLCONTEXT Context) {
     UNUSED(Context);
-
     ClearConsole();
-
+    TEST(TEXT("clear : OK"));
     return DF_RETURN_SUCCESS;
 }
 
@@ -801,13 +800,11 @@ U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
     U32 Rows;
     U32 Result;
     U32 ModeCount;
-
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
-
     if (StringCompareNC(Context->Command, TEXT("list")) == 0) {
         CONSOLE_MODE_INFO ModeInfo;
         ModeCount = DoSystemCall(SYSCALL_ConsoleGetModeCount, SYSCALL_PARAM(0));
@@ -823,18 +820,17 @@ U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
             ConsolePrint(
                 TEXT("  %u: %ux%u (char height %u)\n"), Index, ModeInfo.Columns, ModeInfo.Rows, ModeInfo.CharHeight);
         }
+        TEST(TEXT("consoleMode list : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     Columns = StringToU32(Context->Command);
-
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
     Rows = StringToU32(Context->Command);
-
     if (Columns == 0 || Rows == 0) {
         ConsolePrint(TEXT("Invalid console size\n"));
         return DF_RETURN_SUCCESS;
@@ -847,13 +843,13 @@ U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
     Info.Width = Columns;
     Info.Height = Rows;
     Info.BitsPerPixel = 0;
-
     Result = DoSystemCall(SYSCALL_ConsoleSetMode, SYSCALL_PARAM(&Info));
-
     if (Result != DF_RETURN_SUCCESS) {
         ConsolePrint(TEXT("Console mode %ux%u unavailable (err=%u)\n"), Columns, Rows, Result);
+        TEST(TEXT("consoleMode %u %u : KO"), Columns, Rows);
     } else {
         ConsolePrint(TEXT("Console mode set to %ux%u\n"), Columns, Rows);
+        TEST(TEXT("consoleMode %u %u : OK"), Columns, Rows);
     }
 
     return DF_RETURN_SUCCESS;
@@ -868,19 +864,18 @@ U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
  */
 U32 CMD_keyboard(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
-
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Keyboard layout: %s\n"), GetKeyboardCode());
+        TEST(TEXT("keyboard query : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (HasOption(Context, TEXT("l"), TEXT("layout"))) {
         SelectKeyboard(Context->Command);
         ConsolePrint(TEXT("Keyboard layout set to %s\n"), GetKeyboardCode());
-        TEST(TEXT("keyboard : OK"));
+        TEST(TEXT("keyboard layout %s : OK"), GetKeyboardCode());
         return DF_RETURN_SUCCESS;
     }
-
     ConsolePrint(TEXT("Usage: keyboard --layout Code\n"));
     return DF_RETURN_SUCCESS;
 }
@@ -889,21 +884,23 @@ U32 CMD_keyboard(LPSHELLCONTEXT Context) {
 
 U32 CMD_pause(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
-
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Pause is %s\n"), ConsoleGetPagingEnabled() ? TEXT("on") : TEXT("off"));
+        TEST(TEXT("pause query : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (StringCompareNC(Context->Command, TEXT("on")) == 0) {
         ConsoleSetPagingEnabled(TRUE);
         ConsolePrint(TEXT("Pause on\n"));
+        TEST(TEXT("pause on : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (StringCompareNC(Context->Command, TEXT("off")) == 0) {
         ConsoleSetPagingEnabled(FALSE);
         ConsolePrint(TEXT("Pause off\n"));
+        TEST(TEXT("pause off : OK"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -922,25 +919,17 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
     BOOL Recurse;
     BOOL Stress;
     U32 NumListed = 0;
-
     Target[0] = STR_NULL;
-
-    // Parse all command line components (including options) first
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command)) {
         QualifyFileName(Context, Context->Command, Target);
     }
-
-    // Continue parsing any remaining components to capture all options
     while (Context->Input.CommandLine[Context->CommandChar] != STR_NULL) {
         ParseNextCommandLineComponent(Context);
     }
-
-    // Now check for options after all parsing is complete
     Pause = HasOption(Context, TEXT("p"), TEXT("pause"));
     Recurse = HasOption(Context, TEXT("r"), TEXT("recursive"));
     Stress = HasOption(Context, TEXT("s"), TEXT("stress"));
-
     if (Stress) {
         if (StringLength(Target) == 0) {
             StringCopy(Base, Context->CurrentFolder);
@@ -952,30 +941,35 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
         if (ProcessControlCheckpoint(CurrentProcess)) {
             ConsolePrint(TEXT("Command interrupted\n"));
         }
+        TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+            Base,
+            Pause ? 1 : 0,
+            Recurse ? 1 : 0,
+            Stress ? 1 : 0);
         return DF_RETURN_SUCCESS;
     }
-
     FileSystem = GetSystemFS();
-
     if (FileSystem == NULL || FileSystem->Driver == NULL) {
         ConsolePrint(TEXT("No file system mounted !\n"));
         TEST(TEXT("listFolder : KO (No file system mounted)"));
         return DF_RETURN_SUCCESS;
     }
-
     if (StringLength(Target) == 0) {
         StringCopy(Base, Context->CurrentFolder);
     } else {
         StringCopy(Base, Target);
     }
-
     ProcessControlConsumeInterrupt(CurrentProcess);
     ListDirectory(Context, Base, 0, Pause, Recurse, &NumListed);
     if (ProcessControlCheckpoint(CurrentProcess)) {
         ConsolePrint(TEXT("Command interrupted\n"));
     }
 
-    TEST(TEXT("listFolder : OK"));
+    TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+        Base,
+        Pause ? 1 : 0,
+        Recurse ? 1 : 0,
+        Stress ? 1 : 0);
 
     return DF_RETURN_SUCCESS;
 }
@@ -995,9 +989,9 @@ U32 CMD_makeFolder(LPSHELLCONTEXT Context) {
     FolderName[0] = STR_NULL;
 
     if (MakeFolder(Context, FolderName)) {
-        TEST(TEXT("md %s : OK"), FolderName);
+        TEST(TEXT("makeFolder %s : OK"), FolderName);
     } else {
-        TEST(TEXT("md %s : KO"), FolderName);
+        TEST(TEXT("makeFolder %s : KO"), FolderName);
     }
 
     return DF_RETURN_SUCCESS;

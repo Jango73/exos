@@ -9,34 +9,34 @@ Conventions:
 
 ## Block 1 - Core Commands
 
-- [ ] `commands / help`.
-- [ ] `clear / cls`.
-- [ ] `consoleMode / mode list`.
-- [ ] `consoleMode / mode <columns> <rows>`.
-- [ ] `keyboard / keyboard` without argument.
-- [ ] `keyboard / keyboard -l <code>`.
-- [ ] `keyboard / keyboard --layout <code>`.
-- [ ] `pause / pause` without argument.
-- [ ] `pause / pause on`.
-- [ ] `pause / pause off`.
-- [ ] `cd / cd` with relative path.
-- [ ] `cd / cd` with absolute path.
-- [ ] `makeFolder / mf <name>`.
-- [ ] `listFolder / lf` on current folder.
-- [ ] `listFolder / lf <path>`.
-- [ ] `listFolder / lf -p`.
-- [ ] `listFolder / lf -r`.
-- [ ] `listFolder / lf -s`.
-- [ ] `listFolder / lf --stress`.
+- [x] `commands / help`.
+- [x] `clear / cls`.
+- [x] `consoleMode / mode list`.
+- [x] `consoleMode / mode <columns> <rows>`.
+- [x] `keyboard / keyb` without argument.
+- [x] `keyboard / keyb -l <code>`.
+- [x] `keyboard / keyb --layout <code>`.
+- [x] `pause / pause` without argument.
+- [x] `pause / pause on`.
+- [x] `pause / pause off`.
+- [x] `cf / cd` with relative path.
+- [x] `cf / cd` with absolute path.
+- [x] `makeFolder / mf <name>`.
+- [x] `listFolder / lf` on current folder.
+- [x] `listFolder / lf <path>`.
+- [x] `listFolder / lf -p`.
+- [x] `listFolder / lf -r`.
+- [x] `listFolder / lf -s`.
+- [x] `listFolder / lf --stress`.
 
 ## Block 2 - Storage and File Commands
 
 - [ ] `copy / cp <source> <target>`.
 - [ ] `type / show <path>`.
-- [ ] `edit / edit` without argument.
-- [ ] `edit / edit <path>`.
-- [ ] `edit / edit -n`.
-- [ ] `edit / edit --lineNumbers`.
+- [ ] `edit / ed` without argument.
+- [ ] `edit / ed <path>`.
+- [ ] `edit / ed -n`.
+- [ ] `edit / ed --lineNumbers`.
 - [ ] `disk / disk list`.
 - [ ] `fs / fileSystem list`.
 
@@ -44,7 +44,7 @@ Conventions:
 
 - [ ] `addUser / newUser <username>` path.
 - [ ] `addUser / newUser` interactive username path.
-- [ ] `delUser / deleteUser <username>`.
+- [ ] `deleteUser / delUser <username>`.
 - [ ] `login / login <username>` path.
 - [ ] `login / login` interactive username path.
 - [ ] `logout / logout`.
@@ -54,15 +54,15 @@ Conventions:
 ## Block 4 - System and Diagnostics Commands
 
 - [ ] `credits / credits`.
-- [ ] `data / dataView`.
-- [ ] `dis / disasm <address> <instructionCount>`.
-- [ ] `mem / memEdit <address>`.
-- [ ] `memMap / memoryMap`.
+- [ ] `dataView / data`.
+- [ ] `disasm / dis <address> <instructionCount>`.
+- [ ] `memEdit / mem <address>`.
+- [ ] `memoryMap / memMap`.
 - [ ] `net / network devices`.
 - [ ] `nvme / nvme list`.
 - [ ] `pic / pic`.
-- [ ] `prof / profiling`.
-- [ ] `prof / profiling reset`.
+- [ ] `profiling / prof`.
+- [ ] `profiling / prof reset`.
 - [ ] `systemInfo / sys`.
 - [ ] `task / task list`.
 - [ ] `autotest / autotest stack`.
@@ -72,12 +72,12 @@ Conventions:
 
 ## Block 5 - Drivers, Graphics, Desktop, USB
 
-- [ ] `drv / driver list`.
-- [ ] `drv / driver <alias>`.
-- [ ] `desktop / desktop` default status path.
-- [ ] `desktop / desktop status`.
-- [ ] `desktop / desktop show`.
-- [ ] `desktop / desktop theme <path-or-name>`.
+- [ ] `driver / drv list`.
+- [ ] `driver / drv <alias>`.
+- [ ] `desktop / dskt` default status path.
+- [ ] `desktop / dskt status`.
+- [ ] `desktop / dskt show`.
+- [ ] `desktop / dskt theme <path-or-name>`.
 - [ ] `usb / usb ports`.
 - [ ] `usb / usb devices`.
 - [ ] `usb / usb deviceTree`.

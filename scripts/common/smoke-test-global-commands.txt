@@ -18,7 +18,7 @@ command: "/temp/tcc-global-hello" | log: "TEST > [Spawn] Executable finished nor
 command: "type /fs/n0p0/read.txt" | log: "TEST > [CMD_type] type /fs/n0p0/read.txt : OK"
 command: "copy /fs/n0p0/read.txt /fs/n0p0/write.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/n0p0/write.txt : OK"
 command: "type /fs/n0p0/write.txt" | log: "TEST > [CMD_type] type /fs/n0p0/write.txt : OK"
-command: "mf /fs/r0p0/smoke" | log: "TEST > [CMD_makeFolder] md /fs/r0p0/smoke : OK"
+command: "mf /fs/r0p0/smoke" | log: "TEST > [CMD_makeFolder] makeFolder /fs/r0p0/smoke : OK"
 command: "copy /fs/n0p0/read.txt /fs/r0p0/smoke/copied-from-n0p0.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/r0p0/smoke/copied-from-n0p0.txt : OK"
 command: "type /fs/r0p0/smoke/copied-from-n0p0.txt" | log: "TEST > [CMD_type] type /fs/r0p0/smoke/copied-from-n0p0.txt : OK"
 command: "type /fs/n1p0/read.txt" | log: "TEST > [CMD_type] type /fs/n1p0/read.txt : OK"

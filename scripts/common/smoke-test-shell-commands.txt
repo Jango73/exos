@@ -1,0 +1,21 @@
+# Dedicated shell smoke-test command specification.
+# Block 1 implemented: core commands.
+# Future blocks will extend this file instead of duplicating smoke infrastructure.
+
+command: "pause off" | log: "TEST > [CMD_pause] pause off : OK"
+command: "pause" | log: "TEST > [CMD_pause] pause query : OK"
+command: "commands" | log: "TEST > [CMD_commands] commands : OK"
+command: "clear" | log: "TEST > [CMD_clearScreen] clear : OK"
+command: "consoleMode list" | log: "TEST > [CMD_consoleMode] consoleMode list : OK"
+command: "keyboard" | log: "TEST > [CMD_keyboard] keyboard query : OK"
+command: "keyboard --layout en-US" | log: "TEST > [CMD_keyboard] keyboard layout en-US : OK"
+command: "makeFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_makeFolder] makeFolder /temp/shell-smoke-block1 : OK"
+command: "makeFolder /temp/shell-smoke-block1/sub" | log: "TEST > [CMD_makeFolder] makeFolder /temp/shell-smoke-block1/sub : OK"
+command: "cf /temp" | log: "TEST > [ChangeFolder] cf /temp : OK"
+command: "cf shell-smoke-block1" | log: "TEST > [ChangeFolder] cf /temp/shell-smoke-block1 : OK"
+command: "listFolder" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=0 recursive=0 stress=0 : OK"
+command: "listFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=0 recursive=0 stress=0 : OK"
+command: "listFolder -p /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=1 recursive=0 stress=0 : OK"
+command: "listFolder -r /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=0 recursive=1 stress=0 : OK"
+command: "cf /temp/shell-smoke-block1" | log: "TEST > [ChangeFolder] cf /temp/shell-smoke-block1 : OK"
+command: "shutdown"
