@@ -1,0 +1,183 @@
+score = 0;
+
+if (process.count >= 1) {
+    score = score + 1;
+
+    if (process[0].fileName != "") {
+        score = score + 1;
+    }
+
+    if (process[0].task.count >= 1) {
+        score = score + 1;
+
+        if (process[0].task[0].name != "") {
+            score = score + 1;
+        }
+
+        if (process[0].task[0].stack.base > 0) {
+            score = score + 1;
+        }
+
+        if (process[0].task[0].architecture.context > 0) {
+            score = score + 1;
+        }
+    }
+}
+
+if (task.count >= 1) {
+    score = score + 1;
+
+    if (task[0].status >= 0) {
+        score = score + 1;
+    }
+}
+
+if (driver.count >= 1) {
+    score = score + 1;
+
+    if (driver[0].alias != "") {
+        score = score + 1;
+    }
+
+    if (driver[0].enumDomain.count >= 0) {
+        score = score + 1;
+    }
+}
+
+driver_with_mode_count = 0;
+driver_with_mode_width = 0;
+for (i = 0; i < driver.count; i = i + 1) {
+    if (driver_with_mode_count == 0) {
+        if (driver[i].mode.count > 0) {
+            driver_with_mode_count = 1;
+
+            if (driver[i].mode[0].width > 0) {
+                driver_with_mode_width = 1;
+            }
+        }
+    }
+}
+
+if (driver_with_mode_count != 0) {
+    score = score + 1;
+}
+
+if (driver_with_mode_width != 0) {
+    score = score + 1;
+}
+
+if (graphics.frontend == "console" || graphics.frontend == "desktop") {
+    score = score + 1;
+}
+
+if (graphics.mode.width > 0) {
+    score = score + 1;
+}
+
+if (clock.uptimeMs >= 0) {
+    score = score + 1;
+}
+
+if (clock.bootDatetime.year >= 2020) {
+    score = score + 1;
+}
+
+if (clock.currentDatetime.second >= 0) {
+    score = score + 1;
+}
+
+if (storage.count >= 1) {
+    score = score + 1;
+
+    if (storage[0].bytesPerSector > 0) {
+        score = score + 1;
+    }
+}
+
+if (fileSystem.activePartitionName != "") {
+    score = score + 1;
+}
+
+if (fileSystem.mounted.count >= 1) {
+    score = score + 1;
+
+    if (fileSystem.mounted[0].name != "") {
+        score = score + 1;
+    }
+}
+
+if (memoryMap.kernelRegion.count >= 1) {
+    score = score + 1;
+
+    if (memoryMap.kernelRegion[0].tag != "") {
+        score = score + 1;
+    }
+}
+
+if (pciBus.count >= 1) {
+    score = score + 1;
+
+    if (pciBus[0].number >= 0) {
+        score = score + 1;
+    }
+}
+
+if (pciDevice.count >= 1) {
+    score = score + 1;
+
+    if (pciDevice[0].vendorId >= 0) {
+        score = score + 1;
+    }
+}
+
+if (usb.port.count >= 1) {
+    score = score + 1;
+
+    if (usb.port[0].connected >= 0) {
+        score = score + 1;
+    }
+}
+
+if (usb.device.count >= 1) {
+    score = score + 1;
+
+    if (usb.device[0].vendorId >= 0) {
+        score = score + 1;
+    }
+}
+
+if (usb.drive.count >= 0) {
+    score = score + 1;
+}
+
+if (usb.node.count >= 1) {
+    score = score + 1;
+
+    if (usb.node[0].nodeType > 0) {
+        score = score + 1;
+    }
+}
+
+if (network.device.count >= 1) {
+    score = score + 1;
+
+    if (network.device[0].name != "") {
+        score = score + 1;
+    }
+}
+
+if (keyboard.layout != "") {
+    score = score + 1;
+}
+
+if (account.count >= 0) {
+    score = score + 1;
+
+    if (account.count >= 1) {
+        if (account[0].name != "") {
+            score = score + 1;
+        }
+    }
+}
+
+return score;

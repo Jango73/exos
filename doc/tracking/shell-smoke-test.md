@@ -97,53 +97,60 @@ Conventions:
 - [ ] `package / package add <package-name>`.
 - [ ] `package / package add <path.epk>`.
 
-## Block 7 - Scripting Exposed Objects Part 1
+## Block 7 - Scripting Exposed Objects
 
-- [ ] `process.count`.
-- [ ] `process[0].fileName`.
-- [ ] `process[0].task.count`.
-- [ ] `process[0].task[0].name`.
-- [ ] `process[0].task[0].stack.base`.
-- [ ] `process[0].task[0].architecture.context`.
-- [ ] `task.count`.
-- [ ] `task[0].status`.
-- [ ] `driver.count`.
-- [ ] `driver[0].alias`.
-- [ ] `driver[0].mode.count`.
-- [ ] `driver[0].mode[0].width`.
-- [ ] `driver[0].enumDomain.count`.
-- [ ] `graphics.frontend`.
-- [ ] `graphics.mode.width`.
-- [ ] `clock.uptimeMs`.
-- [ ] `clock.bootDatetime.year`.
-- [ ] `clock.currentDatetime.second`.
-- [ ] `storage.count`.
-- [ ] `storage[0].bytesPerSector`.
-- [ ] `fileSystem.activePartitionName`.
-- [ ] `fileSystem.mounted.count`.
-- [ ] `fileSystem.mounted[0].name`.
-- [ ] `fileSystem.unused.count`.
-- [ ] `fileSystem.unused[0].name`.
+- [x] `process.count`.
+- [x] `process[0].fileName`.
+- [x] `process[0].task.count`.
+- [x] `process[0].task[0].name`.
+- [x] one admin-visible `process[*].task[*].stack.base`.
+- [x] one admin-visible `process[*].task[*].architecture.context`.
+- [x] `task.count`.
+- [x] `task[0].status`.
+- [x] `driver.count`.
+- [x] `driver[0].alias`.
+- [x] `one graphics-capable driver.mode.count`.
+- [x] `one graphics-capable driver.mode[0].width`.
+- [x] `driver[0].enumDomain.count`.
+- [x] `graphics.frontend`.
+- [x] `graphics.mode.width`.
+- [x] `clock.uptimeMs`.
+- [x] `clock.bootDatetime.year`.
+- [x] `clock.currentDatetime.second`.
+- [x] `storage.count`.
+- [x] `storage[0].bytesPerSector`.
+- [x] `fileSystem.activePartitionName`.
+- [x] `fileSystem.mounted.count`.
+- [x] `fileSystem.mounted[0].name`.
 
-## Block 8 - Scripting Exposed Objects Part 2
+Deferred from Block 7:
+- [ ] `fileSystem.unused.count` in an image exposing at least one unused file system.
+- [ ] `fileSystem.unused[0].name` in an image exposing at least one unused file system.
 
-- [ ] `memoryMap.kernelRegion.count`.
-- [ ] `memoryMap.kernelRegion[0].tag`.
-- [ ] `pciBus.count`.
-- [ ] `pciBus[0].number`.
-- [ ] `pciDevice.count`.
-- [ ] `pciDevice[0].vendorId`.
-- [ ] `usb.port.count`.
-- [ ] `usb.port[0].connected`.
-- [ ] `usb.device.count`.
-- [ ] `usb.device[0].vendorId`.
-- [ ] `usb.drive.count`.
+## Block 8 - Scripting Exposed Objects Continued
+
+- [x] `memoryMap.kernelRegion.count`.
+- [x] `memoryMap.kernelRegion[0].tag`.
+- [x] `pciBus.count`.
+- [x] `pciBus[0].number`.
+- [x] `pciDevice.count`.
+- [x] `pciDevice[0].vendorId`.
+- [x] `usb.port.count`.
+- [x] `usb.port[0].connected`.
+- [x] `usb.device.count`.
+- [x] `usb.device[0].vendorId`.
+- [x] `usb.drive.count`.
 - [ ] `usb.drive[0].blockSize`.
-- [ ] `usb.node.count`.
-- [ ] `usb.node[0].nodeType`.
-- [ ] `network.device.count`.
-- [ ] `network.device[0].name`.
-- [ ] `keyboard.layout`.
+- [x] `usb.node.count`.
+- [x] `usb.node[0].nodeType`.
+- [x] `network.device.count`.
+- [x] `network.device[0].name`.
+- [x] `keyboard.layout`.
 - [ ] `mouse.x`.
-- [ ] `account.count`.
+- [x] `account.count`.
 - [ ] `account[0].name`.
+
+Deferred from Block 8:
+- [ ] `usb.drive[0].blockSize` with at least one exposed USB mass-storage device.
+- [ ] `mouse.x` in a scenario exposing an initialized pointer position.
+- [ ] `account[0].name` in an image or scenario exposing at least one account.

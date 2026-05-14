@@ -3,7 +3,7 @@
 # command: "<command line>" | hotkey: "<qemu-sendkey-chord>" | log: "<expected fixed log fragment>" | file-size-compare: "<source-file>" "<downloaded-file>"
 
 command: "systemInfo" | log: "TEST > [CMD_systemInfo] systemInfo : OK"
-command: "listFolder" | log: "TEST > [CMD_listFolder] listFolder : OK"
+command: "listFolder" | log: "TEST > [CMD_listFolder] listFolder base=/ pause=0 recursive=0 stress=0 : OK"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
