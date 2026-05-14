@@ -78,7 +78,7 @@
   - [x] Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
   - [x] There must be no conflict between functions in kernel and functions in runtime
 
-- [ ] Execute iGPU.md : Step 11
+- [x] Execute iGPU.md : Step 11
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps

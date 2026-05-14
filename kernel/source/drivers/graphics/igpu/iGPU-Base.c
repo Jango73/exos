@@ -515,6 +515,7 @@ static UINT IntelGfxLoad(void) {
 
 static UINT IntelGfxUnload(void) {
     IntelGfxReleaseAllSurfaces();
+    IntelGfxCursorReleaseResources();
 
     if (IntelGfxState.ShadowFrameBufferLinear != 0 && IntelGfxState.ShadowFrameBufferSize != 0) {
         FreeRegion(IntelGfxState.ShadowFrameBufferLinear, IntelGfxState.ShadowFrameBufferSize);
@@ -597,12 +598,21 @@ static UINT IntelGfxDebugInfo(LPDRIVER_DEBUG_INFO Info) {
 
         StringPrintFormat(
             Info->Text,
-            TEXT("Manufacturer: %s\nProduct: %s\nResolution: %ux%ux%u"),
+            TEXT("Manufacturer: %s\nProduct: %s\nResolution: %ux%ux%u\nCursor: plane=%u loaded=%u visible=%u size=%ux%u hot=%u,%u reason=%s status=%u"),
             IntelGfxDriver.Manufacturer,
             IntelGfxDriver.Product,
             Width,
             Height,
-            BitsPerPixel);
+            BitsPerPixel,
+            IntelGfxState.Capabilities.HasCursorPlane ? 1 : 0,
+            IntelGfxState.CursorShapeLoaded ? 1 : 0,
+            IntelGfxState.CursorVisible ? 1 : 0,
+            IntelGfxState.CursorWidth,
+            IntelGfxState.CursorHeight,
+            IntelGfxState.CursorHotspotX,
+            IntelGfxState.CursorHotspotY,
+            IntelGfxCursorFailureReasonToText(IntelGfxState.CursorLastFailureReason),
+            IntelGfxState.CursorLastCommandStatus);
         return DF_RETURN_SUCCESS;
     }
 
@@ -674,6 +684,12 @@ static UINT IntelGfxCommands(UINT Function, UINT Param) {
             return IntelGfxFreeSurface((LPGFX_SURFACE_INFO)Param);
         case DF_GFX_SETSCANOUT:
             return IntelGfxSetScanout((LPGFX_SCANOUT_INFO)Param);
+        case DF_GFX_CURSOR_SET_SHAPE:
+            return IntelGfxCursorSetShape((LPGFX_CURSOR_SHAPE_INFO)Param);
+        case DF_GFX_CURSOR_SET_POSITION:
+            return IntelGfxCursorSetPosition((LPGFX_CURSOR_POSITION_INFO)Param);
+        case DF_GFX_CURSOR_SET_VISIBLE:
+            return IntelGfxCursorSetVisible((LPGFX_CURSOR_VISIBLE_INFO)Param);
 
         case DF_GFX_CREATEBRUSH:
         case DF_GFX_CREATEPEN:

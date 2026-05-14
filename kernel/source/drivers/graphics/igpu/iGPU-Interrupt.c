@@ -275,6 +275,8 @@ void IntelGfxOnModeActivated(void) {
     DEBUG(TEXT("VBlank path=%s pipe=%u"),
         InterruptEnabled ? TEXT("interrupt+poll") : TEXT("poll"),
         IntelGfxState.ActivePipeIndex);
+
+    IntelGfxCursorOnModeActivated();
 }
 
 /************************************************************************/

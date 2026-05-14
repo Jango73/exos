@@ -1055,7 +1055,8 @@ The Intel native backend is split by responsibility:
 - `kernel/source/drivers/graphics/igpu/iGPU-Base.c`: load, dispatch, and PCI attach
 - `kernel/source/drivers/graphics/igpu/iGPU-Mode.c`: takeover and native modeset flow
 - `kernel/source/drivers/graphics/igpu/iGPU-Present.c`: CPU drawing and surfaces
-- `kernel/source/drivers/graphics/igpu/iGPU-Text.c`: text and cursor operations
+- `kernel/source/drivers/graphics/igpu/iGPU-Text.c`: text operations
+- `kernel/source/drivers/graphics/igpu/iGPU-Cursor.c`: hardware cursor plane operations
 - `kernel/source/drivers/graphics/igpu/iGPU-Interrupt.c`: vblank synchronization and frame pacing
 
 Capability discovery is centralized in an internal `INTEL_GFX_CAPS` object built from a PCI device-id family table and refined with bounded MMIO register probes such as display version, pipe presence, and port mask. Public `GFX_CAPABILITIES` values returned by `DF_GFX_GETCAPABILITIES` are projected from that single capability object.
@@ -1069,6 +1070,8 @@ On hybrid platforms without active scanout takeover, the Intel backend can be lo
 The modeset core resolves explicit `INTEL_DISPLAY_FAMILY_OPS` descriptors from display version so stride encoding and decoding, plane tiling policy, and cold-modeset support remain family-specific and extension-ready without hardwired device-id control flow. Diagnostics record explicit failure state in `INTEL_GFX_STATE` through `LastModesetFailureStage` and `LastModesetFailureCode`.
 
 VBlank synchronization is implemented in `kernel/source/drivers/graphics/igpu/iGPU-Interrupt.c`. `DF_GFX_WAITVBLANK` performs bounded waits with `HasOperationTimedOut()` and rate-limited timeout diagnostics. Presentation serialization uses `PresentMutex`, and frame pacing tracks `PresentFrameSequence` and `VBlankFrameSequence` with optional `PIPESTAT` vblank handling and scanline polling fallback.
+
+Hardware pointer support uses the generic cursor contract in `kernel/include/GFX.h`. `DF_GFX_GETCAPABILITIES` exposes `HasCursorPlane`, while `DF_GFX_CURSOR_SET_SHAPE`, `DF_GFX_CURSOR_SET_POSITION`, and `DF_GFX_CURSOR_SET_VISIBLE` drive one conservative Intel 64x64 ARGB cursor plane on the active pipe. The backend stores cursor shape, hotspot, position, and visibility in `INTEL_GFX_STATE`, reapplies that state after mode activation, and exposes the last cursor failure reason through `DF_DEBUG_INFO` so desktop code can fall back deterministically to software overlay rendering.
 
 #### Desktop, cursor, and overlay
 
