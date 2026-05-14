@@ -19,8 +19,8 @@ Conventions:
 - [x] `pause / pause` without argument.
 - [x] `pause / pause on`.
 - [x] `pause / pause off`.
-- [x] `cf / cd` with relative path.
-- [x] `cf / cd` with absolute path.
+- [x] `changeFolder / cf` with relative path.
+- [x] `changeFolder / cf` with absolute path.
 - [x] `makeFolder / mf <name>`.
 - [x] `listFolder / lf` on current folder.
 - [x] `listFolder / lf <path>`.

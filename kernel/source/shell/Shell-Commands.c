@@ -28,7 +28,7 @@
 SHELL_COMMAND_ENTRY COMMANDS[] = {
     {"addUser", "newUser", "username", "Create user account", CMD_addUser},
     {"autotest", "autotest", "stack", "Run built-in tests", CMD_autotest},
-    {"cf", "cd", "Name", "Change current folder", CMD_changeFolder},
+    {"changeFolder", "cf", "Name", "Change current folder", CMD_changeFolder},
     {"clear", "cls", "", "Clear console screen", CMD_clearScreen},
     {"commands", "help", "", "List available commands", CMD_commands},
     {"consoleMode", "mode", "Columns Rows|list", "Set or list console mode", CMD_consoleMode},

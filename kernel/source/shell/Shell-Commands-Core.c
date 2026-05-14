@@ -567,10 +567,10 @@ static void ChangeFolder(LPSHELLCONTEXT Context) {
 
     if (GetSystemFS()->Driver->Command(DF_FS_PATHEXISTS, (UINT)&Control)) {
         StringCopy(Context->CurrentFolder, NewPath);
-        TEST(TEXT("cf %s : OK"), NewPath);
+        TEST(TEXT("changeFolder %s : OK"), NewPath);
     } else {
         ConsolePrint(TEXT("Unknown folder : %s\n"), NewPath);
-        TEST(TEXT("cf %s : KO"), NewPath);
+        TEST(TEXT("changeFolder %s : KO"), NewPath);
     }
 }
 
