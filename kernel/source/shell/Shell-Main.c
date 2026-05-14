@@ -394,7 +394,7 @@ static BOOL HandleUserLoginProcess(void) {
     if (!HasUsers) {
         ConsolePrint(TEXT("No existing user account. You need to create the first admin user.\n"));
 
-        CMD_adduser(&TempContext);
+        CMD_addUser(&TempContext);
 
         if (!ShellGetAccountCount(&TempContext, &AccountCount)) {
             ConsolePrint(TEXT("ERROR: Failed to query accounts after creation. System will exit.\n"));

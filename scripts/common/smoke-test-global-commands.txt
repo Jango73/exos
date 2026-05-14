@@ -2,8 +2,8 @@
 # Format:
 # command: "<command line>" | hotkey: "<qemu-sendkey-chord>" | log: "<expected fixed log fragment>" | file-size-compare: "<source-file>" "<downloaded-file>"
 
-command: "sys_info" | log: "TEST > [CMD_sysinfo] sys_info : OK"
-command: "dir" | log: "TEST > [CMD_dir] dir : OK"
+command: "systemInfo" | log: "TEST > [CMD_systemInfo] systemInfo : OK"
+command: "listFolder" | log: "TEST > [CMD_listFolder] listFolder : OK"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
@@ -18,7 +18,7 @@ command: "/temp/tcc-global-hello" | log: "TEST > [Spawn] Executable finished nor
 command: "type /fs/n0p0/read.txt" | log: "TEST > [CMD_type] type /fs/n0p0/read.txt : OK"
 command: "copy /fs/n0p0/read.txt /fs/n0p0/write.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/n0p0/write.txt : OK"
 command: "type /fs/n0p0/write.txt" | log: "TEST > [CMD_type] type /fs/n0p0/write.txt : OK"
-command: "md /fs/r0p0/smoke" | log: "TEST > [CMD_md] md /fs/r0p0/smoke : OK"
+command: "mf /fs/r0p0/smoke" | log: "TEST > [CMD_makeFolder] md /fs/r0p0/smoke : OK"
 command: "copy /fs/n0p0/read.txt /fs/r0p0/smoke/copied-from-n0p0.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/r0p0/smoke/copied-from-n0p0.txt : OK"
 command: "type /fs/r0p0/smoke/copied-from-n0p0.txt" | log: "TEST > [CMD_type] type /fs/r0p0/smoke/copied-from-n0p0.txt : OK"
 command: "type /fs/n1p0/read.txt" | log: "TEST > [CMD_type] type /fs/n1p0/read.txt : OK"

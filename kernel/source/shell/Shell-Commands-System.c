@@ -92,7 +92,7 @@ U32 CMD_task(LPSHELLCONTEXT Context) {
 
 /************************************************************************/
 
-U32 CMD_memedit(LPSHELLCONTEXT Context) {
+U32 CMD_memEdit(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
     MemoryEditor(StringToU32(Context->Command));
 
@@ -229,7 +229,7 @@ static void PrintProfileEntry(LPPROFILE_ENTRY_INFO Entry) {
 
 /************************************************************************/
 
-U32 CMD_prof(LPSHELLCONTEXT Context) {
+U32 CMD_profiling(LPSHELLCONTEXT Context) {
     PROFILE_ENTRY_INFO Entries[PROFILE_MAX_ENTRIES];
     PROFILE_QUERY_INFO Query;
     UINT Result;
@@ -312,7 +312,7 @@ U32 CMD_autotest(LPSHELLCONTEXT Context) {
  * @param Context Shell context.
  * @return DF_RETURN_SUCCESS on completion.
  */
-U32 CMD_dataview(LPSHELLCONTEXT Context) {
+U32 CMD_dataView(LPSHELLCONTEXT Context) {
     UNUSED(Context);
     SystemDataViewMode();
     return DF_RETURN_SUCCESS;
@@ -330,10 +330,10 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
 
     if (StringLength(Context->Command) == 0 || (StringCompareNC(Context->Command, TEXT("ports")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("devices")) != 0 &&
-                                                StringCompareNC(Context->Command, TEXT("device-tree")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("deviceTree")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("drives")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("probe")) != 0)) {
-        ConsolePrint(TEXT("Usage: usb ports|devices|device-tree|drives|probe\n"));
+        ConsolePrint(TEXT("Usage: usb ports|devices|deviceTree|drives|probe\n"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -345,7 +345,7 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICES));
     } else if (StringCompareNC(Context->Command, TEXT("ports")) == 0) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PORTS));
-    } else if (StringCompareNC(Context->Command, TEXT("device-tree")) == 0) {
+    } else if (StringCompareNC(Context->Command, TEXT("deviceTree")) == 0) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICE_TREE));
     }
 

@@ -785,7 +785,7 @@ U32 CMD_commands(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_cls(LPSHELLCONTEXT Context) {
+U32 CMD_clearScreen(LPSHELLCONTEXT Context) {
     UNUSED(Context);
 
     ClearConsole();
@@ -795,7 +795,7 @@ U32 CMD_cls(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_conmode(LPSHELLCONTEXT Context) {
+U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
     GRAPHICS_MODE_INFO Info;
     U32 Columns;
     U32 Rows;
@@ -804,7 +804,7 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
 
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
-        ConsolePrint(TEXT("Usage: con_mode Columns Rows | con_mode list\n"));
+        ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -830,7 +830,7 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
 
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
-        ConsolePrint(TEXT("Usage: con_mode Columns Rows | con_mode list\n"));
+        ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
     Rows = StringToU32(Context->Command);
@@ -913,7 +913,7 @@ U32 CMD_pause(LPSHELLCONTEXT Context) {
 
 /************************************************************************/
 
-U32 CMD_dir(LPSHELLCONTEXT Context) {
+U32 CMD_listFolder(LPSHELLCONTEXT Context) {
     STR Target[MAX_PATH_NAME];
     STR Base[MAX_PATH_NAME];
     LPFILESYSTEM FileSystem = NULL;
@@ -959,7 +959,7 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
 
     if (FileSystem == NULL || FileSystem->Driver == NULL) {
         ConsolePrint(TEXT("No file system mounted !\n"));
-        TEST(TEXT("dir : KO (No file system mounted)"));
+        TEST(TEXT("listFolder : KO (No file system mounted)"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -975,21 +975,21 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
         ConsolePrint(TEXT("Command interrupted\n"));
     }
 
-    TEST(TEXT("dir : OK"));
+    TEST(TEXT("listFolder : OK"));
 
     return DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
 
-U32 CMD_cd(LPSHELLCONTEXT Context) {
+U32 CMD_changeFolder(LPSHELLCONTEXT Context) {
     ChangeFolder(Context);
     return DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
 
-U32 CMD_md(LPSHELLCONTEXT Context) {
+U32 CMD_makeFolder(LPSHELLCONTEXT Context) {
     STR FolderName[MAX_PATH_NAME];
 
     FolderName[0] = STR_NULL;

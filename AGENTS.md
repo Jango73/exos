@@ -107,7 +107,7 @@ Replace `x86-32` with `x86-64` when targeting the x86-64 architecture.
 ./scripts/linux/test/smoke-test-global.sh --only x86-64
 ./scripts/linux/test/smoke-test-global.sh --only x86-64-uefi
 ```
-This script runs build + boot + shell command checks (`sysinfo`, `dir`, `/system/apps/hello`) and supports selecting a single target with `--only`.
+This script runs build + boot + a list of commands and supports selecting a single target with `--only`.
 
 **Build output layout:**
 - Core artifacts are written to `build/core/<BUILD_CORE_NAME>/`.

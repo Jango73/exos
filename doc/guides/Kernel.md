@@ -99,7 +99,7 @@ The following naming conventions have been adopted throughout the EXOS code base
 - Macro : SCREAMING_SNAKE_CASE
 - Function : PascalCase
 - Variable : PascalCase
-- Shell command : lower_snake_case
+- Shell command : lowerCamelCase
 - Shell object/property : lowerCamelCase
 
 
@@ -1772,7 +1772,7 @@ Each `SHELL_COMMAND_ENTRY` stores the primary name, alternate name, usage text, 
 
 This places command execution policy in shell code while the script engine is generic.
 
-Shell inspection commands that only read exposed kernel objects can delegate formatting to embedded E0 scripts. `driver list`, `network devices`, `usb ports|devices|device-tree|drives|probe`, `mem_map`, and `task list` follow that pattern so the shell stays on the public exposure API instead of walking kernel lists directly.
+Shell inspection commands that only read exposed kernel objects can delegate formatting to embedded E0 scripts. `driver list`, `network devices`, `usb ports|devices|deviceTree|drives|probe`, `memMap`, and `task list` follow that pattern so the shell stays on the public exposure API instead of walking kernel lists directly.
 
 Function-call expressions support zero or more arguments. The parser stores each argument as an AST expression, the evaluator resolves each one to text, and the host `CallFunction` callback receives `(name, argc, argv, user)` instead of a single serialized argument.
 
@@ -2411,7 +2411,7 @@ The implementation lives in `kernel/source/SystemDataView.c`. It provides a comp
 
 Kernel logging funnels through `KernelLogText` and uses typed log classes.
 The `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, and `TEST` macros inject `__func__` into the log path.
-The log formatter emits the function tag centrally and can emit structured results such as `TEST > [CMD_sysinfo] sys_info : OK`.
+The log formatter emits the function tag centrally and can emit structured results such as `TEST > [CMD_systemInfo] systemInfo : OK`.
 Serial output is sanitized to printable ASCII (plus tab/newline) before being written to the log.
 When `DEBUG_SPLIT` is `1`, kernel logs are mirrored to a dedicated right-side console region while standard console output stays on the left.
 `LOG_ERROR` entries stay in the kernel log path and are not mirrored to the main console, so diagnostics do not interfere with interactive console output.
@@ -2454,7 +2454,7 @@ The repository provides `scripts/linux/test/smoke-test-global.sh` to run an auto
 
 - clean build + image generation,
 - QEMU boot,
-- shell command injection (`sys_info`, `dir`, `/system/apps/hello`),
+- shell command injection (`systemInfo`, `listFolder`, `/system/apps/hello`),
 - cross-filesystem storage checks including RAM disk folder creation and copy (`/fs/n0p0` to `/fs/r0p0`),
 - kernel log pattern checks.
 
@@ -2555,7 +2555,7 @@ Console paging (`-- Press a key --`) integrates with cooperative interruption:
 - When paging wait detects `Control+C` (virtual combination or ASCII `0x03`), it requests interruption for the current process instead of consuming the key as paging continuation.
 - Fault dump paths (`LogCPUState` in x86-32/x86-64 fault handlers) force paging inactive while diagnostics are emitted, then restore the previous state.
 
-Long command loops can place interruption checkpoints; `dir` and `dir --stress` integrate this behavior and abort listing when an interruption request is pending.
+Long command loops can place interruption checkpoints; `listFolder` and `listFolder --stress` integrate this behavior and abort listing when an interruption request is pending.
 
 Configuration example:
 ```toml

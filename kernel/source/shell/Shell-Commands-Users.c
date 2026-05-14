@@ -106,7 +106,7 @@ UINT ShellChangePassword(
 
 /************************************************************************/
 
-U32 CMD_adduser(LPSHELLCONTEXT Context) {
+U32 CMD_addUser(LPSHELLCONTEXT Context) {
     STR UserName[MAX_USER_NAME];
     STR Password[MAX_USER_NAME];
     STR PrivilegeStr[16];
@@ -161,13 +161,13 @@ U32 CMD_adduser(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_deluser(LPSHELLCONTEXT Context) {
+U32 CMD_deleteUser(LPSHELLCONTEXT Context) {
     STR UserName[MAX_USER_NAME];
 
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("ERROR: Missing username argument\n"));
-        ConsolePrint(TEXT("Usage: del_user <username>\n"));
+        ConsolePrint(TEXT("Usage: delUser <username>\n"));
         return DF_RETURN_SUCCESS;
     }
     StringCopy(UserName, Context->Command);
@@ -272,7 +272,7 @@ U32 CMD_logout(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_whoami(LPSHELLCONTEXT Context) {
+U32 CMD_whoAmI(LPSHELLCONTEXT Context) {
     UNUSED(Context);
 
     LPUSER_SESSION Session = GetCurrentSession();
@@ -299,7 +299,7 @@ U32 CMD_whoami(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_passwd(LPSHELLCONTEXT Context) {
+U32 CMD_setPassword(LPSHELLCONTEXT Context) {
     STR OldPassword[MAX_PASSWORD];
     STR NewPassword[MAX_PASSWORD];
     STR ConfirmPassword[MAX_PASSWORD];
