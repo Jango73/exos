@@ -40,6 +40,8 @@
 MinimumTaskStackSize=65536
 # Specify minimum size for a task's system stack (interrupts, syscalls)
 MinimumSystemStackSize=16384
+# Specify maximum number of pending messages in task and process message queues
+MessageQueueMaxMessages=100
 
 [KernelPath]
 # Logical kernel file/folder paths.

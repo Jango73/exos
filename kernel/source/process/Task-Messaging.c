@@ -300,13 +300,18 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
         if (Process->MessageQueue.MessageBuffer.Entries == NULL ||
             Process->MessageQueue.MessageBuffer.Capacity == 0) {
             UINT MessageBufferSize;
+            UINT MessageQueueCapacity;
             LINEAR MessageBufferBase;
 
             if (CreateIfMissing == FALSE) {
                 return FALSE;
             }
 
-            MessageBufferSize = TASK_MESSAGE_QUEUE_MAX_MESSAGES * sizeof(MESSAGE);
+            MessageQueueCapacity = GetConfigurationUInt(TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES),
+                                                       TASK_MESSAGE_QUEUE_MAX_MESSAGES,
+                                                       1,
+                                                       MAX_U32 / sizeof(MESSAGE));
+            MessageBufferSize = MessageQueueCapacity * sizeof(MESSAGE);
             MessageBufferBase = (LINEAR)KernelHeapAlloc(MessageBufferSize);
             if (MessageBufferBase == 0) {
                 ERROR(TEXT("[EnsureProcessMessageQueue] Failed to allocate queue for process %p"), Process);
@@ -317,11 +322,11 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
             Process->MessageQueue.MessageBufferBase = MessageBufferBase;
             Process->MessageQueue.MessageBufferSize = MessageBufferSize;
             Process->MessageQueue.Waiting = FALSE;
-            Process->MessageQueue.Capacity = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
+            Process->MessageQueue.Capacity = MessageQueueCapacity;
             Process->MessageQueue.Flags = 0;
             MessageQueueBufferInitialize(&(Process->MessageQueue.MessageBuffer),
                                          (LPMESSAGE)MessageBufferBase,
-                                         TASK_MESSAGE_QUEUE_MAX_MESSAGES);
+                                         MessageQueueCapacity);
         }
 
         return TRUE;
@@ -527,7 +532,7 @@ static BOOL AddTaskMessage(LPTASK Task, LPMESSAGE Message) {
     LockMutex(&(Task->Mutex), INFINITY);
     LockMutex(&(Task->MessageQueue.Mutex), INFINITY);
 
-    if (MessageQueueBufferGetCount(&(Task->MessageQueue.MessageBuffer)) >= TASK_MESSAGE_QUEUE_MAX_MESSAGES) {
+    if (MessageQueueBufferGetCount(&(Task->MessageQueue.MessageBuffer)) >= Task->MessageQueue.Capacity) {
         WARNING(TEXT("Queue full for task %p, dropping message %u"), Task, Message->Message);
         UnlockMutex(&(Task->MessageQueue.Mutex));
         UnlockMutex(&(Task->Mutex));
@@ -574,7 +579,7 @@ static BOOL AddProcessMessage(LPPROCESS Process, LPMESSAGE Message) {
     LockMutex(&(Process->Mutex), INFINITY);
     LockMutex(&(Process->MessageQueue.Mutex), INFINITY);
 
-    if (MessageQueueBufferGetCount(&(Process->MessageQueue.MessageBuffer)) >= TASK_MESSAGE_QUEUE_MAX_MESSAGES) {
+    if (MessageQueueBufferGetCount(&(Process->MessageQueue.MessageBuffer)) >= Process->MessageQueue.Capacity) {
         WARNING(TEXT("Queue full for process %p, dropping message %u"), Process, Message->Message);
         UnlockMutex(&(Process->MessageQueue.Mutex));
         UnlockMutex(&(Process->Mutex));

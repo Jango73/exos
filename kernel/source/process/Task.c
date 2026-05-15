@@ -42,13 +42,13 @@
 static UINT DATA_SECTION TaskMinimumTaskStackSize = TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT;
 static UINT DATA_SECTION TaskMinimumSystemStackSize = TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT;
 static BOOL DATA_SECTION TaskStackConfigInitialized = FALSE;
+static UINT DATA_SECTION TaskMessageQueueMaximumMessages = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
+static BOOL DATA_SECTION TaskMessageQueueConfigInitialized = FALSE;
 static RESERVED_HEAP DATA_SECTION TaskMessageQueueReservedHeap;
 static BOOL DATA_SECTION TaskMessageQueueReservedHeapInitialized = FALSE;
 
 #define TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE N_256KB
 #define TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE N_4MB
-
-/************************************************************************/
 
 static BOOL TaskEnsureMessageQueueReservedHeap(void) {
     if (TaskMessageQueueReservedHeapInitialized) {
@@ -76,39 +76,31 @@ static void TaskInitializeStackConfig(void) {
         return;
     }
 
+    if (GetConfiguration() == NULL) {
+        return;
+    }
+
+    TaskMinimumTaskStackSize = GetConfigurationUInt(TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE),
+                                                    TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
+                                                    TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
+                                                    MAX_U32);
+    TaskMinimumSystemStackSize = GetConfigurationUInt(TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE),
+                                                      TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
+                                                      TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
+                                                      MAX_U32);
     TaskStackConfigInitialized = TRUE;
-
-    LPCSTR configValue = GetConfigurationValue(TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE));
-
-    if (STRING_EMPTY(configValue) == FALSE) {
-        UINT parsedValue = StringToU32(configValue);
-
-        if (parsedValue >= TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT) {
-            TaskMinimumTaskStackSize = parsedValue;
-        } else {
-            WARNING(TEXT("MinimumTaskStackSize='%s' resolves to %u which is below minimum %u, using default"),
-                    configValue, parsedValue, TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT);
-        }
-    }
-
-    configValue = GetConfigurationValue(TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE));
-
-    if (STRING_EMPTY(configValue) == FALSE) {
-        UINT parsedValue = StringToU32(configValue);
-
-        if (parsedValue >= TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT) {
-            TaskMinimumSystemStackSize = parsedValue;
-        } else {
-            WARNING(TEXT("MinimumSystemStackSize='%s' resolves to %u which is below minimum %u, using default"),
-                    configValue, parsedValue, TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT);
-        }
-    }
 }
 
 /************************************************************************/
 
 static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
-    UINT MessageBufferSize = TASK_MESSAGE_QUEUE_MAX_MESSAGES * sizeof(MESSAGE);
+    UINT MessageQueueCapacity = GetConfigurationUIntLazy(&TaskMessageQueueMaximumMessages,
+                                                         &TaskMessageQueueConfigInitialized,
+                                                         TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES),
+                                                         TASK_MESSAGE_QUEUE_MAX_MESSAGES,
+                                                         1,
+                                                         MAX_U32 / sizeof(MESSAGE));
+    UINT MessageBufferSize = MessageQueueCapacity * sizeof(MESSAGE);
     LINEAR MessageBufferBase;
     LPMESSAGE MessageBufferStorage;
 
@@ -135,12 +127,12 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
     Task->MessageQueue.MessageBufferBase = MessageBufferBase;
     Task->MessageQueue.MessageBufferSize = MessageBufferSize;
     InitMutexWithDebugInfo(&(Task->MessageQueue.Mutex), MUTEX_CLASS_TASK_MESSAGE_QUEUE, TEXT("TaskMessageQueue"));
-    Task->MessageQueue.Capacity = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
+    Task->MessageQueue.Capacity = MessageQueueCapacity;
     Task->MessageQueue.Flags = 0;
     Task->MessageQueue.Waiting = FALSE;
     MessageQueueBufferInitialize(&(Task->MessageQueue.MessageBuffer),
                                  MessageBufferStorage,
-                                 TASK_MESSAGE_QUEUE_MAX_MESSAGES);
+                                 MessageQueueCapacity);
 
     return TRUE;
 }

@@ -25,7 +25,9 @@
 #include "utils/Helpers.h"
 #include "core/Kernel.h"
 #include "fs/SystemFS.h"
+#include "log/Log.h"
 #include "process/Schedule.h"
+#include "text/CoreString.h"
 #include "user/Account.h"
 
 /***************************************************************************/
@@ -66,4 +68,50 @@ LPCSTR GetConfigurationValue(LPCSTR path) {
     }
 
     return TomlGet(Configuration, path);
+}
+
+/***************************************************************************/
+
+UINT GetConfigurationUInt(LPCSTR path, UINT defaultValue, UINT minimumValue, UINT maximumValue) {
+    LPCSTR configValue;
+    UINT parsedValue;
+
+    if (path == NULL) {
+        return defaultValue;
+    }
+
+    configValue = GetConfigurationValue(path);
+    if (STRING_EMPTY(configValue)) {
+        return defaultValue;
+    }
+
+    parsedValue = StringToU32(configValue);
+    if (parsedValue < minimumValue || parsedValue > maximumValue) {
+        WARNING(TEXT("[GetConfigurationUInt] %s='%s' resolves to %u outside range %u..%u, using default %u"),
+                path, configValue, parsedValue, minimumValue, maximumValue, defaultValue);
+        return defaultValue;
+    }
+
+    return parsedValue;
+}
+
+/***************************************************************************/
+
+UINT GetConfigurationUIntLazy(
+    UINT* cachedValue, BOOL* initialized, LPCSTR path, UINT defaultValue, UINT minimumValue, UINT maximumValue) {
+    if (cachedValue == NULL || initialized == NULL) {
+        return defaultValue;
+    }
+
+    if (*initialized) {
+        return *cachedValue;
+    }
+
+    if (GetConfiguration() == NULL) {
+        return defaultValue;
+    }
+
+    *cachedValue = GetConfigurationUInt(path, defaultValue, minimumValue, maximumValue);
+    *initialized = TRUE;
+    return *cachedValue;
 }

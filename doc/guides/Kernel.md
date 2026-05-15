@@ -759,7 +759,7 @@ Queue operations do not allocate or free entries during message posting/retrieva
 
 When a process message queue exists, the keyboard helpers (`PeekChar`, `GetChar`, `GetKeyCode`) consume key events from that queue by discarding `EWM_KEYUP` messages and returning the first `EWM_KEYDOWN`, then fall back to the classic buffer when no queue exists.
 
-Each queue is capped to 100 pending messages and guarded by a per-queue mutex plus a waiting flag.
+Each queue is capped by `Task.MessageQueueMaxMessages` (default and early-boot fallback: 100 pending messages) and guarded by a per-queue mutex plus a waiting flag.
 
 `WaitForMessage` marks the task queue as waiting and sleeps the task; `AddTaskMessage` wakes the task when a new message arrives and clears the waiting flag.
 
