@@ -68,6 +68,7 @@ CURRENT_ARCHIVE_NAME=""
 CURRENT_KERNEL_LOG_PATH=""
 CURRENT_COM1_LOG_PATH=""
 CURRENT_LOGS_ARCHIVED=0
+CURRENT_SHORT_COMMIT_ID=""
 SCRIPT_DISPLAY_NAME="${SMOKE_TEST_SCRIPT_NAME:-$0}"
 SMOKE_TEST_SUMMARY_ENABLED=0
 SMOKE_TEST_FAILED_TARGET=""
@@ -217,6 +218,21 @@ function NormalizeSpaces() {
     Value="${Value#"${Value%%[![:space:]]*}"}"
     Value="${Value%"${Value##*[![:space:]]}"}"
     echo "$Value"
+}
+
+function GetCurrentShortCommitId() {
+    if [ -n "$CURRENT_SHORT_COMMIT_ID" ]; then
+        echo "$CURRENT_SHORT_COMMIT_ID"
+        return 0
+    fi
+
+    if CURRENT_SHORT_COMMIT_ID="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null)"; then
+        echo "$CURRENT_SHORT_COMMIT_ID"
+        return 0
+    fi
+
+    CURRENT_SHORT_COMMIT_ID="unknown"
+    echo "$CURRENT_SHORT_COMMIT_ID"
 }
 
 function SplitCommandSpecSegments() {
@@ -473,6 +489,7 @@ function ArchiveCurrentRunLogs() {
     local Timestamp=""
     local ArchiveDir=""
     local SafeName=""
+    local ShortCommitId=""
     local KernelArchivePath=""
     local Com1ArchivePath=""
 
@@ -486,15 +503,16 @@ function ArchiveCurrentRunLogs() {
     Timestamp="$(date +%Y%m%d-%H%M%S)"
     ArchiveDir="$ROOT_DIR/log/archive"
     SafeName="$(echo "$CURRENT_ARCHIVE_NAME" | tr ' ' '-')"
+    ShortCommitId="$(GetCurrentShortCommitId)"
     mkdir -p "$ArchiveDir"
 
     if [ -f "$CURRENT_KERNEL_LOG_PATH" ]; then
-        KernelArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${Status}-kernel.log"
+        KernelArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${ShortCommitId}-${Status}-kernel.log"
         cp "$CURRENT_KERNEL_LOG_PATH" "$KernelArchivePath"
         echo "Archived kernel log: $KernelArchivePath"
     fi
     if [ -n "$CURRENT_COM1_LOG_PATH" ] && [ -f "$CURRENT_COM1_LOG_PATH" ]; then
-        Com1ArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${Status}-com1.log"
+        Com1ArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${ShortCommitId}-${Status}-com1.log"
         cp "$CURRENT_COM1_LOG_PATH" "$Com1ArchivePath"
         echo "Archived com1 log: $Com1ArchivePath"
     fi
