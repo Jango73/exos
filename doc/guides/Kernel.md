@@ -10,6 +10,7 @@
   - [Startup sequence on UEFI](#startup-sequence-on-uefi)
   - [Physical Memory map (may change)](#physical-memory-map-may-change)
   - [Paging abstractions](#paging-abstractions)
+  - [Memory descriptors](#memory-descriptors)
 - [Isolation and Kernel Core](#isolation-and-kernel-core)
   - [Security Architecture](#security-architecture)
   - [Kernel objects](#kernel-objects)
@@ -17,7 +18,6 @@
 - [Execution Model and Kernel Interface](#execution-model-and-kernel-interface)
   - [Tasks](#tasks)
   - [Process and Task Lifecycle Management](#process-and-task-lifecycle-management)
-    - [Reserved module heaps](#reserved-module-heaps)
   - [System calls](#system-calls)
   - [Task and window message delivery](#task-and-window-message-delivery)
   - [Command line editing](#command-line-editing)
@@ -215,6 +215,90 @@ Descriptors are allocated from dedicated descriptor slabs mapped with `AllocKern
 
 Descriptor slab bootstrap is protected by `G_RegionDescriptorBootstrap`. While descriptor slabs are being allocated and mapped, tracking callbacks are temporarily bypassed to prevent recursive descriptor allocation.
 
+### Memory descriptors
+
+`MEMORY_REGION_DESCRIPTOR` is the kernel bookkeeping object that describes one tracked virtual range. It does not replace page tables; it provides a higher-level inventory of what the address space owns, how large the range is, and how the range was allocated.
+
+Each descriptor stores:
+
+- `CanonicalBase`: canonical virtual start address used as the list ordering key.
+- `Base`: mirrored virtual base kept equal to `CanonicalBase`.
+- `PhysicalBase`: backing physical start when the mapping was created against one known physical target, otherwise `0`.
+- `Size` and `PageCount`: byte size and page count for the tracked span.
+- `Flags`: original allocation flags used by `AllocRegion` or `ResizeRegion`.
+- `Attributes`: normalized state bits derived from flags and later commit operations.
+- `Granularity`: metadata returned by `ComputeDescriptorGranularity` for 4 KiB, 2 MiB, or 1 GiB coverage.
+- `Tag`: short allocation label copied from the caller.
+- `OwnerProcess`: process that owns the descriptor list entry.
+
+The list node identity matters as much as the payload. Descriptors inherit `LISTNODE_FIELDS`, carry `KOID_MEMORY_REGION_DESCRIPTOR`, and are linked into `MEMORY_REGION_LIST` in ascending `CanonicalBase` order. This makes descriptor scans deterministic and allows fast stop conditions when searching for one base or one covering range.
+
+#### Allocation model
+
+Descriptor storage comes from dedicated slab pages managed by `kernel/source/memory/Memory-Descriptors.c`.
+
+1. `GrowDescriptorSlab()` allocates one physical page and maps it through `AllocKernelRegion(..., TEXT("RegionDescriptorSlab"))`.
+2. The page is zeroed and split into an array of `MEMORY_REGION_DESCRIPTOR`.
+3. Every entry is chained into the global free list `G_FreeRegionDescriptors`.
+4. `AcquireRegionDescriptor()` removes one entry from that free list when tracking needs a new descriptor.
+5. `ReleaseRegionDescriptor()` clears the object fields and returns the entry to the free list.
+
+This design keeps descriptor metadata outside process heaps and avoids mixing virtual-region bookkeeping with user or kernel heap growth policies.
+
+#### Ownership and visibility
+
+Tracked regions are owned per process. `GetCurrentMemoryRegionList()` resolves the active process list, while explicit operations can target another owner through `RegionTrack*ForProcess(...)`. If no current process exists, tracking falls back to `KernelProcess`.
+
+Descriptor ownership is visible in two places:
+
+- Internally, each `PROCESS` embeds `MemoryRegionList`, so the virtual map inventory follows the process object.
+- In script exposure, `kernelRegion` publishes the kernel process list through `Expose-MemoryMap.c`, and each descriptor exposes `tag`, base, physical base, size, page count, flags, attributes, and granularity.
+
+#### Lifecycle during region operations
+
+Tracking is integrated directly into mapping operations instead of being a passive diagnostic pass.
+
+- Allocation: after page-table population succeeds, `AllocRegionForProcess()` calls `RegionTrackAllocForProcess()`. The tracker rounds to pages, creates one descriptor, derives `Attributes`, copies the tag, and inserts the record into the owner list.
+- Free: `FreeRegionForProcess()` unmaps pages first, then `RegionTrackFreeForProcess()` updates descriptors for the released interval.
+- Resize grow: `ResizeRegionForProcess()` maps the appended pages, then `RegionTrackResizeForProcess()` either extends the existing descriptor or registers a new one if the base was not tracked.
+- Resize shrink: the released tail is sent through the same free-path update logic.
+- Commit after reserve: `CommitRegionRangeForProcess()` maps physical pages into an existing reserved virtual span, then `RegionTrackCommitForProcess()` sets `MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_COMMIT` on every descriptor covering the committed interval.
+
+Tracking therefore mirrors successful virtual memory state transitions rather than requested operations. If mapping work fails, the corresponding descriptor update does not become visible.
+
+#### Descriptor mutations on free and shrink
+
+`UpdateDescriptorsForFree()` is the core normalization routine. It walks the freed interval and mutates covering descriptors according to four cases:
+
+- Full overlap: remove the descriptor from the list and recycle it.
+- Head trim: move the descriptor base forward, adjust `PhysicalBase` when it is known, and reinsert it at the proper sorted position.
+- Tail trim: reduce `Size` and `PageCount` in place.
+- Middle split: keep the left part in the original descriptor, allocate a second descriptor for the right part, duplicate flags/attributes/tag, and offset `PhysicalBase` for the right fragment when applicable.
+
+This makes the descriptor list reflect the exact surviving virtual intervals after partial unmaps. The split path is strict: if the kernel cannot obtain a new descriptor for the right fragment, it panics rather than leaving descriptor state inconsistent with the page tables.
+
+#### Attributes and physical-base semantics
+
+`Attributes` is a compact view of mapping state:
+
+- `MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_COMMIT`: the region has backing pages mapped.
+- `MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_IO`: the region was created with I/O mapping semantics.
+- `MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_FIXED`: the mapping is tied to a specific physical target, either because it is I/O memory or because fixed pages were requested.
+
+`PhysicalBase` is only reliable when the mapping originates from one explicit physical base. Anonymous committed allocations that obtain fresh pages from the physical allocator keep `PhysicalBase == 0`, because the region may span unrelated physical pages and the descriptor deliberately stays at range level instead of becoming a per-page map.
+
+#### Why descriptors exist in addition to page tables
+
+Page tables answer translation questions one page at a time. Memory descriptors answer ownership and policy questions at region level:
+
+- which virtual ranges a process owns,
+- which ranges were reserved versus committed,
+- whether one mapping is fixed or I/O backed,
+- what logical subsystem requested the region through `Tag`,
+- how one free or resize operation should update bookkeeping without rescanning the whole address space.
+
+This layer is what allows arena management, shell exposure, diagnostics, and overlap checks to reason about memory as named regions rather than raw page entries.
+
 
 ## Isolation and Kernel Core
 
@@ -224,66 +308,109 @@ Security in EXOS is implemented as a layered architecture. The effective access 
 
 #### Layer 1: CPU privilege domains and execution context
 
-- EXOS uses kernel/user CPU privilege separation (ring 0 and ring 3) in both x86-32 and x86-64 task setup paths.
-- Task setup selects kernel or user code/data selectors based on `Process->Privilege` and seeds the initial interrupt frame accordingly (`kernel/source/arch/x86-32/x86-32.c`, `kernel/source/arch/x86-64/x86-64.c`).
-- Kernel tasks start at `TaskRunner` with kernel selectors; user tasks start through the user-mapped task runner trampoline with user selectors.
-- On x86-64, task setup also allocates a dedicated IST1 stack for fault handling, reducing the risk of stack-corruption escalation during exceptions.
+EXOS uses kernel/user CPU privilege separation (ring 0 and ring 3) in both x86-32 and x86-64 task setup paths.
+
+Task setup selects kernel or user code/data selectors based on `Process->Privilege` and seeds the initial interrupt frame accordingly (`kernel/source/arch/x86-32/x86-32.c`, `kernel/source/arch/x86-64/x86-64.c`).
+
+Kernel tasks start at `TaskRunner` with kernel selectors; user tasks start through the user-mapped task runner trampoline with user selectors.
+
+On x86-64, task setup also allocates a dedicated IST1 stack for fault handling, reducing the risk of stack-corruption escalation during exceptions.
 
 #### Layer 2: Virtual memory isolation
 
-- Per-process address spaces are built with separate kernel and user privilege page mappings.
-- Kernel mappings are created with kernel page privilege; user seed tables and task runner mappings are created with user page privilege (`kernel/source/arch/x86-32/x86-32-Memory.c`, `kernel/source/arch/x86-64/x86-64-Memory.c`).
-- User pointers received from syscalls are validated through `SAFE_USE_VALID`, `SAFE_USE_INPUT_POINTER`, and `IsValidMemory` checks before dereference (`kernel/source/SYSCall.c`).
+Per-process address spaces are built with separate kernel and user privilege page mappings.
+
+Kernel mappings are created with kernel page privilege; user seed tables and task runner mappings are created with user page privilege (`kernel/source/arch/x86-32/x86-32-Memory.c`, `kernel/source/arch/x86-64/x86-64-Memory.c`).
+
+User pointers received from syscalls are validated through `SAFE_USE_VALID`, `SAFE_USE_INPUT_POINTER`, and `IsValidMemory` checks before dereference (`kernel/source/SYSCall.c`).
 
 #### Layer 3: Identity and session model
 
-- Identity is session-centric: `GetCurrentUser()` resolves the current process session to a user account (`kernel/source/utils/Helpers.c`).
-- `USER_ACCOUNT` stores `UserID`, privilege (`EXOS_PRIVILEGE_USER` or `EXOS_PRIVILEGE_ADMIN`), status, and password hash; `USER_SESSION` stores `SessionID`, `UserID`, login/activity timestamps, lock state, and shell task binding (`kernel/include/user/Account.h`).
-- Session lifecycle is managed by `CreateUserSession`, `SetCurrentSession`, `GetCurrentSession`, timeout validation, and lock/unlock helpers in `kernel/source/user/UserSession.c`.
-- Session inactivity timeout is configurable with `Session.TimeoutSeconds` in kernel configuration, with a compile fallback to `SESSION_TIMEOUT_MS`. Key `Session.TimeoutMinutes` is also accepted when `Session.TimeoutSeconds` is absent.
-- Periodic session timeout enforcement is triggered from the scheduler path through a lightweight scheduler tick callback that signals deferred work; the lock/unlock user interface remains handled by shell code (`kernel/source/process/Schedule.c`, `kernel/source/user/UserSession.c`, `kernel/source/shell/Shell-Main.c`).
-- Authentication throttling uses the shared `utils/AuthPolicy` helper. User login and session unlock flows apply a short cooldown after failures and a temporary lockout after repeated consecutive failures, while successful authentication resets the in-memory throttle state (`kernel/source/utils/AuthPolicy.c`, `kernel/source/user/Account.c`, `kernel/source/user/UserSession.c`).
-- Child process creation inherits the parent session (`Process->Session`) and stable owner identifier (`Process->UserID`), preserving identity continuity across spawned processes even when the live session pointer is absent (`kernel/source/process/Process.c`, `kernel/source/user/UserSession.c`).
-- Same-user process targeting policy and caller privilege resolution are centralized in `utils/ProcessAccess`: a process may target itself, processes owned by the same effective user, or any process when the caller resolves to administrator or kernel privilege. For kernel objects that carry `OBJECT_FIELDS`, the canonical security owner is `OBJECT.OwnerProcess`; generic object access checks resolve ownership from that field so tasks, windows, desktops, graphics contexts backed by one desktop, and other process-owned objects share one source of truth. `PROCESS` objects remain the deliberate exception because their `OwnerProcess` link models parentage, while the process object itself is its own security target. The module also exposes a current-process helper and global validation macros so syscall and subsystem code can share the same object-validation plus authorization pattern without local wrappers. Task access wrappers mediate shell task-control commands so the shell does not carry direct policy checks. These helpers are reused by exposure checks, process/task syscalls, generic handle-based syscalls, window/desktop/window-class syscalls, and shell-facing task control (`kernel/source/utils/ProcessAccess.c`, `kernel/source/expose/Expose-Security.c`, `kernel/source/SYSCall.c`, `kernel/source/process/Task-Access.c`).
+##### Identity model
+
+Identity is session-centric: `GetCurrentUser()` resolves the current process session to a user account (`kernel/source/utils/Helpers.c`). `USER_ACCOUNT` stores `UserID`, privilege (`EXOS_PRIVILEGE_USER` or `EXOS_PRIVILEGE_ADMIN`), status, and password hash; `USER_SESSION` stores `SessionID`, `UserID`, login/activity timestamps, lock state, and shell task binding (`kernel/include/user/Account.h`).
+
+##### Session lifecycle and timeout
+
+Session lifecycle is managed by `CreateUserSession`, `SetCurrentSession`, `GetCurrentSession`, timeout validation, and lock/unlock helpers in `kernel/source/user/UserSession.c`.
+
+Session inactivity timeout is configurable with `Session.TimeoutSeconds` in kernel configuration, with a compile fallback to `SESSION_TIMEOUT_MS`.
+
+Key `Session.TimeoutMinutes` is also accepted when `Session.TimeoutSeconds` is absent.
+
+Periodic session timeout enforcement is triggered from the scheduler path through a lightweight scheduler tick callback that signals deferred work; the lock/unlock user interface remains handled by shell code (`kernel/source/process/Schedule.c`, `kernel/source/user/UserSession.c`, `kernel/source/shell/Shell-Main.c`).
+
+##### Authentication throttling and inheritance
+
+Authentication throttling uses the shared `utils/AuthPolicy` helper.
+
+User login and session unlock flows apply a short cooldown after failures and a temporary lockout after repeated consecutive failures, while successful authentication resets the in-memory throttle state (`kernel/source/utils/AuthPolicy.c`, `kernel/source/user/Account.c`, `kernel/source/user/UserSession.c`).
+
+Child process creation inherits the parent session (`Process->Session`) and stable owner identifier (`Process->UserID`), preserving identity continuity across spawned processes even when the live session pointer is absent (`kernel/source/process/Process.c`, `kernel/source/user/UserSession.c`).
+
+##### Process and object targeting policy
+
+Same-user process targeting policy and caller privilege resolution are centralized in `utils/ProcessAccess`: a process may target itself, processes owned by the same effective user, or any process when the caller resolves to administrator or kernel privilege.
+
+For kernel objects that carry `OBJECT_FIELDS`, the canonical security owner is `OBJECT.OwnerProcess`; generic object access checks resolve ownership from that field so tasks, windows, desktops, graphics contexts backed by one desktop, and other process-owned objects share one source of truth.
+
+`PROCESS` objects remain the deliberate exception because their `OwnerProcess` link models parentage, while the process object itself is its own security target.
+
+The module also exposes a current-process helper and global validation macros so syscall and subsystem code can share the same object-validation plus authorization pattern without local wrappers.
+
+Task access wrappers mediate shell task-control commands so the shell does not carry direct policy checks. These helpers are reused by exposure checks, process/task syscalls, generic handle-based syscalls, window/desktop/window-class syscalls, and shell-facing task control (`kernel/source/utils/ProcessAccess.c`, `kernel/source/expose/Expose-Security.c`, `kernel/source/SYSCall.c`, `kernel/source/process/Task-Access.c`).
 
 #### Layer 4: Syscall privilege gate
 
-- Every syscall is dispatched through `SystemCallHandler`, which checks the required privilege stored in `SysCallTable[]` before calling the handler (`kernel/source/SYSCall.c`, `kernel/source/SYSCallTable.c`).
-- The privilege model is ordinal (`kernel < admin < user`) and compares current user privilege against the required level.
-- Authentication/user-management syscalls (`Login`, `Logout`, `CreateUser`, `DeleteUser`, `ListUsers`, `ChangePassword`) apply explicit account checks in their handlers (`kernel/source/SYSCall.c`).
+Every syscall is dispatched through `SystemCallHandler`, which checks the required privilege stored in `SysCallTable[]` before calling the handler (`kernel/source/SYSCall.c`, `kernel/source/SYSCallTable.c`).
+
+The privilege model is ordinal (`kernel < admin < user`) and compares current user privilege against the required level.
+
+Authentication/user-management syscalls (`Login`, `Logout`, `CreateUser`, `DeleteUser`, `ListUsers`, `ChangePassword`) apply explicit account checks in their handlers (`kernel/source/SYSCall.c`).
 
 #### Layer 5: Handle boundary and kernel object exposure
 
-- User space passes opaque handles; the kernel translates with `HandleToPointer`/`PointerToHandle` and validates target object type before operation (`kernel/source/SYSCall.c`).
-- The shell script exposure layer enforces read policy per object and per field using `EXPOSE_REQUIRE_ACCESS(...)` with flags:
-  - `EXPOSE_ACCESS_PUBLIC`
-  - `EXPOSE_ACCESS_SAME_USER`
-  - `EXPOSE_ACCESS_ADMIN`
-  - `EXPOSE_ACCESS_KERNEL`
-  - `EXPOSE_ACCESS_OWNER_PROCESS`
-  (defined in `kernel/include/Exposed.h`, implemented by `kernel/source/expose/Expose-Security.c`)
-- Process/task exposure protects sensitive fields (`pageDirectory`, heap metadata, architecture context, stack internals) behind kernel/admin or owner-process checks (`kernel/source/expose/Expose-Process.c`, `kernel/source/expose/Expose-Task.c`).
+User space passes opaque handles; the kernel translates with `HandleToPointer`/`PointerToHandle` and validates target object type before operation (`kernel/source/SYSCall.c`).
+
+The shell script exposure layer enforces read policy per object and per field using `EXPOSE_REQUIRE_ACCESS(...)` with flags:
+- `EXPOSE_ACCESS_PUBLIC`
+- `EXPOSE_ACCESS_SAME_USER`
+- `EXPOSE_ACCESS_ADMIN`
+- `EXPOSE_ACCESS_KERNEL`
+- `EXPOSE_ACCESS_OWNER_PROCESS`
+(defined in `kernel/include/Exposed.h`, implemented by `kernel/source/expose/Expose-Security.c`)
+
+Process/task exposure protects sensitive fields (`pageDirectory`, heap metadata, architecture context, stack internals) behind kernel/admin or owner-process checks (`kernel/source/expose/Expose-Process.c`, `kernel/source/expose/Expose-Task.c`).
 
 #### Layer 6: Security data model for kernel objects
 
-- `SECURITY` objects provide owner and per-user permission fields (`READ`, `WRITE`, `EXECUTE`) with default permissions (`kernel/include/Security.h`).
-- Process structures embed a `SECURITY` instance initialized by `InitSecurity()` during process creation (`kernel/source/process/Process.c`).
-- This data model is present and initialized, while policy enforcement is concentrated in syscall handlers and expose-layer checks.
+`SECURITY` objects provide owner and per-user permission fields (`READ`, `WRITE`, `EXECUTE`) with default permissions (`kernel/include/Security.h`).
+
+Process structures embed a `SECURITY` instance initialized by `InitSecurity()` during process creation (`kernel/source/process/Process.c`).
+
+This data model is present and initialized, while policy enforcement is concentrated in syscall handlers and expose-layer checks.
 
 #### Architectural properties and current boundaries
 
-- The architecture provides defense-in-depth through independent barriers (CPU ring separation, page privilege separation, session identity, syscall gate, and field-level exposure checks).
-- Access control for script-visible kernel state is fine-grained and centralized through reusable expose security helpers.
-- Security policy is not represented as a single global ACL engine. Some controls are explicit per-subsystem (for example, admin checks in user-management syscalls), which keeps behavior clear but requires discipline when adding new kernel entry points.
+The architecture provides defense-in-depth through independent barriers (CPU ring separation, page privilege separation, session identity, syscall gate, and field-level exposure checks).
 
+Access control for script-visible kernel state is fine-grained and centralized through reusable expose security helpers.
+
+Security policy is not represented as a single global ACL engine. Some controls are explicit per-subsystem (for example, admin checks in user-management syscalls), which keeps behavior clear but requires discipline when adding new kernel entry points.
 
 ### Kernel objects
 
 #### Object identifiers
 
-Every kernel object stores a 64-bit instance identifier in `OBJECT_FIELDS.InstanceID`. The identifier is assigned by `CreateKernelObject` using a random UUID source and is kept for the object lifetime, including in the termination cache through `OBJECT_TERMINATION_STATE.InstanceID`. This provides stable identity when memory is reused and keeps scheduler lookups independent from raw pointers. Any kernel object that contains `OBJECT_FIELDS` (and therefore `LISTNODE_FIELDS`) and is meant to live in a global kernel list must be created with `CreateKernelObject` and destroyed with `ReleaseKernelObject`.
+Every kernel object stores a 64-bit instance identifier in `OBJECT_FIELDS.InstanceID`. The identifier is assigned by `CreateKernelObject` using a random UUID source and is kept for the object lifetime, including in the termination cache through `OBJECT_TERMINATION_STATE.InstanceID`.
 
-`OBJECT_FIELDS` also carries one optional per-object destructor pointer. `CreateKernelObject` initializes that slot to `NULL`, `SetKernelObjectDestructor(...)` binds one type-specific teardown routine when an object owns extra resources, and the global unreferenced-object sweep destroys objects through `DestroyKernelObject(...)`. This keeps garbage collection generic: the sweep does not branch on object types, and object-specific teardown remains attached to the object lifetime contract itself.
+This provides stable identity when memory is reused and keeps scheduler lookups independent from raw pointers.
+
+Any kernel object that contains `OBJECT_FIELDS` (and therefore `LISTNODE_FIELDS`) and is meant to live in a global kernel list must be created with `CreateKernelObject` and destroyed with `ReleaseKernelObject`.
+
+`OBJECT_FIELDS` also carries one optional per-object destructor pointer. `CreateKernelObject` initializes that slot to `NULL`, `SetKernelObjectDestructor(...)` binds one type-specific teardown routine when an object owns extra resources, and the global unreferenced-object sweep destroys objects through `DestroyKernelObject(...)`.
+
+This keeps garbage collection generic: the sweep does not branch on object types, and object-specific teardown remains attached to the object lifetime contract itself.
 
 #### Event objects
 
@@ -300,7 +427,6 @@ Event lifecycle and state helpers:
 #### List nodes
 
 Kernel objects that embed `LISTNODE_FIELDS` participate in intrusive lists. Each list node carries a `Parent` pointer so objects can represent hierarchy when required, but insertion helpers keep the `Parent` pointer NULL unless it is explicitly set by the caller. This avoids accidental parent chains while still enabling structured ownership models.
-
 
 ### Handle reuse
 
@@ -340,32 +466,53 @@ Because `PointerToHandle()` reuses existing mappings, repeated message retrieval
 
 Forward resolution (handle -> pointer) is radix-tree lookup. Reverse lookup (pointer -> handle reuse check) is implemented by iterating the radix tree (`HandleMapFindHandleByPointer`), so it is linear in the number of active handles. The design favors simple global consistency and stable handle identity over constant-time reverse indexing.
 
-
 ## Execution Model and Kernel Interface
 
 ### Tasks
 
 #### Architecture-specific task data
 
-Each task embeds an `ARCH_TASK_DATA` structure (declared in the architecture-specific header under `kernel/include/arch/`) that contains the saved interrupt frame along with the user, system, and any auxiliary stack descriptors that the target CPU requires. The generic `tag_TASK` definition in `kernel/include/process/Task.h` exposes this structure as the `Arch` member so that all stack and context manipulations remain scoped to the active architecture.
+Each task embeds an `ARCH_TASK_DATA` structure (declared in the architecture-specific header under `kernel/include/arch/`) that contains the saved interrupt frame along with the user, system, and any auxiliary stack descriptors that the target CPU requires.
+
+The generic `tag_TASK` definition in `kernel/include/process/Task.h` exposes this structure as the `Arch` member so that all stack and context manipulations remain scoped to the active architecture.
 
 The x86-32 implementation of `SetupTask` (`kernel/source/arch/x86-32/x86-32.c`) allocates and clears per-task stacks, initializes selectors in the interrupt frame, and performs the bootstrap stack switch for the main kernel task.
 
-The x86-64 implementation performs the same baseline duties and also provisions a dedicated Interrupt Stack Table (`IST1`) stack for faults that need a reliable kernel stack when the regular system stack is unusable. During IDT initialization, the kernel assigns `IST1` to fault vectors that are likely to run with a corrupted task stack (double fault, invalid TSS, segment-not-present, stack, general protection, and page faults). This keeps handlers on the emergency per-task stack and prevents double-fault escalation into triple fault when the active stack pointer is invalid.
+The x86-64 implementation performs the same baseline duties and also provisions a dedicated Interrupt Stack Table (`IST1`) stack for faults that need a reliable kernel stack when the regular system stack is unusable.
 
-`KernelCreateTask` calls the architecture-specific helper after generic task bookkeeping. This keeps scheduler and task-manager logic architecture-agnostic while allowing each architecture to specialize `SetupTask`.
+During IDT initialization, the kernel assigns `IST1` to fault vectors that are likely to run with a corrupted task stack (double fault, invalid TSS, segment-not-present, stack, general protection, and page faults).
 
-Both the x86-32 and x86-64 context-switch helpers (`SetupStackForKernelMode` and `SetupStackForUserMode` in their respective architecture headers) must reserve space on the stack in bytes rather than entries before writing the return frame. Subtracting the correct byte count avoids writing past the top of the allocated stack when seeding the initial `iret` frame for a task. On x86-64 the helpers also arrange the bootstrap frame so that the stack pointer becomes 16-byte aligned after `iretq` pops its arguments, preserving the ABI-mandated alignment once execution resumes in the scheduled task.
+This keeps handlers on the emergency per-task stack and prevents double-fault escalation into triple fault when the active stack pointer is invalid.
+
+`KernelCreateTask` calls the architecture-specific helper after generic task bookkeeping.
+
+This keeps scheduler and task-manager logic architecture-agnostic while allowing each architecture to specialize `SetupTask`.
+
+Both the x86-32 and x86-64 context-switch helpers (`SetupStackForKernelMode` and `SetupStackForUserMode` in their respective architecture headers) must reserve space on the stack in bytes rather than entries before writing the return frame.
+
+Subtracting the correct byte count avoids writing past the top of the allocated stack when seeding the initial `iret` frame for a task.
+
+On x86-64 the helpers also arrange the bootstrap frame so that the stack pointer becomes 16-byte aligned after `iretq` pops its arguments, preserving the ABI-mandated alignment once execution resumes in the scheduled task.
 
 #### Stack sizing
 
-The minimum sizes for task and system stacks are driven by the configuration keys `Task.MinimumTaskStackSize` and `Task.MinimumSystemStackSize` in `kernel/configuration/exos.ref.toml`. At boot the task manager reads those values, but it clamps them to the architecture defaults (`64 KiB`/`16 KiB` on x86-32 and `128 KiB`/`32 KiB` on x86-64) to prevent under-provisioned stacks. Increasing the values in the configuration grows every newly created task and keeps the auto stack growing logic operating on the larger baseline.
+The minimum sizes for task and system stacks are driven by the configuration keys `Task.MinimumTaskStackSize` and `Task.MinimumSystemStackSize` in `kernel/configuration/exos.ref.toml`.
 
-Stack growth also enforces compile-time caps defined in `kernel/include/Stack.h` (`STACK_MAXIMUM_TASK_STACK_SIZE`, `STACK_MAXIMUM_SYSTEM_STACK_SIZE`). The kernel does not rely on runtime configuration for these hard limits.
+At boot the task manager reads those values, but it clamps them to the architecture defaults (`64 KiB`/`16 KiB` on x86-32 and `128 KiB`/`32 KiB` on x86-64) to prevent under-provisioned stacks.
 
-When an in-place resize fails (for example because the next virtual range is occupied), `GrowCurrentStack` relocates the active stack to a new region, switches the live stack pointer to the new top, updates the task stack descriptor, then releases the old region. This keeps kernel stack growth functional even when neighboring mappings block contiguous expansion.
+Increasing the values in the configuration grows every newly created task and keeps the auto stack growing logic operating on the larger baseline.
 
-On x86-64, interrupt and syscall stubs must treat the saved general-register `RSP` slot as diagnostic state only. The unwind path discards that slot instead of restoring `RSP` from it, so a relocated live kernel stack continues to return through the copied interrupt frame rather than jumping back to the previous stack mapping.
+Stack growth also enforces compile-time caps defined in `kernel/include/Stack.h` (`STACK_MAXIMUM_TASK_STACK_SIZE`, `STACK_MAXIMUM_SYSTEM_STACK_SIZE`).
+
+The kernel does not rely on runtime configuration for these hard limits.
+
+When an in-place resize fails (for example because the next virtual range is occupied), `GrowCurrentStack` relocates the active stack to a new region, switches the live stack pointer to the new top, updates the task stack descriptor, then releases the old region.
+
+This keeps kernel stack growth functional even when neighboring mappings block contiguous expansion.
+
+On x86-64, interrupt and syscall stubs must treat the saved general-register `RSP` slot as diagnostic state only.
+
+The unwind path discards that slot instead of restoring `RSP` from it, so a relocated live kernel stack continues to return through the copied interrupt frame rather than jumping back to the previous stack mapping.
 
 On x86-64, task setup allocates IST1 with an explicit guard gap above the system stack, so emergency fault stack placement does not sit immediately adjacent to the regular system stack.
 
@@ -380,91 +527,20 @@ IRQ 0 └── trap lands in interrupt-a.asm : Interrupt_Clock
     └── calls Scheduler to check if it's time to switch to another task
         └── Scheduler switches page directory if needed and returns the next task's context
 
-`GetSystemTime()` normally returns the millisecond counter maintained by `ClockHandler`. After interrupts are enabled, but before IRQ 0 increments that counter, the clock returns synthetic 10 ms steps so boot log entries in that gap do not all carry the same timestamp. The first `ClockHandler` invocation folds that pre-interrupt value into `SystemUpTime` so timestamps do not move backward when the real IRQ-driven counter starts; scheduler time and local date-time remain driven by real clock interrupts.
+`GetSystemTime()` normally returns the millisecond counter maintained by `ClockHandler`.
 
-`Sleep` relies on scheduler wake-up timestamps only after the first `EnableInterrupts` call is executed. Before this point, `Sleep` uses a calibrated busy-wait loop (derived from CPU base frequency) so early-boot delays do not depend on `GetSystemTime` progression.
+After interrupts are enabled, but before IRQ 0 increments that counter, the clock returns synthetic 10 ms steps so boot log entries in that gap do not all carry the same timestamp.
+
+The first `ClockHandler` invocation folds that pre-interrupt value into `SystemUpTime` so timestamps do not move backward when the real IRQ-driven counter starts; scheduler time and local date-time remain driven by real clock interrupts.
+
+`Sleep` relies on scheduler wake-up timestamps only after the first `EnableInterrupts` call is executed.
+
+Before this point, `Sleep` uses a calibrated busy-wait loop (derived from CPU base frequency) so early-boot delays do not depend on `GetSystemTime` progression.
 
 Fields that are read or written by the scheduler from ISR context are isolated in dedicated structures instead of sharing the general task/process state:
 - `TASK.SchedulerState` stores scheduler-owned task fields such as `Status` and `WakeUpTime`.
 - `PROCESS.SchedulerState` stores scheduler-owned process fields such as the paused state.
 - `GetTaskSchedulerStateSnapshot()`, `SetTaskSchedulerStatus()`, and `GetProcessSchedulerStateSnapshot()` expose this data to the scheduling code without taking task-local or process-local mutexes.
-
-##### ISR 0 call graph
-
-```
-Interrupt_Clock └── BuildInterruptFrame
-    └── KernelLogText
-        └── StringEmpty
-        └── StringPrintFormatArgs
-            └── IsNumeric : endpoint
-            └── IsNumeric : endpoint
-            └── SkipAToI : endpoint
-            └── VarArg : endpoint
-            └── StringLength : endpoint
-            └── NumberToString : endpoint
-        └── KernelPrintString
-            └── LockMutex
-                └── SaveFlags : endpoint
-                └── DisableInterrupts : endpoint
-                └── GetCurrentTask : endpoint
-                └── RestoreFlags : endpoint
-                └── GetSystemTime : endpoint
-                └── IdleCPU : endpoint
-            └── UnlockMutex
-                └── SaveFlags : endpoint
-                └── DisableInterrupts : endpoint
-                └── GetCurrentTask : endpoint
-                └── RestoreFlags : endpoint
-        └── KernelPrintChar : endpoint
-└── ClockHandler
-    └── KernelLogText
-        └── ...
-    └── KernelPrintString
-        └── ...
-    └── IsLeapYear : endpoint
-    └── Scheduler
-        └── KernelLogText
-            └── ...
-        └── CheckStack
-            └── GetCurrentTask : endpoint
-        └── KernelKillTask
-            └── KernelLogText
-                └── ...
-            └── RemoveTaskFromQueue
-                └── FreezeScheduler
-                    └── LockMutex
-                        └── ...
-                    └── UnlockMutex
-                        └── ...
-                └── FindNextRunnableTask
-                    └── GetSystemTime : endpoint
-                └── UnfreezeScheduler
-                    └── LockMutex
-                        └── ...
-                    └── UnlockMutex
-                        └── ...
-                └── KernelLogText
-                    └── ...
-            └── LockMutex
-                └── ...
-            └── ListRemove : endpoint
-            └── DeleteTask
-                └── KernelLogText
-                    └── ...
-                    └── HeapFree_HBHS : endpoint
-                    └── HeapFree
-                        └── GetCurrentProcess
-                            └── GetCurrentTask : endpoint
-                        └── HeapFree_P
-                            └── LockMutex
-                                └── ...
-                            └── HeapFree_HBHS : endpoint
-                            └── UnlockMutex
-                                └── ...
-            └── UnlockMutex
-                └── ...
-```
-
 
 ### Process and Task Lifecycle Management
 
@@ -472,23 +548,31 @@ EXOS implements a lifecycle management system for both processes and tasks that 
 
 #### Process Heap Management
 
-- Every `PROCESS` keeps track of its `MaximumAllocatedMemory`, which is initialized to `N_HalfMemory` for both the kernel and user processes.
-- When a heap allocation exhausts the committed region, the kernel automatically attempts to double the heap size without exceeding the process limit by calling `ResizeRegion`.
-- If the resize operation cannot be completed, the allocator logs an error and the allocation fails gracefully.
-- Kernel heap allocations that still fail dump the current task interrupt frame through the same logging path used by the #GP/#PF handlers, giving register and backtrace context when diagnosing out-of-heap issues.
-- `SysCall_GetProcessMemoryInfo` exposes a dedicated `PROCESS_MEMORY_INFO` snapshot for heap diagnostics. The structure reports the current process heap base, reserved span, first-unallocated offset, used payload bytes, and free payload bytes without overloading process-creation structures.
+Every `PROCESS` keeps track of its `MaximumAllocatedMemory`, which is initialized to `N_HalfMemory` for both the kernel and user processes.
+
+When a heap allocation exhausts the committed region, the kernel automatically attempts to double the heap size without exceeding the process limit by calling `ResizeRegion`.
+
+If the resize operation cannot be completed, the allocator logs an error and the allocation fails gracefully.
+
+Kernel heap allocations that still fail dump the current task interrupt frame through the same logging path used by the #GP/#PF handlers, giving register and backtrace context when diagnosing out-of-heap issues.
+
+`SysCall_GetProcessMemoryInfo` exposes a dedicated `PROCESS_MEMORY_INFO` snapshot for heap diagnostics. The structure reports the current process heap base, reserved span, first-unallocated offset, used payload bytes, and free payload bytes without overloading process-creation structures.
 
 #### Reserved module heaps
 
-- `HeapAlloc_HBHS`, `HeapRealloc_HBHS`, and `HeapFree_HBHS` operate on an explicit heap base and size and form the common backend for both the process heap and module-owned heaps.
-- `HEAP_CONTROL_BLOCK` carries heap-local growth policy (`ResizeCallback`, `ResizeContext`, `MaximumSize`, `RegionFlags`) so heap expansion is no longer limited to `PROCESS.HeapBase`.
-- `utils/ReservedHeap` wraps one dedicated virtual region, one mutex, and one allocator view around that backend. The owner initializes the region, exposes `ReservedHeapAlloc`/`ReservedHeapRealloc`/`ReservedHeapFree`, and tears down the whole region at module shutdown.
-- The shell uses this mechanism for scripting state, command history, completion data, and shell-managed temporary buffers. This isolates shell pressure from the main kernel heap while keeping the allocation algorithm shared.
-- Reusable helpers that need to allocate inside one module heap consume a context-aware `ALLOCATOR` instead of calling `KernelHeapAlloc` or `HeapAlloc` directly.
+`HeapAlloc_HBHS`, `HeapRealloc_HBHS`, and `HeapFree_HBHS` operate on an explicit heap base and size and form the common backend for both the process heap and module-owned heaps.
+
+`HEAP_CONTROL_BLOCK` carries heap-local growth policy (`ResizeCallback`, `ResizeContext`, `MaximumSize`, `RegionFlags`) so heap expansion is no longer limited to `PROCESS.HeapBase`.
+
+`utils/ReservedHeap` wraps one dedicated virtual region, one mutex, and one allocator view around that backend. The owner initializes the region, exposes `ReservedHeapAlloc`/`ReservedHeapRealloc`/`ReservedHeapFree`, and tears down the whole region at module shutdown.
+
+The shell uses this mechanism for scripting state, command history, completion data, and shell-managed temporary buffers. This isolates shell pressure from the main kernel heap while keeping the allocation algorithm shared.
+
+Reusable helpers that need to allocate inside one module heap consume a context-aware `ALLOCATOR` instead of calling `KernelHeapAlloc` or `HeapAlloc` directly.
 
 #### Status States
 
-**Task Status (Task.Status):**
+Task Status (Task.Status):
 - `TASK_STATUS_FREE` (0x00): Unused task slot
 - `TASK_STATUS_READY` (0x01): Ready to run
 - `TASK_STATUS_RUNNING` (0x02): Currently executing
@@ -497,72 +581,89 @@ EXOS implements a lifecycle management system for both processes and tasks that 
 - `TASK_STATUS_WAITMESSAGE` (0x05): Waiting for a message
 - `TASK_STATUS_DEAD` (0xFF): Marked for deletion
 
-- Sleep durations are specified in `UINT`. A value of `INFINITY` is treated as a sentinel meaning "sleep indefinitely". `SetTaskWakeUpTime()` stores `INFINITY` without adding the current time and the scheduler ignores such tasks until another subsystem explicitly changes their status.
-- Task suspension is tracked separately from `Task.Status` in scheduler-owned task state. `SuspendTaskExecution()` and `ResumeTaskExecution()` toggle a dedicated suspension flag, allowing the scheduler to stop selecting a task without destroying whether it was running, sleeping, or waiting for messages.
+Sleep durations are specified in `UINT`. A value of `INFINITY` is treated as a sentinel meaning "sleep indefinitely". `SetTaskWakeUpTime()` stores `INFINITY` without adding the current time and the scheduler ignores such tasks until another subsystem explicitly changes their status.
 
-**Process Status (Process.Status):**
+Task suspension is tracked separately from `Task.Status` in scheduler-owned task state. `SuspendTaskExecution()` and `ResumeTaskExecution()` toggle a dedicated suspension flag, allowing the scheduler to stop selecting a task without destroying whether it was running, sleeping, or waiting for messages.
+
+Process Status (Process.Status):
 - `PROCESS_STATUS_ALIVE` (0x00): Normal operating state
 - `PROCESS_STATUS_DEAD` (0xFF): Marked for deletion
 
 #### Process Creation Flags
 
-**Process Creation Flags (Process.Flags):**
+Process Creation Flags (Process.Flags):
 - `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` (0x00000001): When the process terminates, all child processes are also killed. If this flag is not set, child processes are orphaned (their Parent field is set to NULL).
 
 #### Session Inheritance
 
-- New processes inherit the user session pointer from their `OwnerProcess` during `NewProcess`.
-- Session ownership is therefore tied to the process tree: children share the same session by default unless explicitly reassigned.
-- This keeps user identity and security context consistent across a spawned process hierarchy.
+New processes inherit the user session pointer from their `OwnerProcess` during `NewProcess`.
+
+Session ownership is therefore tied to the process tree: children share the same session by default unless explicitly reassigned.
+
+This keeps user identity and security context consistent across a spawned process hierarchy.
 
 #### Standard Stream Inheritance and Pipes
 
-- `PROCESS_INFO` carries `StdIn`, `StdOut`, and `StdErr` handle inputs for process creation.
-- `CreateProcess()` resolves those handles, duplicates them for child ownership, and stores effective values in the `PROCESS` structure.
-- If one standard stream handle is omitted at creation, the child inherits the corresponding handle from its parent process.
-- Process teardown closes child-owned standard stream handles so stream object lifetime follows process lifetime.
-- `GetProcessInfo()` returns the effective standard stream handles for runtime initialization.
-- Anonymous pipes are provided by `SYSCALL_CreatePipe` (`PIPE_INFO`) and exported as two endpoint handles:
-  - read endpoint,
-  - write endpoint.
-- `ReadFile` and `WriteFile` syscalls accept both file handles and pipe endpoint handles, so redirection and pipelines use one shared data path.
+`PROCESS_INFO` carries `StdIn`, `StdOut`, and `StdErr` handle inputs for process creation.
+
+`CreateProcess()` resolves those handles, duplicates them for child ownership, and stores effective values in the `PROCESS` structure.
+
+If one standard stream handle is omitted at creation, the child inherits the corresponding handle from its parent process.
+
+Process teardown closes child-owned standard stream handles so stream object lifetime follows process lifetime.
+
+`GetProcessInfo()` returns the effective standard stream handles for runtime initialization.
+
+Anonymous pipes are provided by `SYSCALL_CreatePipe` (`PIPE_INFO`) and exported as two endpoint handles:
+- read endpoint,
+- write endpoint.
+
+`ReadFile` and `WriteFile` syscalls accept both file handles and pipe endpoint handles, so redirection and pipelines use one shared data path.
 
 #### Lifecycle Flow
 
-**1. Task Termination:**
-- When a task terminates, `KernelKillTask()` releases every mutex held by the task before marking it as `TASK_STATUS_DEAD`
-- During `DeleteTask()`, the task is removed from the scheduler queue before task resources are released
-- `DeleteDeadTasksAndProcesses()` (called periodically) removes dead tasks and processes from lists
+##### Task Termination
 
-**2. Process Termination via Task Count:**
-- When `DeleteTask()` processes a dead task:
-  - Decrements `Process.TaskCount`
-  - If `TaskCount` reaches 0:
-    - Applies child process policy based on `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` flag
-    - Marks the process as `PROCESS_STATUS_DEAD`
-  - The process remains in the process list for later cleanup
+When a task terminates, `KernelKillTask()` releases every mutex held by the task before marking it as `TASK_STATUS_DEAD`
 
-**3. Process Termination via KillProcess:**
-- `KillProcess()` can be called to terminate a process and handle its children:
-  - Checks the `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` flag
-  - If flag is set: Finds all child processes recursively and kills them
-  - If flag is not set: Orphans children by setting their `Parent` field to NULL
-  - Calls `KernelKillTask()` on all tasks of the target process
-  - Marks the target process as `PROCESS_STATUS_DEAD`
+During `DeleteTask()`, the task is removed from the scheduler queue before task resources are released
 
-**4. Final Cleanup:**
-- `DeleteDeadTasksAndProcesses()` is called periodically by the kernel monitor
-- First phase: Processes all `TASK_STATUS_DEAD` tasks
-  - Calls `DeleteTask()` which frees stacks, message queues, etc.
-  - Updates process task counts and marks processes dead if needed
-- Second phase: Processes all `PROCESS_STATUS_DEAD` processes
-  - Calls `ReleaseProcessKernelObjects()` to drop references held by the process on every kernel-managed list
-  - Calls `DeleteProcessCommit()` which frees page directories, heaps, etc.
-  - Removes process from global process list
+`DeleteDeadTasksAndProcesses()` (called periodically) removes dead tasks and processes from lists
+
+##### Process Termination via Task Count
+
+When `DeleteTask()` processes a dead task:
+- Decrements `Process.TaskCount`
+- If `TaskCount` reaches 0:
+  - Applies child process policy based on `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` flag
+  - Marks the process as `PROCESS_STATUS_DEAD`
+- The process remains in the process list for later cleanup
+
+##### Process Termination via KillProcess
+
+`KillProcess()` can be called to terminate a process and handle its children:
+- Checks the `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` flag
+- If flag is set: Finds all child processes recursively and kills them
+- If flag is not set: Orphans children by setting their `Parent` field to NULL
+- Calls `KernelKillTask()` on all tasks of the target process
+- Marks the target process as `PROCESS_STATUS_DEAD`
+
+##### Final Cleanup
+
+`DeleteDeadTasksAndProcesses()` is called periodically by the kernel monitor
+
+First phase: Processes all `TASK_STATUS_DEAD` tasks
+- Calls `DeleteTask()` which frees stacks, message queues, etc.
+- Updates process task counts and marks processes dead if needed
+
+Second phase: Processes all `PROCESS_STATUS_DEAD` processes
+- Calls `ReleaseProcessKernelObjects()` to drop references held by the process on every kernel-managed list
+- Calls `DeleteProcessCommit()` which frees page directories, heaps, etc.
+- Removes process from global process list
 
 #### Key Design Principles
 
-**Deferred Deletion:**
+Deferred Deletion:
 - Neither tasks nor processes are immediately freed when killed
 - They are marked as DEAD and cleaned up later by `DeleteDeadTasksAndProcesses()`
 - This prevents race conditions and ensures consistent state
@@ -594,7 +695,6 @@ This approach ensures that:
 - The system remains stable during complex termination scenarios
 - Both voluntary (task exit) and involuntary (kill) termination work consistently
 
-
 ### System calls
 
 #### System call full path - x86-32
@@ -602,37 +702,40 @@ This approach ensures that:
 `USE_SYSCALL` is a project-level build flag (`./scripts/linux/build/build --arch x86-64 --fs ext2 --debug --use-syscall`) that selects between the interrupt gate path and the SYSCALL/SYSRET pair on x86-64. The flag has no effect on x86-32 builds.
 
 ```
-exos-runtime-c.c : malloc() (or any other function)
-└── calls exos-runtime-a.asm : exoscall()
-    └── 'int EXOS_USER_CALL' instruction
-        └── trap lands in interrupt-a.asm : Interrupt_SystemCall
-            └── calls SYSCall.c : SystemCallHandler()
-                └── calls SysCall_xxx via SysCallTable[]
-                    └── whew... finally job is done
+exos-runtime-main.c : malloc()
+└── calls exos.c : HeapAlloc()
+    └── calls x86-32/exos-runtime-a.asm : exoscall()
+        └── 'int EXOS_USER_CALL' instruction
+            └── trap lands in x86-32/asm/Interrupt-a.asm : Interrupt_SystemCall
+                └── calls SYSCall.c : SystemCallHandler()
+                    └── dispatches through SysCallTable[SYSCALL_HeapAlloc]
+                        └── calls SYSCall.c : SysCall_HeapAlloc()
 ```
 
 #### System call full path - x86-64
 
 When `USE_SYSCALL = 0` (default build setting)
 ```
-exos-runtime-c.c : malloc() (or any other function)
-└── calls exos-runtime-a.asm : exoscall()
-    └── 'int EXOS_USER_CALL' instruction
-        └── trap lands in interrupt-a.asm : Interrupt_SystemCall
-            └── calls SYSCall.c : SystemCallHandler()
-                └── calls SysCall_xxx via SysCallTable[]
-                    └── whew... finally job is done
+exos-runtime-main.c : malloc()
+└── calls exos.c : HeapAlloc()
+    └── calls x86-64/exos-runtime-a.asm : exoscall()
+        └── 'int EXOS_USER_CALL' instruction
+            └── trap lands in x86-64/asm/Interrupt-a.asm : Interrupt_SystemCall
+                └── calls SYSCall.c : SystemCallHandler()
+                    └── dispatches through SysCallTable[SYSCALL_HeapAlloc]
+                        └── calls SYSCall.c : SysCall_HeapAlloc()
 ```
 
 When `USE_SYSCALL = 1`
 ```
-exos-runtime-c.c : malloc() (or any other function)
-└── calls exos-runtime-a.asm : exoscall()
-    └── 'syscall' instruction
-        └── syscall lands in interrupt-a.asm : Interrupt_SystemCall
-            └── calls SYSCall.c : SystemCallHandler()
-                └── calls SysCall_xxx via SysCallTable[]
-                    └── whew... finally job is done
+exos-runtime-main.c : malloc()
+└── calls exos.c : HeapAlloc()
+    └── calls x86-64/exos-runtime-a.asm : exoscall()
+        └── 'syscall' instruction
+            └── lands in x86-64/asm/Interrupt-a.asm : Interrupt_SystemCall
+                └── calls SYSCall.c : SystemCallHandler()
+                    └── dispatches through SysCallTable[SYSCALL_HeapAlloc]
+                        └── calls SYSCall.c : SysCall_HeapAlloc()
 ```
 
 #### Syscall return ABI contract
@@ -646,7 +749,19 @@ Syscalls that use user-provided `*_INFO` payloads follow one return contract:
 
 ### Task and window message delivery
 
-Tasks and processes own fixed-size message queues (`MESSAGEQUEUE` in `kernel/source/process/Task-Messaging.c`) backed by dedicated virtual memory regions and operated through `utils/MessageQueue`. Task queues are allocated at task creation (`TaskInitializeMessageBuffer` in `kernel/source/process/Task.c`), while process queues are allocated on demand (`EnsureProcessMessageQueue`). Both use the process `System` arena (`ProcessArenaAllocateSystem`) so queue storage does not consume heap expansion space. Queue operations do not allocate or free entries during message posting/retrieval. If a target queue does not exist, posted messages are dropped and keyboard input continues down the classic buffered path for `getkey()` (used by the shell). When a process message queue exists, the keyboard helpers (`PeekChar`, `GetChar`, `GetKeyCode`) consume key events from that queue by discarding `EWM_KEYUP` messages and returning the first `EWM_KEYDOWN`, then fall back to the classic buffer when no queue exists. Each queue is capped to 100 pending messages and guarded by a per-queue mutex plus a waiting flag. `WaitForMessage` marks the task queue as waiting and sleeps the task; `AddTaskMessage` wakes the task when a new message arrives and clears the waiting flag.
+Tasks and processes own fixed-size message queues (`MESSAGEQUEUE` in `kernel/source/process/Task-Messaging.c`) backed by dedicated virtual memory regions and operated through `utils/MessageQueue`.
+
+Task queues are allocated at task creation (`TaskInitializeMessageBuffer` in `kernel/source/process/Task.c`), while process queues are allocated on demand (`EnsureProcessMessageQueue`).
+
+Both use the process `System` arena (`ProcessArenaAllocateSystem`) so queue storage does not consume heap expansion space.
+
+Queue operations do not allocate or free entries during message posting/retrieval. If a target queue does not exist, posted messages are dropped and keyboard input continues down the classic buffered path for `getkey()` (used by the shell).
+
+When a process message queue exists, the keyboard helpers (`PeekChar`, `GetChar`, `GetKeyCode`) consume key events from that queue by discarding `EWM_KEYUP` messages and returning the first `EWM_KEYDOWN`, then fall back to the classic buffer when no queue exists.
+
+Each queue is capped to 100 pending messages and guarded by a per-queue mutex plus a waiting flag.
+
+`WaitForMessage` marks the task queue as waiting and sleeps the task; `AddTaskMessage` wakes the task when a new message arrives and clears the waiting flag.
 
 Message posting:
 - `PostMessage` accepts NULL targets (current task), task handles, and window handles; window targets enqueue into the owning task queue. Keyboard drivers and the mouse dispatcher push input events into the global input queue using `EnqueueInputMessage` so only the focused process sees them.
@@ -659,13 +774,15 @@ Message retrieval:
 - Public runtime calls `GetMessage`/`PeekMessage` first check the global input queue when the caller’s process has focus (desktop focus + per-desktop `FocusedProcess`), then fall back to the task’s own queue. `GetMessage` blocks if neither queue holds messages; `PeekMessage` is non-blocking. Userland syscalls translate handles in `MESSAGE_INFO` before dispatching to the kernel implementations `KernelGetMessage` and `KernelPeekMessage`.
 - Focus tracking lives in `Kernel.ActiveDesktop` and `Kernel.FocusedProcess`. A process may exist without any desktop. When a focused process is associated with a desktop, focusing that process also makes its desktop active. When no active desktop exists, input falls back to the focused process, then to `KernelProcess`.
 
-
 ### Command line editing
 
-Interactive editing of shell command lines is implemented in `kernel/source/utils/CommandLineEditor.c`. The module processes keyboard input via the classic buffered path (`PeekChar`/`GetKeyCode`), maintains an in-memory history, refreshes the console display, and relies on callbacks to retrieve completion suggestions. The shell owns an input state structure that embeds the editor instance and provides shell-specific callbacks for completion and idle processing so the component remains agnostic of higher level shell logic. While reading input, the editor adjusts for console scrolling so the display does not re-trigger scrolling on each key press, console paging prompts are suspended until the line is submitted, and successful key interactions update session activity timestamps.
+Interactive editing of shell command lines is implemented in `kernel/source/utils/CommandLineEditor.c`.
 
-All reusable helpers -such as the command line editor, adaptive delay, string containers, byte-size formatting helpers (`utils/SizeFormat`), CRC/SHA-256 utilities, compression utilities, chunk cache utilities, detached signature utilities, notifications, path helpers, TOML parsing, UUID support, regex, hysteresis control, cooldown timing, rate limiting, DMA buffer allocation (`utils/DMABuffer`), and network checksum helpers— live under `kernel/source/utils` with their public headers in `kernel/include/utils`. Architecture-compat 64-bit helpers shared by the whole kernel (`U64_MUL_U32`, `U64_DIV_U32`) are exposed from `kernel/include/Base.h` and keep arithmetic behavior identical on x86-32 and x86-64. SHA-256 is exposed through `utils/Crypt` and bridged to the vendored BearSSL hash implementation under `third/bearssl`. Compression is exposed through `utils/Compression` and bridged to the vendored miniz backend under `third/miniz`. Detached signature verification is exposed through `utils/Signature` with a backend-swappable API surface, and Ed25519 verification is wired to vendored Monocypher sources under `third/monocypher`. This keeps generic infrastructure separated from core subsystems and makes it easier to share common code across the kernel.
+The module processes keyboard input via the classic buffered path (`PeekChar`/`GetKeyCode`), maintains an in-memory history, refreshes the console display, and relies on callbacks to retrieve completion suggestions.
 
+The shell owns an input state structure that embeds the editor instance and provides shell-specific callbacks for completion and idle processing so the component remains agnostic of higher level shell logic.
+
+While reading input, the editor adjusts for console scrolling so the display does not re-trigger scrolling on each key press, console paging prompts are suspended until the line is submitted, and successful key interactions update session activity timestamps.
 
 ### Exposed objects in shell
 
