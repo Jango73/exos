@@ -34,7 +34,11 @@
 
 /***************************************************************************/
 
-typedef BOOL (*HEAP_RESIZE_CALLBACK)(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags);
+typedef struct tag_HEAP_CONTROL_BLOCK HEAP_CONTROL_BLOCK, *LPHEAP_CONTROL_BLOCK;
+
+/***************************************************************************/
+
+typedef BOOL (*HEAP_RESIZE_CALLBACK)(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize);
 
 /***************************************************************************/
 
@@ -55,7 +59,7 @@ typedef struct tag_HEAP_BLOCK_HEADER {
 
 /***************************************************************************/
 
-typedef struct tag_HEAP_CONTROL_BLOCK {
+struct tag_HEAP_CONTROL_BLOCK {
     UINT TypeID;
     LINEAR HeapBase;
     UINT HeapSize;
@@ -67,7 +71,7 @@ typedef struct tag_HEAP_CONTROL_BLOCK {
     HEAP_RESIZE_CALLBACK ResizeCallback;
     UINT MaximumSize;
     U32 RegionFlags;
-} HEAP_CONTROL_BLOCK, *LPHEAP_CONTROL_BLOCK;
+};
 
 /***************************************************************************/
 

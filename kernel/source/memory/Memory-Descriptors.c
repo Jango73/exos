@@ -629,6 +629,17 @@ BOOL RegionTrackResize(LINEAR Base, UINT OldSize, UINT NewSize, U32 Flags) {
 
 /************************************************************************/
 /**
+ * @brief Mark descriptors overlapping one committed range as committed.
+ * @param Base Base address for the committed range.
+ * @param Size Size of the committed range.
+ * @return TRUE on success or when tracking is disabled.
+ */
+BOOL RegionTrackCommit(LINEAR Base, UINT Size) {
+    return RegionTrackCommitForProcess(NULL, Base, Size);
+}
+
+/************************************************************************/
+/**
  * @brief Track a successful resize in one process descriptor list.
  * @param Process Tracking owner, or NULL for the current process.
  * @param Base Base address for the region.
@@ -675,5 +686,52 @@ BOOL RegionTrackResizeForProcess(LPPROCESS Process, LINEAR Base, UINT OldSize, U
     }
 
     ExtendDescriptor(Descriptor, AdditionalPages);
+    return TRUE;
+}
+
+/************************************************************************/
+/**
+ * @brief Mark one tracked range as committed.
+ * @param Process Tracking owner, or NULL for the current process.
+ * @param Base Base address for the committed range.
+ * @param Size Size of the committed range.
+ * @return TRUE on success or when tracking is disabled.
+ */
+BOOL RegionTrackCommitForProcess(LPPROCESS Process, LINEAR Base, UINT Size) {
+    LPMEMORY_REGION_LIST List = ResolveTrackingList(Process);
+    LINEAR Cursor;
+    LINEAR End;
+
+    if (G_RegionDescriptorsEnabled == FALSE || G_RegionDescriptorBootstrap == TRUE) {
+        return TRUE;
+    }
+
+    if (List == NULL || Size == 0) {
+        return FALSE;
+    }
+
+    Cursor = CanonicalizeLinearAddress(Base);
+    End = Cursor + (LINEAR)Size;
+    if (End < Cursor) {
+        return FALSE;
+    }
+
+    while (Cursor < End) {
+        LPMEMORY_REGION_DESCRIPTOR Descriptor = FindDescriptorCoveringAddress(List, Cursor);
+        LINEAR RegionEnd;
+
+        if (Descriptor == NULL) {
+            return FALSE;
+        }
+
+        Descriptor->Attributes |= MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_COMMIT;
+        RegionEnd = Descriptor->CanonicalBase + (LINEAR)Descriptor->Size;
+        if (RegionEnd <= Cursor) {
+            return FALSE;
+        }
+
+        Cursor = RegionEnd;
+    }
+
     return TRUE;
 }

@@ -29,14 +29,43 @@
 
 /************************************************************************/
 
-static BOOL ReservedHeapResize(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags) {
+static BOOL ReservedHeapResize(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize) {
     LPRESERVED_HEAP Heap = (LPRESERVED_HEAP)Context;
+    UINT GrowthSize;
 
-    if (Heap == NULL || Heap->HeapBase != HeapBase) {
+    if (Heap == NULL || ControlBlock == NULL || Heap->HeapBase != ControlBlock->HeapBase) {
         return FALSE;
     }
 
-    if (!ResizeRegion(HeapBase, 0, OldSize, NewSize, Flags)) {
+    if (Heap->HeapSize != ControlBlock->HeapSize) {
+        WARNING(TEXT("Reserved heap size mismatch for %s at %p (tracked=%u requested=%u)"),
+                Heap->Tag,
+                Heap->HeapBase,
+                Heap->HeapSize,
+                ControlBlock->HeapSize);
+        return FALSE;
+    }
+
+    if (Heap->RegionFlags != ControlBlock->RegionFlags) {
+        WARNING(TEXT("Reserved heap flags mismatch for %s at %p (tracked=%x requested=%x)"),
+                Heap->Tag,
+                Heap->HeapBase,
+                Heap->RegionFlags,
+                ControlBlock->RegionFlags);
+        return FALSE;
+    }
+
+    if (NewSize > Heap->MaximumSize) {
+        return FALSE;
+    }
+
+    GrowthSize = NewSize - ControlBlock->HeapSize;
+    if (GrowthSize == 0) {
+        return TRUE;
+    }
+
+    if (CommitRegionRange(ControlBlock->HeapBase + ControlBlock->HeapSize, GrowthSize, ControlBlock->RegionFlags) ==
+        FALSE) {
         return FALSE;
     }
 
@@ -86,9 +115,15 @@ BOOL ReservedHeapInit(
     Heap->RegionFlags = RegionFlags;
     StringCopy(Heap->Tag, (Tag != NULL) ? Tag : TEXT("ReservedHeap"));
 
-    HeapBase = ProcessArenaAllocateSystem(Process, InitialSize, RegionFlags, Heap->Tag);
+    HeapBase = ProcessArenaAllocateSystem(Process, MaximumSize, RegionFlags & ~ALLOC_PAGES_COMMIT, Heap->Tag);
     if (HeapBase == 0) {
         ERROR(TEXT("Failed to allocate region for %s"), Heap->Tag);
+        return FALSE;
+    }
+
+    if (CommitRegionRange(HeapBase, InitialSize, RegionFlags) == FALSE) {
+        FreeRegion(HeapBase, MaximumSize);
+        ERROR(TEXT("Failed to commit initial region for %s"), Heap->Tag);
         return FALSE;
     }
 
@@ -105,8 +140,8 @@ void ReservedHeapDeinit(LPRESERVED_HEAP Heap) {
         return;
     }
 
-    if (!FreeRegion(Heap->HeapBase, Heap->HeapSize)) {
-        WARNING(TEXT("FreeRegion failed for %s at %p size=%u"), Heap->Tag, Heap->HeapBase, Heap->HeapSize);
+    if (!FreeRegion(Heap->HeapBase, Heap->MaximumSize)) {
+        WARNING(TEXT("FreeRegion failed for %s at %p size=%u"), Heap->Tag, Heap->HeapBase, Heap->MaximumSize);
     }
 
     Heap->HeapBase = 0;

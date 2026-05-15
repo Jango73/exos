@@ -19,5 +19,6 @@ command: "listFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] l
 command: "listFolder -p /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=1 recursive=0 stress=0 : OK"
 command: "listFolder -r /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=0 recursive=1 stress=0 : OK"
 command: "changeFolder /temp/shell-smoke-block1" | log: "TEST > [ChangeFolder] changeFolder /temp/shell-smoke-block1 : OK"
+command: "changeFolder /system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
 command: "scripts/test-exposed-objects.e0" | timeout: 20 | log: "TEST > [ShellPrintScriptReturnValue] 38"
 command: "shutdown"

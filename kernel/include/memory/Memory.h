@@ -128,6 +128,8 @@ PHYSICAL MapLinearToPhysical(LINEAR Address);
 // Allocates physical space for a new region of virtual memory
 LINEAR AllocRegion(LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag);
 LINEAR AllocRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag);
+BOOL CommitRegionRange(LINEAR Base, UINT Size, U32 Flags);
+BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size, U32 Flags);
 
 // Resizes an existing region of virtual memory
 BOOL ResizeRegion(LINEAR Base, PHYSICAL Target, UINT Size, UINT NewSize, U32 Flags);

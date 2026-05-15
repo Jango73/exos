@@ -1067,13 +1067,63 @@ BOOL IsRegionFree(LINEAR Base, UINT Size) {
 
 /************************************************************************/
 
+static BOOL DoesRegionOverlapTrackedAllocation(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
+    LPMEMORY_REGION_LIST List =
+        (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+    LPMEMORY_REGION_DESCRIPTOR Current;
+    LINEAR End;
+
+    if (List == NULL || Size == 0) {
+        return FALSE;
+    }
+
+    End = Base + (LINEAR)Size;
+    if (End < Base) {
+        return TRUE;
+    }
+
+    Current = FindDescriptorCoveringAddress(List, Base);
+    if (Current != NULL) {
+        return TRUE;
+    }
+
+    Current = List->Head;
+    while (Current != NULL) {
+        LINEAR RegionEnd = Current->CanonicalBase + (LINEAR)Current->Size;
+
+        if (Current->CanonicalBase >= End) {
+            break;
+        }
+
+        if (RegionEnd > Base) {
+            return TRUE;
+        }
+
+        Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+static BOOL IsRegionAvailableForAllocation(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
+    if (IsRegionFree(Base, Size) == FALSE) {
+        return FALSE;
+    }
+
+    return DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE;
+}
+
+/************************************************************************/
+
 /**
  * @brief Find a free linear region starting from a base address.
  * @param StartBase Starting linear address.
  * @param Size Desired region size.
  * @return Base of free region or 0.
  */
-static LINEAR FindFreeRegion(LINEAR StartBase, UINT Size) {
+static LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT Size) {
     UINT Base = N_4MB;
 
     if (StartBase >= Base) {
@@ -1081,7 +1131,7 @@ static LINEAR FindFreeRegion(LINEAR StartBase, UINT Size) {
     }
 
     FOREVER {
-        if (IsRegionFree(Base, Size) == TRUE) return Base;
+        if (IsRegionAvailableForAllocation(TrackingProcess, Base, Size) == TRUE) return Base;
         Base += PAGE_SIZE;
     }
 
@@ -1183,7 +1233,7 @@ static BOOL PopulateRegionPages(
         Table[TabEntry].Global = 0;
         Table[TabEntry].User = 0;
         Table[TabEntry].Fixed = Fixed;
-        Table[TabEntry].Address = MAX_U32 >> PAGE_SIZE_MUL;
+        Table[TabEntry].Address = NULL;
 
         if (Flags & ALLOC_PAGES_COMMIT) {
             if (Target != 0) {
@@ -1286,7 +1336,7 @@ LINEAR AllocRegionForProcess(
     /* If the calling process requests that a linear address be mapped,
        see if the region is not already allocated. */
     if (Base != 0 && (Flags & ALLOC_PAGES_AT_OR_OVER) == 0) {
-        if (IsRegionFree(Base, Size) == FALSE) {
+        if (IsRegionAvailableForAllocation(TrackingProcess, Base, Size) == FALSE) {
             return NULL;
         }
     }
@@ -1295,7 +1345,7 @@ LINEAR AllocRegionForProcess(
        the region, try to find a region which is at least as large as
        the "Size" parameter. */
     if (Base == 0 || (Flags & ALLOC_PAGES_AT_OR_OVER)) {
-        LINEAR NewBase = FindFreeRegion(Base, Size);
+        LINEAR NewBase = FindFreeRegion(TrackingProcess, Base, Size);
 
         if (NewBase == NULL) {
             return NULL;
@@ -1406,6 +1456,128 @@ BOOL ResizeRegion(LINEAR Base, PHYSICAL Target, UINT Size, UINT NewSize, U32 Fla
 
 /************************************************************************/
 
+static void RollbackCommittedRange(LINEAR Base, UINT NumPages) {
+    LPPAGE_DIRECTORY Directory = GetCurrentPageDirectoryVA();
+
+    for (UINT Index = 0; Index < NumPages; Index++) {
+        UINT DirEntry = GetDirectoryEntry(Base);
+        UINT TabEntry = GetTableEntry(Base);
+
+        if (Directory[DirEntry].Address != NULL) {
+            LPPAGE_TABLE Table = GetPageTableVAFor(Base);
+
+            if (Table[TabEntry].Present != 0) {
+                if (Table[TabEntry].Fixed == 0 && Table[TabEntry].Address != NULL) {
+                    SetPhysicalPageMark(Table[TabEntry].Address, 0);
+                }
+
+                Table[TabEntry].Present = 0;
+                Table[TabEntry].Address = NULL;
+                Table[TabEntry].Fixed = 0;
+            }
+        }
+
+        Base += PAGE_SIZE;
+    }
+
+    FreeEmptyPageTables();
+    FlushTLB();
+}
+
+/************************************************************************/
+
+BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size, U32 Flags) {
+    LPPAGE_DIRECTORY Directory = GetCurrentPageDirectoryVA();
+    UINT NumPages;
+    UINT ReadWrite;
+    UINT PteCacheDisabled;
+    UINT PteWriteThrough;
+    UINT Fixed;
+    LINEAR StartBase = Base;
+
+    if (Base == 0 || Size == 0) {
+        return FALSE;
+    }
+
+    NumPages = (Size + (PAGE_SIZE - 1)) >> PAGE_SIZE_MUL;
+    if (NumPages == 0) {
+        NumPages = 1;
+    }
+
+    ReadWrite = (Flags & ALLOC_PAGES_READWRITE) ? 1 : 0;
+    PteCacheDisabled = (Flags & ALLOC_PAGES_UC) ? 1 : 0;
+    PteWriteThrough = (Flags & ALLOC_PAGES_WC) ? 1 : 0;
+    Fixed = (Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) ? 1 : 0;
+
+    if (PteCacheDisabled) {
+        PteWriteThrough = 0;
+    }
+
+    for (UINT Index = 0; Index < NumPages; Index++) {
+        UINT DirEntry = GetDirectoryEntry(Base);
+        UINT TabEntry = GetTableEntry(Base);
+        LPPAGE_TABLE Table;
+        PHYSICAL Physical;
+
+        if (Directory[DirEntry].Address == NULL) {
+            if (AllocPageTable(Base) == NULL) {
+                RollbackCommittedRange(StartBase, Index);
+                return FALSE;
+            }
+        }
+
+        Table = GetPageTableVAFor(Base);
+        if (Table[TabEntry].Present != 0) {
+            RollbackCommittedRange(StartBase, Index);
+            return FALSE;
+        }
+
+        Physical = AllocPhysicalPage();
+        if (Physical == NULL) {
+            RollbackCommittedRange(StartBase, Index);
+            return FALSE;
+        }
+
+        Table[TabEntry].ReadWrite = ReadWrite;
+        Table[TabEntry].Privilege = PAGE_PRIVILEGE(Base);
+        Table[TabEntry].WriteThrough = PteWriteThrough;
+        Table[TabEntry].CacheDisabled = PteCacheDisabled;
+        Table[TabEntry].Accessed = 0;
+        Table[TabEntry].Dirty = 0;
+        Table[TabEntry].Reserved = 0;
+        Table[TabEntry].Global = 0;
+        Table[TabEntry].User = 0;
+        Table[TabEntry].Fixed = Fixed;
+        Table[TabEntry].Address = Physical >> PAGE_SIZE_MUL;
+        Table[TabEntry].Present = 1;
+
+        if (SyncKernelMappingForPage(Base, *(volatile U32*)&Directory[DirEntry], *(volatile U32*)&Table[TabEntry]) ==
+            FALSE) {
+            RollbackCommittedRange(StartBase, Index + 1);
+            ERROR(TEXT("Kernel mapping synchronization failed for %p"), (LPVOID)Base);
+            return FALSE;
+        }
+
+        Base += PAGE_SIZE;
+    }
+
+    if (RegionTrackCommitForProcess(TrackingProcess, StartBase, NumPages << PAGE_SIZE_MUL) == FALSE) {
+        RollbackCommittedRange(StartBase, NumPages);
+        return FALSE;
+    }
+
+    FlushTLB();
+    return TRUE;
+}
+
+/************************************************************************/
+
+BOOL CommitRegionRange(LINEAR Base, UINT Size, U32 Flags) {
+    return CommitRegionRangeForProcess(NULL, Base, Size, Flags);
+}
+
+/************************************************************************/
+
 /**
  * @brief Unmap and free a linear region.
  * @param Base Base linear address.
@@ -1432,9 +1604,9 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
         if (Directory[DirEntry].Address != NULL) {
             Table = GetPageTableVAFor(Base);
 
-            if (Table[TabEntry].Address != NULL) {
+            if (Table[TabEntry].Address != NULL || Table[TabEntry].Present != 0) {
                 /* Skip allocator release if it was an IO mapping (BAR) */
-                if (Table[TabEntry].Fixed == 0) {
+                if (Table[TabEntry].Present != 0 && Table[TabEntry].Fixed == 0) {
                     SetPhysicalPageMark(Table[TabEntry].Address, 0);
                 }
 

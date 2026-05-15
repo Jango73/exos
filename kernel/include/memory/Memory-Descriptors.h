@@ -57,8 +57,10 @@ MEMORY_REGION_GRANULARITY ComputeDescriptorGranularity(LINEAR Base, UINT PageCou
 BOOL RegionTrackAlloc(LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag);
 BOOL RegionTrackFree(LINEAR Base, UINT Size);
 BOOL RegionTrackResize(LINEAR Base, UINT OldSize, UINT NewSize, U32 Flags);
+BOOL RegionTrackCommit(LINEAR Base, UINT Size);
 BOOL RegionTrackAllocForProcess(LPPROCESS Process, LINEAR Base, PHYSICAL Target, UINT Size, U32 Flags, LPCSTR Tag);
 BOOL RegionTrackFreeForProcess(LPPROCESS Process, LINEAR Base, UINT Size);
 BOOL RegionTrackResizeForProcess(LPPROCESS Process, LINEAR Base, UINT OldSize, UINT NewSize, U32 Flags);
+BOOL RegionTrackCommitForProcess(LPPROCESS Process, LINEAR Base, UINT Size);
 
 #endif  // MEMORY_DESCRIPTORS_H_INCLUDED

@@ -31,14 +31,14 @@
 
 /************************************************************************/
 
-static BOOL HeapResizeProcess(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags) {
+static BOOL HeapResizeProcess(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize) {
     LPPROCESS Process = (LPPROCESS)Context;
 
-    if (Process == NULL) {
+    if (Process == NULL || ControlBlock == NULL) {
         return FALSE;
     }
 
-    return ResizeRegion(HeapBase, 0, OldSize, NewSize, Flags);
+    return ResizeRegion(ControlBlock->HeapBase, 0, ControlBlock->HeapSize, NewSize, ControlBlock->RegionFlags);
 }
 
 /************************************************************************/
@@ -403,12 +403,7 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
         return FALSE;
     }
 
-    if (ControlBlock->ResizeCallback(
-            ControlBlock->ResizeContext,
-            ControlBlock->HeapBase,
-            CurrentSize,
-            DesiredSize,
-            ControlBlock->RegionFlags) == FALSE) {
+    if (ControlBlock->ResizeCallback(ControlBlock->ResizeContext, ControlBlock, DesiredSize) == FALSE) {
         ERROR(TEXT("ResizeRegion failed for heap at %x (from %x to %x)"), ControlBlock->HeapBase, CurrentSize,
             DesiredSize);
         return FALSE;
