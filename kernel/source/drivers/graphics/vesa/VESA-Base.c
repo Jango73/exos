@@ -621,9 +621,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
     DEBUG(TEXT("LFB mapped at %p (phys=%p pitch=%u size=%u)"), VESAContext.Header.MemoryBase,
         (LPVOID)(LINEAR)VESAContext.FrameBufferPhysical, VESAContext.Header.BytesPerScanLine, FrameBufferSize);
 
-#if VESA_ENABLE_SELFTEST
-    VESADrawSelfTest(&VESAContext);
-#endif
+    GraphicsDrawTestPattern((LPGRAPHICSCONTEXT)&VESAContext);
 
     return DF_RETURN_SUCCESS;
 }
