@@ -27,6 +27,7 @@
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "log/Profile.h"
 #include "memory/Buddy-Allocator.h"
 #include "memory/Memory-Descriptors.h"
 #include "memory/Memory.h"
@@ -1073,6 +1074,8 @@ static BOOL DoesRegionOverlapTrackedAllocation(LPPROCESS TrackingProcess, LINEAR
     LPMEMORY_REGION_DESCRIPTOR Current;
     LINEAR End;
 
+    ProfileCountCall(TEXT("RegionOverlapCheck"));
+
     if (List == NULL || Size == 0) {
         return FALSE;
     }
@@ -1130,7 +1133,47 @@ static LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT S
         Base = StartBase;
     }
 
+    LPMEMORY_REGION_LIST List =
+        (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+
+    if (List != NULL) {
+        LPMEMORY_REGION_DESCRIPTOR Current = List->Head;
+
+        while (Current != NULL) {
+            LINEAR RegionEnd = Current->CanonicalBase + (LINEAR)Current->Size;
+
+            if (RegionEnd <= Base) {
+                Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+                continue;
+            }
+
+            if (Current->CanonicalBase > Base) {
+                LINEAR GapSize = Current->CanonicalBase - Base;
+
+                if (GapSize >= Size) {
+                    if (IsRegionFree(Base, Size) == TRUE &&
+                        DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+                        return Base;
+                    }
+                }
+            }
+
+            if (RegionEnd > Base) {
+                Base = RegionEnd;
+            }
+
+            Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+        }
+
+        if (IsRegionFree(Base, Size) == TRUE &&
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+            return Base;
+        }
+    }
+
     FOREVER {
+        ProfileCountCall(TEXT("FindFreeRegionLoop"));
+
         if (IsRegionAvailableForAllocation(TrackingProcess, Base, Size) == TRUE) return Base;
         Base += PAGE_SIZE;
     }
@@ -1494,6 +1537,8 @@ BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Si
     UINT PteWriteThrough;
     UINT Fixed;
     LINEAR StartBase = Base;
+
+    ProfileCountCall(TEXT("CommitRegionRange"));
 
     if (Base == 0 || Size == 0) {
         return FALSE;

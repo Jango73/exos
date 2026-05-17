@@ -23,6 +23,7 @@
 \************************************************************************/
 
 #include "arch/x86-64/x86-64-Memory-Internal.h"
+#include "log/Profile.h"
 #include "memory/Buddy-Allocator.h"
 
 /************************************************************************/
@@ -1189,6 +1190,8 @@ static BOOL DoesRegionOverlapTrackedAllocation(LPPROCESS TrackingProcess, LINEAR
     LINEAR CanonicalBase;
     LINEAR End;
 
+    ProfileCountCall(TEXT("RegionOverlapCheck"));
+
     if (List == NULL || Size == 0) {
         return FALSE;
     }
@@ -1234,8 +1237,47 @@ LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT Size) {
         }
     }
 
+    LPMEMORY_REGION_LIST List =
+        (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+
+    if (List != NULL) {
+        LPMEMORY_REGION_DESCRIPTOR Current = List->Head;
+
+        while (Current != NULL) {
+            LINEAR RegionEnd = Current->CanonicalBase + (LINEAR)Current->Size;
+
+            if (RegionEnd <= Base) {
+                Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+                continue;
+            }
+
+            if (Current->CanonicalBase > Base) {
+                LINEAR GapSize = Current->CanonicalBase - Base;
+
+                if (GapSize >= Size) {
+                    if (IsRegionFree(Base, Size) == TRUE) {
+                        return Base;
+                    }
+                }
+            }
+
+            if (RegionEnd > Base) {
+                Base = RegionEnd;
+            }
+
+            Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+        }
+
+        if (IsRegionFree(Base, Size) == TRUE) {
+            return Base;
+        }
+    }
+
     while (TRUE) {
-        if (IsRegionFree(Base, Size) == TRUE && DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+        ProfileCountCall(TEXT("FindFreeRegionLoopFallback"));
+
+        if (IsRegionFree(Base, Size) == TRUE &&
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
             return Base;
         }
 
@@ -1519,7 +1561,8 @@ LINEAR AllocRegionForProcess(
     /* If the calling process requests that a linear address be mapped,
        see if the region is not already allocated. */
     if (Base != 0 && (Flags & ALLOC_PAGES_AT_OR_OVER) == 0) {
-        if (IsRegionFree(Base, Size) == FALSE || DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == TRUE) {
+        if (IsRegionFree(Base, Size) == FALSE ||
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == TRUE) {
             return NULL;
         }
     }
@@ -1702,6 +1745,8 @@ BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Si
     LINEAR CanonicalBase;
     ARCH_PAGE_ITERATOR Iterator;
 
+    ProfileCountCall(TEXT("CommitRegionRange"));
+
     if (Base == 0 || Size == 0) {
         return FALSE;
     }
@@ -1749,16 +1794,9 @@ BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Si
         }
 
         WritePageTableEntryValue(
-            Table,
-            TabEntry,
+            Table, TabEntry,
             MakePageTableEntryValue(
-                Physical,
-                ReadWrite,
-                PAGE_PRIVILEGE(CurrentLinear),
-                PteWriteThrough,
-                PteCacheDisabled,
-                0,
-                FixedFlag));
+                Physical, ReadWrite, PAGE_PRIVILEGE(CurrentLinear), PteWriteThrough, PteCacheDisabled, 0, FixedFlag));
 
         MemoryPageIteratorStepPage(&Iterator);
     }
