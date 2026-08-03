@@ -1,17 +1,17 @@
 # NVMe Implementation Roadmap
 
 ## Prerequisites
-- [ ] PCIe enumeration working (class 0x01, subclass 0x08 for NVMe).
-- [ ] MMIO mapping (typically BAR0).
-- [ ] DMA buffers: physically contiguous, 4 KiB aligned.
+- [x] PCIe enumeration working (class 0x01, subclass 0x08 for NVMe).
+- [x] MMIO mapping (typically BAR0).
+- [x] DMA buffers: physically contiguous, 4 KiB aligned.
 - [ ] Interrupts: MSI/MSI-X preferred (INTx fallback).
-- [ ] Logging: concise traces (register reads/writes, SQ/CQ entries, status codes).
+- [x] Logging: concise traces (register reads/writes, SQ/CQ entries, status codes).
 
 ## Step 1 — Detect NVMe Controller
 Goal: confirm NVMe presence and read capabilities.  
 - [x] Scan PCI config, find class 0x0108.  
 - [x] Map BAR0, read CAP, VS, CC, CSTS, AQA, ASQ, ACQ.  
-- [ ] Record version and queue entry size limits.  
+- [ ] Record version and queue entry size limits in persistent controller state.  
 Success: kernel log shows controller version and max queue depth.
 
 ## Step 2 — Admin Queue Setup
@@ -24,13 +24,14 @@ Success: kernel log confirms the controller is ready.
 Goal: retrieve identity and basic namespace info.  
 - [x] Identify Controller (Admin 0x06) → serial, model, firmware.  
 - [x] Identify Namespace (Admin 0x06, CNS=0x00, NSID=1).  
-- [ ] Parse LBA formats (size, metadata).  
+- [ ] Parse LBA formats completely (size, metadata, active format constraints).  
 Success: kernel log shows NSID=1 with capacity in sectors.
 
 ## Step 4 — Create I/O Queues
 Goal: operational I/O submission/completion queues.  
 - [x] Create I/O CQ (Admin 0x05), Create I/O SQ (Admin 0x01).  
-- [x] Route CQ to an MSI/MSI-X vector and arm interrupts.  
+- [x] Route CQ to an MSI/MSI-X vector and arm interrupts.
+- [ ] Implement a functional interrupt completion path; current code still relies on synchronous polling for completions.  
 Success: dummy no-op commands complete on the I/O CQ.
 
 ## Step 5 — Read Sectors
@@ -41,7 +42,7 @@ Success: kernel log shows the MBR signature read from LBA0.
 
 ## Step 6 — Write Sectors
 Goal: implement the write path.  
-- [ ] Build PRP for source buffer and submit Write (0x01).  
+- [x] Build PRP for source buffer and submit Write (0x01).  
 - [ ] Optionally issue Flush (0x00).  
 Success: write a signature and verify by reading it back.
 
@@ -56,9 +57,10 @@ Success: shell command `disk` lists all NVMe namespaces with capacities and the 
 
 ## Step 8 — Error Handling & Reset
 Goal: robust recovery.  
-- [ ] Handle timeouts and wrap of SQ tail/CQ head.  
+- [x] Handle wrap of SQ tail/CQ head.  
+- [ ] Handle timeouts with explicit recovery paths.  
 - [ ] On CSTS.CFS = 1: disable CC.EN, wait RDY=0, reinitialize.  
-- [ ] Decode status codes (phase tag, SC, SCT), retry where appropriate.  
+- [ ] Decode status codes centrally (phase tag, SC, SCT), retry where appropriate.  
 Success: bad commands or device hiccups do not panic the kernel.
 
 ## Step 9 — Performance & Multiqueue
@@ -110,11 +112,11 @@ Goal: integrate NVMe cleanly with existing EXOS driver and disk layers.
 - Expose each namespace as a `DISK` object with `OBJECT_FIELDS` and `KOID_DISK`.
 - Add each NVMe disk to `GetDiskList()` just like AHCI does in `InitializeAHCIController`.
 - Implement `DF_DISK_READ/WRITE/GETINFO/SETACCESS` on the NVMe driver, matching the AHCI disk interface.
-- Reuse the sector cache (`CacheInit`, `CacheFind`, `CacheAdd`, `CacheCleanup`) for read path parity with AHCI.
+- [ ] Reuse the sector cache (`CacheInit`, `CacheFind`, `CacheAdd`, `CacheCleanup`) for read path parity with AHCI.
 
 ### Scheduling and polling
-- Provide poll-mode handler for interrupts (see `AHCIInterruptPoll`) to keep early boot functional.
-- Ensure queue submission does not busy-loop; yield or sleep where needed.
+- [ ] Provide poll-mode handler for interrupts (see `AHCIInterruptPoll`) to keep early boot functional.
+- [ ] Ensure queue submission does not busy-loop; yield or sleep where needed.
 
 ### Error handling and reset
 - Follow the style in AHCI: concise `WARNING`/`ERROR` logs, no flood.
@@ -122,7 +124,13 @@ Goal: integrate NVMe cleanly with existing EXOS driver and disk layers.
 
 ### System Data View and shell
 - Add a System Data View page for NVMe controllers (optional but useful for bare metal).
-- Add a shell command `nvme` with `list` first, then extend with `info` and `smart` as the driver matures.
+- [x] Add a shell command `nvme` with `list` first.
+- [ ] Extend the shell command with `info` and `smart` as the driver matures.
 
 ### Tests and validation
 - On bare metal, validate PCI detection first, then admin queue readiness.
+
+## State Summary
+- Admin queue setup, identify commands, one I/O queue pair, read path, write path, namespace enumeration, disk registration, and partition mounting are implemented.
+- The main remaining work is robustness: functional interrupt-driven completion, timeout recovery, controller reset on fatal status, centralized status decoding, and broader validation of write persistence.
+- The roadmap above tracks missing behavior, not merely uncommitted code.

@@ -27,8 +27,6 @@
 # DeviceInterruptSlots=32
 # Enable or disable login sequence (1=enable, 0=disable)
 # DoLogin=1
-# Enable or disable automatic desktop activation after shell initialization (1=enable, 0=disable)
-# ShowDesktop=1
 
 [Session]
 # Inactivity timeout before session lock (in seconds)
@@ -42,6 +40,8 @@
 MinimumTaskStackSize=65536
 # Specify minimum size for a task's system stack (interrupts, syscalls)
 MinimumSystemStackSize=16384
+# Specify maximum number of pending messages in task and process message queues
+MessageQueueMaxMessages=100
 
 [KernelPath]
 # Logical kernel file/folder paths.
@@ -88,6 +88,11 @@ Path="/scripts"
 [Keyboard]
 # Available layouts : de-DE, en-US, fr-FR
 Layout="en-US"
+
+[Hotkey.0]
+# Switch display ownership back to the text console front-end
+Key="ctrl-alt-f1"
+Action="switch_to_console"
 
 [Network]
 # Global network configuration (fallback values)

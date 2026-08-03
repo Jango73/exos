@@ -22,12 +22,12 @@
 \************************************************************************/
 
 #include "Base.h"
-#include "memory/Heap.h"
-#include "utils/List.h"
 #include "log/Log.h"
-#include "text/CoreString.h"
-#include "script/Script.h"
+#include "memory/Heap.h"
 #include "script/Script-Internal.h"
+#include "script/Script.h"
+#include "text/CoreString.h"
+#include "utils/List.h"
 
 /************************************************************************/
 
@@ -92,9 +92,7 @@ BOOL ScriptIsE0FileName(LPCSTR FileName) {
  * @param Callbacks Pointer to callback structure for external integration
  * @return Pointer to new script context or NULL on failure
  */
-LPSCRIPT_CONTEXT ScriptCreateContext(LPSCRIPT_CALLBACKS Callbacks) {
-    return ScriptCreateContextA(Callbacks, NULL);
-}
+LPSCRIPT_CONTEXT ScriptCreateContext(LPSCRIPT_CALLBACKS Callbacks) { return ScriptCreateContextA(Callbacks, NULL); }
 
 /************************************************************************/
 
@@ -115,6 +113,11 @@ LPSCRIPT_CONTEXT ScriptCreateContextA(LPSCRIPT_CALLBACKS Callbacks, LPCALLOCATOR
 
     MemorySet(Context, 0, sizeof(SCRIPT_CONTEXT));
     Context->Allocator = *Allocator;
+
+    // Route all engine allocations through the accounting wrapper so the
+    // engine can report live and peak memory usage per script execution.
+    MemoryAccountingAllocatorInit(&Context->Accounting, &Context->Allocator);
+    Context->Allocator = Context->Accounting.Wrapper;
 
     if (!ScriptInitHostRegistry(Context, &Context->HostRegistry)) {
         DEBUG(TEXT("Failed to initialize host registry"));
@@ -150,6 +153,13 @@ void ScriptDestroyContext(LPSCRIPT_CONTEXT Context) {
     if (Context == NULL) return;
 
     ScriptClearReturnValue(Context);
+
+    // Defensive cleanup: a cache must not survive a context that owns it.
+    if (Context->AstCache != NULL) {
+        ScriptASTCacheDestroy(Context->AstCache);
+        Context->AstCache = NULL;
+    }
+
     ScriptClearHostRegistryInternal(&Context->HostRegistry);
 
     // Free global scope and all child scopes
@@ -157,7 +167,9 @@ void ScriptDestroyContext(LPSCRIPT_CONTEXT Context) {
         ScriptDestroyScope(Context->GlobalScope);
     }
 
-    ScriptFree(Context, Context);
+    // The context structure itself was allocated before the accounting wrapper
+    // existed, so it must be released through the base allocator.
+    AllocatorFree(&Context->Accounting.Base, Context);
 }
 
 /************************************************************************/
@@ -178,49 +190,79 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
     Context->ErrorMessage[0] = STR_NULL;
     ScriptClearReturnValue(Context);
 
+    // Start per-execution memory accounting. The peak reported at exit covers
+    // only this script, not data retained by the persistent context.
+#if DEBUG_OUTPUT == 1
+    U32 BaselineBytes = Context->Accounting.Stats.LiveBytes;
+#endif
+    MemoryAccountingAllocatorResetPeak(&Context->Accounting);
+
     SCRIPT_PARSER Parser;
     ScriptInitParser(&Parser, Script, Context);
 
+    SCRIPT_ERROR Error = SCRIPT_OK;
+    LPAST_NODE Root = NULL;
+    LPSCRIPT_AST_CACHE Cache = NULL;
+
+    // The AST cache owns every statement unit of this execution. Resident
+    // statements are evicted by budget and re-parsed from source on demand.
+    Cache = ScriptASTCacheCreate(Context, Script, (U32)StringLength(Script), SCRIPT_AST_CACHE_BUDGET_BYTES);
+    if (Cache == NULL) {
+        StringCopy(Context->ErrorMessage, TEXT("Out of memory"));
+        Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+        goto Out;
+    }
+    Context->AstCache = Cache;
+
     // PASS 1: Parse script and build AST
-    LPAST_NODE Root = ScriptCreateASTNode(Context, AST_BLOCK);
+    Root = ScriptCreateASTNode(Context, AST_BLOCK);
     if (Root == NULL) {
         StringCopy(Context->ErrorMessage, TEXT("Out of memory"));
-        Context->ErrorCode = SCRIPT_ERROR_OUT_OF_MEMORY;
-        return SCRIPT_ERROR_OUT_OF_MEMORY;
+        Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+        goto Out;
     }
 
     Root->Data.Block.Capacity = 16;
-    Root->Data.Block.Statements = (LPAST_NODE*)ScriptAlloc(Context, Root->Data.Block.Capacity * sizeof(LPAST_NODE));
+    Root->Data.Block.Statements = (LPAST_ENTRY*)ScriptAlloc(Context, Root->Data.Block.Capacity * sizeof(LPAST_ENTRY));
     if (Root->Data.Block.Statements == NULL) {
-        ScriptDestroyAST(Root);
         StringCopy(Context->ErrorMessage, TEXT("Out of memory"));
-        Context->ErrorCode = SCRIPT_ERROR_OUT_OF_MEMORY;
-        return SCRIPT_ERROR_OUT_OF_MEMORY;
+        Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+        goto Out;
     }
     Root->Data.Block.Count = 0;
 
-    SCRIPT_ERROR Error = SCRIPT_OK;
-
     // Parse all statements until EOF
     while (Parser.CurrentToken.Type != TOKEN_EOF) {
+        U32 StatementOffset = Parser.CurrentToken.Position;
         LPAST_NODE Statement = ScriptParseStatementAST(&Parser, &Error);
         if (Error != SCRIPT_OK) {
-            StringPrintFormat(Context->ErrorMessage, TEXT("Syntax error (l:%d,c:%d)"), Parser.CurrentToken.Line, Parser.CurrentToken.Column);
+            StringPrintFormat(
+                Context->ErrorMessage, TEXT("Syntax error (l:%d,c:%d)"), Parser.CurrentToken.Line,
+                Parser.CurrentToken.Column);
             Context->ErrorCode = Error;
-            ScriptDestroyAST(Root);
-            return Error;
+            goto Out;
+        }
+        U32 StatementLength = Parser.Position - StatementOffset;
+        AST_NODE_TYPE StatementType = Statement->Type;
+
+        LPAST_ENTRY StatementEntry =
+            ScriptRegisterStatementEntry(Context, Statement, StatementOffset, StatementLength, Parser.LoopDepth);
+        if (StatementEntry == NULL) {
+            ScriptDestroyAST(Statement);
+            StringCopy(Context->ErrorMessage, TEXT("Out of memory"));
+            Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+            goto Out;
         }
 
         // Add statement to root block
         if (Root->Data.Block.Count >= Root->Data.Block.Capacity) {
             Root->Data.Block.Capacity *= 2;
-            LPAST_NODE* NewStatements = (LPAST_NODE*)ScriptAlloc(Context, Root->Data.Block.Capacity * sizeof(LPAST_NODE));
+            LPAST_ENTRY* NewStatements =
+                (LPAST_ENTRY*)ScriptAlloc(Context, Root->Data.Block.Capacity * sizeof(LPAST_ENTRY));
             if (NewStatements == NULL) {
-                ScriptDestroyAST(Statement);
-                ScriptDestroyAST(Root);
                 StringCopy(Context->ErrorMessage, TEXT("Out of memory"));
-                Context->ErrorCode = SCRIPT_ERROR_OUT_OF_MEMORY;
-                return SCRIPT_ERROR_OUT_OF_MEMORY;
+                Error = SCRIPT_ERROR_OUT_OF_MEMORY;
+                goto Out;
             }
             for (U32 i = 0; i < Root->Data.Block.Count; i++) {
                 NewStatements[i] = Root->Data.Block.Statements[i];
@@ -229,15 +271,17 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
             Root->Data.Block.Statements = NewStatements;
         }
 
-        Root->Data.Block.Statements[Root->Data.Block.Count++] = Statement;
+        Root->Data.Block.Statements[Root->Data.Block.Count++] = StatementEntry;
 
         // Semicolon is mandatory after assignments and control-flow leaf statements.
-        if (Statement->Type == AST_ASSIGNMENT || Statement->Type == AST_RETURN || Statement->Type == AST_CONTINUE) {
+        if (StatementType == AST_ASSIGNMENT || StatementType == AST_RETURN || StatementType == AST_CONTINUE) {
             if (Parser.CurrentToken.Type != TOKEN_SEMICOLON && Parser.CurrentToken.Type != TOKEN_EOF) {
-                StringPrintFormat(Context->ErrorMessage, TEXT("Expected semicolon (l:%d,c:%d)"), Parser.CurrentToken.Line, Parser.CurrentToken.Column);
+                StringPrintFormat(
+                    Context->ErrorMessage, TEXT("Expected semicolon (l:%d,c:%d)"), Parser.CurrentToken.Line,
+                    Parser.CurrentToken.Column);
                 Context->ErrorCode = SCRIPT_ERROR_SYNTAX;
-                ScriptDestroyAST(Root);
-                return SCRIPT_ERROR_SYNTAX;
+                Error = SCRIPT_ERROR_SYNTAX;
+                goto Out;
             }
             if (Parser.CurrentToken.Type == TOKEN_SEMICOLON) {
                 ScriptNextToken(&Parser);
@@ -248,6 +292,9 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
                 ScriptNextToken(&Parser);
             }
         }
+
+        // Bound the parse peak: evict the whole cache as PASS 1 progresses.
+        ScriptASTCacheEvict(Cache, NULL);
     }
 
     // PASS 2: Execute AST - Execute statements directly without creating a new scope
@@ -258,7 +305,14 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
         }
     }
 
-    ScriptDestroyAST(Root);
+Out:
+    if (Root != NULL) {
+        ScriptDestroyAST(Root);
+    }
+    Context->AstCache = NULL;
+    if (Cache != NULL) {
+        ScriptASTCacheDestroy(Cache);
+    }
 
     if (Error == SCRIPT_OK && Context->ErrorCode != SCRIPT_OK) {
         Error = Context->ErrorCode;
@@ -270,6 +324,11 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
         }
         Context->ErrorCode = Error;
     }
+
+    DEBUG(
+        TEXT("E0 memory peak: %u bytes total, %u bytes for this script, %u bytes live, source %u bytes"),
+        Context->Accounting.Stats.PeakBytes, Context->Accounting.Stats.PeakBytes - BaselineBytes,
+        Context->Accounting.Stats.LiveBytes, (U32)StringLength(Script));
 
     return Error;
 }
@@ -284,7 +343,8 @@ SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script) {
  * @param Value Variable value
  * @return Pointer to variable or NULL on failure
  */
-LPSCRIPT_VARIABLE ScriptSetVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value) {
+LPSCRIPT_VARIABLE ScriptSetVariable(
+    LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value) {
     if (Context == NULL || Name == NULL) return NULL;
 
     return ScriptSetVariableInScope(Context->CurrentScope, Name, Type, Value);
@@ -318,7 +378,8 @@ void ScriptDeleteVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name) {
     LPLIST Bucket = Context->CurrentScope->Buckets[Hash];
 
     // Only delete from current scope, not parent scopes
-    for (LPSCRIPT_VARIABLE Variable = (LPSCRIPT_VARIABLE)Bucket->First; Variable; Variable = (LPSCRIPT_VARIABLE)Variable->Next) {
+    for (LPSCRIPT_VARIABLE Variable = (LPSCRIPT_VARIABLE)Bucket->First; Variable;
+         Variable = (LPSCRIPT_VARIABLE)Variable->Next) {
         if (STRINGS_EQUAL(Variable->Name, Name)) {
             ListRemove(Bucket, Variable);
             ScriptFreeVariable(Variable);
@@ -335,9 +396,7 @@ void ScriptDeleteVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name) {
  * @param Context Script context
  * @return Error code
  */
-SCRIPT_ERROR ScriptGetLastError(LPSCRIPT_CONTEXT Context) {
-    return Context ? Context->ErrorCode : SCRIPT_ERROR_SYNTAX;
-}
+SCRIPT_ERROR ScriptGetLastError(LPSCRIPT_CONTEXT Context) { return Context ? Context->ErrorCode : SCRIPT_ERROR_SYNTAX; }
 
 /************************************************************************/
 
@@ -352,9 +411,7 @@ LPCSTR ScriptGetErrorMessage(LPSCRIPT_CONTEXT Context) {
 
 /************************************************************************/
 
-BOOL ScriptHasReturnValue(LPSCRIPT_CONTEXT Context) {
-    return (Context != NULL && Context->HasReturnValue);
-}
+BOOL ScriptHasReturnValue(LPSCRIPT_CONTEXT Context) { return (Context != NULL && Context->HasReturnValue); }
 
 /************************************************************************/
 
@@ -416,12 +473,7 @@ void ScriptDestroyAST(LPAST_NODE Node) {
             if (Node->Data.If.Condition) {
                 ScriptDestroyAST(Node->Data.If.Condition);
             }
-            if (Node->Data.If.Then) {
-                ScriptDestroyAST(Node->Data.If.Then);
-            }
-            if (Node->Data.If.Else) {
-                ScriptDestroyAST(Node->Data.If.Else);
-            }
+            // Then and Else branches are cache entries owned by the AST cache.
             break;
 
         case AST_FOR:
@@ -434,16 +486,12 @@ void ScriptDestroyAST(LPAST_NODE Node) {
             if (Node->Data.For.Increment) {
                 ScriptDestroyAST(Node->Data.For.Increment);
             }
-            if (Node->Data.For.Body) {
-                ScriptDestroyAST(Node->Data.For.Body);
-            }
+            // Body is a cache entry owned by the AST cache.
             break;
 
         case AST_BLOCK:
             if (Node->Data.Block.Statements) {
-                for (U32 i = 0; i < Node->Data.Block.Count; i++) {
-                    ScriptDestroyAST(Node->Data.Block.Statements[i]);
-                }
+                // Members are cache entries owned by the AST cache.
                 ScriptFree(Node->Context, Node->Data.Block.Statements);
             }
             break;
@@ -515,9 +563,7 @@ U32 ScriptHashVariable(LPCSTR Name) {
  * @param Value The value to check
  * @return TRUE if value has no fractional part
  */
-BOOL IsInteger(F32 Value) {
-    return Value == (F32)(INT)Value;
-}
+BOOL IsInteger(F32 Value) { return Value == (F32)(INT)Value; }
 
 /************************************************************************/
 
@@ -554,11 +600,7 @@ BOOL ScriptStoreReturnValue(LPSCRIPT_CONTEXT Context, const SCRIPT_VALUE* Value)
     Context->HasReturnValue = TRUE;
     Context->ReturnTriggered = TRUE;
 
-    if (ScriptStoreObjectValue(
-            Context,
-            Value->Type,
-            &Value->Value,
-            &Context->ReturnValue) != SCRIPT_OK) {
+    if (ScriptStoreObjectValue(Context, Value->Type, &Value->Value, &Context->ReturnValue) != SCRIPT_OK) {
         ScriptClearReturnValue(Context);
         return FALSE;
     }
@@ -671,10 +713,7 @@ SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
             return SCRIPT_ERROR_SYNTAX;
         }
     } else if (Node->Data.Assignment.IsPropertyAccess) {
-        SCRIPT_VALUE BaseValue = ScriptEvaluateExpression(
-            Parser,
-            Node->Data.Assignment.PropertyBaseExpression,
-            &Error);
+        SCRIPT_VALUE BaseValue = ScriptEvaluateExpression(Parser, Node->Data.Assignment.PropertyBaseExpression, &Error);
         if (Error != SCRIPT_OK) {
             ScriptValueRelease(&EvaluatedValue);
             ScriptValueRelease(&BaseValue);
@@ -687,10 +726,7 @@ SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
             return SCRIPT_ERROR_TYPE_MISMATCH;
         }
 
-        Error = ScriptSetObjectProperty(
-            BaseValue.Value.Object,
-            Node->Data.Assignment.PropertyName,
-            &EvaluatedValue);
+        Error = ScriptSetObjectProperty(BaseValue.Value.Object, Node->Data.Assignment.PropertyName, &EvaluatedValue);
         ScriptValueRelease(&BaseValue);
         if (Error != SCRIPT_OK) {
             ScriptValueRelease(&EvaluatedValue);
@@ -738,12 +774,12 @@ SCRIPT_ERROR ScriptExecuteBlock(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
 /************************************************************************/
 
 /**
- * @brief Execute an AST node.
+ * @brief Execute a resolved AST node.
  * @param Parser Parser state
  * @param Node AST node to execute
  * @return Script error code
  */
-SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
+static SCRIPT_ERROR ScriptExecuteASTNode(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
     if (Node == NULL) {
         return SCRIPT_OK;
     }
@@ -784,26 +820,38 @@ SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
 
         case AST_FOR: {
             // Execute initialization
-            SCRIPT_ERROR Error = ScriptExecuteAST(Parser, Node->Data.For.Init);
+            SCRIPT_ERROR Error = ScriptExecuteASTNode(Parser, Node->Data.For.Init);
             if (Error != SCRIPT_OK) return Error;
             if (Parser->Context->ReturnTriggered) return SCRIPT_OK;
 
+            // Resolve and pin the loop body once for the whole loop so it is
+            // re-parsed at most once per for execution.
+            LPAST_ENTRY BodyEntry = Node->Data.For.Body;
+            LPAST_NODE BodyNode = NULL;
+            if (BodyEntry != NULL) {
+                BodyNode = ScriptASTEntryResolve(BodyEntry->Cache, BodyEntry, &Error);
+                if (Error != SCRIPT_OK) return Error;
+                BodyEntry->RefCount++;
+                ScriptASTCacheTouch(BodyEntry);
+            }
+
             // Execute loop
             U32 LoopCount = 0;
-            const U32 MAX_ITERATIONS = 1000; // Safety limit
+            const U32 MAX_ITERATIONS = 1000;  // Safety limit
 
             while (LoopCount < MAX_ITERATIONS) {
                 // Evaluate condition
                 SCRIPT_VALUE ConditionValue = ScriptEvaluateExpression(Parser, Node->Data.For.Condition, &Error);
                 if (Error != SCRIPT_OK) {
                     ScriptValueRelease(&ConditionValue);
-                    return Error;
+                    break;
                 }
 
                 F32 ConditionNumeric;
                 if (!ScriptValueToFloat(&ConditionValue, &ConditionNumeric)) {
                     ScriptValueRelease(&ConditionValue);
-                    return SCRIPT_ERROR_TYPE_MISMATCH;
+                    Error = SCRIPT_ERROR_TYPE_MISMATCH;
+                    break;
                 }
 
                 ScriptValueRelease(&ConditionValue);
@@ -811,27 +859,32 @@ SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
                 if (ConditionNumeric == 0.0f) break;
 
                 // Execute body
-                Error = ScriptExecuteAST(Parser, Node->Data.For.Body);
-                if (Error != SCRIPT_OK) return Error;
-                if (Parser->Context->ReturnTriggered) return SCRIPT_OK;
+                Error = ScriptExecuteASTNode(Parser, BodyNode);
+                if (Error != SCRIPT_OK) break;
+                if (Parser->Context->ReturnTriggered) break;
 
                 if (Parser->Context->ContinueTriggered) {
                     Parser->Context->ContinueTriggered = FALSE;
                 }
 
                 // Execute increment
-                Error = ScriptExecuteAST(Parser, Node->Data.For.Increment);
-                if (Error != SCRIPT_OK) return Error;
-                if (Parser->Context->ReturnTriggered) return SCRIPT_OK;
+                Error = ScriptExecuteASTNode(Parser, Node->Data.For.Increment);
+                if (Error != SCRIPT_OK) break;
+                if (Parser->Context->ReturnTriggered) break;
 
                 LoopCount++;
+            }
+
+            if (BodyEntry != NULL) {
+                BodyEntry->RefCount--;
+                ScriptASTCacheTouch(BodyEntry);
             }
 
             if (LoopCount >= MAX_ITERATIONS) {
                 ERROR(TEXT("Loop exceeded maximum iterations"));
             }
 
-            return SCRIPT_OK;
+            return Error;
         }
 
         case AST_RETURN: {
@@ -866,4 +919,41 @@ SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node) {
         default:
             return SCRIPT_ERROR_SYNTAX;
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Execute a statement cache entry, resolving and pinning it.
+ * @param Parser Parser state
+ * @param Entry Cache entry of the statement to execute
+ * @return Script error code
+ */
+SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_ENTRY Entry) {
+    LPAST_NODE Node;
+    SCRIPT_ERROR Error;
+
+    if (Entry == NULL) {
+        return SCRIPT_OK;
+    }
+    if (Entry->Cache == NULL) {
+        return SCRIPT_ERROR_SYNTAX;
+    }
+
+    Error = SCRIPT_OK;
+    Node = ScriptASTEntryResolve(Entry->Cache, Entry, &Error);
+    if (Error != SCRIPT_OK) {
+        return Error;
+    }
+    if (Node == NULL) {
+        return SCRIPT_OK;
+    }
+
+    Entry->RefCount++;
+    Error = ScriptExecuteASTNode(Parser, Node);
+    Entry->RefCount--;
+    ScriptASTCacheTouch(Entry);
+
+    ScriptASTCacheEvict(Entry->Cache, NULL);
+    return Error;
 }

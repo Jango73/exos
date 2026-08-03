@@ -26,6 +26,7 @@
 #include "shell/Shell-Commands-Private.h"
 #include "shell/Shell-Embedded-Scripts.h"
 #include "text/Text.h"
+#include "utils/ProcessAccess.h"
 #include "utils/SizeFormat.h"
 
 /************************************************************************/
@@ -92,7 +93,7 @@ U32 CMD_task(LPSHELLCONTEXT Context) {
 
 /************************************************************************/
 
-U32 CMD_memedit(LPSHELLCONTEXT Context) {
+U32 CMD_memEdit(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
     MemoryEditor(StringToU32(Context->Command));
 
@@ -101,8 +102,254 @@ U32 CMD_memedit(LPSHELLCONTEXT Context) {
 
 /************************************************************************/
 
+#define MEMORY_MAP_MAX_PROCESSES 32
+
+/************************************************************************/
+
+/**
+ * @brief Return the display name of a process privilege level.
+ * @param Process Process to classify.
+ * @return Privilege display name.
+ */
+static LPCSTR MemoryMapGetPrivilegeName(LPPROCESS Process) {
+    if (ProcessAccessIsKernelProcess(Process)) {
+        return TEXT("kernel");
+    }
+
+    if (ProcessAccessIsAdministratorProcess(Process)) {
+        return TEXT("admin");
+    }
+
+    return TEXT("user");
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print one process memory carving snapshot header.
+ * @param Process Process being reported.
+ * @param Snapshot Carving snapshot.
+ */
+static void MemoryMapPrintProcessHeader(LPPROCESS Process, LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    STR SizeText[MAX_STRING_BUFFER];
+    LPCSTR ProcessName = TEXT("<kernel>");
+
+    if (Snapshot != NULL && StringLength(Snapshot->FileName) != 0) {
+        ProcessName = Snapshot->FileName;
+    }
+
+    ConsolePrint(TEXT("Process : %s (%s)\n"), ProcessName, MemoryMapGetPrivilegeName(Process));
+    ConsolePrint(TEXT("  Page directory : %p\n"), (LPVOID)Snapshot->PageDirectory);
+
+    SizeFormatBytesText(U64_FromUINT(Snapshot->HeapSize), SizeText);
+    ConsolePrint(
+        TEXT("  Heap : [%p, %p)  size : %s\n"), (LPVOID)Snapshot->HeapBase,
+        (LPVOID)(Snapshot->HeapBase + Snapshot->HeapSize), SizeText);
+
+    ConsolePrint(
+        TEXT("  Address space : %s  carved partition : %s\n"),
+        Snapshot->AddressSpaceInitialized ? TEXT("initialized") : TEXT("not initialized"),
+        Snapshot->ArenasCarved ? TEXT("yes") : TEXT("no"));
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print the arena ranges of one carving snapshot.
+ * @param Snapshot Carving snapshot.
+ */
+static void MemoryMapPrintArenas(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    for (UINT ArenaIndex = 0; ArenaIndex < PROCESS_ARENA_COUNT; ArenaIndex++) {
+        LPPROCESS_ARENA_RANGE Range = &(Snapshot->Arenas[ArenaIndex]);
+
+        if (Range->Limit == 0) {
+            continue;
+        }
+
+        ConsolePrint(
+            TEXT("  Arena %-8s : [%p, %p)  low=%p  high=%p\n"), MemoryAnalysisGetArenaName(ArenaIndex),
+            (LPVOID)Range->Base, (LPVOID)Range->Limit, (LPVOID)Range->NextLow, (LPVOID)Range->NextHigh);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print the memory region descriptors of one carving snapshot.
+ * @param Snapshot Carving snapshot.
+ */
+static void MemoryMapPrintRegions(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    ConsolePrint(TEXT("  Regions : %u\n"), Snapshot->RegionCount);
+
+    for (UINT RegionIndex = 0; RegionIndex < Snapshot->RegionCount; RegionIndex++) {
+        LPMEMORY_CARVING_REGION Region = &(Snapshot->Regions[RegionIndex]);
+
+        ConsolePrint(
+            TEXT("    [%p, %p)  size=%u  pages=%u  attr=%x  tag=%s\n"), (LPVOID)Region->Base, (LPVOID)Region->Limit,
+            Region->Size, Region->PageCount, Region->Attributes, Region->Tag);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print the task stacks of one carving snapshot.
+ * @param Snapshot Carving snapshot.
+ */
+static void MemoryMapPrintStacks(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    ConsolePrint(TEXT("  Stacks : %u\n"), Snapshot->StackCount);
+
+    for (UINT StackIndex = 0; StackIndex < Snapshot->StackCount; StackIndex++) {
+        LPMEMORY_CARVING_STACK Stack = &(Snapshot->Stacks[StackIndex]);
+
+        ConsolePrint(
+            TEXT("    [%p, %p)  size=%u  kind=%s  task=%s\n"), (LPVOID)Stack->Base, (LPVOID)Stack->Limit, Stack->Size,
+            MemoryAnalysisGetStackKindName(Stack->Kind), Stack->TaskName);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print the carving issues of one analysis report.
+ * @param Report Carving analysis report.
+ */
+static void MemoryMapPrintIssues(LPMEMORY_CARVING_REPORT Report) {
+    LPCSTR SeverityName = TEXT("info");
+    UINT ErrorCount = MemoryAnalysisCountSeverity(Report, MEMORY_CARVING_SEVERITY_ERROR);
+    UINT WarningCount = MemoryAnalysisCountSeverity(Report, MEMORY_CARVING_SEVERITY_WARNING);
+    UINT InfoCount = MemoryAnalysisCountSeverity(Report, MEMORY_CARVING_SEVERITY_INFO);
+
+    ConsolePrint(
+        TEXT("  Carving issues : %u errors, %u warnings, %u info  (overlaps : %u)\n"), ErrorCount, WarningCount,
+        InfoCount, Report->OverlapCount);
+
+    for (UINT IssueIndex = 0; IssueIndex < Report->IssueCount; IssueIndex++) {
+        LPMEMORY_CARVING_ISSUE Issue = &(Report->Issues[IssueIndex]);
+
+        switch (Issue->Severity) {
+            case MEMORY_CARVING_SEVERITY_ERROR:
+                SeverityName = TEXT("error");
+                break;
+            case MEMORY_CARVING_SEVERITY_WARNING:
+                SeverityName = TEXT("warning");
+                break;
+            default:
+                SeverityName = TEXT("info");
+                break;
+        }
+
+        ConsolePrint(TEXT("    %s : %s\n"), SeverityName, Issue->Text);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print the heap fragmentation assessment of one process.
+ * @param Process Process being reported.
+ * @param Snapshot Carving snapshot.
+ */
+static void MemoryMapPrintHeapFragmentation(LPPROCESS Process, LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    STR SizeText[MAX_STRING_BUFFER];
+    HEAP_FRAGMENTATION_INFO Fragmentation;
+
+    if (Process == NULL || Snapshot == NULL || Snapshot->AddressSpaceInitialized == FALSE || Snapshot->HeapSize == 0) {
+        return;
+    }
+
+    if (HeapQueryFragmentation(Process, &Fragmentation) == FALSE) {
+        ConsolePrint(TEXT("  Heap fragmentation : unavailable\n"));
+        return;
+    }
+
+    SizeFormatBytesText(U64_FromUINT(Fragmentation.LargestFreeBlock), SizeText);
+    ConsolePrint(
+        TEXT("  Heap fragmentation : freeBlocks=%u  largest=%s  freeBytes=%u  totalBytes=%u  fragmentation=%u%%\n"),
+        Fragmentation.FreeBlockCount, SizeText, Fragmentation.FreeBytes, Fragmentation.TotalBytes,
+        Fragmentation.FragmentationPercent);
+}
+
+/************************************************************************/
+
 U32 CMD_memorymap(LPSHELLCONTEXT Context) {
-    return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_MEMORY_MAP));
+    LPPROCESS CurrentProcess = GetCurrentProcess();
+    LPPROCESS ProcessArray[MEMORY_MAP_MAX_PROCESSES];
+    LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot = NULL;
+    LPMEMORY_CARVING_REPORT Report = NULL;
+    LPLIST ProcessList = NULL;
+    UINT ProcessCount = 0;
+    BOOL ShowHeap = FALSE;
+
+    if (ProcessAccessIsKernelProcess(CurrentProcess) == FALSE &&
+        ProcessAccessIsAdministratorProcess(CurrentProcess) == FALSE) {
+        ConsolePrint(TEXT("Access denied : memoryMap requires kernel or administrator privilege\n"));
+        DEBUG(TEXT("[CMD_memorymap] Access denied for non privileged caller"));
+        return DF_RETURN_NO_PERMISSION;
+    }
+
+    ParseNextCommandLineComponent(Context);
+    while (Context->Input.CommandLine[Context->CommandChar] != STR_NULL) {
+        ParseNextCommandLineComponent(Context);
+    }
+    ShowHeap = HasOption(Context, TEXT("h"), TEXT("heap"));
+
+    Snapshot = (LPPROCESS_MEMORY_CARVING_SNAPSHOT)AllocatorAlloc(&Context->Allocator, sizeof(*Snapshot));
+    Report = (LPMEMORY_CARVING_REPORT)AllocatorAlloc(&Context->Allocator, sizeof(*Report));
+    if (Snapshot == NULL || Report == NULL) {
+        if (Snapshot != NULL) {
+            AllocatorFree(&Context->Allocator, Snapshot);
+        }
+        ConsolePrint(TEXT("memoryMap : out of memory\n"));
+        return DF_RETURN_NO_MEMORY;
+    }
+
+    MemorySet(ProcessArray, 0, sizeof(ProcessArray));
+
+    ProcessList = GetProcessList();
+    if (ProcessList != NULL) {
+        LockMutex(MUTEX_PROCESS, INFINITY);
+
+        for (LPLISTNODE Node = ProcessList->First; Node != NULL && ProcessCount < MEMORY_MAP_MAX_PROCESSES;
+             Node = Node->Next) {
+            LPPROCESS Process = (LPPROCESS)Node;
+
+            SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+                ProcessArray[ProcessCount] = Process;
+                ProcessCount++;
+            }
+        }
+
+        UnlockMutex(MUTEX_PROCESS);
+    }
+
+    for (UINT ProcessIndex = 0; ProcessIndex < ProcessCount; ProcessIndex++) {
+        LPPROCESS Process = ProcessArray[ProcessIndex];
+
+        if (ProcessSnapshotMemoryCarving(Process, Snapshot) == FALSE) {
+            continue;
+        }
+
+        Snapshot->StackCount = TaskSnapshotStacksForProcess(Process, Snapshot->Stacks, MEMORY_CARVING_MAX_STACKS);
+        MemoryAnalysisAnalyzeCarving(Snapshot, Report);
+
+        MemoryMapPrintProcessHeader(Process, Snapshot);
+        MemoryMapPrintArenas(Snapshot);
+        MemoryMapPrintRegions(Snapshot);
+        MemoryMapPrintStacks(Snapshot);
+        MemoryMapPrintIssues(Report);
+
+        if (ShowHeap) {
+            MemoryMapPrintHeapFragmentation(Process, Snapshot);
+        }
+    }
+
+    AllocatorFree(&Context->Allocator, Snapshot);
+    AllocatorFree(&Context->Allocator, Report);
+
+    TEST(TEXT("memoryMap : OK"));
+
+    return DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
@@ -229,7 +476,7 @@ static void PrintProfileEntry(LPPROFILE_ENTRY_INFO Entry) {
 
 /************************************************************************/
 
-U32 CMD_prof(LPSHELLCONTEXT Context) {
+U32 CMD_profiling(LPSHELLCONTEXT Context) {
     PROFILE_ENTRY_INFO Entries[PROFILE_MAX_ENTRIES];
     PROFILE_QUERY_INFO Query;
     UINT Result;
@@ -312,7 +559,7 @@ U32 CMD_autotest(LPSHELLCONTEXT Context) {
  * @param Context Shell context.
  * @return DF_RETURN_SUCCESS on completion.
  */
-U32 CMD_dataview(LPSHELLCONTEXT Context) {
+U32 CMD_dataView(LPSHELLCONTEXT Context) {
     UNUSED(Context);
     SystemDataViewMode();
     return DF_RETURN_SUCCESS;
@@ -330,10 +577,10 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
 
     if (StringLength(Context->Command) == 0 || (StringCompareNC(Context->Command, TEXT("ports")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("devices")) != 0 &&
-                                                StringCompareNC(Context->Command, TEXT("device-tree")) != 0 &&
+                                                StringCompareNC(Context->Command, TEXT("deviceTree")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("drives")) != 0 &&
                                                 StringCompareNC(Context->Command, TEXT("probe")) != 0)) {
-        ConsolePrint(TEXT("Usage: usb ports|devices|device-tree|drives|probe\n"));
+        ConsolePrint(TEXT("Usage: usb ports|devices|deviceTree|drives|probe\n"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -345,7 +592,7 @@ U32 CMD_usb(LPSHELLCONTEXT Context) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICES));
     } else if (StringCompareNC(Context->Command, TEXT("ports")) == 0) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_PORTS));
-    } else if (StringCompareNC(Context->Command, TEXT("device-tree")) == 0) {
+    } else if (StringCompareNC(Context->Command, TEXT("deviceTree")) == 0) {
         return RunEmbeddedScript(Context, ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_USB_DEVICE_TREE));
     }
 

@@ -65,6 +65,7 @@ BOOL GraphicsFillTriangleHorizontalGradient(
 BOOL GraphicsDrawTriangleFromDescriptor(LPGRAPHICSCONTEXT Context, LPTRIANGLE_INFO Info);
 BOOL GraphicsStrokeArc(LPVOID Context, GRAPHICS_PLOT_PIXEL_ROUTINE PlotPixel, I32 CenterX, I32 CenterY, I32 Radius, COLOR StrokeColor);
 BOOL GraphicsDrawArcFromDescriptor(LPGRAPHICSCONTEXT Context, LPARC_INFO Info);
+BOOL GraphicsDrawTestPattern(LPGRAPHICSCONTEXT Context);
 
 // Coordinate spaces:
 // - Screen: absolute desktop pixels.

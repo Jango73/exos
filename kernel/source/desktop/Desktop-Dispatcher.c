@@ -27,6 +27,7 @@
 #include "text/CoreString.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "process/Process.h"
 #include "process/Task.h"
 #include "process/Task-Messaging.h"
 
@@ -103,11 +104,11 @@ static U32 DesktopDispatcherTask(LPVOID Parameter) {
         Message.Header.Flags = 0;
         Message.Target = NULL;
 
-        if (KernelGetMessage(&Message) == FALSE) {
+        if (GetMessage(&Message) == FALSE) {
             continue;
         }
 
-        if (KernelDispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
+        if (DispatchMessage(&Message) == FALSE && DispatchFailureCount < 64) {
             DispatchFailureCount++;
         }
     }
@@ -131,6 +132,12 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
     }
 
     SAFE_USE_VALID_ID(Desktop->Task, KOID_TASK) {
+        SAFE_USE_VALID_ID(Desktop->Task->OwnerProcess, KOID_PROCESS) {
+            if (Desktop->Task->OwnerProcess->Privilege == CPU_PRIVILEGE_USER) {
+                return EnsureAllMessageQueues(Desktop->Task, TRUE);
+            }
+        }
+
         if (IsDesktopDispatcherTask(Desktop->Task) != FALSE) {
             if (EnsureAllMessageQueues(Desktop->Task, TRUE) == FALSE) {
                 WARNING(TEXT("Unable to initialize dispatcher message queues"));
@@ -184,6 +191,14 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
  * @return Task chosen for message delivery.
  */
 LPTASK DesktopResolveWindowTask(LPDESKTOP Desktop, LPTASK FallbackTask) {
+    SAFE_USE_VALID_ID(FallbackTask, KOID_TASK) {
+        SAFE_USE_VALID_ID(FallbackTask->OwnerProcess, KOID_PROCESS) {
+            if (FallbackTask->OwnerProcess->Privilege == CPU_PRIVILEGE_USER) {
+                return FallbackTask;
+            }
+        }
+    }
+
     SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
         SAFE_USE_VALID_ID(Desktop->Task, KOID_TASK) {
             return Desktop->Task;

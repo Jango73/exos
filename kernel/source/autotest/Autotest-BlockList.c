@@ -23,9 +23,9 @@
 \************************************************************************/
 
 #include "autotest/Autotest.h"
-#include "text/CoreString.h"
-#include "memory/Heap.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
+#include "text/CoreString.h"
 #include "utils/BlockList.h"
 
 /************************************************************************/
@@ -66,25 +66,20 @@ void TestBlockList(TEST_RESULTS* Results) {
     Results->TestsRun++;
     {
         BLOCK_LIST List;
-        BOOL Init = BlockListInit(&List, 64, 16, 0, 0);
+        BOOL Init = BlockListInit(&List, 64, 16, 0, 0, TEXT("AutotestBlockList"));
         BOOL Reserve = BlockListReserve(&List, 32);
         LINEAR Pointer = BlockListAllocate(&List);
         BOOL FreeOk = BlockListFree(&List, Pointer);
-        BOOL CapacityOk = (BlockListGetUsage(&List) == 0) &&
-                          (BlockListGetFreeCount(&List) >= 32);
+        BOOL CapacityOk = (BlockListGetUsage(&List) == 0) && (BlockListGetFreeCount(&List) >= 32);
 
         BlockListFinalize(&List);
 
         if (Init && Reserve && Pointer != 0 && FreeOk && CapacityOk) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("Basic path failed (init=%u reserve=%u pointer=%p free=%u capacity=%u/%u)"),
-                  Init,
-                  Reserve,
-                  Pointer,
-                  FreeOk,
-                  BlockListGetUsage(&List),
-                  BlockListGetFreeCount(&List));
+            ERROR(
+                TEXT("Basic path failed (init=%u reserve=%u pointer=%p free=%u capacity=%u/%u)"), Init, Reserve,
+                Pointer, FreeOk, BlockListGetUsage(&List), BlockListGetFreeCount(&List));
         }
     }
 
@@ -92,7 +87,7 @@ void TestBlockList(TEST_RESULTS* Results) {
     Results->TestsRun++;
     {
         BLOCK_LIST List;
-        BOOL Init = BlockListInit(&List, 128, 8, 1, 0);
+        BOOL Init = BlockListInit(&List, 128, 8, 1, 0, TEXT("AutotestBlockList"));
         UINT RequestedAllocations = 0;
         LINEAR* Addresses = NULL;
         UINT Index = 0;
@@ -132,8 +127,7 @@ void TestBlockList(TEST_RESULTS* Results) {
             }
         }
 
-        BOOL FinalStateOk = (BlockListGetUsage(&List) == 0) &&
-                            (BlockListGetFreeCount(&List) == 0) &&
+        BOOL FinalStateOk = (BlockListGetUsage(&List) == 0) && (BlockListGetFreeCount(&List) == 0) &&
                             (BlockListGetSlabCount(&List) == 0);
 
         BlockListFinalize(&List);
@@ -141,15 +135,10 @@ void TestBlockList(TEST_RESULTS* Results) {
         if (Init && AllocationOk && ShrinkOk && UniqueOk && FinalStateOk && SlabsAfterGrow >= 2) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("Growth/shrink failed (init=%u alloc=%u shrink=%u unique=%u slabs=%u final=%u/%u/%u)"),
-                  Init,
-                  AllocationOk,
-                  ShrinkOk,
-                  UniqueOk,
-                  SlabsAfterGrow,
-                  BlockListGetUsage(&List),
-                  BlockListGetFreeCount(&List),
-                  BlockListGetSlabCount(&List));
+            ERROR(
+                TEXT("Growth/shrink failed (init=%u alloc=%u shrink=%u unique=%u slabs=%u final=%u/%u/%u)"), Init,
+                AllocationOk, ShrinkOk, UniqueOk, SlabsAfterGrow, BlockListGetUsage(&List),
+                BlockListGetFreeCount(&List), BlockListGetSlabCount(&List));
         }
     }
 
@@ -157,7 +146,7 @@ void TestBlockList(TEST_RESULTS* Results) {
     Results->TestsRun++;
     {
         BLOCK_LIST List;
-        BOOL Init = BlockListInit(&List, 96, 4, 1, 0);
+        BOOL Init = BlockListInit(&List, 96, 4, 1, 0, TEXT("AutotestBlockList"));
         LINEAR Pointer = 0;
         BOOL FirstFree = FALSE;
         BOOL SecondFree = TRUE;
@@ -173,11 +162,9 @@ void TestBlockList(TEST_RESULTS* Results) {
         if (Init && Pointer != 0 && FirstFree && !SecondFree) {
             Results->TestsPassed++;
         } else {
-            ERROR(TEXT("Double free detection failed (init=%u ptr=%p first=%u second=%u)"),
-                  Init,
-                  Pointer,
-                  FirstFree,
-                  SecondFree);
+            ERROR(
+                TEXT("Double free detection failed (init=%u ptr=%p first=%u second=%u)"), Init, Pointer, FirstFree,
+                SecondFree);
         }
     }
 }

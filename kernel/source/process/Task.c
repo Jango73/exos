@@ -22,25 +22,51 @@
 
 \************************************************************************/
 
-#include "system/Clock.h"
-#include "console/Console.h"
 #include "Arch.h"
+#include "console/Console.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "package/PackageFS.h"
 #include "package/PackageNamespace.h"
 #include "process/Process.h"
 #include "process/Schedule.h"
+#include "process/Stack.h"
 #include "process/Task-Messaging.h"
+#include "system/Clock.h"
 #include "text/CoreString.h"
 #include "utils/BusyWait.h"
 #include "utils/Helpers.h"
+#include "utils/ReservedHeap.h"
 
 /************************************************************************/
 
 static UINT DATA_SECTION TaskMinimumTaskStackSize = TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT;
 static UINT DATA_SECTION TaskMinimumSystemStackSize = TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT;
 static BOOL DATA_SECTION TaskStackConfigInitialized = FALSE;
+static UINT DATA_SECTION TaskMessageQueueMaximumMessages = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
+static BOOL DATA_SECTION TaskMessageQueueConfigInitialized = FALSE;
+static RESERVED_HEAP DATA_SECTION TaskMessageQueueReservedHeap;
+static BOOL DATA_SECTION TaskMessageQueueReservedHeapInitialized = FALSE;
+
+#define TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE N_256KB
+#define TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE N_4MB
+
+static BOOL TaskEnsureMessageQueueReservedHeap(void) {
+    if (TaskMessageQueueReservedHeapInitialized) {
+        return TRUE;
+    }
+
+    if (ReservedHeapInit(
+            &TaskMessageQueueReservedHeap, &KernelProcess, TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE,
+            TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
+            TEXT("TaskMessageQueueHeap")) == FALSE) {
+        ERROR(TEXT("[TaskEnsureMessageQueueReservedHeap] Could not initialize task message queue reserved heap"));
+        return FALSE;
+    }
+
+    TaskMessageQueueReservedHeapInitialized = TRUE;
+    return TRUE;
+}
 
 /************************************************************************/
 
@@ -49,39 +75,26 @@ static void TaskInitializeStackConfig(void) {
         return;
     }
 
+    if (GetConfiguration() == NULL) {
+        return;
+    }
+
+    TaskMinimumTaskStackSize = GetConfigurationUInt(
+        TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE), TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
+        TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT, MAX_U32);
+    TaskMinimumSystemStackSize = GetConfigurationUInt(
+        TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE), TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
+        TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT, MAX_U32);
     TaskStackConfigInitialized = TRUE;
-
-    LPCSTR configValue = GetConfigurationValue(TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE));
-
-    if (STRING_EMPTY(configValue) == FALSE) {
-        UINT parsedValue = StringToU32(configValue);
-
-        if (parsedValue >= TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT) {
-            TaskMinimumTaskStackSize = parsedValue;
-        } else {
-            WARNING(TEXT("MinimumTaskStackSize='%s' resolves to %u which is below minimum %u, using default"),
-                    configValue, parsedValue, TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT);
-        }
-    }
-
-    configValue = GetConfigurationValue(TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE));
-
-    if (STRING_EMPTY(configValue) == FALSE) {
-        UINT parsedValue = StringToU32(configValue);
-
-        if (parsedValue >= TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT) {
-            TaskMinimumSystemStackSize = parsedValue;
-        } else {
-            WARNING(TEXT("MinimumSystemStackSize='%s' resolves to %u which is below minimum %u, using default"),
-                    configValue, parsedValue, TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT);
-        }
-    }
 }
 
 /************************************************************************/
 
 static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
-    UINT MessageBufferSize = TASK_MESSAGE_QUEUE_MAX_MESSAGES * sizeof(MESSAGE);
+    UINT MessageQueueCapacity = GetConfigurationUIntLazy(
+        &TaskMessageQueueMaximumMessages, &TaskMessageQueueConfigInitialized,
+        TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES), TASK_MESSAGE_QUEUE_MAX_MESSAGES, 1, MAX_U32 / sizeof(MESSAGE));
+    UINT MessageBufferSize = MessageQueueCapacity * sizeof(MESSAGE);
     LINEAR MessageBufferBase;
     LPMESSAGE MessageBufferStorage;
 
@@ -93,12 +106,13 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
         return FALSE;
     }
 
-    MessageBufferBase = ProcessArenaAllocateSystem(Task->OwnerProcess,
-                                                   MessageBufferSize,
-                                                   ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
-                                                   TEXT("TaskMessageBuffer"));
+    if (TaskEnsureMessageQueueReservedHeap() == FALSE) {
+        return FALSE;
+    }
+
+    MessageBufferBase = (LINEAR)ReservedHeapAlloc(&TaskMessageQueueReservedHeap, MessageBufferSize);
     if (MessageBufferBase == NULL) {
-        ERROR(TEXT("Could not allocate message buffer for task %p"), Task);
+        ERROR(TEXT("[TaskInitializeMessageBuffer] Could not allocate message buffer for task %p"), Task);
         return FALSE;
     }
 
@@ -106,13 +120,11 @@ static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
 
     Task->MessageQueue.MessageBufferBase = MessageBufferBase;
     Task->MessageQueue.MessageBufferSize = MessageBufferSize;
-    InitMutex(&(Task->MessageQueue.Mutex));
-    Task->MessageQueue.Capacity = TASK_MESSAGE_QUEUE_MAX_MESSAGES;
+    InitMutexWithDebugInfo(&(Task->MessageQueue.Mutex), MUTEX_CLASS_TASK_MESSAGE_QUEUE, TEXT("TaskMessageQueue"));
+    Task->MessageQueue.Capacity = MessageQueueCapacity;
     Task->MessageQueue.Flags = 0;
     Task->MessageQueue.Waiting = FALSE;
-    MessageQueueBufferInitialize(&(Task->MessageQueue.MessageBuffer),
-                                 MessageBufferStorage,
-                                 TASK_MESSAGE_QUEUE_MAX_MESSAGES);
+    MessageQueueBufferInitialize(&(Task->MessageQueue.MessageBuffer), MessageBufferStorage, MessageQueueCapacity);
 
     return TRUE;
 }
@@ -125,7 +137,9 @@ static void TaskReleaseMessageBuffer(LPTASK Task) {
     }
 
     if (Task->MessageQueue.MessageBufferBase != 0 && Task->MessageQueue.MessageBufferSize > 0) {
-        FreeRegion(Task->MessageQueue.MessageBufferBase, Task->MessageQueue.MessageBufferSize);
+        if (TaskMessageQueueReservedHeapInitialized) {
+            ReservedHeapFree(&TaskMessageQueueReservedHeap, (LPVOID)Task->MessageQueue.MessageBufferBase);
+        }
     }
 
     Task->MessageQueue.MessageBufferBase = 0;
@@ -183,9 +197,8 @@ LPTASK NewTask(void) {
         return NULL;
     }
 
-
     // Initialize task-specific fields (LISTNODE_FIELDS already initialized by CreateKernelObject)
-    InitMutex(&(This->Mutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_TASK, TEXT("Task"));
     This->Type = TASK_TYPE_NONE;
     This->SchedulerState.Status = TASK_STATUS_READY;
     This->SchedulerState.WakeUpTime = INFINITY;
@@ -194,12 +207,11 @@ LPTASK NewTask(void) {
     This->WaitingSince = 0;
     This->HeldMutexClassDepth = 0;
     MemorySet(This->HeldMutexClasses, 0, sizeof(This->HeldMutexClasses));
+    MemorySet(This->HeldMutexes, 0, sizeof(This->HeldMutexes));
     MemorySet(&(This->MessageQueue), 0, sizeof(MESSAGEQUEUE));
-
 
     //-------------------------------------
     // Initialize the message queue
-
 
     TRACED_EPILOGUE("NewTask");
     return This;
@@ -224,6 +236,7 @@ static void ReleaseTaskMutexes(LPTASK Task) {
             Mutex = (LPMUTEX)Node;
 
             if (Mutex->TypeID == KOID_MUTEX && Mutex->Task == Task) {
+                Mutex->DebugOwnerCaller = 0;
                 Mutex->Process = NULL;
                 Mutex->Task = NULL;
                 Mutex->Lock = 0;
@@ -246,14 +259,12 @@ static void ReleaseTaskMutexes(LPTASK Task) {
 void DeleteTask(LPTASK This) {
     TRACED_FUNCTION;
 
-
     //-------------------------------------
     // Check validity of parameters
 
     SAFE_USE_VALID_ID(This, KOID_TASK) {
         // Lock kernel mutex for the entire operation
-        SAFE_USE(This->OwnerProcess) {
-        }
+        SAFE_USE(This->OwnerProcess) {}
 
         LockMutex(MUTEX_KERNEL, INFINITY);
 
@@ -271,6 +282,7 @@ void DeleteTask(LPTASK This) {
         This->WaitingSince = 0;
         This->HeldMutexClassDepth = 0;
         MemorySet(This->HeldMutexClasses, 0, sizeof(This->HeldMutexClasses));
+        MemorySet(This->HeldMutexes, 0, sizeof(This->HeldMutexes));
         ReleaseTaskMutexes(This);
 
         //-------------------------------------
@@ -283,21 +295,14 @@ void DeleteTask(LPTASK This) {
         //-------------------------------------
         // Delete the task's stacks
 
-
-        SAFE_USE(This->Arch.SystemStack.Base) {
-            FreeRegion(This->Arch.SystemStack.Base, This->Arch.SystemStack.Size);
-        }
+        SAFE_USE(This->Arch.SystemStack.Base) { StackRelease(&(This->Arch.SystemStack)); }
 
 #if defined(__EXOS_ARCH_X86_64__)
-        SAFE_USE(This->Arch.Ist1Stack.Base) {
-            FreeRegion(This->Arch.Ist1Stack.Base, This->Arch.Ist1Stack.Size);
-        }
+        SAFE_USE(This->Arch.Ist1Stack.Base) { StackRelease(&(This->Arch.Ist1Stack)); }
 #endif
 
         SAFE_USE(This->OwnerProcess) {
-            SAFE_USE(This->Arch.Stack.Base) {
-                FreeRegion(This->Arch.Stack.Base, This->Arch.Stack.Size);
-            }
+            SAFE_USE(This->Arch.Stack.Base) { StackRelease(&(This->Arch.Stack)); }
         }
 
         //-------------------------------------
@@ -309,7 +314,6 @@ void DeleteTask(LPTASK This) {
         if (This->OwnerProcess != NULL && This->OwnerProcess != &KernelProcess) {
             LockMutex(MUTEX_PROCESS, INFINITY);
             This->OwnerProcess->TaskCount--;
-
 
             if (This->OwnerProcess->TaskCount == 0) {
                 // Keep process exit code tied to the main user task.
@@ -323,7 +327,6 @@ void DeleteTask(LPTASK This) {
 
                 // Apply child process policy
                 if (This->OwnerProcess->Flags & PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH) {
-
                     // Find and kill all child processes
                     LPPROCESS Current = (LPPROCESS)ProcessList->First;
 
@@ -332,7 +335,6 @@ void DeleteTask(LPTASK This) {
 
                         SAFE_USE_VALID_ID(Current, KOID_PROCESS) {
                             if (Current->OwnerProcess == This->OwnerProcess) {
-
                                 // Kill all tasks of the child process
                                 LPTASK ChildTask = (LPTASK)TaskList->First;
 
@@ -354,7 +356,6 @@ void DeleteTask(LPTASK This) {
                         Current = Next;
                     }
                 } else {
-
                     // Detach all child processes from parent
                     LPPROCESS Current = (LPPROCESS)ProcessList->First;
 
@@ -381,7 +382,6 @@ void DeleteTask(LPTASK This) {
 
         // Unlock kernel mutex
         UnlockMutex(MUTEX_KERNEL);
-
     }
 
     TRACED_EPILOGUE("DeleteTask");
@@ -406,9 +406,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
 
     LPTASK Task = NULL;
 
-
-    SAFE_USE(Info) {
-    }
+    SAFE_USE(Info) {}
 
     //-------------------------------------
     // Check parameters
@@ -427,7 +425,6 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     }
 
     if (IsValidMemory((LINEAR)Info->Func) == FALSE) {
-
         TRACED_EPILOGUE("KernelCreateTask");
         return NULL;
     }
@@ -453,7 +450,6 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         goto Out;
     }
 
-
     //-------------------------------------
     // Setup the task
 
@@ -469,9 +465,9 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         UnlockMutex(MUTEX_PROCESS);
     }
 
-    Task->Type = (Process->Privilege == CPU_PRIVILEGE_KERNEL) ?
-        TASK_TYPE_KERNEL_OTHER :
-        Process->TaskCount == 1 ? TASK_TYPE_USER_MAIN : TASK_TYPE_USER_OTHER;
+    Task->Type = (Process->Privilege == CPU_PRIVILEGE_KERNEL) ? TASK_TYPE_KERNEL_OTHER
+                 : Process->TaskCount == 1                    ? TASK_TYPE_USER_MAIN
+                                                              : TASK_TYPE_USER_OTHER;
 
     SetTaskWakeUpTime(Task, ComputeTaskQuantumTime(Task->Priority));
 
@@ -485,7 +481,6 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     //-------------------------------------
     // Allocate the stacks
 
-
     if (SetupTask(Task, Process, Info) == FALSE) {
         DeleteTask(Task);
         Task = NULL;
@@ -494,8 +489,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
         goto Out;
     }
 
-    if (TaskInitializeMessageBuffer(Task) == FALSE ||
-        InitializeTaskProcessModuleTlsBindings(Process, Task) == FALSE ||
+    if (TaskInitializeMessageBuffer(Task) == FALSE || InitializeTaskProcessModuleTlsBindings(Process, Task) == FALSE ||
         TaskRefreshModuleTls(Task) == FALSE) {
         DeleteTask(Task);
         Task = NULL;
@@ -526,7 +520,6 @@ Out:
     UnlockMutex(MUTEX_MEMORY);
     UnlockMutex(MUTEX_KERNEL);
 
-
     return Task;
 }
 
@@ -544,7 +537,6 @@ Out:
  */
 BOOL KernelKillTask(LPTASK Task) {
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
-
         if (Task->Type == TASK_TYPE_KERNEL_MAIN) {
             ERROR(TEXT("Can't kill kernel task"));
             ConsolePanic(TEXT("Can't kill kernel task"));
@@ -561,6 +553,7 @@ BOOL KernelKillTask(LPTASK Task) {
         Task->WaitingSince = 0;
         Task->HeldMutexClassDepth = 0;
         MemorySet(Task->HeldMutexClasses, 0, sizeof(Task->HeldMutexClasses));
+        MemorySet(Task->HeldMutexes, 0, sizeof(Task->HeldMutexes));
         ReleaseTaskMutexes(Task);
 
         SetTaskStatus(Task, TASK_STATUS_DEAD);
@@ -571,7 +564,6 @@ BOOL KernelKillTask(LPTASK Task) {
 
         // Unlock access to kernel data
         UnlockMutex(MUTEX_KERNEL);
-
 
         return TRUE;
     }
@@ -637,9 +629,7 @@ BOOL SetTaskExitCode(LPTASK Task, UINT Code) {
         Task->ExitCode = Code;
 
         if (Task->Type == TASK_TYPE_USER_MAIN) {
-            SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) {
-                Task->OwnerProcess->ExitCode = Code;
-            }
+            SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) { Task->OwnerProcess->ExitCode = Code; }
         }
 
         UnlockMutex(MUTEX_KERNEL);
@@ -679,10 +669,8 @@ void DeleteDeadTasksAndProcesses(void) {
             NextTask = (LPTASK)Task->Next;
 
             if (Task->SchedulerState.Status == TASK_STATUS_DEAD) {
-
                 // DeleteTask will handle removing from list and cleanup
                 DeleteTask(Task);
-
             }
 
             Task = NextTask;
@@ -706,8 +694,8 @@ void DeleteDeadTasksAndProcesses(void) {
                 PackageNamespaceUnbindCurrentProcessPackageView();
                 if (Process->PackageFileSystem != NULL) {
                     if (!PackageFSUnmount(Process->PackageFileSystem)) {
-                        WARNING(TEXT("PackageFS unmount failed process=%s fs=%p"),
-                            Process->FileName,
+                        WARNING(
+                            TEXT("PackageFS unmount failed process=%s fs=%p"), Process->FileName,
                             Process->PackageFileSystem);
                     }
                     Process->PackageFileSystem = NULL;
@@ -717,7 +705,6 @@ void DeleteDeadTasksAndProcesses(void) {
 
                 // DeleteProcessCommit will handle removing from list and cleanup
                 DeleteProcessCommit(Process);
-
             }
 
             Process = NextProcess;
@@ -973,6 +960,43 @@ BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status) {
 /************************************************************************/
 
 /**
+ * @brief Updates one task wake-up time without taking the task mutex.
+ *
+ * The caller must already own whatever synchronization protects task-local
+ * scheduler state.
+ *
+ * @param Task Pointer to task to modify.
+ * @param WakeupTime Wake-up time in milliseconds.
+ */
+void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime) {
+    UINT CurrentTime;
+    UINT Quantum;
+    UINT BaseTime;
+    UINT TargetTime;
+
+    if (Task == NULL) return;
+
+    if (WakeupTime == INFINITY) {
+        Task->SchedulerState.WakeUpTime = INFINITY;
+        return;
+    }
+
+    CurrentTime = GetSystemTime();
+    Quantum = GetMinimumQuantum();
+    BaseTime = CurrentTime + Quantum;
+
+    if (BaseTime < CurrentTime) {
+        Task->SchedulerState.WakeUpTime = INFINITY;
+        return;
+    }
+
+    TargetTime = BaseTime + WakeupTime;
+    Task->SchedulerState.WakeUpTime = (TargetTime < BaseTime) ? INFINITY : TargetTime;
+}
+
+/************************************************************************/
+
+/**
  * @brief Sets the wake-up time for a task in a thread-safe manner.
  *
  * @param Task Pointer to task to modify
@@ -982,25 +1006,7 @@ void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime) {
     if (Task == NULL) return;
 
     LockMutex(&(Task->Mutex), INFINITY);
-
-    if (WakeupTime == INFINITY) {
-        // INFINITY is treated as a sentinel meaning "sleep indefinitely"
-        Task->SchedulerState.WakeUpTime = INFINITY;
-    } else {
-        UINT CurrentTime = GetSystemTime();
-        UINT Quantum = GetMinimumQuantum();
-        UINT BaseTime = CurrentTime + Quantum;
-
-        if (BaseTime < CurrentTime) {
-            // Overflow occurred while adding the quantum, saturate to sentinel
-            Task->SchedulerState.WakeUpTime = INFINITY;
-        } else {
-            UINT TargetTime = BaseTime + WakeupTime;
-
-            // If addition overflows, keep the task asleep indefinitely
-            Task->SchedulerState.WakeUpTime = (TargetTime < BaseTime) ? INFINITY : TargetTime;
-        }
-    }
+    SetTaskWakeUpTimeDirect(Task, WakeupTime);
 
     UnlockMutex(&(Task->Mutex));
 }
@@ -1062,3 +1068,87 @@ void DumpTask(LPTASK Task) {
 
     UnlockMutex(&(Task->Mutex));
 }
+
+/************************************************************************/
+
+/**
+ * @brief Append one task stack to a snapshot stack array.
+ * @param Stacks Output stack array.
+ * @param StackCount Current number of captured stacks.
+ * @param MaxStacks Capacity of the output array.
+ * @param TaskIndex Owning task index within the snapshot.
+ * @param Task Owning task.
+ * @param Stack Stack descriptor to capture.
+ * @param Kind Stack kind value.
+ * @return Updated number of captured stacks.
+ */
+static UINT TaskSnapshotAppendStack(
+    LPMEMORY_CARVING_STACK Stacks, UINT StackCount, UINT MaxStacks, UINT TaskIndex, LPTASK Task, LPSTACK Stack,
+    U32 Kind) {
+    LPMEMORY_CARVING_STACK Target;
+
+    if (Stacks == NULL || Task == NULL || Stack == NULL || StackCount >= MaxStacks || Stack->Base == 0 ||
+        Stack->Size == 0) {
+        return StackCount;
+    }
+
+    Target = &(Stacks[StackCount]);
+    Target->Base = Stack->Base;
+    Target->Limit = Stack->Base + Stack->Size;
+    Target->Size = Stack->Size;
+    Target->Kind = Kind;
+    Target->TaskIndex = TaskIndex;
+    StringCopyLimit(Target->TaskName, Task->Name, MAX_USER_NAME);
+
+    return StackCount + 1;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Snapshot the stacks of every task owned by a process.
+ * @param Process Owner process.
+ * @param Stacks Output stack array.
+ * @param MaxStacks Capacity of the output array.
+ * @return Number of stacks captured.
+ */
+UINT TaskSnapshotStacksForProcess(LPPROCESS Process, LPMEMORY_CARVING_STACK Stacks, UINT MaxStacks) {
+    UINT StackCount = 0;
+    UINT TaskIndex = 0;
+
+    if (Process == NULL || Stacks == NULL || MaxStacks == 0) {
+        return 0;
+    }
+
+    LockMutex(MUTEX_TASK, INFINITY);
+
+    LPLIST TaskList = GetTaskList();
+    if (TaskList != NULL) {
+        for (LPLISTNODE Node = TaskList->First; Node; Node = Node->Next) {
+            LPTASK Task = (LPTASK)Node;
+            SAFE_USE_VALID_ID(Task, KOID_TASK) {
+                if (Task->OwnerProcess == Process) {
+                    StackCount = TaskSnapshotAppendStack(
+                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.Stack),
+                        MEMORY_CARVING_STACK_KIND_TASK);
+                    StackCount = TaskSnapshotAppendStack(
+                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.SystemStack),
+                        MEMORY_CARVING_STACK_KIND_SYSTEM);
+#if defined(__EXOS_ARCH_X86_64__)
+                    StackCount = TaskSnapshotAppendStack(
+                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.Ist1Stack),
+                        MEMORY_CARVING_STACK_KIND_IST1);
+#endif
+                }
+
+                TaskIndex++;
+            }
+        }
+    }
+
+    UnlockMutex(MUTEX_TASK);
+
+    return StackCount;
+}
+
+/************************************************************************/

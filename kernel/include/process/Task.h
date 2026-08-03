@@ -31,12 +31,13 @@
 
 /************************************************************************/
 
-#include "Base.h"
-#include "process/Task-Stack.h"
 #include "Arch.h"
-#include "utils/List.h"
-#include "sync/Mutex.h"
+#include "Base.h"
 #include "User.h"
+#include "memory/Memory-Analysis.h"
+#include "process/Task-Stack.h"
+#include "sync/Mutex.h"
+#include "utils/List.h"
 #include "utils/MessageQueue.h"
 
 /************************************************************************/
@@ -56,10 +57,10 @@
 // Message queue
 
 typedef struct tag_MESSAGEQUEUE {
-    MUTEX Mutex;      // Queue mutex
-    UINT Capacity;    // Optional max capacity (0 = unlimited)
-    UINT Flags;       // Future flags
-    BOOL Waiting;     // Indicates a waiter is sleeping on this queue
+    MUTEX Mutex;                         // Queue mutex
+    UINT Capacity;                       // Optional max capacity (0 = unlimited)
+    UINT Flags;                          // Future flags
+    BOOL Waiting;                        // Indicates a waiter is sleeping on this queue
     MESSAGE_QUEUE_BUFFER MessageBuffer;  // Optional fixed-size message buffer
     LINEAR MessageBufferBase;            // Backing storage virtual base for task queue
     UINT MessageBufferSize;              // Backing storage size in bytes
@@ -115,30 +116,31 @@ typedef struct tag_TASK_USER_TLS_CONTROL_BLOCK {
 // The Task structure
 
 struct tag_TASK {
-    LISTNODE_FIELDS           // Standard EXOS object fields
-        MUTEX Mutex;          // This structure's mutex
-    STR Name[MAX_USER_NAME];  // Task name for debugging
-    U32 Type;                 // Type of task
-    U32 Priority;             // Current priority of this task
-    TASKFUNC Function;        // Start address of this task
-    LPVOID Parameter;         // Parameter passed to the function
-    UINT ExitCode;            // This task's exit code
-    U32 Flags;                // Task creation flags
-    ARCH_TASK_DATA Arch;      // Architecture-specific task data
-    TASK_SCHEDULER_STATE SchedulerState;  // Scheduler-owned ISR-visible state
-    LPMUTEX WaitingMutex;     // Mutex currently waited by this task
-    UINT WaitingSince;        // Time at which the current mutex wait started
-    U32 HeldMutexClassDepth;  // Number of held lock classes tracked for diagnostics
+    LISTNODE_FIELDS                                          // Standard EXOS object fields
+        MUTEX Mutex;                                         // This structure's mutex
+    STR Name[MAX_USER_NAME];                                 // Task name for debugging
+    U32 Type;                                                // Type of task
+    U32 Priority;                                            // Current priority of this task
+    TASKFUNC Function;                                       // Start address of this task
+    LPVOID Parameter;                                        // Parameter passed to the function
+    UINT ExitCode;                                           // This task's exit code
+    U32 Flags;                                               // Task creation flags
+    ARCH_TASK_DATA Arch;                                     // Architecture-specific task data
+    TASK_SCHEDULER_STATE SchedulerState;                     // Scheduler-owned ISR-visible state
+    LPMUTEX WaitingMutex;                                    // Mutex currently waited by this task
+    UINT WaitingSince;                                       // Time at which the current mutex wait started
+    U32 HeldMutexClassDepth;                                 // Number of held lock classes tracked for diagnostics
     U32 HeldMutexClasses[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];  // Held lock class stack
-    MESSAGEQUEUE MessageQueue;  // Message queue for this task
-    LPVOID WindowDispatchWindow;          // Current window in nested window dispatch
-    LPVOID WindowDispatchClass;           // Current class in nested window dispatch
-    WINDOWFUNC WindowDispatchFunction;    // Current function in nested window dispatch
-    U32 WindowDispatchDepth;              // Current nested window dispatch depth
-    LPLIST ModuleTlsBlocks;               // Task-owned executable module TLS blocks
-    UINT ModuleTlsBlockCount;             // Number of task-owned executable module TLS blocks
-    LINEAR UserTlsAnchor;                 // User-visible thread control block base
-    UINT UserTlsAnchorSize;               // User-visible thread control block mapping size
+    LPMUTEX HeldMutexes[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];   // Held mutex stack
+    MESSAGEQUEUE MessageQueue;                               // Message queue for this task
+    LPVOID WindowDispatchWindow;                             // Current window in nested window dispatch
+    LPVOID WindowDispatchClass;                              // Current class in nested window dispatch
+    WINDOWFUNC WindowDispatchFunction;                       // Current function in nested window dispatch
+    U32 WindowDispatchDepth;                                 // Current nested window dispatch depth
+    LPLIST ModuleTlsBlocks;                                  // Task-owned executable module TLS blocks
+    UINT ModuleTlsBlockCount;                                // Number of task-owned executable module TLS blocks
+    LINEAR UserTlsAnchor;                                    // User-visible thread control block base
+    UINT UserTlsAnchorSize;                                  // User-visible thread control block mapping size
 };
 
 typedef struct tag_TASK TASK, *LPTASK;
@@ -160,24 +162,17 @@ BOOL IsTaskExecutionSuspended(LPTASK Task);
 void SetTaskStatus(LPTASK Task, U32 Status);
 void SetTaskStatusDirect(LPTASK Task, U32 Status);
 BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status);
+void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime);
 void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime);
 U32 ComputeTaskQuantumTime(U32 Priority);
 BOOL TaskEnsureModuleTlsBlock(
-    LPTASK Task,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LINEAR TemplateBase,
-    UINT TemplateSize,
-    UINT TotalSize,
+    LPTASK Task, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR TemplateBase, UINT TemplateSize, UINT TotalSize,
     UINT Alignment);
 void TaskReleaseModuleTlsBlock(LPTASK Task, LPEXECUTABLE_MODULE_BINDING Binding);
 void TaskReleaseModuleTlsBlocks(LPTASK Task);
 void TaskReleaseProcessModuleTlsBlocks(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding);
 BOOL TaskInstallProcessModuleTlsBlocks(
-    LPPROCESS Process,
-    LPEXECUTABLE_MODULE_BINDING Binding,
-    LINEAR TemplateBase,
-    UINT TemplateSize,
-    UINT TotalSize,
+    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR TemplateBase, UINT TemplateSize, UINT TotalSize,
     UINT Alignment);
 BOOL InitializeTaskProcessModuleTlsBindings(LPPROCESS Process, LPTASK Task);
 BOOL TaskSetUserTlsAnchor(LPTASK Task, LINEAR Anchor);
@@ -185,6 +180,7 @@ LINEAR TaskGetUserTlsAnchor(LPTASK Task);
 BOOL TaskRefreshModuleTls(LPTASK Task);
 void TaskReleaseUserTlsAnchor(LPTASK Task);
 void DumpTask(LPTASK);
+UINT TaskSnapshotStacksForProcess(LPPROCESS Process, LPMEMORY_CARVING_STACK Stacks, UINT MaxStacks);
 
 /************************************************************************/
 

@@ -34,6 +34,7 @@
 typedef struct tag_STACK {
     LINEAR Base;
     UINT Size;
+    LINEAR AllocationBase;
 } STACK, *LPSTACK;
 
 /************************************************************************/

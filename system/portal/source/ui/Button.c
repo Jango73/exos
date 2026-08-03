@@ -22,9 +22,10 @@
 \************************************************************************/
 
 #include "ui/Button.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "text/CoreString.h"
-#include "core/Kernel.h"
 
 /***************************************************************************/
 // Macros
@@ -38,6 +39,9 @@
 typedef struct tag_DESKTOP_BUTTON_STATE {
     U32 Hover;
     U32 Pressed;
+    U32 HasPointerPosition;
+    I32 PointerX;
+    I32 PointerY;
 } DESKTOP_BUTTON_STATE, *LPDESKTOP_BUTTON_STATE;
 
 /***************************************************************************/
@@ -48,6 +52,7 @@ static BOOL ButtonEnsureState(HANDLE Window);
 static void ButtonDeleteState(HANDLE Window);
 static void ButtonSetHoverState(HANDLE Window, U32 Value);
 static void ButtonSetPressedState(HANDLE Window, U32 Value);
+static BOOL ButtonResolvePointerPosition(HANDLE Window, I32* PointerX, I32* PointerY);
 
 /***************************************************************************/
 
@@ -73,10 +78,10 @@ static BOOL ButtonEnsureState(HANDLE Window) {
     State = ButtonGetState(Window);
     if (State != NULL) return TRUE;
 
-    State = (LPDESKTOP_BUTTON_STATE)HeapAlloc(sizeof(DESKTOP_BUTTON_STATE));
+    State = (LPDESKTOP_BUTTON_STATE)malloc(sizeof(DESKTOP_BUTTON_STATE));
     if (State == NULL) return FALSE;
 
-    MemorySet(State, 0, sizeof(DESKTOP_BUTTON_STATE));
+    memset(State, 0, sizeof(DESKTOP_BUTTON_STATE));
     (void)SetWindowProp(Window, DESKTOP_BUTTON_PROP_STATE, (UINT)(LINEAR)State);
     return TRUE;
 }
@@ -93,7 +98,7 @@ static void ButtonDeleteState(HANDLE Window) {
     State = ButtonGetState(Window);
     if (State == NULL) return;
 
-    HeapFree(State);
+    free(State);
     (void)SetWindowProp(Window, DESKTOP_BUTTON_PROP_STATE, 0);
 }
 
@@ -144,11 +149,39 @@ static void ButtonSetPressedState(HANDLE Window, U32 Value) {
  */
 static BOOL ButtonIsPointInside(HANDLE Window, I32 WindowX, I32 WindowY) {
     RECT WindowRect;
+    I32 WindowWidth;
+    I32 WindowHeight;
 
     if (Window == NULL) return FALSE;
     if (GetWindowRect(Window, &WindowRect) == FALSE) return FALSE;
 
-    return WindowX >= WindowRect.X1 && WindowX <= WindowRect.X2 && WindowY >= WindowRect.Y1 && WindowY <= WindowRect.Y2;
+    WindowWidth = WindowRect.X2 - WindowRect.X1 + 1;
+    WindowHeight = WindowRect.Y2 - WindowRect.Y1 + 1;
+    if (WindowWidth <= 0 || WindowHeight <= 0) return FALSE;
+
+    return WindowX >= 0 && WindowX < WindowWidth && WindowY >= 0 && WindowY < WindowHeight;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Resolve the latest button-relative pointer coordinates.
+ * @param Window Target button window.
+ * @param PointerX Receives X coordinate.
+ * @param PointerY Receives Y coordinate.
+ * @return TRUE when coordinates are available.
+ */
+static BOOL ButtonResolvePointerPosition(HANDLE Window, I32* PointerX, I32* PointerY) {
+    LPDESKTOP_BUTTON_STATE State;
+
+    if (Window == NULL || PointerX == NULL || PointerY == NULL) return FALSE;
+
+    State = ButtonGetState(Window);
+    if (State == NULL || State->HasPointerPosition == 0) return FALSE;
+
+    *PointerX = State->PointerX;
+    *PointerY = State->PointerY;
+    return TRUE;
 }
 
 /***************************************************************************/
@@ -304,8 +337,6 @@ U32 ButtonWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
     RECT ClientRect;
     HANDLE GraphicsContext;
     LPDESKTOP_BUTTON_STATE State;
-    POINT MousePosition;
-    POINT WindowPoint;
     I32 MouseX;
     I32 MouseY;
     BOOL IsInside;
@@ -321,26 +352,37 @@ U32 ButtonWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             return 1;
 
         case EWM_MOUSEDOWN:
+            debug("[ButtonWindowFunc] mousedown window=%x buttons=%x",
+                (UINT)(LINEAR)Window,
+                Param1);
             if ((Param1 & MB_LEFT) == 0) return 1;
             if (GetWindowProp(Window, DESKTOP_BUTTON_PROP_DISABLED) != 0) return 1;
-
-            if (GetMousePosition(&MousePosition) == FALSE) return 1;
-            if (ScreenPointToWindowPoint(Window, &MousePosition, &WindowPoint) == FALSE) return 1;
-            MouseX = WindowPoint.X;
-            MouseY = WindowPoint.Y;
-            if (ButtonIsPointInside(Window, MouseX, MouseY) == FALSE) return 1;
+            if (ButtonResolvePointerPosition(Window, &MouseX, &MouseY) == FALSE) return 1;
+            IsInside = ButtonIsPointInside(Window, MouseX, MouseY);
+            debug("[ButtonWindowFunc] mousedown window=%x local=%d,%d inside=%u",
+                (UINT)(LINEAR)Window,
+                MouseX,
+                MouseY,
+                IsInside);
+            if (IsInside == FALSE) return 1;
             (void)CaptureMouse(Window);
             ButtonSetHoverState(Window, 1);
             ButtonSetPressedState(Window, 1);
             return 1;
 
         case EWM_MOUSEMOVE:
+            if (ButtonEnsureState(Window) == FALSE) return 1;
             MouseX = SIGNED(Param1);
             MouseY = SIGNED(Param2);
             IsInside = ButtonIsPointInside(Window, MouseX, MouseY);
             State = ButtonGetState(Window);
+            if (State == NULL) return 1;
 
-            if (State != NULL && State->Pressed != 0) {
+            State->HasPointerPosition = 1;
+            State->PointerX = MouseX;
+            State->PointerY = MouseY;
+
+            if (State->Pressed != 0) {
                 ButtonSetHoverState(Window, IsInside ? 1 : 0);
                 ButtonSetPressedState(Window, IsInside ? 1 : 0);
             } else if (GetWindowProp(Window, DESKTOP_BUTTON_PROP_DISABLED) == 0) {
@@ -349,15 +391,20 @@ U32 ButtonWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             return 1;
 
         case EWM_MOUSEUP:
+            debug("[ButtonWindowFunc] mouseup window=%x buttons=%x",
+                (UINT)(LINEAR)Window,
+                Param1);
             if ((Param1 & MB_LEFT) == 0) return 1;
-
-            if (GetMousePosition(&MousePosition) == FALSE) return 1;
-            if (ScreenPointToWindowPoint(Window, &MousePosition, &WindowPoint) == FALSE) return 1;
-            MouseX = WindowPoint.X;
-            MouseY = WindowPoint.Y;
+            if (ButtonResolvePointerPosition(Window, &MouseX, &MouseY) == FALSE) return 1;
             IsInside = ButtonIsPointInside(Window, MouseX, MouseY);
             State = ButtonGetState(Window);
             WasPressed = (State != NULL && State->Pressed != 0);
+            debug("[ButtonWindowFunc] mouseup window=%x local=%d,%d inside=%u pressed=%u",
+                (UINT)(LINEAR)Window,
+                MouseX,
+                MouseY,
+                IsInside,
+                WasPressed);
 
             (void)ReleaseMouse();
             ButtonSetPressedState(Window, 0);

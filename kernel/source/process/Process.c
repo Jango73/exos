@@ -26,36 +26,37 @@
 
 #include "console/Console.h"
 #include "core/Driver.h"
+#include "core/Kernel.h"
 #include "exec/Executable.h"
 #include "fs/File.h"
-#include "core/Kernel.h"
-#include "process/Process-Module.h"
-#include "utils/List.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
+#include "process/Process-Module.h"
 #include "text/CoreString.h"
+#include "utils/List.h"
 #if defined(__EXOS_ARCH_X86_32__)
-    #include "arch/x86-32/x86-32-Log.h"
+#include "arch/x86-32/x86-32-Log.h"
 #endif
 
 /***************************************************************************/
 
 PROCESS DATA_SECTION KernelProcess = {
     .TypeID = KOID_PROCESS,  // ID
-    .References = 1,   // References
-    .OwnerProcess = NULL, // OwnerProcess (from LISTNODE_FIELDS)
+    .References = 1,         // References
+    .OwnerProcess = NULL,    // OwnerProcess (from LISTNODE_FIELDS)
     .Next = NULL,
-    .Prev = NULL,                   // Next, previous
-    .Desktop = NULL,                // Desktop
-    .Privilege = CPU_PRIVILEGE_KERNEL,  // Privilege
-    .Status = PROCESS_STATUS_ALIVE, // Status
-    .Flags = PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH, // Flags
-    .ControlFlags = 0,             // Process control flags
+    .Prev = NULL,                                                // Next, previous
+    .Desktop = NULL,                                             // Desktop
+    .Privilege = CPU_PRIVILEGE_KERNEL,                           // Privilege
+    .Status = PROCESS_STATUS_ALIVE,                              // Status
+    .Flags = PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH,  // Flags
+    .ControlFlags = 0,                                           // Process control flags
     .SchedulerState = {.Paused = FALSE},
-    .PageDirectory = 0,             // Page directory
-    .MemoryRegionList = { .Head = NULL, .Tail = NULL, .Count = 0 },
-    .HeapBase = 0,                  // Heap base
-    .HeapSize = 0,                  // Heap size
-    .TaskCount = 0                  // Task count (will be incremented by KernelCreateTask)
+    .PageDirectory = 0,  // Page directory
+    .MemoryRegionList = {.Head = NULL, .Tail = NULL, .Count = 0},
+    .HeapBase = 0,  // Heap base
+    .HeapSize = 0,  // Heap size
+    .TaskCount = 0  // Task count (will be incremented by KernelCreateTask)
 };
 
 /***************************************************************************/
@@ -86,9 +87,7 @@ DRIVER DATA_SECTION KernelProcessDriver = {
  * @brief Retrieves the kernel process driver descriptor.
  * @return Pointer to the kernel process driver.
  */
-LPDRIVER KernelProcessGetDriver(void) {
-    return &KernelProcessDriver;
-}
+LPDRIVER KernelProcessGetDriver(void) { return &KernelProcessDriver; }
 
 /***************************************************************************/
 
@@ -105,8 +104,8 @@ void InitializeKernelProcess(void) {
 
     DEBUG(TEXT("Enter"));
 
-    InitMutex(&(KernelProcess.Mutex));
-    InitMutex(&(KernelProcess.HeapMutex));
+    InitMutexWithDebugInfo(&(KernelProcess.Mutex), MUTEX_CLASS_PROCESS, TEXT("KernelProcess"));
+    InitMutexWithDebugInfo(&(KernelProcess.HeapMutex), MUTEX_CLASS_PROCESS_HEAP, TEXT("KernelProcessHeap"));
     InitSecurity(&(KernelProcess.Security));
     KernelProcess.PageDirectory = GetPageDirectory();
     KernelProcess.MaximumAllocatedMemory = N_HalfMemory;
@@ -117,11 +116,9 @@ void InitializeKernelProcess(void) {
     DEBUG(TEXT("Pages : %u"), KernelStartup.PageCount);
 
     LINEAR HeapPreferredBase = GetKernelHeapPreferredBase(KernelProcess.HeapSize);
-    LINEAR HeapBase = AllocRegion(HeapPreferredBase,
-                                  0,
-                                  KernelProcess.HeapSize,
-                                  ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
-                                  TEXT("KernelHeap"));
+    LINEAR HeapBase = AllocRegion(
+        HeapPreferredBase, 0, KernelProcess.HeapSize,
+        ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER, TEXT("KernelHeap"));
 
     DEBUG(TEXT("HeapPreferredBase : %p"), (LINEAR)HeapPreferredBase);
     DEBUG(TEXT("HeapBase : %p"), (LINEAR)HeapBase);
@@ -243,7 +240,7 @@ LPPROCESS NewProcess(void) {
     }
     This->Privilege = CPU_PRIVILEGE_USER;
     This->Status = PROCESS_STATUS_ALIVE;
-    This->Flags = 0; // Will be set by CreateProcess
+    This->Flags = 0;  // Will be set by CreateProcess
     This->ControlFlags = 0;
     This->SchedulerState.Paused = FALSE;
     This->MaximumAllocatedMemory = N_HalfMemory;
@@ -267,8 +264,8 @@ LPPROCESS NewProcess(void) {
     //-------------------------------------
     // Initialize the process' mutex
 
-    InitMutex(&(This->Mutex));
-    InitMutex(&(This->HeapMutex));
+    InitMutexWithDebugInfo(&(This->Mutex), MUTEX_CLASS_PROCESS, TEXT("Process"));
+    InitMutexWithDebugInfo(&(This->HeapMutex), MUTEX_CLASS_PROCESS_HEAP, TEXT("ProcessHeap"));
     if (!InitializeProcessModuleBindings(This)) {
         ReleaseKernelObject(This);
         TRACED_EPILOGUE("NewProcess");
@@ -335,13 +332,12 @@ void DeleteProcessCommit(LPPROCESS This) {
 
         // Free process heap if allocated
         if (This->HeapBase != 0 && This->HeapSize != 0) {
-            DEBUG(TEXT("Freeing process heap base=%p size=%x"), (LINEAR)This->HeapBase,
-                (UINT)This->HeapSize);
+            DEBUG(TEXT("Freeing process heap base=%p size=%x"), (LINEAR)This->HeapBase, (UINT)This->HeapSize);
             FreeRegionForProcess(This, This->HeapBase, This->HeapSize);
         }
 
         if (This->MessageQueue.MessageBufferBase != 0 && This->MessageQueue.MessageBufferSize > 0) {
-            FreeRegionForProcess(This, This->MessageQueue.MessageBufferBase, This->MessageQueue.MessageBufferSize);
+            KernelHeapFree((LPVOID)This->MessageQueue.MessageBufferBase);
             This->MessageQueue.MessageBufferBase = 0;
             This->MessageQueue.MessageBufferSize = 0;
         }
@@ -635,9 +631,8 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     if (!StringEmpty(Info->WorkFolder)) {
         StringCopy(Process->WorkFolder, Info->WorkFolder);
     } else {
-        SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) {
-            StringCopy(Process->WorkFolder, ParentProcess->WorkFolder);
-        } else {
+        SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) { StringCopy(Process->WorkFolder, ParentProcess->WorkFolder); }
+        else {
             StringCopy(Process->WorkFolder, TEXT(ROOT));
         }
     }
@@ -752,7 +747,9 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
 
     DEBUG(TEXT("Allocating process space"));
 
-    if (AllocRegionForProcess(Process, VMA_USER, 0, TotalSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ProcessSpace")) == NULL) {
+    if (AllocRegionForProcess(
+            Process, VMA_USER, 0, TotalSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ProcessSpace")) ==
+        NULL) {
         ERROR(TEXT("Failed to allocate process space"));
         LoadPageDirectory(PageDirectory);
         UnfreezeScheduler();
@@ -824,8 +821,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
 
     DEBUG(TEXT("Creating initial task"));
 
-    TaskInfo.Func =
-        (TASKFUNC)(CodeBase + (ExecutableMetadata.Layout.EntryPoint - ExecutableMetadata.Layout.CodeBase));
+    TaskInfo.Func = (TASKFUNC)(CodeBase + (ExecutableMetadata.Layout.EntryPoint - ExecutableMetadata.Layout.CodeBase));
     TaskInfo.Parameter = NULL;
     TaskInfo.StackSize = StackSize;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
@@ -1017,9 +1013,7 @@ LINEAR GetProcessHeap(LPPROCESS Process) {
  * @return Memory region list pointer or NULL when unavailable.
  */
 LPMEMORY_REGION_LIST GetProcessMemoryRegionList(LPPROCESS Process) {
-    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
-        return &Process->MemoryRegionList;
-    }
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) { return &Process->MemoryRegionList; }
 
     return NULL;
 }
@@ -1043,6 +1037,78 @@ LPMEMORY_REGION_LIST GetCurrentMemoryRegionList(void) {
 /***************************************************************************/
 
 /**
+ * @brief Check whether a process address space uses a carved user layout.
+ *
+ * A carved layout exists when every arena holds an explicit nonzero range,
+ * which only happens for user processes initialized by ProcessArenaInitializeUser.
+ *
+ * @param Process Target process (must be locked by the caller).
+ * @return TRUE when arenas form a carved partition.
+ */
+static BOOL ProcessSnapshotArenasCarved(LPPROCESS Process) {
+    for (UINT ArenaIndex = 0; ArenaIndex < PROCESS_ARENA_COUNT; ArenaIndex++) {
+        LPPROCESS_ARENA_RANGE Range = &(Process->AddressSpace.Ranges[ArenaIndex]);
+
+        if (Range->Base == 0 || Range->Limit == 0) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Snapshot the memory carving of a process under its mutex.
+ * @param Process Target process.
+ * @param Snapshot Output snapshot to fill.
+ * @return TRUE on success, FALSE on invalid arguments.
+ */
+BOOL ProcessSnapshotMemoryCarving(LPPROCESS Process, LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
+    if (Snapshot == NULL) {
+        return FALSE;
+    }
+
+    MemorySet(Snapshot, 0, sizeof(*Snapshot));
+
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        LockMutex(&(Process->Mutex), INFINITY);
+
+        Snapshot->AddressSpaceInitialized = Process->AddressSpace.Initialized;
+        Snapshot->ArenasCarved = ProcessSnapshotArenasCarved(Process);
+        Snapshot->PageDirectory = Process->PageDirectory;
+        Snapshot->HeapBase = Process->HeapBase;
+        Snapshot->HeapSize = Process->HeapSize;
+        StringCopyLimit(Snapshot->FileName, Process->FileName, MAX_PATH_NAME);
+
+        MemoryCopy(Snapshot->Arenas, Process->AddressSpace.Ranges, sizeof(Process->AddressSpace.Ranges));
+
+        LPMEMORY_REGION_DESCRIPTOR Current = Process->MemoryRegionList.Head;
+        while (Current != NULL && Snapshot->RegionCount < MEMORY_CARVING_MAX_REGIONS) {
+            LPMEMORY_CARVING_REGION Region = &(Snapshot->Regions[Snapshot->RegionCount]);
+
+            Region->Base = Current->CanonicalBase;
+            Region->Limit = Current->CanonicalBase + Current->Size;
+            Region->Size = Current->Size;
+            Region->PageCount = Current->PageCount;
+            Region->Attributes = Current->Attributes;
+            StringCopyLimit(Region->Tag, Current->Tag, MEMORY_REGION_TAG_MAX);
+
+            Snapshot->RegionCount++;
+            Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+        }
+
+        UnlockMutex(&(Process->Mutex));
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/***************************************************************************/
+
+/**
  * @brief Assigns one descriptor owner process explicitly.
  *
  * @param Descriptor Target descriptor.
@@ -1053,9 +1119,7 @@ void MemoryRegionDescriptorAssignOwner(LPMEMORY_REGION_DESCRIPTOR Descriptor, LP
         Process = &KernelProcess;
     }
 
-    SAFE_USE(Descriptor) {
-        Descriptor->OwnerProcess = Process;
-    }
+    SAFE_USE(Descriptor) { Descriptor->OwnerProcess = Process; }
 }
 
 /***************************************************************************/

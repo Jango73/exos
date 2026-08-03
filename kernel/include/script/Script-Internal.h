@@ -35,9 +35,14 @@ LPVOID ScriptRealloc(LPSCRIPT_CONTEXT Context, LPVOID Pointer, UINT Size);
 void ScriptFree(LPSCRIPT_CONTEXT Context, LPVOID Pointer);
 
 void ScriptInitParser(LPSCRIPT_PARSER Parser, LPCSTR Input, LPSCRIPT_CONTEXT Context);
+void ScriptInitParserAt(LPSCRIPT_PARSER Parser, LPCSTR Input, LPSCRIPT_CONTEXT Context, U32 Position);
 void ScriptNextToken(LPSCRIPT_PARSER Parser);
 void ScriptParseStringToken(LPSCRIPT_PARSER Parser, LPCSTR Input, U32* Pos, STR QuoteChar);
 LPAST_NODE ScriptParseExpressionAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseShiftAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseXorAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
+LPAST_NODE ScriptParseBitwiseOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseComparisonAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseLogicalOrAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
 LPAST_NODE ScriptParseLogicalAndAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error);
@@ -55,39 +60,38 @@ BOOL ScriptShouldParseShellCommand(LPSCRIPT_PARSER Parser);
 BOOL ScriptIsKeyword(LPCSTR Str);
 
 SCRIPT_ERROR ScriptPrepareHostValue(
-    LPSCRIPT_CONTEXT Context,
-    SCRIPT_VALUE* Value,
-    const SCRIPT_HOST_DESCRIPTOR* DefaultDescriptor,
+    LPSCRIPT_CONTEXT Context, SCRIPT_VALUE* Value, const SCRIPT_HOST_DESCRIPTOR* DefaultDescriptor,
     LPVOID DefaultContext);
 BOOL ScriptValueToFloat(const SCRIPT_VALUE* Value, F32* OutValue);
 BOOL ScriptValueToInteger(const SCRIPT_VALUE* Value, INT* OutValue);
 BOOL ScriptValueIsTrue(const SCRIPT_VALUE* Value, BOOL* OutValue);
 SCRIPT_ERROR ScriptValueToString(
-    const SCRIPT_VALUE* Value,
-    LPSCRIPT_CONTEXT Context,
-    LPCSTR* OutText,
-    BOOL* OutOwnsText);
+    const SCRIPT_VALUE* Value, LPSCRIPT_CONTEXT Context, LPCSTR* OutText, BOOL* OutOwnsText);
 SCRIPT_ERROR ScriptConcatStrings(const SCRIPT_VALUE* LeftValue, const SCRIPT_VALUE* RightValue, SCRIPT_VALUE* Result);
-SCRIPT_ERROR ScriptRemoveStringOccurrences(const SCRIPT_VALUE* LeftValue, const SCRIPT_VALUE* RightValue, SCRIPT_VALUE* Result);
+SCRIPT_ERROR ScriptRemoveStringOccurrences(
+    const SCRIPT_VALUE* LeftValue, const SCRIPT_VALUE* RightValue, SCRIPT_VALUE* Result);
 SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, SCRIPT_ERROR* Error);
 SCRIPT_VALUE ScriptEvaluateHostProperty(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, SCRIPT_ERROR* Error);
 SCRIPT_VALUE ScriptEvaluateArrayAccess(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, SCRIPT_ERROR* Error);
 SCRIPT_ERROR ScriptExecuteAssignment(LPSCRIPT_PARSER Parser, LPAST_NODE Node);
 SCRIPT_ERROR ScriptExecuteBlock(LPSCRIPT_PARSER Parser, LPAST_NODE Node);
 
+LPSCRIPT_AST_CACHE ScriptASTCacheCreate(LPSCRIPT_CONTEXT Context, LPCSTR Source, U32 SourceLength, U32 BudgetBytes);
+void ScriptASTCacheDestroy(LPSCRIPT_AST_CACHE Cache);
+void ScriptASTCacheTouch(LPAST_ENTRY Entry);
+LPAST_ENTRY ScriptRegisterStatementEntry(
+    LPSCRIPT_CONTEXT Context, LPAST_NODE Node, U32 SourceOffset, U32 SourceLength, U32 LoopDepth);
+LPAST_NODE ScriptASTEntryResolve(LPSCRIPT_AST_CACHE Cache, LPAST_ENTRY Entry, SCRIPT_ERROR* Error);
+void ScriptASTCacheEvict(LPSCRIPT_AST_CACHE Cache, LPAST_ENTRY ProtectedEntry);
+
 BOOL IsInteger(F32 Value);
 void ScriptCalculateLineColumn(LPCSTR Input, U32 Position, U32* Line, U32* Column);
 void ScriptClearReturnValue(LPSCRIPT_CONTEXT Context);
 BOOL ScriptStoreReturnValue(LPSCRIPT_CONTEXT Context, const SCRIPT_VALUE* Value);
 SCRIPT_ERROR ScriptStoreObjectValue(
-    LPSCRIPT_CONTEXT Context,
-    SCRIPT_VAR_TYPE Type,
-    const SCRIPT_VAR_VALUE* SourceValue,
+    LPSCRIPT_CONTEXT Context, SCRIPT_VAR_TYPE Type, const SCRIPT_VAR_VALUE* SourceValue,
     SCRIPT_VAR_VALUE* DestinationValue);
-void ScriptReleaseStoredValue(
-    LPSCRIPT_CONTEXT Context,
-    SCRIPT_VAR_TYPE Type,
-    SCRIPT_VAR_VALUE* Value);
+void ScriptReleaseStoredValue(LPSCRIPT_CONTEXT Context, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE* Value);
 
 U32 ScriptHashHostSymbol(LPCSTR Name);
 BOOL ScriptInitHostRegistry(LPSCRIPT_CONTEXT Context, LPSCRIPT_HOST_REGISTRY Registry);

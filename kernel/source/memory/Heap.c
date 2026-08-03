@@ -26,19 +26,19 @@
 
 #include "core/Kernel.h"
 #include "log/Log.h"
-#include "process/Process.h"
 #include "memory/Memory.h"
+#include "process/Process.h"
 
 /************************************************************************/
 
-static BOOL HeapResizeProcess(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags) {
+static BOOL HeapResizeProcess(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize) {
     LPPROCESS Process = (LPPROCESS)Context;
 
-    if (Process == NULL) {
+    if (Process == NULL || ControlBlock == NULL) {
         return FALSE;
     }
 
-    return ResizeRegion(HeapBase, 0, OldSize, NewSize, Flags);
+    return ResizeRegion(ControlBlock->HeapBase, 0, ControlBlock->HeapSize, NewSize, ControlBlock->RegionFlags);
 }
 
 /************************************************************************/
@@ -60,7 +60,7 @@ static UINT GetSizeClass(UINT Size) {
     if (Size <= 512) return 5;
     if (Size <= 1024) return 6;
     if (Size <= 2048) return 7;
-    return 0xFF; // Large block
+    return 0xFF;  // Large block
 }
 
 /************************************************************************/
@@ -334,17 +334,12 @@ void HeapInit(LPPROCESS Process, LINEAR HeapBase, UINT HeapSize) {
     if (Process != NULL && Process->Privilege == CPU_PRIVILEGE_KERNEL) {
         ControlBlock->RegionFlags |= ALLOC_PAGES_AT_OR_OVER;
     }
-
 }
 
 /************************************************************************/
 
 void HeapConfigureGrowth(
-    LINEAR HeapBase,
-    LPVOID ResizeContext,
-    HEAP_RESIZE_CALLBACK ResizeCallback,
-    UINT MaximumSize,
-    U32 RegionFlags) {
+    LINEAR HeapBase, LPVOID ResizeContext, HEAP_RESIZE_CALLBACK ResizeCallback, UINT MaximumSize, U32 RegionFlags) {
     LPHEAP_CONTROL_BLOCK ControlBlock = (LPHEAP_CONTROL_BLOCK)HeapBase;
 
     if (ControlBlock == NULL || ControlBlock->TypeID != KOID_HEAP) {
@@ -403,13 +398,9 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
         return FALSE;
     }
 
-    if (ControlBlock->ResizeCallback(
-            ControlBlock->ResizeContext,
-            ControlBlock->HeapBase,
-            CurrentSize,
-            DesiredSize,
-            ControlBlock->RegionFlags) == FALSE) {
-        ERROR(TEXT("ResizeRegion failed for heap at %x (from %x to %x)"), ControlBlock->HeapBase, CurrentSize,
+    if (ControlBlock->ResizeCallback(ControlBlock->ResizeContext, ControlBlock, DesiredSize) == FALSE) {
+        ERROR(
+            TEXT("ResizeRegion failed for heap at %x (from %x to %x)"), ControlBlock->HeapBase, CurrentSize,
             DesiredSize);
         return FALSE;
     }
@@ -419,8 +410,7 @@ static BOOL TryExpandHeap(LPHEAP_CONTROL_BLOCK ControlBlock, UINT RequiredSize) 
         ControlBlock->Owner->HeapSize = DesiredSize;
     }
 
-    DEBUG(TEXT("Expanded heap from %u to %u (required %u)"),
-          CurrentSize, DesiredSize, RequiredSize);
+    DEBUG(TEXT("Expanded heap from %u to %u (required %u)"), CurrentSize, DesiredSize, RequiredSize);
 
     return TRUE;
 }
@@ -668,8 +658,7 @@ void HeapFree_HBHS(LINEAR HeapBase, UINT HeapSize, LPVOID Pointer) {
         Merged = FALSE;
 
         Next = (LPHEAP_BLOCK_HEADER)((LINEAR)Block + Block->Size);
-        if ((LINEAR)Next < (LINEAR)ControlBlock->FirstUnallocated &&
-            IsBlockInHeap(ControlBlock, Next) &&
+        if ((LINEAR)Next < (LINEAR)ControlBlock->FirstUnallocated && IsBlockInHeap(ControlBlock, Next) &&
             IsBlockFree(Next)) {
             RemoveFromFreeList(ControlBlock, Next, GetBlockSizeClass(Next));
             Block->Size += Next->Size;
@@ -677,9 +666,7 @@ void HeapFree_HBHS(LINEAR HeapBase, UINT HeapSize, LPVOID Pointer) {
         }
 
         Previous = FindPreviousPhysicalBlock(ControlBlock, Block);
-        if (Previous != NULL &&
-            IsBlockInHeap(ControlBlock, Previous) &&
-            IsBlockFree(Previous)) {
+        if (Previous != NULL && IsBlockInHeap(ControlBlock, Previous) && IsBlockFree(Previous)) {
             RemoveFromFreeList(ControlBlock, Previous, GetBlockSizeClass(Previous));
             Previous->Size += Block->Size;
             Block = Previous;
@@ -698,7 +685,8 @@ void HeapFree_HBHS(LINEAR HeapBase, UINT HeapSize, LPVOID Pointer) {
             LPHEAP_BLOCK_HEADER Tail = (LPHEAP_BLOCK_HEADER)ControlBlock->FirstUnallocated;
             LPHEAP_BLOCK_HEADER TailPrevious = FindPreviousPhysicalBlock(ControlBlock, Tail);
 
-            if (TailPrevious == NULL || IsBlockInHeap(ControlBlock, TailPrevious) == FALSE || IsBlockFree(TailPrevious) == FALSE) {
+            if (TailPrevious == NULL || IsBlockInHeap(ControlBlock, TailPrevious) == FALSE ||
+                IsBlockFree(TailPrevious) == FALSE) {
                 break;
             }
 
@@ -763,6 +751,82 @@ BOOL HeapQueryProcessMemoryInfo(LPPROCESS Process, LPPROCESS_MEMORY_INFO Info) {
     Info->HeapFirstUnallocatedOffset = FirstUnallocatedOffset;
     Info->HeapFreeBytes = FreePayloadBytes;
     Info->HeapUsedBytes = TotalPayloadBytes - FreePayloadBytes;
+
+    UnlockMutex(&(Process->HeapMutex));
+
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Query heap fragmentation statistics for a process heap.
+ * @param Process Target process.
+ * @param Info Output structure to fill.
+ * @return TRUE on success, FALSE on invalid arguments.
+ */
+BOOL HeapQueryFragmentation(LPPROCESS Process, LPHEAP_FRAGMENTATION_INFO Info) {
+    LPHEAP_CONTROL_BLOCK ControlBlock;
+    LINEAR Cursor;
+    LINEAR FirstBlock;
+    LINEAR FirstUnallocated;
+    LPHEAP_BLOCK_HEADER Block;
+    UINT TotalPayloadBytes;
+    UINT FreePayloadBytes;
+    UINT LargestFreePayload;
+
+    if (Process == NULL || Info == NULL || Process->HeapBase == 0 || Process->HeapSize == 0) {
+        return FALSE;
+    }
+
+    MemorySet(Info, 0, sizeof(*Info));
+
+    LockMutex(&(Process->HeapMutex), INFINITY);
+
+    ControlBlock = (LPHEAP_CONTROL_BLOCK)Process->HeapBase;
+    if (ControlBlock->TypeID != KOID_HEAP) {
+        UnlockMutex(&(Process->HeapMutex));
+        return FALSE;
+    }
+
+    FirstBlock = (ControlBlock->HeapBase + sizeof(HEAP_CONTROL_BLOCK) + 15) & ~15;
+    FirstUnallocated = (LINEAR)ControlBlock->FirstUnallocated;
+    if (FirstUnallocated < FirstBlock) {
+        UnlockMutex(&(Process->HeapMutex));
+        return FALSE;
+    }
+
+    TotalPayloadBytes = (UINT)(FirstUnallocated - FirstBlock);
+    FreePayloadBytes = 0;
+    LargestFreePayload = 0;
+    Cursor = FirstBlock;
+
+    while (Cursor < FirstUnallocated) {
+        Block = (LPHEAP_BLOCK_HEADER)Cursor;
+        if (IsBlockInHeap(ControlBlock, Block) == FALSE) {
+            UnlockMutex(&(Process->HeapMutex));
+            return FALSE;
+        }
+
+        if (IsBlockFree(Block) && Block->Size > sizeof(HEAP_BLOCK_HEADER)) {
+            UINT Payload = Block->Size - sizeof(HEAP_BLOCK_HEADER);
+            FreePayloadBytes += Payload;
+            if (Payload > LargestFreePayload) {
+                LargestFreePayload = Payload;
+            }
+            Info->FreeBlockCount++;
+        }
+
+        Cursor += Block->Size;
+    }
+
+    Info->TotalBytes = TotalPayloadBytes;
+    Info->FreeBytes = FreePayloadBytes;
+    Info->LargestFreeBlock = LargestFreePayload;
+
+    if (FreePayloadBytes > 0) {
+        Info->FragmentationPercent = ((FreePayloadBytes - LargestFreePayload) * 100) / FreePayloadBytes;
+    }
 
     UnlockMutex(&(Process->HeapMutex));
 
@@ -860,9 +924,7 @@ LPVOID KernelHeapAlloc(UINT Size) {
  *
  * Convenience function for reallocating memory from the kernel process heap.
  */
-LPVOID KernelHeapRealloc(LPVOID Pointer, UINT Size) {
-    return HeapRealloc_P(&KernelProcess, Pointer, Size);
-}
+LPVOID KernelHeapRealloc(LPVOID Pointer, UINT Size) { return HeapRealloc_P(&KernelProcess, Pointer, Size); }
 
 /***************************************************************************/
 

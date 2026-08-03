@@ -34,13 +34,13 @@
                 { "label": "Start 32 QEMU VESA Test", "script": "scripts/linux/run/run --arch x86-32 --build-core-name x86-32-mbr-debug --build-image-name x86-32-mbr-debug-ext2 --debug --no-nvme --no-usb3" },
                 { "label": "Start 32 QEMU Dumper Test", "script": "scripts/linux/run/run --arch x86-32 --build-core-name x86-32-mbr-debug --build-image-name x86-32-mbr-debug-ext2 --debug --no-nvme --no-usb3" },
 
-                { "label": "x86-64 build--------" },
+                { "label": "x86-64 build--------", "disabled": true },
 
-                { "label": "Build 64 MBR Rel", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --clean" },
-                { "label": "Build 64 MBR Rel ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release" },
-                { "label": "Build 64 MBR Deb", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --clean" },
-                { "label": "Build 64 MBR Deb ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug" },
-                { "label": "Build 64 MBR Deb Split", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --split --clean" },
+                { "label": "Build 64 MBR Rel", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --clean", "disabled": true },
+                { "label": "Build 64 MBR Rel ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release", "disabled": true },
+                { "label": "Build 64 MBR Deb", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --clean", "disabled": true },
+                { "label": "Build 64 MBR Deb ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug", "disabled": true },
+                { "label": "Build 64 MBR Deb Split", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --split --clean", "disabled": true },
 
                 { "label": "x86-64 UEFI build--------" },
 
@@ -48,13 +48,14 @@
                 { "label": "Build 64 UEFI Rel ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --release --uefi" },
                 { "label": "Build 64 UEFI Deb", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi --clean" },
                 { "label": "Build 64 UEFI Deb ++", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi" },
+                { "label": "Build 64 UEFI Deb Prof", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --uefi --profiling --clean" },
                 { "label": "Build 64 UEFI Deb Split", "script": "scripts/linux/build/build --arch x86-64 --fs ext2 --debug --split --uefi --boot-stage-markers --clean" },
 
                 { "label": "x86-64 run----------" },
 
-                { "label": "Start 64 QEMU MBR Rel", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --release" },
-                { "label": "Start 64 QEMU MBR Deb", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug" },
-                { "label": "Start 64 QEMU MBR Deb Split", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug --split" },
+                { "label": "Start 64 QEMU MBR Rel", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --release", "disabled": true },
+                { "label": "Start 64 QEMU MBR Deb", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug", "disabled": true },
+                { "label": "Start 64 QEMU MBR Deb Split", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug --split", "disabled": true },
                 { "label": "Start 64 QEMU UEFI Rel", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --release --uefi" },
                 { "label": "Start 64 QEMU UEFI Deb", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug --uefi" },
                 { "label": "Start 64 QEMU UEFI Deb Split", "script": "scripts/linux/run/run --arch x86-64 --fs ext2 --debug --uefi --split" }
@@ -67,7 +68,6 @@
 
                 { "label": "Smoke test global (all targets)", "script": "bash scripts/linux/test/smoke-test-global.sh" },
                 { "label": "Smoke test x86-32", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-32" },
-                { "label": "Smoke test x86-64", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-64" },
                 { "label": "Smoke test x86-64 UEFI", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-64-uefi" }
             ]
         },

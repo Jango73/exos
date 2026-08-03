@@ -24,11 +24,11 @@
 
 #include "utils/BlockList.h"
 
-#include "text/CoreString.h"
-#include "memory/Heap.h"
-#include "log/Log.h"
-#include "memory/Memory.h"
 #include "User.h"
+#include "log/Log.h"
+#include "memory/Heap.h"
+#include "memory/Memory.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
@@ -118,9 +118,7 @@ static BOOL BlockListEnsureSlabMetadata(LPBLOCK_LIST List, UINT RequiredSlabs) {
 
     UINT* NewBuffer = (UINT*)KernelHeapRealloc(List->SlabUsage, NewBytes);
     if (NewBuffer == NULL) {
-        ERROR(TEXT("Realloc failed (required=%u newBytes=%u)"),
-              RequiredSlabs,
-              NewBytes);
+        ERROR(TEXT("Realloc failed (required=%u newBytes=%u)"), RequiredSlabs, NewBytes);
         return FALSE;
     }
 
@@ -164,9 +162,7 @@ static BOOL BlockListInsertRange(LPBLOCK_LIST List, LINEAR Start, UINT ObjectCou
 
     for (Index = 0; Index < ObjectCount; Index++) {
         LPBLOCK_LIST_NODE Node = (LPBLOCK_LIST_NODE)Address;
-        SAFE_USE(Node) {
-            Node->Next = (LPBLOCK_LIST_NODE)List->FreeListHead;
-        }
+        SAFE_USE(Node) { Node->Next = (LPBLOCK_LIST_NODE)List->FreeListHead; }
         List->FreeListHead = Node;
         List->FreeCount++;
         Address += List->ObjectStride;
@@ -212,11 +208,10 @@ static BOOL BlockListGrowBySlabs(LPBLOCK_LIST List, UINT AdditionalSlabs) {
     LINEAR Base = List->RegionBase;
 
     if (Base == 0) {
-        LINEAR Allocated = AllocKernelRegion(0, NewSize, List->AllocationFlags, TEXT("BlockList"));
+        LINEAR Allocated = AllocKernelRegion(
+            0, NewSize, List->AllocationFlags, (List->Tag[0] != STR_NULL) ? List->Tag : TEXT("BlockList"));
         if (Allocated == 0) {
-            ERROR(TEXT("AllocKernelRegion failed (size=%u flags=%x)"),
-                  NewSize,
-                  List->AllocationFlags);
+            ERROR(TEXT("AllocKernelRegion failed (size=%u flags=%x)"), NewSize, List->AllocationFlags);
             return FALSE;
         }
 
@@ -224,10 +219,7 @@ static BOOL BlockListGrowBySlabs(LPBLOCK_LIST List, UINT AdditionalSlabs) {
         List->RegionBase = Allocated;
     } else {
         if (ResizeKernelRegion(Base, OldSize, NewSize, List->AllocationFlags) == FALSE) {
-            ERROR(TEXT("ResizeRegion failed (old=%u new=%u flags=%x)"),
-                  OldSize,
-                  NewSize,
-                  List->AllocationFlags);
+            ERROR(TEXT("ResizeRegion failed (old=%u new=%u flags=%x)"), OldSize, NewSize, List->AllocationFlags);
             return FALSE;
         }
     }
@@ -251,10 +243,9 @@ static BOOL BlockListGrowBySlabs(LPBLOCK_LIST List, UINT AdditionalSlabs) {
     List->RegionSize = NewSize;
     List->SlabCount = NewSlabCount;
 
-    DEBUG(TEXT("Expanded to %u slabs (size=%u free=%u)"),
-          List->SlabCount,
-          List->RegionSize,
-          List->FreeCount);
+    DEBUG(
+        TEXT("Expanded to %u slabs (base=%p size=%u free=%u)"), List->SlabCount, (LPVOID)List->RegionBase,
+        List->RegionSize, List->FreeCount);
 
     return TRUE;
 }
@@ -287,16 +278,12 @@ static BOOL BlockListTrimTrailingSlabs(LPBLOCK_LIST List) {
 
     UINT ObjectsToRemove = 0;
     if (MultiplySafe(TrailingFree, List->ObjectsPerSlab, &ObjectsToRemove) == FALSE) {
-        ERROR(TEXT("Object count overflow (slabs=%u per=%u)"),
-              TrailingFree,
-              List->ObjectsPerSlab);
+        ERROR(TEXT("Object count overflow (slabs=%u per=%u)"), TrailingFree, List->ObjectsPerSlab);
         return FALSE;
     }
 
     if (List->FreeCount < ObjectsToRemove) {
-        WARNING(TEXT("Trailing slabs not fully free (expected=%u free=%u)"),
-                ObjectsToRemove,
-                List->FreeCount);
+        WARNING(TEXT("Trailing slabs not fully free (expected=%u free=%u)"), ObjectsToRemove, List->FreeCount);
         return FALSE;
     }
 
@@ -324,9 +311,7 @@ static BOOL BlockListTrimTrailingSlabs(LPBLOCK_LIST List) {
 
     if (NewSize == 0) {
         if (FreeRegion(List->RegionBase, List->RegionSize) == FALSE) {
-            ERROR(TEXT("FreeRegion failed (base=%p size=%u)"),
-                  List->RegionBase,
-                  List->RegionSize);
+            ERROR(TEXT("FreeRegion failed (base=%p size=%u)"), List->RegionBase, List->RegionSize);
             return FALSE;
         }
 
@@ -339,37 +324,29 @@ static BOOL BlockListTrimTrailingSlabs(LPBLOCK_LIST List) {
     }
 
     if (ResizeKernelRegion(List->RegionBase, List->RegionSize, NewSize, List->AllocationFlags) == FALSE) {
-        ERROR(TEXT("ResizeRegion failed (old=%u new=%u flags=%x)"),
-              List->RegionSize,
-              NewSize,
-              List->AllocationFlags);
+        ERROR(TEXT("ResizeRegion failed (old=%u new=%u flags=%x)"), List->RegionSize, NewSize, List->AllocationFlags);
         return FALSE;
     }
 
     List->RegionSize = NewSize;
     List->SlabCount -= TrailingFree;
 
-    DEBUG(TEXT("Shrunk to %u slabs (size=%u free=%u)"),
-          List->SlabCount,
-          List->RegionSize,
-          List->FreeCount);
+    DEBUG(TEXT("Shrunk to %u slabs (size=%u free=%u)"), List->SlabCount, List->RegionSize, List->FreeCount);
 
     return TRUE;
 }
 
 /************************************************************************/
 
-BOOL BlockListInit(LPBLOCK_LIST List,
-                   UINT ObjectSize,
-                   UINT ObjectsPerSlab,
-                   UINT InitialSlabCount,
-                   U32 Flags) {
+BOOL BlockListInit(
+    LPBLOCK_LIST List, UINT ObjectSize, UINT ObjectsPerSlab, UINT InitialSlabCount, U32 Flags, LPCSTR Tag) {
     if (List == NULL || ObjectSize == 0) {
         ERROR(TEXT("Invalid parameters (list=%p size=%u)"), List, ObjectSize);
         return FALSE;
     }
 
     MemorySet(List, 0, (UINT)sizeof(BLOCK_LIST));
+    StringCopyLimit(List->Tag, Tag, BLOCK_LIST_TAG_MAX);
 
     UINT AlignedStride = ObjectSize;
     if (AlignedStride < (UINT)sizeof(LINEAR)) {
@@ -416,12 +393,9 @@ BOOL BlockListInit(LPBLOCK_LIST List,
     List->FreeListHead = NULL;
     List->SlabUsage = NULL;
 
-    DEBUG(TEXT("stride=%u slabSize=%u objectsPerSlab=%u initialSlabs=%u flags=%x"),
-          List->ObjectStride,
-          List->SlabSize,
-          List->ObjectsPerSlab,
-          InitialSlabCount,
-          List->AllocationFlags);
+    DEBUG(
+        TEXT("stride=%u slabSize=%u objectsPerSlab=%u initialSlabs=%u flags=%x"), List->ObjectStride, List->SlabSize,
+        List->ObjectsPerSlab, InitialSlabCount, List->AllocationFlags);
 
     if (BlockListEnsureSlabMetadata(List, (InitialSlabCount == 0) ? 1 : InitialSlabCount) == FALSE) {
         MemorySet(List, 0, (UINT)sizeof(BLOCK_LIST));
@@ -447,9 +421,7 @@ void BlockListFinalize(LPBLOCK_LIST List) {
 
     if (List->RegionBase != 0 && List->RegionSize != 0) {
         if (FreeRegion(List->RegionBase, List->RegionSize) == FALSE) {
-            WARNING(TEXT("FreeRegion failed (base=%p size=%u)"),
-                    List->RegionBase,
-                    List->RegionSize);
+            WARNING(TEXT("FreeRegion failed (base=%p size=%u)"), List->RegionBase, List->RegionSize);
         }
     }
 
@@ -458,6 +430,40 @@ void BlockListFinalize(LPBLOCK_LIST List) {
     }
 
     MemorySet(List, 0, (UINT)sizeof(BLOCK_LIST));
+}
+
+/************************************************************************/
+
+static void BlockListDumpNearbyRegions(const BLOCK_LIST* List) {
+    if (List == NULL) {
+        return;
+    }
+
+    LINEAR RegionStart = List->RegionBase;
+    LINEAR RegionEnd = RegionStart + (LINEAR)List->RegionSize;
+    LINEAR ProbeStart = RegionStart - (LINEAR)(N_1MB * 4u);
+    LINEAR ProbeEnd = RegionEnd + (LINEAR)(N_1MB * 4u);
+
+    LPMEMORY_REGION_LIST RegionList = GetCurrentMemoryRegionList();
+    if (RegionList == NULL) {
+        return;
+    }
+
+    LPMEMORY_REGION_DESCRIPTOR Current = RegionList->Head;
+    while (Current != NULL) {
+        LINEAR DescStart = Current->CanonicalBase;
+        LINEAR DescEnd = DescStart + (LINEAR)Current->Size;
+
+        if (DescEnd > ProbeStart && DescStart < ProbeEnd) {
+            DEBUG(
+                TEXT("DIAG region=%p size=%u tag=%s"), DescStart, Current->Size,
+                (Current->Tag[0] != STR_NULL) ? Current->Tag : TEXT("-"));
+        }
+
+        Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+    }
+
+    DEBUG(TEXT("DIAG regions total=%u"), RegionList->Count);
 }
 
 /************************************************************************/
@@ -476,7 +482,55 @@ LINEAR BlockListAllocate(LPBLOCK_LIST List) {
 
     LPBLOCK_LIST_NODE Node = (LPBLOCK_LIST_NODE)List->FreeListHead;
     if (Node == NULL) {
+        DEBUG(
+            TEXT("DIAG list base=%p size=%u slabs=%u cap=%u free=%u used=%u high=%u stride=%u slabSize=%u perSlab=%u "
+                 "head=%p"),
+            List->RegionBase, List->RegionSize, List->SlabCount, List->SlabCapacity, List->FreeCount, List->UsedCount,
+            List->HighWaterMark, List->ObjectStride, List->SlabSize, List->ObjectsPerSlab, (LPVOID)List->FreeListHead);
+        BlockListDumpNearbyRegions(List);
         ERROR(TEXT("Free list empty after grow"));
+        return 0;
+    }
+
+    LINEAR Address = (LINEAR)Node;
+    if (Address < List->RegionBase || Address >= List->RegionBase + List->RegionSize ||
+        MapLinearToPhysical(Address) == 0) {
+        UINT DiagnosticSlabs = (List->SlabSize != 0) ? (List->RegionSize / List->SlabSize) + 1u : 1u;
+        if (DiagnosticSlabs > 64u) {
+            DiagnosticSlabs = 64u;
+        }
+        for (UINT D = 0; D < DiagnosticSlabs; D++) {
+            LINEAR SlabBase = List->RegionBase + (LINEAR)(D * List->SlabSize);
+            DEBUG(
+                TEXT("DIAG slab=%u base=%p mapped=%u phys=%p"), D, SlabBase, (UINT)(MapLinearToPhysical(SlabBase) != 0),
+                (LPVOID)MapLinearToPhysical(SlabBase));
+        }
+
+        UINT ProbePageCount = List->RegionSize >> PAGE_SIZE_MUL;
+        if (ProbePageCount > 32u) {
+            ProbePageCount = 32u;
+        }
+        for (UINT D = 0; D < ProbePageCount; D++) {
+            LINEAR Probe = List->RegionBase + (LINEAR)(D * PAGE_SIZE);
+            DEBUG(
+                TEXT("DIAG page=%u base=%p mapped=%u phys=%p"), D, Probe, (UINT)(MapLinearToPhysical(Probe) != 0),
+                (LPVOID)MapLinearToPhysical(Probe));
+        }
+
+        LINEAR ProbeCursor = List->RegionBase - (LINEAR)(64u << PAGE_SIZE_MUL);
+        for (UINT D = 0; D < 128; D++) {
+            LINEAR Probe = ProbeCursor + (LINEAR)(D << PAGE_SIZE_MUL);
+            DEBUG(
+                TEXT("DIAG near=%p mapped=%u phys=%p"), Probe, (UINT)(MapLinearToPhysical(Probe) != 0),
+                (LPVOID)MapLinearToPhysical(Probe));
+        }
+
+        BlockListDumpNearbyRegions(List);
+
+        ERROR(
+            TEXT("Corrupted free-list head %p (base=%p size=%u free=%u used=%u high=%u slabs=%u stride=%u mapped=%u)"),
+            Address, List->RegionBase, List->RegionSize, List->FreeCount, List->UsedCount, List->HighWaterMark,
+            List->SlabCount, List->ObjectStride, (UINT)MapLinearToPhysical(Address));
         return 0;
     }
 
@@ -488,12 +542,6 @@ LINEAR BlockListAllocate(LPBLOCK_LIST List) {
     List->UsedCount++;
     if (List->UsedCount > List->HighWaterMark) {
         List->HighWaterMark = List->UsedCount;
-    }
-
-    LINEAR Address = (LINEAR)Node;
-    if (Address < List->RegionBase || Address >= List->RegionBase + List->RegionSize) {
-        ERROR(TEXT("Corrupted node address %p"), Address);
-        return 0;
     }
 
     UINT Offset = Address - List->RegionBase;
@@ -521,19 +569,15 @@ BOOL BlockListFree(LPBLOCK_LIST List, LINEAR Address) {
     }
 
     if (Address < List->RegionBase || Address >= List->RegionBase + List->RegionSize) {
-        WARNING(TEXT("Address outside range (address=%p base=%p size=%u)"),
-                Address,
-                List->RegionBase,
-                List->RegionSize);
+        WARNING(
+            TEXT("Address outside range (address=%p base=%p size=%u)"), Address, List->RegionBase, List->RegionSize);
         return FALSE;
     }
 
     UINT Offset = Address - List->RegionBase;
 
     if ((Offset % List->ObjectStride) != 0u) {
-        WARNING(TEXT("Address not aligned to stride (address=%p stride=%u)"),
-                Address,
-                List->ObjectStride);
+        WARNING(TEXT("Address not aligned to stride (address=%p stride=%u)"), Address, List->ObjectStride);
         return FALSE;
     }
 
@@ -554,9 +598,7 @@ BOOL BlockListFree(LPBLOCK_LIST List, LINEAR Address) {
     }
 
     LPBLOCK_LIST_NODE Node = (LPBLOCK_LIST_NODE)Address;
-    SAFE_USE(Node) {
-        Node->Next = (LPBLOCK_LIST_NODE)List->FreeListHead;
-    }
+    SAFE_USE(Node) { Node->Next = (LPBLOCK_LIST_NODE)List->FreeListHead; }
 
     List->FreeListHead = Node;
     List->FreeCount++;
@@ -597,9 +639,7 @@ BOOL BlockListReserve(LPBLOCK_LIST List, UINT DesiredFree) {
 
     UINT Rounded = Missing + List->ObjectsPerSlab - 1;
     if (Rounded < Missing) {
-        ERROR(TEXT("Rounded overflow (missing=%u slab=%u)"),
-              Missing,
-              List->ObjectsPerSlab);
+        ERROR(TEXT("Rounded overflow (missing=%u slab=%u)"), Missing, List->ObjectsPerSlab);
         return FALSE;
     }
 

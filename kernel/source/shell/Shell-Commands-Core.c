@@ -26,6 +26,7 @@
 #include "shell/Shell-Commands-Private.h"
 #include "utils/KernelPath.h"
 #include "utils/SizeFormat.h"
+#include "utils/StringBuilder.h"
 
 #define DIR_RECURSIVE_STRESS_ENTRY_COUNT 1200
 
@@ -36,6 +37,15 @@ static BOOL ShellCommandLineCompletion(
 static BOOL ShellFileExists(LPCSTR FileName);
 static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
 static BOOL ShellResolveBinarySearchPath(LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
+static void ListFile(LPFILE File, U32 Indent);
+
+/************************************************************************/
+
+typedef struct tag_LIST_DIRECTORY_WORK_ITEM {
+    struct tag_LIST_DIRECTORY_WORK_ITEM* Next;
+    U32 Indent;
+    STR Path[MAX_PATH_NAME];
+} LIST_DIRECTORY_WORK_ITEM, *LPLIST_DIRECTORY_WORK_ITEM;
 
 /************************************************************************/
 
@@ -102,6 +112,175 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
             break;
         }
     }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Chooses the allocator used by shell directory listing helpers.
+ * @param Context Shell command context.
+ * @param Allocator Receives the allocator to use.
+ */
+static void ShellGetListingAllocator(LPSHELLCONTEXT Context, ALLOCATOR* Allocator) {
+    if (Context != NULL && Context->Allocator.Alloc != NULL) {
+        *Allocator = Context->Allocator;
+        return;
+    }
+
+    AllocatorInitKernel(Allocator);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Pushes one folder path onto the iterative listing work stack.
+ * @param Allocator Allocator used for temporary work items.
+ * @param Stack Head of the work stack.
+ * @param Path Folder path to process.
+ * @param Indent Display indentation for this folder level.
+ * @return TRUE on success.
+ */
+static BOOL PushListDirectoryWorkItem(
+    LPCALLOCATOR Allocator, LPLIST_DIRECTORY_WORK_ITEM* Stack, LPCSTR Path, U32 Indent) {
+    LPLIST_DIRECTORY_WORK_ITEM Item;
+
+    if (Allocator == NULL || Stack == NULL || STRING_EMPTY(Path)) {
+        return FALSE;
+    }
+
+    Item = (LPLIST_DIRECTORY_WORK_ITEM)AllocatorAlloc(Allocator, sizeof(LIST_DIRECTORY_WORK_ITEM));
+    if (Item == NULL) {
+        return FALSE;
+    }
+
+    Item->Next = *Stack;
+    Item->Indent = Indent;
+    StringCopyLimit(Item->Path, Path, MAX_PATH_NAME);
+    *Stack = Item;
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Pops one folder path from the iterative listing work stack.
+ * @param Stack Head of the work stack.
+ * @return Popped work item, or NULL when the stack is empty.
+ */
+static LPLIST_DIRECTORY_WORK_ITEM PopListDirectoryWorkItem(LPLIST_DIRECTORY_WORK_ITEM* Stack) {
+    LPLIST_DIRECTORY_WORK_ITEM Item;
+
+    if (Stack == NULL || *Stack == NULL) {
+        return NULL;
+    }
+
+    Item = *Stack;
+    *Stack = Item->Next;
+    Item->Next = NULL;
+    return Item;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Releases all pending directory listing work items.
+ * @param Allocator Allocator used for work item allocations.
+ * @param Stack Head of the work stack.
+ */
+static void FreeListDirectoryWorkItems(LPCALLOCATOR Allocator, LPLIST_DIRECTORY_WORK_ITEM Stack) {
+    while (Stack != NULL) {
+        LPLIST_DIRECTORY_WORK_ITEM Next = Stack->Next;
+        AllocatorFree(Allocator, Stack);
+        Stack = Next;
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Builds the search pattern used to enumerate one folder.
+ * @param Base Base folder path.
+ * @param Pattern Destination pattern buffer.
+ * @return TRUE on success.
+ */
+static BOOL BuildListDirectoryPattern(LPCSTR Base, STR Pattern[MAX_PATH_NAME]) {
+    STRINGBUILDER PatternBuilder;
+
+    if (StringBuilderInit(&PatternBuilder, Pattern, MAX_PATH_NAME) == FALSE ||
+        StringBuilderSet(&PatternBuilder, Base) == FALSE ||
+        StringBuilderAppendPathSegment(&PatternBuilder, TEXT("*"), PATH_SEP) == FALSE) {
+        WARNING(TEXT("List path too long path=%s required=%u limit=%u"),
+            Base,
+            StringBuilderGetRequiredLength(&PatternBuilder),
+            MAX_PATH_NAME - 1);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Opens one folder or file path for shell listing.
+ * @param FileSystem System file system used for the open.
+ * @param Base Target path to open.
+ * @param Find Open parameters and resulting file name.
+ * @param Indent Display indentation for direct file fallback.
+ * @return Open file handle, or NULL on failure.
+ */
+static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_INFO* Find, U32 Indent) {
+    LPFILE File;
+    FILESYSTEM_PATHCHECK PathCheck;
+    STR DiskName[MAX_FILE_NAME];
+    STR Pattern[MAX_PATH_NAME];
+    LPCSTR Reason = TEXT("unknown");
+
+    if (FileSystem == NULL || Find == NULL || STRING_EMPTY(Base)) {
+        return NULL;
+    }
+
+    if (BuildListDirectoryPattern(Base, Pattern) == FALSE) {
+        return NULL;
+    }
+
+    StringCopy(Find->Name, Pattern);
+    File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)Find);
+    if (File != NULL) {
+        return File;
+    }
+
+    StringCopy(Find->Name, Base);
+    File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)Find);
+    if (File != NULL) {
+        ListFile(File, Indent);
+        FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
+        return NULL;
+    }
+
+    StringCopy(DiskName, Base);
+    if (Base[0] == PATH_SEP && Base[1] == 'f' && Base[2] == 's' && Base[3] == PATH_SEP) {
+        UINT ReadIndex = 4;
+        UINT WriteIndex = 0;
+        while (Base[ReadIndex] != STR_NULL && Base[ReadIndex] != PATH_SEP && WriteIndex < MAX_FILE_NAME - 1) {
+            DiskName[WriteIndex++] = Base[ReadIndex++];
+        }
+        DiskName[WriteIndex] = STR_NULL;
+    }
+
+    PathCheck.CurrentFolder[0] = STR_NULL;
+    StringCopy(PathCheck.SubFolder, Base);
+    if (FileSystem->Driver->Command(DF_FS_PATHEXISTS, (UINT)&PathCheck)) {
+        Reason = TEXT("file system driver refused open/list");
+    } else {
+        Reason = TEXT("path not found");
+    }
+
+    ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
+    WARNING(
+        TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"), DiskName, Reason, Base,
+        FileSystem->Name, FileSystem->Driver->Product);
+    return NULL;
 }
 
 /************************************************************************/
@@ -429,20 +608,22 @@ static BOOL ShellFileExists(LPCSTR FileName) {
  * @return TRUE on success.
  */
 static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]) {
+    STRINGBUILDER Builder;
+
     if (STRING_EMPTY(FolderPath) || STRING_EMPTY(LeafName) || OutPath == NULL) {
         return FALSE;
     }
 
-    if (StringLength(FolderPath) + StringLength(LeafName) + 1 >= MAX_PATH_NAME) {
+    if (StringBuilderInit(&Builder, OutPath, MAX_PATH_NAME) == FALSE) {
+        return FALSE;
+    }
+
+    if (StringBuilderSet(&Builder, FolderPath) == FALSE ||
+        StringBuilderAppendPathSegment(&Builder, LeafName, PATH_SEP) == FALSE) {
         WARNING(TEXT("Binary search path too long folder=%s leaf=%s"), FolderPath, LeafName);
         return FALSE;
     }
 
-    StringCopy(OutPath, FolderPath);
-    if (OutPath[StringLength(OutPath) - 1] != PATH_SEP) {
-        StringConcat(OutPath, TEXT("/"));
-    }
-    StringConcat(OutPath, LeafName);
     return TRUE;
 }
 
@@ -567,8 +748,10 @@ static void ChangeFolder(LPSHELLCONTEXT Context) {
 
     if (GetSystemFS()->Driver->Command(DF_FS_PATHEXISTS, (UINT)&Control)) {
         StringCopy(Context->CurrentFolder, NewPath);
+        TEST(TEXT("changeFolder %s : OK"), NewPath);
     } else {
         ConsolePrint(TEXT("Unknown folder : %s\n"), NewPath);
+        TEST(TEXT("changeFolder %s : KO"), NewPath);
     }
 }
 
@@ -679,15 +862,11 @@ static void ListFile(LPFILE File, U32 Indent) {
 void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, BOOL Recurse, U32* NumListed) {
     FILE_INFO Find;
     LPFILESYSTEM FileSystem;
-    LPFILE File;
     LPPROCESS CurrentProcess = GetCurrentProcess();
-    FILESYSTEM_PATHCHECK PathCheck;
-    STR DiskName[MAX_FILE_NAME];
-    LPCSTR Reason = TEXT("unknown");
-    STR Pattern[MAX_PATH_NAME];
-    STR Sep[2] = {PATH_SEP, STR_NULL};
+    ALLOCATOR Allocator;
+    LPLIST_DIRECTORY_WORK_ITEM Stack = NULL;
+    LPLIST_DIRECTORY_WORK_ITEM WorkItem;
 
-    UNUSED(Context);
     if (ProcessControlIsInterruptRequested(CurrentProcess)) {
         return;
     }
@@ -699,115 +878,104 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
     Find.Attributes = MAX_U32;
     Find.Flags = FILE_OPEN_READ | FILE_OPEN_EXISTING;
 
-    StringCopy(Pattern, Base);
-    if (Pattern[StringLength(Pattern) - 1] != PATH_SEP) StringConcat(Pattern, Sep);
-    StringConcat(Pattern, TEXT("*"));
-    StringCopy(Find.Name, Pattern);
+    ShellGetListingAllocator(Context, &Allocator);
 
-    File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)&Find);
-    if (File == NULL) {
-        StringCopy(Find.Name, Base);
-        File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)&Find);
-        if (File == NULL) {
-            StringCopy(DiskName, Base);
-            if (Base[0] == PATH_SEP && Base[1] == 'f' && Base[2] == 's' && Base[3] == PATH_SEP) {
-                UINT ReadIndex = 4;
-                UINT WriteIndex = 0;
-                while (Base[ReadIndex] != STR_NULL && Base[ReadIndex] != PATH_SEP && WriteIndex < MAX_FILE_NAME - 1) {
-                    DiskName[WriteIndex++] = Base[ReadIndex++];
-                }
-                DiskName[WriteIndex] = STR_NULL;
-            }
-
-            PathCheck.CurrentFolder[0] = STR_NULL;
-            StringCopy(PathCheck.SubFolder, Base);
-            if (FileSystem->Driver->Command(DF_FS_PATHEXISTS, (UINT)&PathCheck)) {
-                Reason = TEXT("file system driver refused open/list");
-            } else {
-                Reason = TEXT("path not found");
-            }
-            ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
-            WARNING(
-                TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"), DiskName, Reason, Base,
-                FileSystem->Name, FileSystem->Driver->Product);
-            return;
-        }
-        ListFile(File, Indent);
-        FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
+    if (PushListDirectoryWorkItem(&Allocator, &Stack, Base, Indent) == FALSE) {
+        WARNING(TEXT("Unable to queue initial folder listing path=%s"), Base);
         return;
     }
 
-    do {
+    while ((WorkItem = PopListDirectoryWorkItem(&Stack)) != NULL) {
+        LPFILE File = NULL;
+
         if (ProcessControlIsInterruptRequested(CurrentProcess)) {
+            AllocatorFree(&Allocator, WorkItem);
             break;
         }
 
-        ListFile(File, Indent);
-        if (Recurse && (File->Attributes & FS_ATTR_FOLDER)) {
-            if (StringCompare(File->Name, TEXT(".")) != 0 && StringCompare(File->Name, TEXT("..")) != 0) {
-                STR NewBase[MAX_PATH_NAME];
-                StringCopy(NewBase, Base);
-                if (NewBase[StringLength(NewBase) - 1] != PATH_SEP) StringConcat(NewBase, Sep);
-                StringConcat(NewBase, File->Name);
-                ListDirectory(Context, NewBase, Indent + 2, Pause, Recurse, NumListed);
-                if (ProcessControlIsInterruptRequested(CurrentProcess)) {
-                    break;
+        File = OpenListDirectoryFile(FileSystem, WorkItem->Path, &Find, WorkItem->Indent);
+        if (File == NULL) {
+            AllocatorFree(&Allocator, WorkItem);
+            continue;
+        }
+
+        do {
+            if (ProcessControlIsInterruptRequested(CurrentProcess)) {
+                break;
+            }
+
+            ListFile(File, WorkItem->Indent);
+            if (Recurse && (File->Attributes & FS_ATTR_FOLDER)) {
+                if (StringCompare(File->Name, TEXT(".")) != 0 && StringCompare(File->Name, TEXT("..")) != 0) {
+                    STR NewBase[MAX_PATH_NAME];
+                    STRINGBUILDER NewBaseBuilder;
+
+                    if (StringBuilderInit(&NewBaseBuilder, NewBase, MAX_PATH_NAME) == FALSE ||
+                        StringBuilderSet(&NewBaseBuilder, WorkItem->Path) == FALSE ||
+                        StringBuilderAppendPathSegment(&NewBaseBuilder, File->Name, PATH_SEP) == FALSE) {
+                        WARNING(TEXT("Recursive list path too long base=%s name=%s required=%u limit=%u"),
+                            WorkItem->Path,
+                            File->Name,
+                            StringBuilderGetRequiredLength(&NewBaseBuilder),
+                            MAX_PATH_NAME - 1);
+                    } else if (PushListDirectoryWorkItem(
+                                   &Allocator, &Stack, NewBase, WorkItem->Indent + 2) == FALSE) {
+                        WARNING(TEXT("Unable to queue recursive folder path=%s"), NewBase);
+                    }
                 }
             }
-        }
-        if (Pause) {
-            (*NumListed)++;
-            if (*NumListed >= Console.Height - 2) {
-                *NumListed = 0;
-                WaitKey();
+            if (Pause) {
+                (*NumListed)++;
+                if (*NumListed >= Console.Height - 2) {
+                    *NumListed = 0;
+                    WaitKey();
+                }
             }
-        }
-    } while (FileSystem->Driver->Command(DF_FS_OPENNEXT, (UINT)File) == DF_RETURN_SUCCESS);
+        } while (FileSystem->Driver->Command(DF_FS_OPENNEXT, (UINT)File) == DF_RETURN_SUCCESS);
 
-    FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
+        FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
+        AllocatorFree(&Allocator, WorkItem);
+    }
+
+    FreeListDirectoryWorkItems(&Allocator, Stack);
 }
 
 /***************************************************************************/
 
 U32 CMD_commands(LPSHELLCONTEXT Context) {
     UNUSED(Context);
-
     U32 Index;
-
     for (Index = 0; COMMANDS[Index].Command != NULL; Index++) {
         ConsolePrint(
             TEXT("%s (%s) %s - %s\n"), COMMANDS[Index].Name, COMMANDS[Index].AltName, COMMANDS[Index].Usage,
             COMMANDS[Index].Description);
     }
-
+    TEST(TEXT("commands : OK"));
     return DF_RETURN_SUCCESS;
 }
 
 /***************************************************************************/
 
-U32 CMD_cls(LPSHELLCONTEXT Context) {
+U32 CMD_clearScreen(LPSHELLCONTEXT Context) {
     UNUSED(Context);
-
     ClearConsole();
-
+    TEST(TEXT("clear : OK"));
     return DF_RETURN_SUCCESS;
 }
 
 /***************************************************************************/
 
-U32 CMD_conmode(LPSHELLCONTEXT Context) {
+U32 CMD_consoleMode(LPSHELLCONTEXT Context) {
     GRAPHICS_MODE_INFO Info;
     U32 Columns;
     U32 Rows;
     U32 Result;
     U32 ModeCount;
-
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
-        ConsolePrint(TEXT("Usage: con_mode Columns Rows | con_mode list\n"));
+        ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
-
     if (StringCompareNC(Context->Command, TEXT("list")) == 0) {
         CONSOLE_MODE_INFO ModeInfo;
         ModeCount = DoSystemCall(SYSCALL_ConsoleGetModeCount, SYSCALL_PARAM(0));
@@ -823,18 +991,17 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
             ConsolePrint(
                 TEXT("  %u: %ux%u (char height %u)\n"), Index, ModeInfo.Columns, ModeInfo.Rows, ModeInfo.CharHeight);
         }
+        TEST(TEXT("consoleMode list : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     Columns = StringToU32(Context->Command);
-
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command) == 0) {
-        ConsolePrint(TEXT("Usage: con_mode Columns Rows | con_mode list\n"));
+        ConsolePrint(TEXT("Usage: consoleMode Columns Rows | consoleMode list\n"));
         return DF_RETURN_SUCCESS;
     }
     Rows = StringToU32(Context->Command);
-
     if (Columns == 0 || Rows == 0) {
         ConsolePrint(TEXT("Invalid console size\n"));
         return DF_RETURN_SUCCESS;
@@ -847,13 +1014,13 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
     Info.Width = Columns;
     Info.Height = Rows;
     Info.BitsPerPixel = 0;
-
     Result = DoSystemCall(SYSCALL_ConsoleSetMode, SYSCALL_PARAM(&Info));
-
     if (Result != DF_RETURN_SUCCESS) {
         ConsolePrint(TEXT("Console mode %ux%u unavailable (err=%u)\n"), Columns, Rows, Result);
+        TEST(TEXT("consoleMode %u %u : KO"), Columns, Rows);
     } else {
         ConsolePrint(TEXT("Console mode set to %ux%u\n"), Columns, Rows);
+        TEST(TEXT("consoleMode %u %u : OK"), Columns, Rows);
     }
 
     return DF_RETURN_SUCCESS;
@@ -868,19 +1035,18 @@ U32 CMD_conmode(LPSHELLCONTEXT Context) {
  */
 U32 CMD_keyboard(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
-
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Keyboard layout: %s\n"), GetKeyboardCode());
+        TEST(TEXT("keyboard query : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (HasOption(Context, TEXT("l"), TEXT("layout"))) {
         SelectKeyboard(Context->Command);
         ConsolePrint(TEXT("Keyboard layout set to %s\n"), GetKeyboardCode());
-        TEST(TEXT("keyboard : OK"));
+        TEST(TEXT("keyboard layout %s : OK"), GetKeyboardCode());
         return DF_RETURN_SUCCESS;
     }
-
     ConsolePrint(TEXT("Usage: keyboard --layout Code\n"));
     return DF_RETURN_SUCCESS;
 }
@@ -889,21 +1055,23 @@ U32 CMD_keyboard(LPSHELLCONTEXT Context) {
 
 U32 CMD_pause(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
-
     if (StringLength(Context->Command) == 0) {
         ConsolePrint(TEXT("Pause is %s\n"), ConsoleGetPagingEnabled() ? TEXT("on") : TEXT("off"));
+        TEST(TEXT("pause query : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (StringCompareNC(Context->Command, TEXT("on")) == 0) {
         ConsoleSetPagingEnabled(TRUE);
         ConsolePrint(TEXT("Pause on\n"));
+        TEST(TEXT("pause on : OK"));
         return DF_RETURN_SUCCESS;
     }
 
     if (StringCompareNC(Context->Command, TEXT("off")) == 0) {
         ConsoleSetPagingEnabled(FALSE);
         ConsolePrint(TEXT("Pause off\n"));
+        TEST(TEXT("pause off : OK"));
         return DF_RETURN_SUCCESS;
     }
 
@@ -913,7 +1081,7 @@ U32 CMD_pause(LPSHELLCONTEXT Context) {
 
 /************************************************************************/
 
-U32 CMD_dir(LPSHELLCONTEXT Context) {
+U32 CMD_listFolder(LPSHELLCONTEXT Context) {
     STR Target[MAX_PATH_NAME];
     STR Base[MAX_PATH_NAME];
     LPFILESYSTEM FileSystem = NULL;
@@ -922,25 +1090,17 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
     BOOL Recurse;
     BOOL Stress;
     U32 NumListed = 0;
-
     Target[0] = STR_NULL;
-
-    // Parse all command line components (including options) first
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command)) {
         QualifyFileName(Context, Context->Command, Target);
     }
-
-    // Continue parsing any remaining components to capture all options
     while (Context->Input.CommandLine[Context->CommandChar] != STR_NULL) {
         ParseNextCommandLineComponent(Context);
     }
-
-    // Now check for options after all parsing is complete
     Pause = HasOption(Context, TEXT("p"), TEXT("pause"));
     Recurse = HasOption(Context, TEXT("r"), TEXT("recursive"));
     Stress = HasOption(Context, TEXT("s"), TEXT("stress"));
-
     if (Stress) {
         if (StringLength(Target) == 0) {
             StringCopy(Base, Context->CurrentFolder);
@@ -952,52 +1112,57 @@ U32 CMD_dir(LPSHELLCONTEXT Context) {
         if (ProcessControlCheckpoint(CurrentProcess)) {
             ConsolePrint(TEXT("Command interrupted\n"));
         }
+        TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+            Base,
+            Pause ? 1 : 0,
+            Recurse ? 1 : 0,
+            Stress ? 1 : 0);
         return DF_RETURN_SUCCESS;
     }
-
     FileSystem = GetSystemFS();
-
     if (FileSystem == NULL || FileSystem->Driver == NULL) {
         ConsolePrint(TEXT("No file system mounted !\n"));
-        TEST(TEXT("dir : KO (No file system mounted)"));
+        TEST(TEXT("listFolder : KO (No file system mounted)"));
         return DF_RETURN_SUCCESS;
     }
-
     if (StringLength(Target) == 0) {
         StringCopy(Base, Context->CurrentFolder);
     } else {
         StringCopy(Base, Target);
     }
-
     ProcessControlConsumeInterrupt(CurrentProcess);
     ListDirectory(Context, Base, 0, Pause, Recurse, &NumListed);
     if (ProcessControlCheckpoint(CurrentProcess)) {
         ConsolePrint(TEXT("Command interrupted\n"));
     }
 
-    TEST(TEXT("dir : OK"));
+    TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+        Base,
+        Pause ? 1 : 0,
+        Recurse ? 1 : 0,
+        Stress ? 1 : 0);
 
     return DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
 
-U32 CMD_cd(LPSHELLCONTEXT Context) {
+U32 CMD_changeFolder(LPSHELLCONTEXT Context) {
     ChangeFolder(Context);
     return DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
 
-U32 CMD_md(LPSHELLCONTEXT Context) {
+U32 CMD_makeFolder(LPSHELLCONTEXT Context) {
     STR FolderName[MAX_PATH_NAME];
 
     FolderName[0] = STR_NULL;
 
     if (MakeFolder(Context, FolderName)) {
-        TEST(TEXT("md %s : OK"), FolderName);
+        TEST(TEXT("makeFolder %s : OK"), FolderName);
     } else {
-        TEST(TEXT("md %s : KO"), FolderName);
+        TEST(TEXT("makeFolder %s : KO"), FolderName);
     }
 
     return DF_RETURN_SUCCESS;

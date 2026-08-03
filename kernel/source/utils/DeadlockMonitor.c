@@ -144,9 +144,15 @@ static void DeadlockMonitorClearWaitState(LPTASK Task, LPMUTEX Mutex) {
  * @param Mutex New mutex being acquired.
  */
 static void DeadlockMonitorLogOrderViolation(LPTASK Task, U32 HeldClass, LPMUTEX Mutex) {
+    U32 HeldIndex;
     U32 Now;
     U32 Suppressed = 0;
+    LPCSTR HeldClassName;
+    LPMUTEX HeldMutex;
+    LPCSTR HeldMutexClassName;
+    LPCSTR HeldMutexName;
     LPCSTR MutexName;
+    LPCSTR NewMutexClassName;
 
     Task = DeadlockMonitorGetValidTask(Task);
     Mutex = DeadlockMonitorGetValidMutex(Mutex);
@@ -154,23 +160,43 @@ static void DeadlockMonitorLogOrderViolation(LPTASK Task, U32 HeldClass, LPMUTEX
         return;
     }
 
+    HeldIndex = Task->HeldMutexClassDepth - 1;
+    HeldMutex = DeadlockMonitorGetValidMutex(Task->HeldMutexes[HeldIndex]);
+    HeldClassName = GetMutexClassName(HeldClass);
+    HeldMutexClassName = HeldMutex != NULL ? GetMutexClassName(HeldMutex->DebugClass) : HeldClassName;
+    HeldMutexName = (HeldMutex != NULL && HeldMutex->DebugName != NULL) ? HeldMutex->DebugName : TEXT("UnnamedMutex");
+
     Now = GetSystemTime();
     if (DeadlockMonitorEnsureOrderLogLimiter() != FALSE) {
         if (RateLimiterShouldTrigger(&DeadlockMonitorOrderLogLimiter, Now, &Suppressed) == FALSE) {
+#if DEBUG_OUTPUT == 1
+            ConsolePanic(TEXT("Mutex lock order inversion"));
+#endif
             return;
         }
     }
 
     MutexName = Mutex->DebugName != NULL ? Mutex->DebugName : TEXT("UnnamedMutex");
+    NewMutexClassName = GetMutexClassName(Mutex->DebugClass);
 
-    WARNING(TEXT("Lock order inversion task=%p (%s) held_class=%u new_class=%u mutex=%p name=%s suppressed=%u"),
+    ERROR(TEXT("Lock order inversion task=%p (%s) held_mutex=%p name=%s class=%u (%s) owner_caller=%p new_mutex=%p name=%s class=%u (%s) existing_owner_caller=%p suppressed=%u"),
             Task,
             Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
+            HeldMutex,
+            HeldMutexName,
             HeldClass,
-            Mutex->DebugClass,
+            HeldMutexClassName,
+            HeldMutex != NULL ? HeldMutex->DebugOwnerCaller : 0,
             Mutex,
             MutexName,
+            Mutex->DebugClass,
+            NewMutexClassName,
+            Mutex->DebugOwnerCaller,
             Suppressed);
+
+#if DEBUG_OUTPUT == 1
+    ConsolePanic(TEXT("Mutex lock order inversion"));
+#endif
 }
 
 /************************************************************************/
@@ -231,6 +257,7 @@ static void DeadlockMonitorPushHeldClass(LPTASK Task, LPMUTEX Mutex) {
     }
 
     Task->HeldMutexClasses[Task->HeldMutexClassDepth] = Mutex->DebugClass;
+    Task->HeldMutexes[Task->HeldMutexClassDepth] = Mutex;
     Task->HeldMutexClassDepth++;
 }
 
@@ -244,6 +271,7 @@ static void DeadlockMonitorPushHeldClass(LPTASK Task, LPMUTEX Mutex) {
  */
 static void DeadlockMonitorPopHeldClass(LPTASK Task, LPMUTEX Mutex) {
     U32 ExpectedClass;
+    LPMUTEX ExpectedMutex;
 
     Task = DeadlockMonitorGetValidTask(Task);
     Mutex = DeadlockMonitorGetValidMutex(Mutex);
@@ -265,6 +293,7 @@ static void DeadlockMonitorPopHeldClass(LPTASK Task, LPMUTEX Mutex) {
     }
 
     ExpectedClass = Task->HeldMutexClasses[Task->HeldMutexClassDepth - 1];
+    ExpectedMutex = DeadlockMonitorGetValidMutex(Task->HeldMutexes[Task->HeldMutexClassDepth - 1]);
     if (ExpectedClass != Mutex->DebugClass) {
         WARNING(TEXT("Held class mismatch task=%p (%s) mutex=%p expected=%u actual=%u"),
                 Task,
@@ -275,8 +304,19 @@ static void DeadlockMonitorPopHeldClass(LPTASK Task, LPMUTEX Mutex) {
         return;
     }
 
+    if (ExpectedMutex != Mutex) {
+        WARNING(TEXT("Held mutex mismatch task=%p (%s) mutex=%p expected=%p class=%u"),
+                Task,
+                Task->Name[0] != STR_NULL ? Task->Name : TEXT("Unnamed"),
+                Mutex,
+                ExpectedMutex,
+                ExpectedClass);
+        return;
+    }
+
     Task->HeldMutexClassDepth--;
     Task->HeldMutexClasses[Task->HeldMutexClassDepth] = 0;
+    Task->HeldMutexes[Task->HeldMutexClassDepth] = NULL;
 }
 
 /************************************************************************/

@@ -173,14 +173,15 @@ static LINEAR ProcessArenaAllocateLow(
 
 /************************************************************************/
 
-static BOOL ProcessArenaResizeMainHeap(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags) {
+static BOOL ProcessArenaResizeMainHeap(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize) {
     LPPROCESS Process = (LPPROCESS)Context;
     LINEAR HeapLimit;
     LINEAR HeapStart;
     UINT MaximumSize;
 
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
-        if (Process->AddressSpace.Initialized == FALSE || Process->HeapBase != HeapBase) {
+        if (ControlBlock == NULL || Process->AddressSpace.Initialized == FALSE ||
+            Process->HeapBase != ControlBlock->HeapBase) {
             return FALSE;
         }
 
@@ -199,7 +200,12 @@ static BOOL ProcessArenaResizeMainHeap(LPVOID Context, LINEAR HeapBase, UINT Old
             return FALSE;
         }
 
-        return ResizeRegion(HeapBase, 0, OldSize, NewSize, Flags);
+        return ResizeRegion(
+            ControlBlock->HeapBase,
+            0,
+            ControlBlock->HeapSize,
+            NewSize,
+            ControlBlock->RegionFlags);
     }
 
     return FALSE;

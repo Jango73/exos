@@ -22,17 +22,18 @@
 
 \************************************************************************/
 
-#include "console/Console.h"
-#include "memory/Heap.h"
 #include "arch/Disassemble.h"
-#include "arch/x86-32/x86-32.h"
 #include "arch/x86-32/x86-32-Log.h"
+#include "arch/x86-32/x86-32.h"
+#include "console/Console.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
 #include "memory/Memory.h"
 #include "process/Process.h"
-#include "text/CoreString.h"
+#include "process/Stack.h"
 #include "system/System.h"
+#include "text/CoreString.h"
 #include "text/Text.h"
 
 #define PAGE_FAULT_ERROR_USER_MODE 0x4
@@ -187,8 +188,9 @@ void DebugExceptionHandler(LPINTERRUPT_FRAME Frame) {
         if (pd[pde_idx] & 1) {
             U32* pt = (U32*)(0xFFC00000 + pde_idx * 0x1000);  // PT_BASE_VA
             U32 pte = pt[pte_idx];
-            ERROR(TEXT("PDE[%d]=%08x PTE[%d]=%08x (Present=%d User=%d RW=%d)"), pde_idx, pd[pde_idx], pte_idx,
-                pte, pte & 1, (pte >> 2) & 1, (pte >> 1) & 1);
+            ERROR(
+                TEXT("PDE[%d]=%08x PTE[%d]=%08x (Present=%d User=%d RW=%d)"), pde_idx, pd[pde_idx], pte_idx, pte,
+                pte & 1, (pte >> 2) & 1, (pte >> 1) & 1);
         } else {
             ERROR(TEXT("PDE[%d]=%08x NOT PRESENT!"), pde_idx, pd[pde_idx]);
         }
@@ -372,14 +374,14 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
     LINEAR FaultAddress;
     __asm__ volatile("mov %%cr2, %0" : "=r"(FaultAddress));
 
-    DEBUG(TEXT("CR2=%X Err=%X EIP=%X ESP=%X"),
-          FaultAddress,
-          Frame->ErrCode,
-          Frame->Registers.EIP,
-          Frame->Registers.ESP);
+    DEBUG(
+        TEXT("CR2=%X Err=%X EIP=%X ESP=%X"), FaultAddress, Frame->ErrCode, Frame->Registers.EIP, Frame->Registers.ESP);
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) && GrowFaultingSystemStack(FaultAddress, Frame)) {
+        DEBUG(TEXT("Grown system stack for kernel fault %X"), FaultAddress);
+        return;
+    }
 
-    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) &&
-        ResolveKernelPageFault(FaultAddress)) {
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) && ResolveKernelPageFault(FaultAddress)) {
         DEBUG(TEXT("Resolved kernel page fault %X"), FaultAddress);
         return;
     }

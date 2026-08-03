@@ -30,6 +30,7 @@ DEFAULT_TIMEOUT_SECONDS=15
 BOOT_READY_TIMEOUT_SECONDS=45
 COMMAND_FORMATION_TIMEOUT_SECONDS=45
 MONITOR_FALLBACK_TIMEOUT_SECONDS=3
+MONITOR_COMMAND_HOLD_OPEN_SECONDS=0.1
 KEY_DELAY_SECONDS=0.16
 COMMAND_DELAY_SECONDS=0.25
 BOOT_INPUT_DELAY_SECONDS=1.0
@@ -38,11 +39,9 @@ IMAGE_READY_POLL_SECONDS=0.5
 IMAGE_READY_STABLE_POLLS=3
 TEST_KEYBOARD_LAYOUT="en-US"
 GENERAL_DO_LOGIN_DISABLED_LINE="DoLogin=0"
-GENERAL_SHOW_DESKTOP_DISABLED_LINE="ShowDesktop=0"
 KEYBOARD_LAYOUT_KEY="Layout"
 KEYBOARD_LAYOUT_PATTERN='^Layout="'
 GENERAL_DO_LOGIN_DISABLED_PATTERN='^DoLogin=0$'
-GENERAL_SHOW_DESKTOP_DISABLED_PATTERN='^ShowDesktop=0$'
 PATCH_KEYBOARD_LAYOUT=1
 LOCAL_HTTP_SERVER_PID=""
 BOOT_READY_PATTERN="[InitializeKernel] Shell task created"
@@ -58,7 +57,6 @@ RG_BIN="$(command -v rg || true)"
 GREP_BIN="$(command -v grep || true)"
 RUN_X86_32=1
 RUN_X86_32_RTL8139=1
-RUN_X86_64=1
 RUN_X86_64_UEFI=1
 SKIP_BUILD=0
 STOP_AFTER_SHELL_READY=0
@@ -70,6 +68,7 @@ CURRENT_ARCHIVE_NAME=""
 CURRENT_KERNEL_LOG_PATH=""
 CURRENT_COM1_LOG_PATH=""
 CURRENT_LOGS_ARCHIVED=0
+CURRENT_SHORT_COMMIT_ID=""
 SCRIPT_DISPLAY_NAME="${SMOKE_TEST_SCRIPT_NAME:-$0}"
 SMOKE_TEST_SUMMARY_ENABLED=0
 SMOKE_TEST_FAILED_TARGET=""
@@ -77,7 +76,7 @@ ACTIVE_MONITOR_MODE=""
 ACTIVE_QEMU_SESSION_PID=""
 
 function Usage() {
-    echo "Usage: $SCRIPT_DISPLAY_NAME [--only <x86-32|x86-32-rtl8139|x86-64|x86-64-uefi>] [--commands-file <path>] [--no-build] [--stop-after-shell] [--keep-qemu-on-fail] [--no-keyboard-layout-patch] [--hash-compare] [--key-delay <seconds>] [--command-delay <seconds>] [--boot-input-delay <seconds>] [--help]"
+    echo "Usage: $SCRIPT_DISPLAY_NAME [--only <x86-32|x86-32-rtl8139|x86-64-uefi>] [--commands-file <path>] [--no-build] [--stop-after-shell] [--keep-qemu-on-fail] [--no-keyboard-layout-patch] [--hash-compare] [--key-delay <seconds>] [--command-delay <seconds>] [--boot-input-delay <seconds>] [--help]"
 }
 
 function ParseArguments() {
@@ -92,12 +91,10 @@ function ParseArguments() {
                 fi
                 RUN_X86_32=0
                 RUN_X86_32_RTL8139=0
-                RUN_X86_64=0
                 RUN_X86_64_UEFI=0
                 case "$1" in
                     x86-32) RUN_X86_32=1 ;;
                     x86-32-rtl8139) RUN_X86_32_RTL8139=1 ;;
-                    x86-64) RUN_X86_64=1 ;;
                     x86-64-uefi) RUN_X86_64_UEFI=1 ;;
                     *)
                         echo "Invalid --only target: $1"
@@ -221,6 +218,21 @@ function NormalizeSpaces() {
     echo "$Value"
 }
 
+function GetCurrentShortCommitId() {
+    if [ -n "$CURRENT_SHORT_COMMIT_ID" ]; then
+        echo "$CURRENT_SHORT_COMMIT_ID"
+        return 0
+    fi
+
+    if CURRENT_SHORT_COMMIT_ID="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null)"; then
+        echo "$CURRENT_SHORT_COMMIT_ID"
+        return 0
+    fi
+
+    CURRENT_SHORT_COMMIT_ID="unknown"
+    echo "$CURRENT_SHORT_COMMIT_ID"
+}
+
 function SplitCommandSpecSegments() {
     local InputLine="$1"
     local InQuotes=0
@@ -329,14 +341,12 @@ function SetImageKeyboardLayout() {
 
     awk -v layout="$Layout" \
         -v keyboard_layout_key="$KEYBOARD_LAYOUT_KEY" \
-        -v do_login_disabled_line="$GENERAL_DO_LOGIN_DISABLED_LINE" \
-        -v show_desktop_disabled_line="$GENERAL_SHOW_DESKTOP_DISABLED_LINE" '
+        -v do_login_disabled_line="$GENERAL_DO_LOGIN_DISABLED_LINE" '
     BEGIN {
         in_keyboard = 0;
         in_general = 0;
         layout_set = 0;
         do_login_set = 0;
-        show_desktop_set = 0;
     }
     {
         if ($0 ~ /^\[General\]/) {
@@ -352,10 +362,6 @@ function SetImageKeyboardLayout() {
                 print do_login_disabled_line;
                 do_login_set = 1;
             }
-            if (in_general == 1 && show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
-            }
             in_general = 0;
             print $0;
             next;
@@ -365,10 +371,6 @@ function SetImageKeyboardLayout() {
             if (in_general == 1 && do_login_set == 0) {
                 print do_login_disabled_line;
                 do_login_set = 1;
-            }
-            if (in_general == 1 && show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
             }
             if (in_keyboard == 1 && layout_set == 0) {
                 print keyboard_layout_key "=\"" layout "\"";
@@ -388,14 +390,6 @@ function SetImageKeyboardLayout() {
             next;
         }
 
-        if (in_general == 1 && $0 ~ /^ShowDesktop[[:space:]]*=/) {
-            if (show_desktop_set == 0) {
-                print show_desktop_disabled_line;
-                show_desktop_set = 1;
-            }
-            next;
-        }
-
         if (in_keyboard == 1 && $0 ~ /^Layout[[:space:]]*=/) {
             if (layout_set == 0) {
                 print keyboard_layout_key "=\"" layout "\"";
@@ -409,9 +403,6 @@ function SetImageKeyboardLayout() {
     END {
         if (in_general == 1 && do_login_set == 0) {
             print do_login_disabled_line;
-        }
-        if (in_general == 1 && show_desktop_set == 0) {
-            print show_desktop_disabled_line;
         }
         if (in_keyboard == 1 && layout_set == 0) {
             print keyboard_layout_key "=\"" layout "\"";
@@ -441,12 +432,6 @@ function SetImageKeyboardLayout() {
     if ! debugfs -R "cat /exos.toml" "$PartitionImage" 2>/dev/null | SearchRegex "$GENERAL_DO_LOGIN_DISABLED_PATTERN" >/dev/null; then
         rm -f "$PartitionImage" "$ConfigFile" "$PatchedConfigFile"
         echo "DoLogin patch verification failed for image: $ImagePath"
-        return 1
-    fi
-
-    if ! debugfs -R "cat /exos.toml" "$PartitionImage" 2>/dev/null | SearchRegex "$GENERAL_SHOW_DESKTOP_DISABLED_PATTERN" >/dev/null; then
-        rm -f "$PartitionImage" "$ConfigFile" "$PatchedConfigFile"
-        echo "ShowDesktop patch verification failed for image: $ImagePath"
         return 1
     fi
 
@@ -502,6 +487,7 @@ function ArchiveCurrentRunLogs() {
     local Timestamp=""
     local ArchiveDir=""
     local SafeName=""
+    local ShortCommitId=""
     local KernelArchivePath=""
     local Com1ArchivePath=""
 
@@ -515,15 +501,16 @@ function ArchiveCurrentRunLogs() {
     Timestamp="$(date +%Y%m%d-%H%M%S)"
     ArchiveDir="$ROOT_DIR/log/archive"
     SafeName="$(echo "$CURRENT_ARCHIVE_NAME" | tr ' ' '-')"
+    ShortCommitId="$(GetCurrentShortCommitId)"
     mkdir -p "$ArchiveDir"
 
     if [ -f "$CURRENT_KERNEL_LOG_PATH" ]; then
-        KernelArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${Status}-kernel.log"
+        KernelArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${ShortCommitId}-${Status}-kernel.log"
         cp "$CURRENT_KERNEL_LOG_PATH" "$KernelArchivePath"
         echo "Archived kernel log: $KernelArchivePath"
     fi
     if [ -n "$CURRENT_COM1_LOG_PATH" ] && [ -f "$CURRENT_COM1_LOG_PATH" ]; then
-        Com1ArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${Status}-com1.log"
+        Com1ArchivePath="$ArchiveDir/${Timestamp}-${SafeName}-${ShortCommitId}-${Status}-com1.log"
         cp "$CURRENT_COM1_LOG_PATH" "$Com1ArchivePath"
         echo "Archived com1 log: $Com1ArchivePath"
     fi
@@ -597,14 +584,21 @@ function TailFromOffsetForErrorCheck() {
 function MonitorCommand() {
     # Send one command to QEMU monitor (telnet) with retry/backoff.
     # Uses a short-lived socket per command for robustness.
+    # HoldOpenSeconds: only the last command of a line needs the hold before
+    # the socket close; closing right after the write there can drop the
+    # pending data. Intermediate keystrokes are paced by the next keystroke.
     local Cmd="$1"
     local MaxAttempts="${2:-$MONITOR_CONNECT_MAX_ATTEMPTS}"
     local Quiet="${3:-0}"
+    local HoldOpenSeconds="${4:-0}"
     local Attempt=0
     local Delay=0.05
 
     while [ "$Attempt" -lt "$MaxAttempts" ]; do
         if exec 3<>"/dev/tcp/$MONITOR_HOST/$MONITOR_PORT" 2>/dev/null && printf "%s\r\n" "$Cmd" >&3 2>/dev/null; then
+            if [ "$HoldOpenSeconds" != "0" ]; then
+                sleep "$HoldOpenSeconds"
+            fi
             exec 3<&- || true
             exec 3>&- || true
             return 0
@@ -670,11 +664,12 @@ function KeyForChar() {
 
 function SendKey() {
     local Key="$1"
+    local HoldOpenSeconds="${2:-0}"
     if [ -z "$Key" ]; then
         echo "Unsupported key in command string."
         return 1
     fi
-    MonitorCommand "sendkey $Key"
+    MonitorCommand "sendkey $Key" "" "" "$HoldOpenSeconds"
     sleep "$KEY_DELAY_SECONDS"
 }
 
@@ -685,7 +680,7 @@ function SendHotkey() {
         echo "Unsupported empty hotkey."
         return 1
     fi
-    MonitorCommand "sendkey $Hotkey"
+    MonitorCommand "sendkey $Hotkey" "" "" "$MONITOR_COMMAND_HOLD_OPEN_SECONDS"
     sleep "$COMMAND_DELAY_SECONDS"
 }
 
@@ -746,7 +741,7 @@ function SendCommandWithMode() {
                 Index=$((Index + 1))
             done
 
-            SendKey "ret"
+            SendKey "ret" "$MONITOR_COMMAND_HOLD_OPEN_SECONDS"
             sleep "$COMMAND_DELAY_SECONDS"
             ;;
         persistent)
@@ -1223,7 +1218,7 @@ function RunCommandList() {
 }
 
 function StopQemu() {
-    MonitorCommand "quit" 1 1 || true
+    MonitorCommand "quit" 1 1 "$MONITOR_COMMAND_HOLD_OPEN_SECONDS" || true
     exec 3<&- || true
     exec 3>&- || true
 }
@@ -1388,9 +1383,6 @@ function SmokeTestMain() {
     fi
     if [ "$RUN_X86_32_RTL8139" -eq 1 ]; then
         RunArchitecture "x86-32 rtl8139" "scripts/linux/build/build.sh --arch x86-32 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-32 --fs ext2 --debug --net-card rtl8139" "log/kernel-x86-32-mbr-debug.log" "build/image/x86-32-mbr-debug-ext2/exos.img" "1048576" "${SMOKE_TEST_X86_32_RTL8139_COMMANDS_FILE:-}"
-    fi
-    if [ "$RUN_X86_64" -eq 1 ]; then
-        RunArchitecture "x86-64" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug" "log/kernel-x86-64-mbr-debug.log" "build/image/x86-64-mbr-debug-ext2/exos.img" "1048576"
     fi
     if [ "$RUN_X86_64_UEFI" -eq 1 ]; then
         RunArchitecture "x86-64 UEFI" "scripts/linux/build/build.sh --arch x86-64 --fs ext2 --debug --clean --uefi --kernel-log-tag-filter ''" "scripts/linux/run/run.sh --arch x86-64 --fs ext2 --debug --uefi" "log/kernel-x86-64-uefi-debug.log" "build/image/x86-64-uefi-debug-ext2/exos-uefi.img" "4194304"

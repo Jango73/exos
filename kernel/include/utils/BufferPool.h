@@ -49,10 +49,11 @@ typedef struct tag_BUFFER_POOL {
  * @param ObjectsPerSlab Requested number of objects per slab before alignment.
  * @param InitialSlabCount Number of slabs to pre-allocate (can be zero).
  * @param Flags Allocation flags to forward to AllocRegion/ResizeRegion.
+ * @param Tag Owner tag copied into the allocated memory regions.
  * @return TRUE on success, FALSE if initialization failed.
  */
 BOOL BufferPoolInit(
-    LPBUFFER_POOL Pool, UINT ObjectSize, UINT ObjectsPerSlab, UINT InitialSlabCount, U32 Flags);
+    LPBUFFER_POOL Pool, UINT ObjectSize, UINT ObjectsPerSlab, UINT InitialSlabCount, U32 Flags, LPCSTR Tag);
 
 /************************************************************************/
 

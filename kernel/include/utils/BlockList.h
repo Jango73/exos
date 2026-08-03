@@ -30,6 +30,10 @@
 #include "Base.h"
 
 /************************************************************************/
+
+#define BLOCK_LIST_TAG_MAX 32
+
+/************************************************************************/
 // typedefs
 
 typedef struct tag_BLOCK_LIST BLOCK_LIST, *LPBLOCK_LIST;
@@ -49,6 +53,7 @@ struct tag_BLOCK_LIST {
     U32 AllocationFlags;
     LPVOID FreeListHead;
     UINT* SlabUsage;
+    STR Tag[BLOCK_LIST_TAG_MAX];  // Owner tag forwarded to allocated memory regions
 };
 
 /************************************************************************/
@@ -62,13 +67,11 @@ struct tag_BLOCK_LIST {
  * @param ObjectsPerSlab Requested number of objects per slab before alignment.
  * @param InitialSlabCount Number of slabs to pre-allocate (can be zero).
  * @param Flags Allocation flags to forward to AllocRegion/ResizeRegion.
+ * @param Tag Owner tag copied into the allocated memory regions.
  * @return TRUE on success, FALSE if initialization failed.
  */
-BOOL BlockListInit(LPBLOCK_LIST List,
-                   UINT ObjectSize,
-                   UINT ObjectsPerSlab,
-                   UINT InitialSlabCount,
-                   U32 Flags);
+BOOL BlockListInit(
+    LPBLOCK_LIST List, UINT ObjectSize, UINT ObjectsPerSlab, UINT InitialSlabCount, U32 Flags, LPCSTR Tag);
 
 /************************************************************************/
 

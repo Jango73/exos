@@ -8,6 +8,11 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 ## Main rule
 **If the guidelines below are not followed, all modifications will be rejected.**
 
+## Work Tracking
+- Work currently in progress is tracked in `doc/work/in-progress/`.
+- Work to be done is tracked in `doc/work/todo/`.
+- Keep these files up to date while working.
+
 ## Communication Guidelines
 - NEVER use emojis in responses.
 - DON'T act like a human being with emotions, just be a machine.
@@ -21,6 +26,7 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - Before adding local logic in a driver/subsystem, check `kernel/include/utils` and `kernel/source/utils` first. If no suitable module exists, create a generic one and use it from the caller.
 - Driver code should only express policy/usage, not duplicate generic mechanics.
 - For log-flood control, use the shared `RateLimiter` helper; do not hardcode ad-hoc counters/cooldowns inside modules.
+- **List usage**: this rule applies to the whole kernel. Any list usage MUST use the module List (`utils/List`). The only exception is the memory managers, which cannot use a list before the memory regions are set up.
 - **Mutex ownership**: this rule applies to the whole kernel. Never lock another object's mutex directly to inspect or mutate its internal state. Expose owner-side getters/setters/snapshot helpers, keep critical sections short, and never recurse or call callbacks/messages while holding structural object locks.
 
 ## Coding Conventions
@@ -40,9 +46,11 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - **Naming clarity**: In addition to using full words, every name must express its intent clearly and without ambiguity.
 - **Comments**: For single-line comments, use `//`, not `/*`.
 - **Style**: 4-space indentation, follow `.clang-format` rules.
+- **Pointer style**: Never put a space between the type and the pointer asterisk. Write `char* Pointer` (and `(LPVOID)&...`), never `char *Pointer` or `(LPVOID) &...`.
 - **Numbers**: Hexadecimal for constant numbers, except for sizes, vectors, points and time.
 - **Number suffixes**: Do not add numeric suffixes like `u` to constants; they are not wanted here.
 - **Documentation**: Update `doc/guides/Kernel.md` when adding/modifying kernel components.
+- **Scripting documentation**: Any change to the E0 scripting engine, syntax, semantics, operators, control flow, host exposure, or observable script behavior MUST update `doc/guides/E0-Scripting.md` in the same work.
 - **Documentation wording**: Use timeless technical wording. Do not use temporal terms like "now", "currently", "at this time" in documentation/comments.
 - **Kernel logical paths**: For kernel file/folder logical paths, use `utils/KernelPath` (`KernelPathResolve` / `KernelPathBuildFile`) and `KernelPath.*` config keys instead of hardcoded absolute paths.
 - **Languages**: C for kernel, avoid Python (use Node.js/JS if needed).
@@ -104,10 +112,9 @@ Replace `x86-32` with `x86-64` when targeting the x86-64 architecture.
 ```bash
 ./scripts/linux/test/smoke-test-global.sh
 ./scripts/linux/test/smoke-test-global.sh --only x86-32
-./scripts/linux/test/smoke-test-global.sh --only x86-64
 ./scripts/linux/test/smoke-test-global.sh --only x86-64-uefi
 ```
-This script runs build + boot + shell command checks (`sysinfo`, `dir`, `/system/apps/hello`) and supports selecting a single target with `--only`.
+This script runs build + boot + a list of commands and supports selecting a single target with `--only`.
 
 **Build output layout:**
 - Core artifacts are written to `build/core/<BUILD_CORE_NAME>/`.

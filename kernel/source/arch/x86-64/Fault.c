@@ -23,14 +23,15 @@
 \************************************************************************/
 
 #include "Arch.h"
+#include "arch/x86-64/x86-64-Log.h"
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Schedule.h"
+#include "process/Stack.h"
 #include "system/System.h"
 #include "text/Text.h"
-#include "arch/x86-64/x86-64-Log.h"
 
 /************************************************************************/
 
@@ -38,11 +39,11 @@
 
 /************************************************************************/
 
-#define DEFINE_FATAL_HANDLER(FunctionName, Description)             \
-    void FunctionName(LPINTERRUPT_FRAME Frame) {                    \
-        ERROR(TEXT("%s"), TEXT(Description));                       \
-        LogCPUState(Frame);                                         \
-        Die();                                                      \
+#define DEFINE_FATAL_HANDLER(FunctionName, Description) \
+    void FunctionName(LPINTERRUPT_FRAME Frame) {        \
+        ERROR(TEXT("%s"), TEXT(Description));           \
+        LogCPUState(Frame);                             \
+        Die();                                          \
     }
 
 /************************************************************************/
@@ -131,9 +132,7 @@ void Die(void) {
 
 /************************************************************************/
 
-void DefaultHandler(LPINTERRUPT_FRAME Frame) {
-    UNUSED(Frame);
-}
+void DefaultHandler(LPINTERRUPT_FRAME Frame) { UNUSED(Frame); }
 
 /************************************************************************/
 
@@ -198,14 +197,15 @@ void PageFaultHandler(LPINTERRUPT_FRAME Frame) {
 
     __asm__ __volatile__("mov %%cr2, %0" : "=r"(FaultAddress));
 
-    DEBUG(TEXT("CR2=%p Err=%x RIP=%p RSP=%p"),
-          (LPVOID)FaultAddress,
-          (UINT)Frame->ErrCode,
-          (LPVOID)Frame->Registers.RIP,
-          (LPVOID)Frame->Registers.RSP);
+    DEBUG(
+        TEXT("CR2=%p Err=%x RIP=%p RSP=%p"), (LPVOID)FaultAddress, (UINT)Frame->ErrCode, (LPVOID)Frame->Registers.RIP,
+        (LPVOID)Frame->Registers.RSP);
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) && GrowFaultingSystemStack((LINEAR)FaultAddress, Frame)) {
+        DEBUG(TEXT("Grown system stack for kernel fault %p"), (LPVOID)FaultAddress);
+        return;
+    }
 
-    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) &&
-        ResolveKernelPageFault((LINEAR)FaultAddress)) {
+    if (((Frame->ErrCode & PAGE_FAULT_ERROR_USER_MODE) == 0) && ResolveKernelPageFault((LINEAR)FaultAddress)) {
         DEBUG(TEXT("Resolved kernel page fault %p"), (LPVOID)FaultAddress);
         return;
     }

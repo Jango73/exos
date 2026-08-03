@@ -28,6 +28,7 @@
 
 #include "GFX.h"
 #include "drivers/bus/PCI.h"
+#include "utils/DMABuffer.h"
 
 /************************************************************************/
 
@@ -83,6 +84,15 @@
 #define INTEL_REG_PLANE_A_SURF 0x7019C
 #define INTEL_REG_PLANE_B_SURF 0x7119C
 #define INTEL_REG_PLANE_C_SURF 0x7219C
+#define INTEL_REG_CURSOR_A_CONTROL 0x70080
+#define INTEL_REG_CURSOR_A_BASE 0x70084
+#define INTEL_REG_CURSOR_A_POSITION 0x70088
+#define INTEL_REG_CURSOR_B_CONTROL 0x700C0
+#define INTEL_REG_CURSOR_B_BASE 0x700C4
+#define INTEL_REG_CURSOR_B_POSITION 0x700C8
+#define INTEL_REG_CURSOR_C_CONTROL 0x700E0
+#define INTEL_REG_CURSOR_C_BASE 0x700E4
+#define INTEL_REG_CURSOR_C_POSITION 0x700E8
 #define INTEL_REG_DDI_BUF_CTL_A 0x64000
 #define INTEL_REG_DDI_BUF_CTL_B 0x64100
 #define INTEL_REG_DDI_BUF_CTL_C 0x64200
@@ -116,6 +126,14 @@
 #define INTEL_DEFAULT_REFRESH_RATE 60
 #define INTEL_GFX_MAX_SURFACES 8
 #define INTEL_GFX_SURFACE_FIRST_ID 1
+#define INTEL_CURSOR_MAX_WIDTH 64
+#define INTEL_CURSOR_MAX_HEIGHT 64
+#define INTEL_CURSOR_BYTES_PER_PIXEL 4
+#define INTEL_CURSOR_CONTROL_MODE_DISABLE 0x00000000
+#define INTEL_CURSOR_CONTROL_MODE_64_ARGB 0x00000027
+#define INTEL_CURSOR_POSITION_COORDINATE_MASK 0x1FFF
+#define INTEL_CURSOR_POSITION_X_SIGN (1 << 15)
+#define INTEL_CURSOR_POSITION_Y_SIGN 0x80000000
 
 #define DF_RETURN_IGFX_NO_DISPLAY_DEVICE (DF_RETURN_FIRST + 0x300)
 #define DF_RETURN_IGFX_INVALID_BAR0 (DF_RETURN_FIRST + 0x301)
@@ -124,6 +142,18 @@
 #define DF_RETURN_IGFX_MAP_FRAMEBUFFER_FAILED (DF_RETURN_FIRST + 0x304)
 #define DF_RETURN_IGFX_BUILD_CONTEXT_FAILED (DF_RETURN_FIRST + 0x305)
 #define DF_RETURN_IGFX_UNSUPPORTED_FAMILY (DF_RETURN_FIRST + 0x306)
+
+/************************************************************************/
+
+typedef enum tag_INTEL_GFX_CURSOR_FAILURE_REASON {
+    INTEL_GFX_CURSOR_FAILURE_NONE = 0,
+    INTEL_GFX_CURSOR_FAILURE_UNSUPPORTED_GENERATION = 1,
+    INTEL_GFX_CURSOR_FAILURE_INVALID_PIPE = 2,
+    INTEL_GFX_CURSOR_FAILURE_UNSUPPORTED_FORMAT = 3,
+    INTEL_GFX_CURSOR_FAILURE_INVALID_SHAPE = 4,
+    INTEL_GFX_CURSOR_FAILURE_DMA_ALLOCATION = 5,
+    INTEL_GFX_CURSOR_FAILURE_REGISTER_ACCESS = 6
+} INTEL_GFX_CURSOR_FAILURE_REASON;
 
 /************************************************************************/
 
@@ -208,6 +238,17 @@ typedef struct tag_INTEL_GFX_STATE {
     U32 VBlankPollCount;
     U32 LastVBlankScanline;
     BOOL VBlankInterruptEnabled;
+    DMA_BUFFER CursorBuffer;
+    U32 CursorWidth;
+    U32 CursorHeight;
+    U32 CursorHotspotX;
+    U32 CursorHotspotY;
+    I32 CursorX;
+    I32 CursorY;
+    BOOL CursorVisible;
+    BOOL CursorShapeLoaded;
+    UINT CursorLastCommandStatus;
+    INTEL_GFX_CURSOR_FAILURE_REASON CursorLastFailureReason;
     INTEL_GFX_MODESET_STAGE LastModesetFailureStage;
     U32 LastModesetFailureCode;
 } INTEL_GFX_STATE, *LPINTEL_GFX_STATE;
@@ -357,6 +398,12 @@ UINT IntelGfxWaitVBlank(LPGFX_VBLANK_INFO Info);
 UINT IntelGfxAllocateSurface(LPGFX_SURFACE_INFO Info);
 UINT IntelGfxFreeSurface(LPGFX_SURFACE_INFO Info);
 UINT IntelGfxSetScanout(LPGFX_SCANOUT_INFO Info);
+UINT IntelGfxCursorSetShape(LPGFX_CURSOR_SHAPE_INFO Info);
+UINT IntelGfxCursorSetPosition(LPGFX_CURSOR_POSITION_INFO Info);
+UINT IntelGfxCursorSetVisible(LPGFX_CURSOR_VISIBLE_INFO Info);
+void IntelGfxCursorReleaseResources(void);
+void IntelGfxCursorOnModeActivated(void);
+LPCSTR IntelGfxCursorFailureReasonToText(INTEL_GFX_CURSOR_FAILURE_REASON Reason);
 void IntelGfxOnModeActivated(void);
 
 /************************************************************************/

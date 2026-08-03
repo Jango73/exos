@@ -23,7 +23,92 @@
 
 #include "math/Math3D.h"
 
-#include "math/Math.h"
+/************************************************************************/
+
+#define MATH_PI_F32 3.14159265358979323846f
+#define MATH_TWO_PI_F32 6.28318530717958647692f
+#define MATH_HALF_PI_F32 1.57079632679489661923f
+#define MATH_EPSILON_F32 0.000001f
+
+/************************************************************************/
+
+/**
+ * @brief Normalize one F32 angle to [0, 2PI).
+ * @param Radians Angle in radians.
+ * @return Normalized angle.
+ */
+static F32 NormalizeRadiansPositiveF32(F32 Radians) {
+    I32 Turns = (I32)(Radians / MATH_TWO_PI_F32);
+    F32 Local = Radians - ((F32)Turns * MATH_TWO_PI_F32);
+
+    while (Local < 0.0f) Local += MATH_TWO_PI_F32;
+    while (Local >= MATH_TWO_PI_F32) Local -= MATH_TWO_PI_F32;
+    return Local;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Normalize one F32 angle to [-PI, PI].
+ * @param Radians Angle in radians.
+ * @return Normalized angle.
+ */
+static F32 NormalizeRadiansSignedF32(F32 Radians) {
+    F32 Local = NormalizeRadiansPositiveF32(Radians);
+    if (Local > MATH_PI_F32) Local -= MATH_TWO_PI_F32;
+    return Local;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Compute sine for one F32 angle in radians.
+ * @param Radians Angle in radians.
+ * @return Approximate sine.
+ */
+static F32 MathSinF32(F32 Radians) {
+    F32 X = NormalizeRadiansSignedF32(Radians);
+    F32 X2 = X * X;
+
+    return X * (1.0f + X2 * (-0.16666667f + X2 * (0.0083333310f + X2 * (-0.0001984090f))));
+}
+
+/************************************************************************/
+
+/**
+ * @brief Compute cosine for one F32 angle in radians.
+ * @param Radians Angle in radians.
+ * @return Approximate cosine.
+ */
+static F32 MathCosF32(F32 Radians) {
+    F32 X = NormalizeRadiansSignedF32(Radians);
+    F32 X2 = X * X;
+
+    return 1.0f + X2 * (-0.5f + X2 * (0.041666638f + X2 * (-0.0013888378f)));
+}
+
+/************************************************************************/
+
+/**
+ * @brief Compute square root for one F32 value.
+ * @param Value Input value.
+ * @return Square root or 0 for non-positive input.
+ */
+static F32 MathSqrtF32(F32 Value) {
+    F32 Guess;
+    UINT Iteration;
+
+    if (Value <= 0.0f) {
+        return 0.0f;
+    }
+
+    Guess = (Value >= 1.0f) ? Value : 1.0f;
+    for (Iteration = 0; Iteration < 8; Iteration++) {
+        Guess = 0.5f * (Guess + (Value / Guess));
+    }
+
+    return Guess;
+}
 
 /************************************************************************/
 

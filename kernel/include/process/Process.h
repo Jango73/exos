@@ -29,21 +29,22 @@
 
 #include "Arch.h"
 #include "Base.h"
+#include "User.h"
 #include "core/Driver.h"
 #include "core/ID.h"
-#include "exec/Executable.h"
-#include "utils/List.h"
-#include "memory/Memory.h"
-#include "sync/Mutex.h"
 #include "core/Security.h"
-#include "system/System.h"
-#include "User.h"
-#include "user/Account.h"
-#include "user/UserSession.h"
+#include "exec/Executable.h"
+#include "memory/Memory-Analysis.h"
+#include "memory/Memory.h"
 #include "process/Message.h"
 #include "process/Process-Arena.h"
 #include "process/Schedule.h"
 #include "process/Task.h"
+#include "sync/Mutex.h"
+#include "system/System.h"
+#include "user/Account.h"
+#include "user/UserSession.h"
+#include "utils/List.h"
 #include "utils/RectRegion.h"
 
 /***************************************************************************/
@@ -163,45 +164,45 @@ UINT TaskGetMinimumSystemStackSize(void);
 /************************************************************************/
 
 struct tag_PROCESS {
-    LISTNODE_FIELDS                                         // Standard EXOS object fields
-        MUTEX Mutex;                                        // This structure's mutex
-    MUTEX HeapMutex;                                        // This structure's mutex for heap allocation
-    SECURITY Security;                                      // Security attributes
-    U32 Privilege;                                          // This process' privilege level
-    U32 Status;                                             // (alive/dead)
-    U32 Flags;                                              // Process creation flags
-    U32 ControlFlags;                                       // Process control state (interrupt)
-    PROCESS_SCHEDULER_STATE SchedulerState;                 // Scheduler-owned ISR-visible state
-    PHYSICAL PageDirectory;                                 // Physical address of this process' page directory
-    LINEAR HeapBase;                                        // Base virtual address of the process heap
-    UINT HeapSize;                                          // Process heap size in bytes
-    UINT MaximumAllocatedMemory;                            // Peak allocated heap memory in bytes
-    UINT ExitCode;                                          // Exit code
-    STR FileName[MAX_PATH_NAME];                            // Executable file path
-    STR CommandLine[MAX_PATH_NAME];                         // Command line used to start this process
-    STR WorkFolder[MAX_PATH_NAME];                          // Process working folder
-    HANDLE StdOut;                                          // Standard output handle owned by the process
-    HANDLE StdIn;                                           // Standard input handle owned by the process
-    HANDLE StdErr;                                          // Standard error handle owned by the process
-    UINT TaskCount;                                         // Number of active tasks in this process
-    MESSAGEQUEUE MessageQueue;                              // Process-level message queue (input, etc.)
-    U64 UserID;                                             // Owner user
-    LPDESKTOP Desktop;                                      // This process' desktop
-    LPUSER_SESSION Session;                                 // User session
-    LPFILESYSTEM PackageFileSystem;                         // Mounted package filesystem tied to this process
-    EXECUTABLE_METADATA MainExecutableMetadata;              // Main executable metadata for module symbol resolution
-    LINEAR MainExecutableCodeBase;                           // Installed main executable code base
-    LINEAR MainExecutableDataBase;                           // Installed main executable data base
-    LPLIST ModuleBindings;                                  // Process-owned executable module bindings
-    UINT ModuleBindingCount;                                // Number of executable module bindings
-    MEMORY_REGION_LIST MemoryRegionList;                    // Memory region descriptors owned by this process
-    PROCESS_ADDRESS_SPACE AddressSpace;                      // Process virtual address space arena state
+    LISTNODE_FIELDS                              // Standard EXOS object fields
+        MUTEX Mutex;                             // This structure's mutex
+    MUTEX HeapMutex;                             // This structure's mutex for heap allocation
+    SECURITY Security;                           // Security attributes
+    U32 Privilege;                               // This process' privilege level
+    U32 Status;                                  // (alive/dead)
+    U32 Flags;                                   // Process creation flags
+    U32 ControlFlags;                            // Process control state (interrupt)
+    PROCESS_SCHEDULER_STATE SchedulerState;      // Scheduler-owned ISR-visible state
+    PHYSICAL PageDirectory;                      // Physical address of this process' page directory
+    LINEAR HeapBase;                             // Base virtual address of the process heap
+    UINT HeapSize;                               // Process heap size in bytes
+    UINT MaximumAllocatedMemory;                 // Peak allocated heap memory in bytes
+    UINT ExitCode;                               // Exit code
+    STR FileName[MAX_PATH_NAME];                 // Executable file path
+    STR CommandLine[MAX_PATH_NAME];              // Command line used to start this process
+    STR WorkFolder[MAX_PATH_NAME];               // Process working folder
+    HANDLE StdOut;                               // Standard output handle owned by the process
+    HANDLE StdIn;                                // Standard input handle owned by the process
+    HANDLE StdErr;                               // Standard error handle owned by the process
+    UINT TaskCount;                              // Number of active tasks in this process
+    MESSAGEQUEUE MessageQueue;                   // Process-level message queue (input, etc.)
+    U64 UserID;                                  // Owner user
+    LPDESKTOP Desktop;                           // This process' desktop
+    LPUSER_SESSION Session;                      // User session
+    LPFILESYSTEM PackageFileSystem;              // Mounted package filesystem tied to this process
+    EXECUTABLE_METADATA MainExecutableMetadata;  // Main executable metadata for module symbol resolution
+    LINEAR MainExecutableCodeBase;               // Installed main executable code base
+    LINEAR MainExecutableDataBase;               // Installed main executable data base
+    LPLIST ModuleBindings;                       // Process-owned executable module bindings
+    UINT ModuleBindingCount;                     // Number of executable module bindings
+    MEMORY_REGION_LIST MemoryRegionList;         // Memory region descriptors owned by this process
+    PROCESS_ADDRESS_SPACE AddressSpace;          // Process virtual address space arena state
 };
 
 typedef struct tag_PROPERTY {
-    LISTNODE_FIELDS  // Standard EXOS object fields
-    STR Name[32];    // Property name
-    UINT Value;      // Property value
+    LISTNODE_FIELDS    // Standard EXOS object fields
+        STR Name[32];  // Property name
+    UINT Value;        // Property value
 } PROPERTY, *LPPROPERTY;
 
 struct tag_WINDOW {
@@ -233,66 +234,66 @@ struct tag_WINDOW {
 };
 
 typedef struct tag_WINDOW_CLASS {
-    LISTNODE_FIELDS                 // Standard EXOS object fields
-        STR Name[64];               // Unique class name
-    LPWINDOW_CLASS BaseClass;       // Base class in inheritance chain
-    WINDOWFUNC Function;            // Class window procedure
-    U32 ClassID;                    // Class identifier for handle-based lookup
-    U32 ClassDataSize;              // Optional class-private data size
+    LISTNODE_FIELDS            // Standard EXOS object fields
+        STR Name[64];          // Unique class name
+    LPWINDOW_CLASS BaseClass;  // Base class in inheritance chain
+    WINDOWFUNC Function;       // Class window procedure
+    U32 ClassID;               // Class identifier for handle-based lookup
+    U32 ClassDataSize;         // Optional class-private data size
 } WINDOW_CLASS, *LPWINDOW_CLASS;
 
 typedef struct tag_DESKTOP_THEME {
-    LPVOID Builtin;                        // Built-in fallback theme runtime
-    LPVOID Active;                         // Active theme runtime
-    LPVOID Staged;                         // Candidate theme runtime pending activation
-    STR ActivePath[MAX_FILE_NAME];         // File path of the active file-backed theme
-    STR StagedPath[MAX_FILE_NAME];         // File path of the staged file-backed theme
-    U32 LastStatus;                        // Last theme load or activation status
-    U32 LastFallbackReason;                // Last theme fallback reason
-    BOOL ActiveFromFile;                   // Indicates whether the active theme came from a file
+    LPVOID Builtin;                 // Built-in fallback theme runtime
+    LPVOID Active;                  // Active theme runtime
+    LPVOID Staged;                  // Candidate theme runtime pending activation
+    STR ActivePath[MAX_FILE_NAME];  // File path of the active file-backed theme
+    STR StagedPath[MAX_FILE_NAME];  // File path of the staged file-backed theme
+    U32 LastStatus;                 // Last theme load or activation status
+    U32 LastFallbackReason;         // Last theme fallback reason
+    BOOL ActiveFromFile;            // Indicates whether the active theme came from a file
 } DESKTOP_THEME, *LPDESKTOP_THEME;
 
 typedef struct tag_DESKTOP_DISPLAY_SELECTION {
-    STR BackendAlias[MAX_NAME];        // Selected graphics backend alias
-    GRAPHICS_MODE_INFO ModeInfo;       // Selected graphics mode information
-    BOOL IsAssigned;                   // Indicates whether a display selection is stored
+    STR BackendAlias[MAX_NAME];   // Selected graphics backend alias
+    GRAPHICS_MODE_INFO ModeInfo;  // Selected graphics mode information
+    BOOL IsAssigned;              // Indicates whether a display selection is stored
 } DESKTOP_DISPLAY_SELECTION, *LPDESKTOP_DISPLAY_SELECTION;
 
 typedef struct tag_MOUSE_CURSOR {
-    I32 X;                // Cursor X position in screen coordinates
-    I32 Y;                // Cursor Y position in screen coordinates
-    U32 Width;            // Cursor width in pixels
-    U32 Height;           // Cursor height in pixels
-    BOOL Visible;         // Cursor visibility state
-    RECT ClipRect;        // Cursor clipping rectangle in screen coordinates
-    U32 RenderPath;       // Active cursor rendering path identifier
-    U32 FallbackReason;   // Last fallback reason for cursor rendering path
-    I32 PendingX;         // Pending cursor X target for deferred apply
-    I32 PendingY;         // Pending cursor Y target for deferred apply
-    BOOL SoftwareDirty;   // Software cursor overlay requires redraw
+    I32 X;               // Cursor X position in screen coordinates
+    I32 Y;               // Cursor Y position in screen coordinates
+    U32 Width;           // Cursor width in pixels
+    U32 Height;          // Cursor height in pixels
+    BOOL Visible;        // Cursor visibility state
+    RECT ClipRect;       // Cursor clipping rectangle in screen coordinates
+    U32 RenderPath;      // Active cursor rendering path identifier
+    U32 FallbackReason;  // Last fallback reason for cursor rendering path
+    I32 PendingX;        // Pending cursor X target for deferred apply
+    I32 PendingY;        // Pending cursor Y target for deferred apply
+    BOOL SoftwareDirty;  // Software cursor overlay requires redraw
 } MOUSE_CURSOR, *LPMOUSE_CURSOR;
 
 struct tag_DESKTOP {
-    LISTNODE_FIELDS                 // Standard EXOS object fields
-        MUTEX Mutex;                // This structure's mutex
-    LPTASK Task;                    // The task that created this desktop
-    LPDRIVER Graphics;              // This desktop's graphics driver
-    LPWINDOW Window;                // Window of the desktop
-    LPWINDOW Capture;               // Window that captured mouse
-    LPWINDOW LastMouseMoveTarget;   // Window that last received mouse move dispatch
-    I32 CaptureOffsetX;             // Mouse offset X in captured window on drag start
-    I32 CaptureOffsetY;             // Mouse offset Y in captured window on drag start
-    MUTEX TimerMutex;               // Protect desktop timers
-    LPLIST Timers;                  // Per-desktop timer entries
-    LPTASK TimerTask;               // Per-desktop timer worker task
-    LPWINDOW Focus;                 // Window that has focus
-    U32 Mode;                       // Active desktop display mode
-    I32 Order;                      // Desktop ordering key among active desktops
-    LPGRAPHICSCONTEXT GraphicsContext;  // Desktop graphics context
-    LINEAR GraphicsShadowBufferLinear;  // Virtual base of the graphics shadow buffer
-    UINT GraphicsShadowBufferSize;      // Graphics shadow buffer size in bytes
-    U32 PendingComponents;          // Pending desktop-owned component injection flags
-    MOUSE_CURSOR Cursor;            // Desktop cursor runtime state
+    LISTNODE_FIELDS                              // Standard EXOS object fields
+        MUTEX Mutex;                             // This structure's mutex
+    LPTASK Task;                                 // The task that created this desktop
+    LPDRIVER Graphics;                           // This desktop's graphics driver
+    LPWINDOW Window;                             // Window of the desktop
+    LPWINDOW Capture;                            // Window that captured mouse
+    LPWINDOW LastMouseMoveTarget;                // Window that last received mouse move dispatch
+    I32 CaptureOffsetX;                          // Mouse offset X in captured window on drag start
+    I32 CaptureOffsetY;                          // Mouse offset Y in captured window on drag start
+    MUTEX TimerMutex;                            // Protect desktop timers
+    LPLIST Timers;                               // Per-desktop timer entries
+    LPTASK TimerTask;                            // Per-desktop timer worker task
+    LPWINDOW Focus;                              // Window that has focus
+    U32 Mode;                                    // Active desktop display mode
+    I32 Order;                                   // Desktop ordering key among active desktops
+    LPGRAPHICSCONTEXT GraphicsContext;           // Desktop graphics context
+    LINEAR GraphicsShadowBufferLinear;           // Virtual base of the graphics shadow buffer
+    UINT GraphicsShadowBufferSize;               // Graphics shadow buffer size in bytes
+    U32 PendingComponents;                       // Pending desktop-owned component injection flags
+    MOUSE_CURSOR Cursor;                         // Desktop cursor runtime state
     DESKTOP_DISPLAY_SELECTION DisplaySelection;  // Stored graphics backend and mode selection
 };
 
@@ -315,6 +316,7 @@ void SetProcessStatus(LPPROCESS Process, U32 Status);
 LINEAR GetProcessHeap(LPPROCESS);
 LPMEMORY_REGION_LIST GetProcessMemoryRegionList(LPPROCESS Process);
 void MemoryRegionDescriptorAssignOwner(LPMEMORY_REGION_DESCRIPTOR Descriptor, LPPROCESS Process);
+BOOL ProcessSnapshotMemoryCarving(LPPROCESS Process, LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot);
 
 /***************************************************************************/
 

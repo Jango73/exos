@@ -23,6 +23,7 @@
 \************************************************************************/
 
 #include "arch/x86-64/x86-64-Memory-Internal.h"
+#include "log/Profile.h"
 #include "memory/Buddy-Allocator.h"
 
 /************************************************************************/
@@ -1182,7 +1183,51 @@ void InitializeMemoryManager(void) {
  * @param Size Desired region size.
  * @return Base of free region or 0.
  */
-LINEAR FindFreeRegion(LINEAR StartBase, UINT Size) {
+static BOOL DoesRegionOverlapTrackedAllocation(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
+    LPMEMORY_REGION_LIST List =
+        (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+    LPMEMORY_REGION_DESCRIPTOR Current;
+    LINEAR CanonicalBase;
+    LINEAR End;
+
+    ProfileCountCall(TEXT("RegionOverlapCheck"));
+
+    if (List == NULL || Size == 0) {
+        return FALSE;
+    }
+
+    CanonicalBase = CanonicalizeLinearAddress(Base);
+    End = CanonicalBase + (LINEAR)Size;
+    if (End < CanonicalBase) {
+        return TRUE;
+    }
+
+    Current = FindDescriptorCoveringAddress(List, CanonicalBase);
+    if (Current != NULL) {
+        return TRUE;
+    }
+
+    Current = List->Head;
+    while (Current != NULL) {
+        LINEAR RegionEnd = Current->CanonicalBase + (LINEAR)Current->Size;
+
+        if (Current->CanonicalBase >= End) {
+            break;
+        }
+
+        if (RegionEnd > CanonicalBase) {
+            return TRUE;
+        }
+
+        Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+    }
+
+    return FALSE;
+}
+
+/************************************************************************/
+
+LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT Size) {
     LINEAR Base = N_4MB;
 
     if (StartBase != 0) {
@@ -1192,8 +1237,60 @@ LINEAR FindFreeRegion(LINEAR StartBase, UINT Size) {
         }
     }
 
+    LPMEMORY_REGION_LIST List =
+        (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+
+    DEBUG(TEXT("FindFreeRegion(start=%p size=%u list=%u)"), (LPVOID)StartBase, Size, (List != NULL) ? List->Count : 0);
+
+    if (List != NULL) {
+        LPMEMORY_REGION_DESCRIPTOR Current = List->Head;
+
+        while (Current != NULL) {
+            LINEAR RegionEnd = Current->CanonicalBase + (LINEAR)Current->Size;
+
+            if (RegionEnd <= Base) {
+                Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+                continue;
+            }
+
+            if (Current->CanonicalBase > Base) {
+                LINEAR GapSize = Current->CanonicalBase - Base;
+
+                if (GapSize >= Size) {
+                    if (IsRegionFree(Base, Size) == TRUE) {
+                        if (DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+                            DEBUG(
+                                TEXT("FindFreeRegion result=%p (start=%p size=%u)"), (LPVOID)Base, (LPVOID)StartBase,
+                                Size);
+                            return Base;
+                        }
+                        DEBUG(
+                            TEXT("FindFreeRegion skipped overlap at %p (start=%p size=%u)"), (LPVOID)Base,
+                            (LPVOID)StartBase, Size);
+                    }
+                }
+            }
+
+            if (RegionEnd > Base) {
+                Base = RegionEnd;
+            }
+
+            Current = (LPMEMORY_REGION_DESCRIPTOR)Current->Next;
+        }
+
+        if (IsRegionFree(Base, Size) == TRUE &&
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+            DEBUG(TEXT("FindFreeRegion result=%p (start=%p size=%u)"), (LPVOID)Base, (LPVOID)StartBase, Size);
+            return Base;
+        }
+    }
+
     while (TRUE) {
-        if (IsRegionFree(Base, Size) == TRUE) {
+        ProfileCountCall(TEXT("FindFreeRegionLoopFallback"));
+
+        if (IsRegionFree(Base, Size) == TRUE &&
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
+            DEBUG(TEXT("FindFreeRegion fallback result=%p (start=%p size=%u)"), (LPVOID)Base, (LPVOID)StartBase, Size);
             return Base;
         }
 
@@ -1342,9 +1439,7 @@ BOOL PopulateRegionPagesLegacy(
         U32 FixedFlag = (Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) ? 1u : 0u;
         U32 BaseFlags = BuildPageFlags(ReadWrite, Privilege, PteWriteThrough, PteCacheDisabled, 0, FixedFlag);
         U32 ReservedFlags = BaseFlags & ~PAGE_FLAG_PRESENT;
-        PHYSICAL ReservedPhysical = (PHYSICAL)(MAX_U32 & ~(PAGE_SIZE - 1));
-
-        WritePageTableEntryValue(Table, TabEntry, MakePageEntryRaw(ReservedPhysical, ReservedFlags));
+        WritePageTableEntryValue(Table, TabEntry, MakePageEntryRaw(0, ReservedFlags));
         if (BootstrapTrace) {
         }
 
@@ -1476,10 +1571,18 @@ LINEAR AllocRegionForProcess(
            We will just map it and keep the mark consistent. */
     }
 
+    // Serialize the whole carve-out: region selection, PTE population and
+    // descriptor tracking must be atomic across tasks. LockMutex is reentrant
+    // for the owning task, so the recursive descriptor-slab growth that happens
+    // inside RegionTrackAllocForProcess acquires the same mutex safely.
+    LockMutex(MUTEX_MEMORY, INFINITY);
+
     /* If the calling process requests that a linear address be mapped,
        see if the region is not already allocated. */
     if (Base != 0 && (Flags & ALLOC_PAGES_AT_OR_OVER) == 0) {
-        if (IsRegionFree(Base, Size) == FALSE) {
+        if (IsRegionFree(Base, Size) == FALSE ||
+            DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == TRUE) {
+            UnlockMutex(MUTEX_MEMORY);
             return NULL;
         }
     }
@@ -1491,9 +1594,10 @@ LINEAR AllocRegionForProcess(
         if (BootstrapTrace) {
         }
 
-        LINEAR NewBase = FindFreeRegion(Base, Size);
+        LINEAR NewBase = FindFreeRegion(TrackingProcess, Base, Size);
 
         if (NewBase == NULL) {
+            UnlockMutex(MUTEX_MEMORY);
             return NULL;
         }
 
@@ -1510,21 +1614,26 @@ LINEAR AllocRegionForProcess(
     if (FastPathUsed == FALSE) {
         if (BootstrapTrace) {
         }
+        // Populate first so the page-table entries are present before any
+        // descriptor slab growth recurses into the region allocator.
         if (PopulateRegionPagesLegacy(Base, Target, NumPages, Flags, Pointer, TEXT("AllocRegion")) == FALSE) {
+            UnlockMutex(MUTEX_MEMORY);
+            return NULL;
+        }
+
+        if (RegionTrackAllocForProcess(TrackingProcess, Pointer, Target, NumPages << PAGE_SIZE_MUL, Flags, Tag) ==
+            FALSE) {
+            G_RegionDescriptorBootstrap = TRUE;
+            FreeRegionForProcess(TrackingProcess, Pointer, NumPages << PAGE_SIZE_MUL);
+            G_RegionDescriptorBootstrap = FALSE;
+            UnlockMutex(MUTEX_MEMORY);
             return NULL;
         }
         if (BootstrapTrace) {
         }
     }
 
-    if (BootstrapTrace) {
-    }
-    if (RegionTrackAllocForProcess(TrackingProcess, Pointer, Target, NumPages << PAGE_SIZE_MUL, Flags, Tag) == FALSE) {
-        G_RegionDescriptorBootstrap = TRUE;
-        FreeRegionForProcess(TrackingProcess, Pointer, NumPages << PAGE_SIZE_MUL);
-        G_RegionDescriptorBootstrap = FALSE;
-        return NULL;
-    }
+    UnlockMutex(MUTEX_MEMORY);
 
     // Flush the Translation Look-up Buffer of the CPU
     FlushTLB();
@@ -1577,12 +1686,15 @@ BOOL ResizeRegionForProcess(
         return TRUE;
     }
 
+    LockMutex(MUTEX_MEMORY, INFINITY);
+
     if (RequestedPages > CurrentPages) {
         UINT AdditionalPages = RequestedPages - CurrentPages;
         LINEAR NewBase = Base + ((LINEAR)CurrentPages << PAGE_SIZE_MUL);
         UINT AdditionalSize = AdditionalPages << PAGE_SIZE_MUL;
 
         if (IsRegionFree(NewBase, AdditionalSize) == FALSE) {
+            UnlockMutex(MUTEX_MEMORY);
             DEBUG(TEXT("Additional region not free at %x"), NewBase);
             return FALSE;
         }
@@ -1597,6 +1709,7 @@ BOOL ResizeRegionForProcess(
         if (ExpansionFastPathUsed == FALSE) {
             if (PopulateRegionPagesLegacy(
                     NewBase, AdditionalTarget, AdditionalPages, Flags, NewBase, TEXT("ResizeRegion")) == FALSE) {
+                UnlockMutex(MUTEX_MEMORY);
                 return FALSE;
             }
         }
@@ -1614,6 +1727,8 @@ BOOL ResizeRegionForProcess(
         }
     }
 
+    UnlockMutex(MUTEX_MEMORY);
+
     return TRUE;
 }
 
@@ -1621,6 +1736,124 @@ BOOL ResizeRegionForProcess(
 
 BOOL ResizeRegion(LINEAR Base, PHYSICAL Target, UINT Size, UINT NewSize, U32 Flags) {
     return ResizeRegionForProcess(NULL, Base, Target, Size, NewSize, Flags);
+}
+
+/************************************************************************/
+
+static void RollbackCommittedRange(LINEAR Base, UINT NumPages) {
+    LINEAR CanonicalBase = CanonicalizeLinearAddress(Base);
+    ARCH_PAGE_ITERATOR Iterator = MemoryPageIteratorFromLinear(CanonicalBase);
+
+    for (UINT Index = 0; Index < NumPages; Index++) {
+        UINT TabEntry = MemoryPageIteratorGetTableIndex(&Iterator);
+        LPPAGE_TABLE Table = NULL;
+        BOOL IsLargePage = FALSE;
+
+        if (TryGetPageTableForIterator(&Iterator, &Table, &IsLargePage) && PageTableEntryIsPresent(Table, TabEntry)) {
+            PHYSICAL Physical = PageTableEntryGetPhysical(Table, TabEntry);
+
+            if (PageTableEntryIsFixed(Table, TabEntry) == FALSE) {
+                SetPhysicalPageMark((UINT)(Physical >> PAGE_SIZE_MUL), 0u);
+            }
+
+            ClearPageTableEntry(Table, TabEntry);
+        }
+
+        MemoryPageIteratorStepPage(&Iterator);
+    }
+
+    FreeEmptyPageTables();
+    FlushTLB();
+}
+
+/************************************************************************/
+
+BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size, U32 Flags) {
+    UINT NumPages;
+    U32 ReadWrite;
+    U32 PteCacheDisabled;
+    U32 PteWriteThrough;
+    U32 FixedFlag;
+    LINEAR CanonicalBase;
+    ARCH_PAGE_ITERATOR Iterator;
+
+    ProfileCountCall(TEXT("CommitRegionRange"));
+
+    if (Base == 0 || Size == 0) {
+        return FALSE;
+    }
+
+    LockMutex(MUTEX_MEMORY, INFINITY);
+
+    NumPages = (Size + (PAGE_SIZE - 1)) >> PAGE_SIZE_MUL;
+    if (NumPages == 0) {
+        NumPages = 1;
+    }
+
+    ReadWrite = (Flags & ALLOC_PAGES_READWRITE) ? 1u : 0u;
+    PteCacheDisabled = (Flags & ALLOC_PAGES_UC) ? 1u : 0u;
+    PteWriteThrough = (Flags & ALLOC_PAGES_WC) ? 1u : 0u;
+    FixedFlag = (Flags & (ALLOC_PAGES_IO | ALLOC_PAGES_FIXED)) ? 1u : 0u;
+    if (PteCacheDisabled != 0u) {
+        PteWriteThrough = 0u;
+    }
+
+    CanonicalBase = CanonicalizeLinearAddress(Base);
+    Iterator = MemoryPageIteratorFromLinear(CanonicalBase);
+
+    for (UINT Index = 0; Index < NumPages; Index++) {
+        UINT TabEntry = MemoryPageIteratorGetTableIndex(&Iterator);
+        LINEAR CurrentLinear = MemoryPageIteratorGetLinear(&Iterator);
+        LPPAGE_TABLE Table = NULL;
+        BOOL IsLargePage = FALSE;
+        PHYSICAL Physical;
+
+        if (!TryGetPageTableForIterator(&Iterator, &Table, &IsLargePage)) {
+            if (IsLargePage || AllocPageTable(CurrentLinear) == NULL ||
+                !TryGetPageTableForIterator(&Iterator, &Table, NULL)) {
+                RollbackCommittedRange(CanonicalBase, Index);
+                UnlockMutex(MUTEX_MEMORY);
+                return FALSE;
+            }
+        }
+
+        if (PageTableEntryIsPresent(Table, TabEntry)) {
+            RollbackCommittedRange(CanonicalBase, Index);
+            UnlockMutex(MUTEX_MEMORY);
+            return FALSE;
+        }
+
+        Physical = AllocPhysicalPage();
+        if (Physical == 0) {
+            RollbackCommittedRange(CanonicalBase, Index);
+            UnlockMutex(MUTEX_MEMORY);
+            return FALSE;
+        }
+
+        WritePageTableEntryValue(
+            Table, TabEntry,
+            MakePageTableEntryValue(
+                Physical, ReadWrite, PAGE_PRIVILEGE(CurrentLinear), PteWriteThrough, PteCacheDisabled, 0, FixedFlag));
+
+        MemoryPageIteratorStepPage(&Iterator);
+    }
+
+    if (RegionTrackCommitForProcess(TrackingProcess, CanonicalBase, NumPages << PAGE_SIZE_MUL) == FALSE) {
+        RollbackCommittedRange(CanonicalBase, NumPages);
+        UnlockMutex(MUTEX_MEMORY);
+        return FALSE;
+    }
+
+    UnlockMutex(MUTEX_MEMORY);
+
+    FlushTLB();
+    return TRUE;
+}
+
+/************************************************************************/
+
+BOOL CommitRegionRange(LINEAR Base, UINT Size, U32 Flags) {
+    return CommitRegionRangeForProcess(NULL, Base, Size, Flags);
 }
 
 /************************************************************************/
@@ -1641,6 +1874,11 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
     LPPAGE_TABLE Table = NULL;
     ARCH_PAGE_ITERATOR Iterator = MemoryPageIteratorFromLinear(CanonicalBase);
 
+    // Serialize unmapping and descriptor update against concurrent allocations.
+    // Reentrant for the owning task, so calls issued while an allocation holds
+    // the memory mutex (e.g. rollback paths) are safe.
+    LockMutex(MUTEX_MEMORY, INFINITY);
+
     UNUSED(OriginalBase);
     UNUSED(Size);
 
@@ -1651,8 +1889,9 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
         UNUSED(DirEntry);
 #endif
         BOOL IsLargePage = FALSE;
+        BOOL TableAvailable = TryGetPageTableForIterator(&Iterator, &Table, &IsLargePage);
 
-        if (TryGetPageTableForIterator(&Iterator, &Table, &IsLargePage) && PageTableEntryIsPresent(Table, TabEntry)) {
+        if (TableAvailable && PageTableEntryIsPresent(Table, TabEntry)) {
             PHYSICAL EntryPhysical = PageTableEntryGetPhysical(Table, TabEntry);
             BOOL Fixed = PageTableEntryIsFixed(Table, TabEntry);
 
@@ -1661,6 +1900,14 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
             }
 
             ClearPageTableEntry(Table, TabEntry);
+        } else if (TableAvailable) {
+            if (ReadPageTableEntryValue(Table, TabEntry) != 0u) {
+                ClearPageTableEntry(Table, TabEntry);
+            } else {
+                DEBUG(
+                    TEXT("Missing mapping Dir=%u Tab=%u IsLarge=%u"), DirEntry, TabEntry,
+                    (UINT)(IsLargePage ? 1u : 0u));
+            }
         } else if (IsLargePage == FALSE) {
             DEBUG(TEXT("Missing mapping Dir=%u Tab=%u IsLarge=%u"), DirEntry, TabEntry, (UINT)(IsLargePage ? 1u : 0u));
         }
@@ -1671,6 +1918,7 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
     RegionTrackFreeForProcess(TrackingProcess, CanonicalBase, NumPages << PAGE_SIZE_MUL);
     FreeEmptyPageTables();
     FlushTLB();
+    UnlockMutex(MUTEX_MEMORY);
     return TRUE;
 }
 

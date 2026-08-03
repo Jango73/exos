@@ -22,10 +22,10 @@
 \************************************************************************/
 
 #include "ui/Cube3D.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "text/CoreString.h"
-#include "memory/Heap.h"
-#include "math/Math.h"
 #include "math/Math3D.h"
 #include "ui/Button.h"
 
@@ -38,6 +38,7 @@
 #define CUBE3D_ROTATION_Y_MDEG_PER_SECOND 20000
 #define CUBE3D_ROTATION_Z_MDEG_PER_SECOND 7000
 #define CUBE3D_FULL_TURN_MDEG 360000
+#define CUBE3D_PI_F32 3.14159265358979323846f
 #define CUBE3D_DEFAULT_WIDTH 420
 #define CUBE3D_DEFAULT_HEIGHT 300
 #define CUBE3D_COLOR_FLASH_GREEN ((COLOR)0x0014FF39)
@@ -279,9 +280,9 @@ static void Cube3DDrawWireframe(HANDLE Window, LPRECT ClientRect) {
     }
 
     Euler = Math3DVector3(
-        ((F32)State->AngleXMilliDegrees * MATH_PI_F32) / 180000.0f,
-        ((F32)State->AngleYMilliDegrees * MATH_PI_F32) / 180000.0f,
-        ((F32)State->AngleZMilliDegrees * MATH_PI_F32) / 180000.0f);
+        ((F32)State->AngleXMilliDegrees * CUBE3D_PI_F32) / 180000.0f,
+        ((F32)State->AngleYMilliDegrees * CUBE3D_PI_F32) / 180000.0f,
+        ((F32)State->AngleZMilliDegrees * CUBE3D_PI_F32) / 180000.0f);
     Translation = Math3DVector3(0.0f, 0.0f, 5.0f);
     Scale = Math3DVector3(1.35f, 1.35f, 1.35f);
     Transform = Math3DMatrix4ComposeTRS(Translation, Euler, Scale);
@@ -337,12 +338,12 @@ U32 Cube3DWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
 
     switch (Message) {
         case EWM_CREATE:
-            State = (LPCUBE3D_STATE)HeapAlloc(sizeof(CUBE3D_STATE));
+            State = (LPCUBE3D_STATE)malloc(sizeof(CUBE3D_STATE));
             if (State == NULL) {
                 return 0;
             }
 
-            MemorySet(State, 0, sizeof(CUBE3D_STATE));
+            memset(State, 0, sizeof(CUBE3D_STATE));
             PenInfo.Header.Size = sizeof(PEN_INFO);
             PenInfo.Header.Version = EXOS_ABI_VERSION;
             PenInfo.Header.Flags = 0;
@@ -352,7 +353,7 @@ U32 Cube3DWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             PenInfo.Flags = 0;
             State->FlashPen = CreatePen(&PenInfo);
             if (State->FlashPen == NULL) {
-                HeapFree(State);
+                free(State);
                 return 0;
             }
 
@@ -362,7 +363,7 @@ U32 Cube3DWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             (void)SetWindowProp(Window, CUBE3D_PROP_STATE, (UINT)State);
             if (Cube3DEnsureToggleButton(Window, State) == FALSE) {
                 (void)DeleteObject(State->FlashPen);
-                HeapFree(State);
+                free(State);
                 (void)SetWindowProp(Window, CUBE3D_PROP_STATE, 0);
                 return 0;
             }
@@ -376,7 +377,7 @@ U32 Cube3DWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
                 if (State->FlashPen != NULL) {
                     (void)DeleteObject(State->FlashPen);
                 }
-                HeapFree(State);
+                free(State);
                 (void)SetWindowProp(Window, CUBE3D_PROP_STATE, 0);
             }
             break;

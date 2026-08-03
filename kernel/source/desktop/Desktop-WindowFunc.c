@@ -364,6 +364,7 @@ U32 BaseWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             }
 
             if (BaseClass != NULL && BaseClass->TypeID == KOID_WINDOW_CLASS && BaseClass->Function != NULL) {
+                HANDLE TargetHandle;
                 PreviousWindow = Task->WindowDispatchWindow;
                 PreviousClass = Task->WindowDispatchClass;
                 PreviousFunction = Task->WindowDispatchFunction;
@@ -373,7 +374,14 @@ U32 BaseWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
                 Task->WindowDispatchFunction = BaseClass->Function;
                 Task->WindowDispatchDepth++;
 
-                Result = BaseClass->Function(Window, Message, Param1, Param2);
+                TargetHandle = Window;
+                SAFE_USE_VALID_ID(BaseClass->OwnerProcess, KOID_PROCESS) {
+                    if (BaseClass->OwnerProcess->Privilege == CPU_PRIVILEGE_USER) {
+                        TargetHandle = EnsureHandle((LINEAR)This);
+                    }
+                }
+
+                Result = BaseClass->Function(TargetHandle, Message, Param1, Param2);
 
                 Task->WindowDispatchWindow = PreviousWindow;
                 Task->WindowDispatchClass = PreviousClass;

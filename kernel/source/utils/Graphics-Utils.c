@@ -2002,3 +2002,80 @@ void GraphicsWindowPointToScreenPoint(LPRECT WindowScreenRect, LPPOINT WindowPoi
 }
 
 /************************************************************************/
+
+/************************************************************************/
+
+/**
+ * @brief Draw a TV-style test pattern on the framebuffer.
+ *
+ * Renders color bars, gray scale bars and sync lines to visually
+ * confirm mode set correctness. Uses optimized rect fills.
+ *
+ * @param Context Graphics context with active framebuffer.
+ * @return TRUE on success.
+ */
+BOOL GraphicsDrawTestPattern(LPGRAPHICSCONTEXT Context) {
+    I32 Width;
+    I32 Height;
+    I32 BarWidth;
+    I32 BarHeight;
+    I32 X1;
+    I32 X2;
+    I32 Y1;
+    I32 Y2;
+    I32 Index;
+
+    static const COLOR ColorBars[] = {
+        0x00FFFFFF, 0x00FFFF00, 0x0000FFFF, 0x0000FF00,
+        0x00FF00FF, 0x00FF0000, 0x000000FF, 0x00000000
+    };
+
+    static const COLOR GrayBars[] = {
+        0x00FFFFFF, 0x00C0C0C0, 0x00909090,
+        0x00606060, 0x00303030, 0x00000000
+    };
+
+    if (Context == NULL || Context->MemoryBase == NULL) return FALSE;
+    Width = Context->Width;
+    Height = Context->Height;
+    if (Width <= 0 || Height <= 0) return FALSE;
+
+    GraphicsFillSolidRect(Context, 0, 0, Width - 1, Height - 1, 0x00000000);
+
+    BarWidth = Width / 8;
+    BarHeight = Height * 3 / 5;
+    if (BarWidth > 0 && BarHeight > 0) {
+        for (Index = 0; Index < 8; Index++) {
+            X1 = Index * BarWidth;
+            X2 = (Index == 7) ? Width - 1 : X1 + BarWidth - 1;
+            GraphicsFillSolidRect(Context, X1, 0, X2, BarHeight - 1, ColorBars[Index]);
+        }
+    }
+
+    Y1 = BarHeight;
+    Y2 = BarHeight + (Height * 1 / 5) - 1;
+    if (Y2 > Y1) {
+        I32 GrayBarHeight = (Y2 - Y1 + 1) / 6;
+        for (Index = 0; Index < 6; Index++) {
+            I32 BarY1 = Y1 + Index * GrayBarHeight;
+            I32 BarY2 = (Index == 5) ? Y2 : BarY1 + GrayBarHeight - 1;
+            GraphicsFillSolidRect(Context, 0, BarY1, Width - 1, BarY2, GrayBars[Index]);
+        }
+    }
+
+    Y1 = Y2 + 1;
+    if (Y1 < Height) {
+        BOOL White = TRUE;
+        for (Y2 = Y1; Y2 < Height; Y2 += 4) {
+            I32 LineEnd = Y2 + 1;
+            if (LineEnd >= Height) LineEnd = Height - 1;
+            GraphicsFillSolidRect(Context, 0, Y2, Width - 1, LineEnd,
+                White ? 0x00FFFFFF : 0x00000000);
+            White = !White;
+        }
+    }
+
+    return TRUE;
+}
+
+/************************************************************************/

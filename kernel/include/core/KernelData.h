@@ -171,7 +171,6 @@ typedef struct tag_KERNEL_DATA {
     UINT DeferredWorkWaitTimeoutMS;  // Wait timeout for deferred work dispatcher in milliseconds
     UINT DeferredWorkPollDelayMS;    // Polling delay for deferred work dispatcher in milliseconds
     BOOL DoLogin;                    // Enable/disable login sequence (TRUE=enable, FALSE=disable)
-    BOOL ShowDesktop;                // Enable/disable automatic desktop activation (TRUE=enable, FALSE=disable)
     DATETIME BootTime;               // Local date-time recorded during clock initialization
     KERNEL_DEBUG_STATE Debug;
     STR LanguageCode[8];
@@ -186,7 +185,6 @@ void SetDeferredWorkPollDelay(UINT Delay);
 void SetDeferredWorkWaitTimeout(UINT Timeout);
 void SetUseDeadlockMonitor(BOOL Enabled);
 void SetDoLogin(BOOL DoLogin);
-void SetShowDesktop(BOOL ShowDesktop);
 void SetWindowPipelineTraceEnabled(BOOL Enabled);
 void SetActiveDesktop(LPDESKTOP Desktop);
 void SetFocusedProcess(LPPROCESS Process);
@@ -206,7 +204,6 @@ BOOL GetUseDeadlockMonitor(void);
 LPLIST GetDesktopList(void);
 LPLIST GetDiskList(void);
 BOOL GetDoLogin(void);
-BOOL GetShowDesktop(void);
 BOOL GetWindowPipelineTraceEnabled(void);
 BOOL GetKernelBootTime(LPDATETIME Time);
 LPDRIVER GetDefaultFileSystemDriver(void);

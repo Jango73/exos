@@ -22,8 +22,9 @@
 
 \************************************************************************/
 
-#include "Base.h"
 #include "process/Stack.h"
+
+#include "Base.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
@@ -83,9 +84,7 @@ static inline SELECTOR StackReadCodeSegment(void) {
     return (SELECTOR)SegmentValue;
 }
 
-static inline UINT StackGetSavedPointer(LPTASK Task) {
-    return Task->Arch.Context.Registers.ESP;
-}
+static inline UINT StackGetSavedPointer(LPTASK Task) { return Task->Arch.Context.Registers.ESP; }
 #else
 static inline SELECTOR StackReadCodeSegment(void) {
     SELECTOR SegmentValue;
@@ -95,9 +94,7 @@ static inline SELECTOR StackReadCodeSegment(void) {
     return SegmentValue;
 }
 
-static inline UINT StackGetSavedPointer(LPTASK Task) {
-    return (UINT)Task->Arch.Context.Registers.RSP;
-}
+static inline UINT StackGetSavedPointer(LPTASK Task) { return (UINT)Task->Arch.Context.Registers.RSP; }
 #endif
 
 /************************************************************************/
@@ -124,7 +121,7 @@ BOOL CopyStackWithEBP(LINEAR DestStackTop, LINEAR SourceStackTop, UINT Size, LIN
     UINT Delta = (INT)(DestStackTop - SourceStackTop);
 
     // Copy stack content from source to destination
-    MemoryCopy((void *)DestStackStart, (const void *)SourceStackStart, Size);
+    MemoryCopy((void*)DestStackStart, (const void*)SourceStackStart, Size);
 
     // Walk the frame chain and adjust all EBP values
     LINEAR CurrentEbp = StartEBP;
@@ -135,7 +132,7 @@ BOOL CopyStackWithEBP(LINEAR DestStackTop, LINEAR SourceStackTop, UINT Size, LIN
         LINEAR WalkEbp = AdjustedCurrentEbp;
 
         while (WalkEbp >= DestStackStart && WalkEbp < DestStackTop) {
-            LINEAR *Fp = (LINEAR *)(UINT)WalkEbp;
+            LINEAR* Fp = (LINEAR*)(UINT)WalkEbp;
             LINEAR SavedEbp = Fp[0];
 
             // If saved EBP points into the source stack, adjust it
@@ -235,8 +232,7 @@ BOOL SwitchStack(LINEAR DestStackTop, LINEAR SourceStackTop, UINT Size) {
         return TRUE;
     }
 
-    DEBUG(TEXT("SP %p not in source stack range [%p-%p]"), CurrentSP, SourceStackStart,
-        SourceStackTop);
+    DEBUG(TEXT("SP %p not in source stack range [%p-%p]"), CurrentSP, SourceStackStart, SourceStackTop);
 
     return FALSE;
 }
@@ -310,8 +306,7 @@ BOOL CheckStack(void) {
         ERROR(TEXT("InKernelMode: %u"), InKernelMode ? 1 : 0);
 
         if (CurrentESP < StackBase) {
-            ERROR(TEXT("ESP is %u bytes below stack base (severe underflow)"),
-                StackBase - CurrentESP);
+            ERROR(TEXT("ESP is %u bytes below stack base (severe underflow)"), StackBase - CurrentESP);
         } else {
             ERROR(TEXT("ESP is %u bytes above stack top (overflow)"), CurrentESP - StackTop);
         }
@@ -444,10 +439,7 @@ static UINT StackComputeLiveCopySize(LINEAR Base, LINEAR OldTop, UINT OldSize) {
     GetESP(CurrentSP);
 
     if (CurrentSP < Base || CurrentSP > OldTop) {
-        WARNING(TEXT("SP %p outside stack range [%p-%p], copying full stack"),
-                CurrentSP,
-                Base,
-                OldTop);
+        WARNING(TEXT("SP %p outside stack range [%p-%p], copying full stack"), CurrentSP, Base, OldTop);
         return OldSize;
     }
 
@@ -496,11 +488,7 @@ static void StackAdjustSavedPointerIfNeeded(UINT* Pointer, LINEAR OldBase, LINEA
  * @param NewTop New stack top.
  */
 static void StackUpdateTaskContextAfterMove(
-    LPTASK Task,
-    LPSTACK ActiveStack,
-    LINEAR OldBase,
-    LINEAR OldTop,
-    LINEAR NewTop) {
+    LPTASK Task, LPSTACK ActiveStack, LINEAR OldBase, LINEAR OldTop, LINEAR NewTop) {
     LINEAR Delta = NewTop - OldTop;
 
     if (Task == NULL || ActiveStack == NULL || OldBase == 0 || OldTop <= OldBase) {
@@ -565,14 +553,14 @@ static BOOL StackRelocateAndGrow(LPSTACK ActiveStack, UINT DesiredSize, U32 Flag
     OldSize = ActiveStack->Size;
     OldTop = OldBase + (LINEAR)OldSize;
 
-    NewBase = AllocRegion(OldBase + PAGE_SIZE, 0, DesiredSize, Flags | ALLOC_PAGES_AT_OR_OVER, TEXT("StackGrowRelocate"));
+    NewBase =
+        AllocRegion(OldBase + PAGE_SIZE, 0, DesiredSize, Flags | ALLOC_PAGES_AT_OR_OVER, TEXT("StackGrowRelocate"));
     if (NewBase == 0) {
-        ERROR(TEXT("AllocRegion failed oldBase=%p oldSize=%u newSize=%u"),
-              OldBase,
-              OldSize,
-              DesiredSize);
+        ERROR(TEXT("AllocRegion failed oldBase=%p oldSize=%u newSize=%u"), OldBase, OldSize, DesiredSize);
         return FALSE;
     }
+
+    LINEAR OldAllocationBase = (ActiveStack->AllocationBase != 0) ? ActiveStack->AllocationBase : OldBase;
 
     NewTop = NewBase + (LINEAR)DesiredSize;
     CopySize = StackComputeLiveCopySize(OldBase, OldTop, OldSize);
@@ -583,10 +571,11 @@ static BOOL StackRelocateAndGrow(LPSTACK ActiveStack, UINT DesiredSize, U32 Flag
         return FALSE;
     }
 
+    ActiveStack->AllocationBase = NewBase;
     ActiveStack->Base = NewBase;
     ActiveStack->Size = DesiredSize;
 
-    if (FreeRegion(OldBase, OldSize) == FALSE) {
+    if (FreeRegion(OldAllocationBase, (UINT)(OldTop - OldAllocationBase)) == FALSE) {
         WARNING(TEXT("FreeRegion failed for old stack base=%p size=%u"), OldBase, OldSize);
     }
 
@@ -631,6 +620,8 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             LINEAR Base = ActiveStack->Base;
             UINT OldSize = ActiveStack->Size;
             LINEAR OldTop = Base + (LINEAR)OldSize;
+            LINEAR AllocationBase = (ActiveStack->AllocationBase != 0) ? ActiveStack->AllocationBase : Base;
+            UINT RegionSize = (UINT)(OldTop - AllocationBase);
 
             if (CurrentSP < Base || CurrentSP > OldTop) {
                 ERROR(TEXT("SP %p outside stack range [%p-%p]"), CurrentSP, Base, OldTop);
@@ -658,29 +649,22 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
             MaximumSize = StackGetMaximumSize(CurrentTask, ActiveStack);
             if (DesiredSize > MaximumSize) {
                 if (OldSize >= MaximumSize) {
-                    ERROR(TEXT("Maximum stack size reached base=%p size=%u max=%u"),
-                          Base,
-                          OldSize,
-                          MaximumSize);
+                    ERROR(TEXT("Maximum stack size reached base=%p size=%u max=%u"), Base, OldSize, MaximumSize);
                     break;
                 }
 
                 DesiredSize = (UINT)PAGE_ALIGN(MaximumSize);
             }
 
-            DEBUG(TEXT("Base=%p Size=%u SP=%p Used=%u NewSize=%u"),
-                Base,
-                OldSize,
-                CurrentSP,
-                UsedBytes,
-                DesiredSize);
+            UINT DesiredRegionSize = RegionSize + (DesiredSize - OldSize);
+
+            DEBUG(TEXT("Base=%p Size=%u SP=%p Used=%u NewSize=%u"), Base, OldSize, CurrentSP, UsedBytes, DesiredSize);
             UNUSED(UsedBytes);
 
-            if (ResizeRegion(Base, 0, OldSize, DesiredSize, Flags) == FALSE) {
-                WARNING(TEXT("ResizeRegion failed for base=%p size=%u -> %u, trying relocation"),
-                        Base,
-                        OldSize,
-                        DesiredSize);
+            if (ResizeRegion(AllocationBase, 0, RegionSize, DesiredRegionSize, Flags) == FALSE) {
+                WARNING(
+                    TEXT("ResizeRegion failed for base=%p size=%u -> %u, trying relocation"), Base, OldSize,
+                    DesiredSize);
 
                 if (StackRelocateAndGrow(ActiveStack, DesiredSize, Flags) == FALSE) {
                     ERROR(TEXT("Relocation failed for base=%p size=%u -> %u"), Base, OldSize, DesiredSize);
@@ -693,12 +677,9 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
                 NewTop = Base + (LINEAR)DesiredSize;
 
                 if (SwitchStack(NewTop, OldTop, CopySize) == FALSE) {
-                    ERROR(TEXT("SwitchStack failed (DestTop=%p SourceTop=%p Size=%u)"),
-                          NewTop,
-                          OldTop,
-                          CopySize);
+                    ERROR(TEXT("SwitchStack failed (DestTop=%p SourceTop=%p Size=%u)"), NewTop, OldTop, CopySize);
 
-                    if (ResizeRegion(Base, 0, DesiredSize, OldSize, Flags) == FALSE) {
+                    if (ResizeRegion(AllocationBase, 0, DesiredRegionSize, RegionSize, Flags) == FALSE) {
                         ERROR(TEXT("Failed to roll back stack resize for base=%p"), Base);
                     }
 
@@ -714,10 +695,7 @@ BOOL GrowCurrentStack(UINT AdditionalBytes) {
 
             StackUpdateTaskContextAfterMove(CurrentTask, ActiveStack, Base, OldTop, NewTop);
 
-            DEBUG(TEXT("Resize complete: Size=%u Remaining=%u SP=%p"),
-                ActiveStack->Size,
-                RemainingBytes,
-                UpdatedSP);
+            DEBUG(TEXT("Resize complete: Size=%u Remaining=%u SP=%p"), ActiveStack->Size, RemainingBytes, UpdatedSP);
             UNUSED(RemainingBytes);
 
             Success = TRUE;
@@ -756,10 +734,174 @@ BOOL EnsureCurrentStackSpace(UINT MinimumFreeBytes) {
     UINT Required = MinimumFreeBytes - Remaining;
     UINT Additional = Required + STACK_GROW_EXTRA_HEADROOM;
 
-    DEBUG(TEXT("Remaining=%u Required=%u Additional=%u"),
-        Remaining,
-        MinimumFreeBytes,
-        Additional);
+    DEBUG(TEXT("Remaining=%u Required=%u Additional=%u"), Remaining, MinimumFreeBytes, Additional);
 
     return GrowCurrentStack(Additional);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Release a stack region, freeing its full tracked allocation.
+ *
+ * A system stack may carry committed headroom below its declared base that
+ * was reserved at creation; this routine frees the whole region, from the
+ * allocation base to the declared top.
+ *
+ * @param Stack Stack descriptor to release.
+ */
+void StackRelease(LPSTACK Stack) {
+    if (Stack == NULL || Stack->Base == 0) {
+        return;
+    }
+
+    LINEAR AllocationBase = (Stack->AllocationBase != 0) ? Stack->AllocationBase : Stack->Base;
+    LINEAR RegionTop = Stack->Base + (LINEAR)Stack->Size;
+
+    if (AllocationBase >= RegionTop) {
+        ERROR(
+            TEXT("Invalid stack range base=%p size=%u allocation=%p"), (LPVOID)Stack->Base, Stack->Size,
+            (LPVOID)AllocationBase);
+        return;
+    }
+
+    if (FreeRegion(AllocationBase, (UINT)(RegionTop - AllocationBase)) == FALSE) {
+        WARNING(TEXT("FreeRegion failed for stack base=%p size=%u"), (LPVOID)Stack->Base, Stack->Size);
+    }
+
+    Stack->AllocationBase = 0;
+    Stack->Base = 0;
+    Stack->Size = 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Grow the current task system stack to cover a kernel stack-underflow fault.
+ *
+ * A kernel-mode access below the system stack base (for example a compiler
+ * stack probe while entering a function with a large local buffer) faults on
+ * an unmapped page. This routine maps the pages directly below the system
+ * stack so the faulting instruction can be retried. The stack grows downward:
+ * the stack top is unchanged, therefore the TSS kernel stack pointer needs no
+ * update and no register in the interrupt frame has to be moved.
+ *
+ * @param FaultAddress Linear address that triggered the page fault.
+ * @param Frame Interrupt frame holding the faulting register state.
+ * @return TRUE when the system stack was extended and the fault can be retried.
+ */
+BOOL GrowFaultingSystemStack(LINEAR FaultAddress, LPINTERRUPT_FRAME Frame) {
+    if (Frame == NULL) {
+        return FALSE;
+    }
+
+    LPTASK CurrentTask = GetCurrentTask();
+    if (CurrentTask == NULL) {
+        return FALSE;
+    }
+
+    BOOL Result = FALSE;
+    BOOL TaskValidated = FALSE;
+
+    SAFE_USE_VALID_ID(CurrentTask, KOID_TASK) {
+        TaskValidated = TRUE;
+
+        do {
+            LPSTACK SystemStack = &(CurrentTask->Arch.SystemStack);
+
+            if (SystemStack->Base == 0 || SystemStack->Size == 0) {
+                DEBUG(TEXT("No system stack available"));
+                break;
+            }
+
+            LINEAR OldBase = SystemStack->Base;
+            UINT OldSize = SystemStack->Size;
+            LINEAR OldTop = OldBase + (LINEAR)OldSize;
+
+            if (FaultAddress >= OldBase) {
+                DEBUG(TEXT("Fault %p not below system stack base %p"), (LPVOID)FaultAddress, (LPVOID)OldBase);
+                break;
+            }
+
+            UINT Underflow = (UINT)(OldBase - FaultAddress);
+            if (Underflow > STACK_MAXIMUM_SYSTEM_STACK_SIZE) {
+                DEBUG(TEXT("Underflow %u beyond maximum stack growth window"), Underflow);
+                break;
+            }
+
+            // Compiler stack probes keep their limit register untouched; when it
+            // plausibly points below the fault, use it to size the growth in one shot.
+            LINEAR ProbeTarget = 0;
+
+#if defined(__EXOS_ARCH_X86_32__)
+            ProbeTarget = (LINEAR)Frame->Registers.EAX;
+#else
+            ProbeTarget = (LINEAR)Frame->Registers.R11;
+#endif
+
+            LINEAR TargetBase = FaultAddress;
+            if (ProbeTarget != 0 && ProbeTarget < FaultAddress &&
+                (FaultAddress - ProbeTarget) <= STACK_MAXIMUM_SYSTEM_STACK_SIZE) {
+                TargetBase = ProbeTarget;
+            }
+
+            LINEAR DesiredBase = TargetBase & PAGE_MASK;
+            if (DesiredBase >= STACK_GROW_MIN_INCREMENT) {
+                DesiredBase -= STACK_GROW_MIN_INCREMENT;
+            } else {
+                DesiredBase = 0;
+            }
+            DesiredBase &= PAGE_MASK;
+
+            UINT TotalSize = OldSize + (UINT)(OldBase - DesiredBase);
+            if (TotalSize > STACK_MAXIMUM_SYSTEM_STACK_SIZE) {
+                LINEAR MaximumBase = (OldTop - (LINEAR)STACK_MAXIMUM_SYSTEM_STACK_SIZE) & PAGE_MASK;
+                if (MaximumBase >= DesiredBase) {
+                    DesiredBase = MaximumBase;
+                }
+            }
+
+            if (DesiredBase >= OldBase) {
+                DEBUG(
+                    TEXT("No growth required, desired base %p not below current base %p"), (LPVOID)DesiredBase,
+                    (LPVOID)OldBase);
+                break;
+            }
+
+            UINT ExtensionBytes = (UINT)(OldBase - DesiredBase);
+            if ((ExtensionBytes & (PAGE_SIZE - 1)) != 0) {
+                ERROR(TEXT("Stack extension size %u is not page aligned"), ExtensionBytes);
+                break;
+            }
+
+            LINEAR NewBase = AllocRegion(
+                DesiredBase, 0, ExtensionBytes, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStackGrow"));
+
+            if (NewBase != DesiredBase) {
+                if (NewBase != 0) {
+                    FreeRegion(NewBase, ExtensionBytes);
+                }
+                ERROR(
+                    TEXT("AllocRegion failed for system stack extension base=%p size=%u"), (LPVOID)DesiredBase,
+                    ExtensionBytes);
+                break;
+            }
+
+            SystemStack->AllocationBase = NewBase;
+            SystemStack->Base = NewBase;
+            SystemStack->Size = OldSize + ExtensionBytes;
+
+            DEBUG(
+                TEXT("System stack grown: base=%p size=%u (was base=%p size=%u)"), (LPVOID)SystemStack->Base,
+                SystemStack->Size, (LPVOID)OldBase, OldSize);
+
+            Result = TRUE;
+        } while (0);
+    }
+
+    if (!TaskValidated) {
+        ERROR(TEXT("SAFE_USE_VALID_ID failed for current task %p"), CurrentTask);
+    }
+
+    return Result;
 }

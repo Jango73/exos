@@ -47,11 +47,9 @@ BOOL Ext2BufferPoolInit(LPEXT2FILESYSTEM FileSystem) {
         return TRUE;
     }
 
-    if (!BufferPoolInit(&FileSystem->BlockBufferPool,
-                        FileSystem->BlockSize,
-                        EXT2_BLOCK_BUFFER_OBJECTS_PER_SLAB,
-                        EXT2_BLOCK_BUFFER_INITIAL_SLABS,
-                        EXT2_BLOCK_BUFFER_ALLOC_FLAGS)) {
+    if (!BufferPoolInit(
+            &FileSystem->BlockBufferPool, FileSystem->BlockSize, EXT2_BLOCK_BUFFER_OBJECTS_PER_SLAB,
+            EXT2_BLOCK_BUFFER_INITIAL_SLABS, EXT2_BLOCK_BUFFER_ALLOC_FLAGS, TEXT("Ext2BlockBuffer"))) {
         return FALSE;
     }
 

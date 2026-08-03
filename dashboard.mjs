@@ -382,6 +382,9 @@ function normalizeSidebarEntriesFromSet(commandSet) {
     const entries = [];
 
     for (const command of (Array.isArray(commandSet.commands) ? commandSet.commands : [])) {
+        if (typeof command === 'object' && command && command.disabled === true) {
+            continue;
+        }
         const displayLabel = resolveBindingLabel(command);
         const script = resolveBindingScript(command);
 

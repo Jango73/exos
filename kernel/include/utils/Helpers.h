@@ -53,6 +53,7 @@
 #define CONFIG_TCP_RECEIVE_BUFFER_SIZE "TCP.ReceiveBufferSize"
 #define CONFIG_TASK_MINIMUM_TASK_STACK_SIZE "Task.MinimumTaskStackSize"
 #define CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE "Task.MinimumSystemStackSize"
+#define CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES "Task.MessageQueueMaxMessages"
 
 // Per-device network interface configuration (format strings for dynamic paths)
 #define CONFIG_NETWORK_INTERFACE_DEVICE_NAME_FMT "NetworkInterface.%u.DeviceName"
@@ -85,6 +86,9 @@ LPTOML GetConfiguration(void);
 LPFILESYSTEM GetSystemFS(void);
 LPSYSTEMFSFILESYSTEM GetSystemFSFilesystem(void);
 LPCSTR GetConfigurationValue(LPCSTR path);
+UINT GetConfigurationUInt(LPCSTR path, UINT defaultValue, UINT minimumValue, UINT maximumValue);
+UINT GetConfigurationUIntLazy(
+    UINT* cachedValue, BOOL* initialized, LPCSTR path, UINT defaultValue, UINT minimumValue, UINT maximumValue);
 
 /***************************************************************************/
 

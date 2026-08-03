@@ -506,7 +506,6 @@ BOOL DesktopSetWindowVisibility(HANDLE Handle, BOOL ShowHide) {
 
     PreviousScreenRect = Snapshot.ScreenRect;
     WasVisible = ((Snapshot.Status & WINDOW_STATUS_VISIBLE) != 0);
-
     //-------------------------------------
     // Send appropriate messages to the window
 
@@ -1726,7 +1725,6 @@ U32 DesktopWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
 
             Position.X = SIGNED(Param1);
             Position.Y = SIGNED(Param2);
-
             if (GetDesktopCaptureState((LPWINDOW)Window, &CaptureWindow, NULL, NULL) != FALSE) {
                 SAFE_USE_VALID_ID(CaptureWindow, KOID_WINDOW) {
                     if (CaptureWindow != (LPWINDOW)Window) {
@@ -1741,7 +1739,6 @@ U32 DesktopWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
             if (Target == (LPWINDOW)Window) {
                 Target = NULL;
             }
-
             if (PreviousTarget != NULL && PreviousTarget != Target) {
                 SAFE_USE_VALID_ID(PreviousTarget, KOID_WINDOW) {
                     (void)DesktopPostMouseMoveFromScreenPoint(PreviousTarget, &Position);

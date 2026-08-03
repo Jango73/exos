@@ -247,18 +247,6 @@ static LPCSTR G_EmbeddedScripts[SHELL_EMBEDDED_SCRIPT_COUNT] = {
         "    }\n"
         "    print(\"\");\n"
         "}\n",
-    [SHELL_EMBEDDED_SCRIPT_MEMORY_MAP] = (LPCSTR)
-        "count = memoryMap.kernelRegion.count;\n"
-        "print(\"Kernel regions: \" + count);\n"
-        "for (i = 0; i < count; i = i + 1) {\n"
-        "    line = \"\" + i + \": tag=\" + memoryMap.kernelRegion[i].tag + \" base=(\" + memoryMap.kernelRegion[i].baseHigh + \",\" + memoryMap.kernelRegion[i].baseLow + \") size=\" + memoryMap.kernelRegion[i].size;\n"
-        "    if (memoryMap.kernelRegion[i].physicalKnown != 0) {\n"
-        "        line = line + \" phys=(\" + memoryMap.kernelRegion[i].physicalHigh + \",\" + memoryMap.kernelRegion[i].physicalLow + \")\";\n"
-        "    } else {\n"
-        "        line = line + \" phys=?\";\n"
-        "    }\n"
-        "    print(line);\n"
-        "}\n",
     [SHELL_EMBEDDED_SCRIPT_NETWORK_DEVICES] = (LPCSTR)
         "count = network.device.count;\n"
         "if (count == 0) {\n"

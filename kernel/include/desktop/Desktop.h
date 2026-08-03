@@ -59,7 +59,7 @@
 /************************************************************************/
 // Functions in Desktop.c
 
-LPDESKTOP KernelCreateDesktop(void);
+LPDESKTOP KernelCreateDesktop(LPWINDOW RootWindow);
 BOOL DeleteDesktop(LPDESKTOP);
 BOOL KernelShowDesktop(LPDESKTOP);
 HANDLE RegisterWindowClass(

@@ -34,7 +34,7 @@
 //
 // - Message queue operations are allowed under TaskMessageMutex.
 // - Window tree/state lookups must use minimal desktop lock scope.
-// - PostMessage and KernelDispatchMessage must not execute window callbacks while
+// - PostMessage and DispatchMessage must not execute window callbacks while
 //   holding TaskMessageMutex.
 
 BOOL InitMessageQueue(LPMESSAGEQUEUE Queue);
@@ -47,9 +47,9 @@ BOOL PostProcessMessage(LPPROCESS Process, U32 Msg, U32 Param1, U32 Param2);
 BOOL BroadcastProcessMessage(U32 Msg, U32 Param1, U32 Param2);
 BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2);
 U32 SendMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2);
-BOOL KernelPeekMessage(LPMESSAGE_INFO Message);
-BOOL KernelGetMessage(LPMESSAGE_INFO Message);
-BOOL KernelDispatchMessage(LPMESSAGE_INFO Message);
+BOOL PeekMessage(LPMESSAGE_INFO Message);
+BOOL GetMessage(LPMESSAGE_INFO Message);
+BOOL DispatchMessage(LPMESSAGE_INFO Message);
 
 /************************************************************************/
 

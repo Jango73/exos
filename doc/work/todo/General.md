@@ -68,26 +68,39 @@
   - [x] Rename http.c -> exos-runtime-http.c
   - [x] Create exos-window.c and move windowing functions from exos.c to exos-window.c
 
-- [ ] Remove UI components from kernel and cleanup
+- [x] Remove UI components from kernel and cleanup
   - Remove kernel/source/ui/* and kernel/include/ui/* , and use the files to replace the contents of portal.
-  - Clean up kernel (no kernel module should include "exos.h") :
-    - Rename KernelPeekMessage -> PeekMessage
-    - Rename KernelGetMessage -> GetMessage
-    - Rename KernelDispatchMessage -> DispatchMessage
-    - Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
-    - There must be no conflict between functions in kernel and functions in runtime
 
+- [x] Clean up kernel (no kernel module should include "exos.h") :
+  - [x] Rename KernelPeekMessage -> PeekMessage
+  - [x] Rename KernelGetMessage -> GetMessage
+  - [x] Rename KernelDispatchMessage -> DispatchMessage
+  - [x] Add HeapAlloc and HeapFree in exos runtime using SYSCALL_HeapAlloc and SYSCALL_HeapFree
+  - [x] There must be no conflict between functions in kernel and functions in runtime
+
+- [x] Execute iGPU.md : Step 11
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
-- [ ] Execute iGPU.md : Step 11
 
 - [ ] Implement full UTF and Unicode.md
 - [ ] Handle languages
 
 - [ ] Fix input-info #PF on exit
 - [ ] Keyboard : Handle '<' key in french keyboard mapping.
+
+- [x] Scripting memory : AST cache with execution-stack-based eviction
+
+- [x] Intermittent `[ReservedHeapInit] Failed to commit initial region for ShellHeap`
+  - Symptom: during boot, `ReservedHeapInit()` fails to commit the initial ShellHeap region, so `InitShellContext()` falls back to the process heap (`Reserved shell heap unavailable, using process heap`). The smoke test then reports a kernel fatal error and fails.
+  - Fix: `IsRegionFree()` now treats any non-zero page-table entry as occupying the region, on x86-64 (`ReadPageTableEntryValue() != 0`) and x86-32 (raw PTE != 0). `FreeRegionForProcess()` now clears reserved (non-present non-zero) entries on both architectures so freed regions become reusable.
+
+- [x] Rewrite the `memoryMap` shell command to report on the whole memory carving, for ALL processes:
+  - Extend it to cover all memory: process address space arenas, page directories, memory regions, stacks, heaps, for every process.
+  - Verify the memory is carved out healthily from the largest structures (process address space arenas, memory region descriptors) down to the stacks.
+  - Detect overlapping zones and layout inconsistencies and list every overlap found.
+  - Provide an option to assess heap fragmentation (must not be enabled by default; heaps are used at too fine a granularity by the different components).
 
 ## Medium priority
 
@@ -110,6 +123,10 @@
 
 - [x] Implement Native-C-Compiler.md
 
+### Smoke test
+
+- [ ] tcc-global-hello must actually print something: `system/tcc/samples/hello.c` only returns 0, so the smoke command `tcc ... -o /temp/tcc-global-hello` compiles and runs a binary that produces no output. Give the sample at least one print (for example via `printf`) so the compiled binary is exercised meaningfully.
+
 ### Scheduling
 
 - [ ] Improve the scheduler (task priorities):
@@ -129,7 +146,11 @@
 
 ### Keyboard
 
-- [ ] Add more keyboard layouts : ja-JP, zh-CN, ko-KR, nl-NL, sv-SE, fi-FI, pl-PL, tr-TR, cs-CZ, ru-RU, hi-IN
+- [ ] Add more keyboard layouts : ja-JP, zh-CN, ko-KR, pl-PL, tr-TR, cs-CZ, hi-IN
+  - [x] nl-NL (deploy/keyboard/nl-NL.ekm1)
+  - [x] sv-SE (deploy/keyboard/sv-SE.ekm1)
+  - [x] fi-FI (deploy/keyboard/fi-FI.ekm1)
+  - [x] ru-RU (deploy/keyboard/ru-RU.ekm1)
 
 ### Shell
 
@@ -169,9 +190,10 @@
 ### Memory
 
 - [ ] Align x86-32 page directory creation (`AllocPageDirectory` and `AllocUserPageDirectory`) with the modular x86-64 region-based approach (low region, kernel region, task runner, recursive slot) while preserving current behavior. Execute this refactor in small validated steps to limit boot and paging regression risk.
-- [ ] Implement a memory sanity checker that scans memory to check how fragmented memory is.
+- [ ] Improve the memory stress tests: the existing `memory-stress` app did not expose the region allocator race fixed in the x86-64 allocator (concurrent region carve-outs between tasks overlapping one another and corrupting descriptor slabs). Add a stress mode that runs concurrent allocation/release loops from several tasks, mixing large multi-page reservations with single-page allocations, so allocator races and descriptor/PTE inconsistencies surface deterministically.
 - [ ] TOML parsing allocations too many small objects and fragments heap.
 - [ ] Region descriptor tracking is tied to `GetCurrentProcess()` instead of the actual region owner, which yields `[UpdateDescriptorsForFree] Missing descriptor` warnings during task/process teardown : rework alloc/free tracking so descriptors are registered and removed against the owning process/kernel address space, not the current execution context.
+- [x] UEFI portal crash on teardown: the deterministic crash was a GCC stack-probe underflow in `LogViewerWindowFunc` (32KB local buffer, probe `sub $0x8000,%rsp` at user RIP `0x40618C`, CR2=`FFFFFFFFE0B4BD40` = SystemStack base `E0B4C000` minus `0x2C0`). The reactive grow (`GrowFaultingSystemStack`) could not allocate the extension because the ShellHeap reserved regions (#1 `E094C000..E0B4C000`, #2 `E0B4C000..E0D4C000`) butt directly against the SystemStack with zero free page below (`[GrowFaultingSystemStack] AllocRegion failed base=E0B47000 size=20480`), and the subsequent x86-64 kernel page-table walk faulted fatally. Fix: allocate a committed `STACK_GROW_MIN_INCREMENT` (16KB) margin below each SystemStack at creation (`Stack.AllocationBase`, region size `TASK_MINIMUM_SYSTEM_STACK_SIZE + STACK_GROW_MIN_INCREMENT`), so compiler probes land in mapped memory; `StackRelocateAndGrow`, `GrowCurrentStack` and `GrowFaultingSystemStack` now resize/free the full region through `AllocationBase`, and stack teardown uses `StackRelease`. `ResolveKernelPageFault` was hardened to use temporary paging slots instead of recursive windowing. Validated on x86-64 MBR, x86-64 UEFI and x86-32 MBR global smoke tests: portal runs with no fault and no grow trigger.
 
 ### System data view
 

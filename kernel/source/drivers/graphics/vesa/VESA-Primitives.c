@@ -706,62 +706,7 @@ U32 VESAArcPrimitive(LPVESA_CONTEXT Context, LPARC_INFO Info) {
     return 1;
 }
 
-/***************************************************************************/
 
-/**
- * @brief Draw a simple self-test pattern for sanity checks.
- *
- * Renders colored horizontal bands in the top portion of the frame buffer.
- *
- * @param Context VESA context
- */
-void VESADrawSelfTest(LPVESA_CONTEXT Context) {
-    static const COLOR Colors[] = {0x00FF0000, 0x0000FF00, 0x000000FF, 0x00FFFF00};
-    const I32 NumBands = (I32)(sizeof(Colors) / sizeof(Colors[0]));
-    COLOR (*SetPixel)(LPVESA_CONTEXT, I32, I32, COLOR);
-    I32 Width;
-    I32 Height;
-    I32 StripeWidth;
-    I32 TestHeight;
-    I32 Index;
-    I32 X;
-    I32 Y;
-    I32 X1;
-    I32 X2;
-
-    SetPixel = Context->ModeSpecs.SetPixel;
-    if (SetPixel == NULL) return;
-
-    Width = (I32)Context->Header.Width;
-    Height = (I32)Context->Header.Height;
-    if (Width <= 0 || Height <= 0) return;
-
-    StripeWidth = Width / NumBands;
-    if (StripeWidth <= 0) StripeWidth = Width;
-
-    TestHeight = Height / 16;
-    if (TestHeight < 16) TestHeight = Height;
-    if (TestHeight > Height) TestHeight = Height;
-
-    DEBUG(TEXT("Drawing %u color bands (%ux%u test area)"), (U32)NumBands, (U32)Width, (U32)TestHeight);
-
-    for (Index = 0; Index < NumBands; Index++) {
-        X1 = Index * StripeWidth;
-        X2 = X1 + StripeWidth - 1;
-
-        if (Index == NumBands - 1) X2 = Width - 1;
-        if (X2 >= Width) X2 = Width - 1;
-        if (X1 < 0) X1 = 0;
-
-        for (Y = 0; Y < TestHeight; Y++) {
-            for (X = X1; X <= X2; X++) {
-                SetPixel(Context, X, Y, Colors[Index]);
-            }
-        }
-    }
-}
-
-/***************************************************************************/
 
 /**
  * @brief Create a brush object from descriptor.

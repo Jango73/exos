@@ -22,6 +22,8 @@ Its syntax is intentionally minimal — inspired by C and early JS — and can b
 
 ### Tokens / Operators
 - Arithmetic: `+`, `-`, `*`, `/`
+- Bitwise: `&`, `|`, `^`, `~`, `<<`, `>>`
+- Logical: `!`, `&&`, `||`
 - Comparisons: `<`, `<=`, `>`, `>=`, `==`, `!=`
 - Indexing: `[` `]`
 - Grouping: `(` `)`, block `{` `}`
@@ -30,7 +32,7 @@ Its syntax is intentionally minimal — inspired by C and early JS — and can b
 - Statement terminator: `;`
 
 ### Keywords
-- `if`, `else`, `for`
+- `if`, `else`, `for`, `return`, `continue`
 
 > **Comments:** not implemented yet. A `/` at start of a line may be parsed as a shell command.
 
@@ -50,6 +52,8 @@ Numeric coercion:
 - Arithmetic uses float unless both operands are int.
 - `0` is **false**, nonzero is **true**.
 - Comparisons yield `1.0` or `0.0`.
+- Logical operators return integer truth values (`1` or `0`).
+- Bitwise and shift operators require integer operands.
 
 Strings are immutable. Arrays can contain mixed values. Objects can contain mixed values and nested objects.
 
@@ -57,18 +61,25 @@ String operators:
 - `+`: text concatenation when either operand is a string
 - `string - string`: removes all occurrences of the right string from the left string (`"foobarfoo" - "foo"` gives `"bar"`)
 
+Truthiness constraints:
+- `if`, `for`, `!`, `&&`, and `||` require numeric-compatible operands.
+- Strings, arrays, objects, and host handles are not valid truth-test operands unless the host exposes numeric properties first.
+
 ---
 
 ## 3) Variables and assignment
 
 - `x = expression;`
+- `array[index] = expression;`
 - `obj.property = expression;`
+- `root.child.leaf = expression;`
 - Variables auto-declare in current scope.
 - Lookups search upward through scopes.
 - Host-registered symbols cannot be reassigned.
 
 Semicolons:
 - Required after assignments.
+- Required after `return` and `continue`.
 - Optional after blocks, control flow, and expression statements.
 
 ```text
@@ -131,10 +142,16 @@ user.name.value = 1;
 Operator precedence (high → low):
 1. Parentheses
 2. Index/property: `expr[index]`, `expr.property`
-3. Unary `+`, `-`
+3. Unary `+`, `-`, `!`, `~`
 4. `*`, `/`
 5. `+`, `-`
-6. Comparisons
+6. Shifts: `<<`, `>>`
+7. Bitwise AND: `&`
+8. Bitwise XOR: `^`
+9. Bitwise OR: `|`
+10. Comparisons
+11. Logical AND: `&&`
+12. Logical OR: `||`
 
 Left-associative.
 
@@ -146,7 +163,16 @@ name = "foo" + "bar";
 label = 1 + "x";
 mixed = 1 + 2 + "x" + 3;
 trimmed = "foobarfoo" - "foo";
+mask = (flags & 128) != 0;
+combined = (1 << 4) | 3;
+inverted = ~maskBits;
+ready = (count > 0) && (enabled != 0);
 ```
+
+Bitwise and shift rules:
+- `&`, `|`, `^`, `~`, `<<`, and `>>` operate on integers only.
+- Shift counts must be integers in the native `INT` bit range.
+- Violations raise `TYPE_MISMATCH`.
 
 ---
 
@@ -212,6 +238,14 @@ Capped at 1000 iterations.
 
 `continue;` is valid only inside a loop body. It skips the rest of the current iteration and proceeds with the loop increment.
 
+### Return
+```text
+return 42;
+return "done";
+```
+
+`return;` without an expression is not supported. The returned value is stored in the script context and stops script execution immediately.
+
 ---
 
 ## 9) Errors
@@ -222,6 +256,13 @@ Capped at 1000 iterations.
 - `TYPE_MISMATCH`
 - `DIVISION_BY_ZERO`
 - `UNDEFINED_VAR`
+- `UNAUTHORIZED`
+
+Common cases:
+- reading an unknown variable, array element, object property, or host property: `UNDEFINED_VAR`
+- applying arithmetic, logical, bitwise, property, or indexing operations to an unsupported type: `TYPE_MISMATCH`
+- dividing by zero: `DIVISION_BY_ZERO`
+- malformed syntax or unsupported expression form: `SYNTAX_ERROR`
 
 API:
 ```c
@@ -313,13 +354,24 @@ void run(const char* code) {
 
 ```
 program    := { statement [ ';' ] }
-statement  := assignment ';' | ifStmt | forStmt | block | exprStmt
+statement  := assignment ';'
+           | returnStmt ';'
+           | continueStmt ';'
+           | ifStmt
+           | forStmt
+           | block
+           | exprStmt
 block      := '{' { statement [ ';' ] } '}'
 
-assignment := IDENT ( '[' expr ']' )? '=' expr
+assignment := IDENT '=' expr
+           | IDENT '[' expr ']' '=' expr
+           | IDENT { '.' IDENT } '=' expr
 ifStmt     := 'if' '(' expr ')' statement [ 'else' statement ]
 forStmt    := 'for' '(' assignment ';' expr ';' assignment ')' statement
+returnStmt := 'return' expr
+continueStmt := 'continue'
 exprStmt   := expression
+expression := logicalOr
 ```
 
 ---
@@ -345,6 +397,13 @@ if (mem.free < 100) {
 for (i = 0; i < 5; i = i + 1) {
     echo("Tick " + i);
 }
+
+flags = 144;
+if ((flags & 128) != 0) {
+    print("input endpoint");
+}
+
+return flags >> 4;
 ```
 
 ---

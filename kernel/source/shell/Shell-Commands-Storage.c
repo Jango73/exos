@@ -41,7 +41,7 @@ static void ShellPrintByteSizeLine(LPCSTR Label, U64 ByteCount) {
 }
 
 /***************************************************************************/
-U32 CMD_sysinfo(LPSHELLCONTEXT Context) {
+U32 CMD_systemInfo(LPSHELLCONTEXT Context) {
     UNUSED(Context);
 
     SYSTEM_INFO Info;
@@ -67,7 +67,7 @@ U32 CMD_sysinfo(LPSHELLCONTEXT Context) {
     ConsolePrint(TEXT("Number of tasks           : %d\n"), Info.NumTasks);
     ConsolePrint(TEXT("Keyboard layout           : %s\n"), Info.KeyboardLayout);
 
-    TEST(TEXT("sys_info : OK"));
+    TEST(TEXT("systemInfo : OK"));
     return DF_RETURN_SUCCESS;
 }
 
@@ -192,7 +192,7 @@ U32 CMD_edit(LPSHELLCONTEXT Context) {
         ParseNextCommandLineComponent(Context);
     }
 
-    LineNumbers = HasOption(Context, TEXT("n"), TEXT("line_numbers"));
+    LineNumbers = HasOption(Context, TEXT("n"), TEXT("lineNumbers"));
 
     if (HasArgument) {
         Edit(1, (LPCSTR*)Arguments, LineNumbers);
@@ -218,7 +218,7 @@ U32 CMD_disk(LPSHELLCONTEXT Context) {
 
 /***************************************************************************/
 
-U32 CMD_filesystem(LPSHELLCONTEXT Context) {
+U32 CMD_fileSystem(LPSHELLCONTEXT Context) {
     ParseNextCommandLineComponent(Context);
 
     if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("list")) != 0) {

@@ -24,13 +24,13 @@
 
 #include "drivers/storage/ATA.h"
 
-#include "system/Clock.h"
+#include "core/DriverEnum.h"
 #include "core/Kernel.h"
+#include "drivers/interrupts/InterruptController.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "drivers/interrupts/InterruptController.h"
+#include "system/Clock.h"
 #include "system/System.h"
-#include "core/DriverEnum.h"
 #include "utils/BufferPool.h"
 #include "utils/Cache.h"
 
@@ -76,9 +76,7 @@ DRIVER DATA_SECTION ATADiskDriver = {
  * @brief Retrieves the ATA disk driver descriptor.
  * @return Pointer to the ATA disk driver.
  */
-LPDRIVER ATADiskGetDriver(void) {
-    return &ATADiskDriver;
-}
+LPDRIVER ATADiskGetDriver(void) { return &ATADiskDriver; }
 
 /***************************************************************************/
 
@@ -227,7 +225,8 @@ static BOOL InitializeATA(void) {
             OutPortByte(RealPort + HD_HEAD, 0xA0 | ((Drive & 0x01) << 4));
 
             // Add delay for drive selection
-            for (U32 DelayIndex = 0; DelayIndex < 1000; DelayIndex++);
+            for (U32 DelayIndex = 0; DelayIndex < 1000; DelayIndex++)
+                ;
 
             // Check for floating bus (no drive present)
             U32 Status = InPortByte(RealPort + HD_STATUS);
@@ -261,11 +260,9 @@ static BOOL InitializeATA(void) {
                 Disk->IOPort = RealPort;
                 Disk->IRQ = IRQ_ATA;
                 Disk->Drive = Drive;
-                if (!BufferPoolInit(&Disk->SectorBufferPool,
-                                    (UINT)sizeof(SECTORBUFFER),
-                                    ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
-                                    ATA_SECTOR_BUFFER_INITIAL_SLABS,
-                                    ATA_POOL_ALLOC_FLAGS)) {
+                if (!BufferPoolInit(
+                        &Disk->SectorBufferPool, (UINT)sizeof(SECTORBUFFER), ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
+                        ATA_SECTOR_BUFFER_INITIAL_SLABS, ATA_POOL_ALLOC_FLAGS, TEXT("AtaSectorBuffer"))) {
                     KernelHeapFree(Disk);
                     continue;
                 }
@@ -570,8 +567,7 @@ static U32 GetInfo(LPDISKINFO Info) {
     Info->Type = DRIVER_TYPE_ATA_STORAGE;
     Info->Removable = 0;
     Info->BytesPerSector = Disk->Geometry.BytesPerSector;
-    Info->NumSectors = U64_FromU32(
-        Disk->Geometry.Cylinders * Disk->Geometry.Heads * Disk->Geometry.SectorsPerTrack);
+    Info->NumSectors = U64_FromU32(Disk->Geometry.Cylinders * Disk->Geometry.Heads * Disk->Geometry.SectorsPerTrack);
     Info->Access = Disk->Access;
 
     return DF_RETURN_SUCCESS;
@@ -643,8 +639,7 @@ static U32 ATA_EnumNext(LPDRIVER_ENUM_NEXT Next) {
     if (Next == NULL || Next->Query == NULL || Next->Item == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
-    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) ||
-        Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
+    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) || Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -708,20 +703,14 @@ static U32 ATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Pretty->Item->Domain != ENUM_DOMAIN_ATA_DEVICE ||
-        Pretty->Item->DataSize < sizeof(DRIVER_ENUM_ATA_DEVICE)) {
+    if (Pretty->Item->Domain != ENUM_DOMAIN_ATA_DEVICE || Pretty->Item->DataSize < sizeof(DRIVER_ENUM_ATA_DEVICE)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
     const DRIVER_ENUM_ATA_DEVICE* Data = (const DRIVER_ENUM_ATA_DEVICE*)Pretty->Item->Data;
-    StringPrintFormat(Pretty->Buffer,
-                      TEXT("ATA Port %x Drive=%u IRQ=%u CHS=%u/%u/%u"),
-                      Data->IOPort,
-                      Data->Drive,
-                      Data->IRQ,
-                      Data->Cylinders,
-                      Data->Heads,
-                      Data->SectorsPerTrack);
+    StringPrintFormat(
+        Pretty->Buffer, TEXT("ATA Port %x Drive=%u IRQ=%u CHS=%u/%u/%u"), Data->IOPort, Data->Drive, Data->IRQ,
+        Data->Cylinders, Data->Heads, Data->SectorsPerTrack);
 
     return DF_RETURN_SUCCESS;
 }

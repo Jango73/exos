@@ -24,11 +24,11 @@
 
 #include "utils/RadixTree.h"
 
-#include "text/CoreString.h"
-#include "memory/Heap.h"
 #include "log/Log.h"
+#include "memory/Heap.h"
 #include "memory/Memory.h"
 #include "sync/Mutex.h"
+#include "text/CoreString.h"
 #include "utils/BlockList.h"
 
 /************************************************************************/
@@ -85,10 +85,8 @@ static UINT RadixTreeExtractIndex(UINT Handle, UINT Level) {
 
 /************************************************************************/
 
-static LPRADIX_TREE_NODE RadixTreeAllocateNode(LPRADIX_TREE Tree,
-                                               LPRADIX_TREE_NODE Parent,
-                                               UINT Level,
-                                               UINT SlotIndex) {
+static LPRADIX_TREE_NODE RadixTreeAllocateNode(
+    LPRADIX_TREE Tree, LPRADIX_TREE_NODE Parent, UINT Level, UINT SlotIndex) {
     if (Tree == NULL) {
         return NULL;
     }
@@ -156,10 +154,7 @@ static void RadixTreeTrimUpwards(LPRADIX_TREE Tree, LPRADIX_TREE_NODE Node) {
 
 /************************************************************************/
 
-static LPRADIX_TREE_NODE RadixTreeDescend(LPRADIX_TREE Tree,
-                                          LPRADIX_TREE_NODE Node,
-                                          UINT NextIndex,
-                                          UINT NextLevel) {
+static LPRADIX_TREE_NODE RadixTreeDescend(LPRADIX_TREE Tree, LPRADIX_TREE_NODE Node, UINT NextIndex, UINT NextLevel) {
     UINT Bit = (UINT)(1 << NextIndex);
 
     if ((Node->ChildMask & (U16)Bit) == 0) {
@@ -177,11 +172,8 @@ static LPRADIX_TREE_NODE RadixTreeDescend(LPRADIX_TREE Tree,
 
 /************************************************************************/
 
-static BOOL RadixTreeIterateNode(LPRADIX_TREE_NODE Node,
-                                 UINT HandlePrefix,
-                                 RADIX_TREE_VISITOR Visitor,
-                                 LPVOID Context,
-                                 BOOL* Continue) {
+static BOOL RadixTreeIterateNode(
+    LPRADIX_TREE_NODE Node, UINT HandlePrefix, RADIX_TREE_VISITOR Visitor, LPVOID Context, BOOL* Continue) {
     if (Node == NULL || Visitor == NULL || Continue == NULL) {
         return FALSE;
     }
@@ -230,11 +222,9 @@ LPRADIX_TREE RadixTreeCreate(void) {
     MemorySet(Tree, 0, (UINT)sizeof(RADIX_TREE));
     InitMutex(&Tree->Mutex);
 
-    BOOL AllocatorInit = BlockListInit(&Tree->NodeAllocator,
-                                       (UINT)sizeof(RADIX_TREE_NODE),
-                                       RADIX_TREE_NODES_PER_SLAB,
-                                       RADIX_TREE_INITIAL_SLABS,
-                                       0);
+    BOOL AllocatorInit = BlockListInit(
+        &Tree->NodeAllocator, (UINT)sizeof(RADIX_TREE_NODE), RADIX_TREE_NODES_PER_SLAB, RADIX_TREE_INITIAL_SLABS, 0,
+        TEXT("RadixTreeNode"));
     if (!AllocatorInit) {
         ERROR(TEXT("BlockListInit failed"));
         KernelHeapFree(Tree);

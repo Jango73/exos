@@ -5,3 +5,5 @@ TabWidth: 4
 ContinuationIndentWidth: 4
 AlignAfterOpenBracket: AlwaysBreak
 ColumnLimit: 120
+DerivePointerAlignment: false
+PointerAlignment: Left

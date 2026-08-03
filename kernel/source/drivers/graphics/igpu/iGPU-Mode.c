@@ -27,6 +27,7 @@
 #include "text/CoreString.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
+#include "utils/Graphics-Utils.h"
 
 /************************************************************************/
 
@@ -1583,6 +1584,8 @@ UINT IntelGfxSetMode(LPGRAPHICS_MODE_INFO Info) {
 
     IntelGfxState.LastModesetFailureStage = INTEL_GFX_MODESET_STAGE_NONE;
     IntelGfxState.LastModesetFailureCode = DF_RETURN_SUCCESS;
+
+    GraphicsDrawTestPattern(&IntelGfxState.Context);
 
     SAFE_USE(Info) {
         Info->Width = (U32)IntelGfxState.Context.Width;

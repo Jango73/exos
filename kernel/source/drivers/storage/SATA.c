@@ -24,14 +24,14 @@
 
 #include "drivers/storage/SATA.h"
 
-#include "system/Clock.h"
-#include "drivers/interrupts/DeviceInterrupt.h"
+#include "User.h"
+#include "core/DriverEnum.h"
 #include "core/Kernel.h"
+#include "drivers/bus/PCI.h"
+#include "drivers/interrupts/DeviceInterrupt.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "core/DriverEnum.h"
-#include "drivers/bus/PCI.h"
-#include "User.h"
+#include "system/Clock.h"
 #include "utils/BufferPool.h"
 #include "utils/Cache.h"
 
@@ -77,8 +77,8 @@ typedef struct tag_AHCI_PORT {
     DISKGEOMETRY Geometry;
     U32 Access;  // Access parameters
     U32 PortNumber;
-    LPAHCI_HBA_PORT HBAPort; // Pointer to HBA port registers
-    LPAHCI_HBA_MEM HBAMem;   // Pointer to HBA memory
+    LPAHCI_HBA_PORT HBAPort;  // Pointer to HBA port registers
+    LPAHCI_HBA_MEM HBAMem;    // Pointer to HBA memory
 
     // Command structures (must be aligned)
     LPAHCI_CMD_HEADER CommandList;  // Command list (1KB aligned)
@@ -139,8 +139,7 @@ static U32 SATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty);
 
 static const DRIVER_MATCH AHCIMatches[] = {
     // Match any AHCI controller (Class 01h, Subclass 06h, Programming Interface 01h)
-    {PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE, 0x06, 0x01}
-};
+    {PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE, 0x06, 0x01}};
 
 /***************************************************************************/
 
@@ -180,8 +179,7 @@ PCI_DRIVER DATA_SECTION AHCIPCIDriver = {
     .Command = AHCIProbe,
     .Matches = AHCIMatches,
     .MatchCount = 1,
-    .Attach = AHCIAttach
-};
+    .Attach = AHCIAttach};
 
 /***************************************************************************/
 
@@ -189,9 +187,7 @@ PCI_DRIVER DATA_SECTION AHCIPCIDriver = {
  * @brief Retrieves the AHCI PCI driver descriptor.
  * @return Pointer to the AHCI PCI driver.
  */
-LPDRIVER AHCIPCIGetDriver(void) {
-    return (LPDRIVER)&AHCIPCIDriver;
-}
+LPDRIVER AHCIPCIGetDriver(void) { return (LPDRIVER)&AHCIPCIDriver; }
 
 /***************************************************************************/
 
@@ -199,9 +195,7 @@ LPDRIVER AHCIPCIGetDriver(void) {
  * @brief Retrieves the SATA disk driver descriptor.
  * @return Pointer to the SATA disk driver.
  */
-LPDRIVER SATADiskGetDriver(void) {
-    return &SATADiskDriver;
-}
+LPDRIVER SATADiskGetDriver(void) { return &SATADiskDriver; }
 
 /***************************************************************************/
 
@@ -351,7 +345,7 @@ static U32 FindFreeCommandSlot(LPAHCI_HBA_PORT Port) {
  * @return TRUE if reset sequence succeeds and device present.
  */
 static BOOL AHCIPortReset(LPAHCI_HBA_PORT Port) {
-    U32 timeout = 1000000; // 1 second timeout
+    U32 timeout = 1000000;  // 1 second timeout
 
     // Check if device is present
     if ((Port->ssts & AHCI_PORT_SSTS_DET_MASK) != AHCI_PORT_SSTS_DET_ESTABLISHED) {
@@ -359,14 +353,14 @@ static BOOL AHCIPortReset(LPAHCI_HBA_PORT Port) {
     }
 
     // Perform COMRESET
-    Port->sctl = (Port->sctl & ~0xF) | 0x1; // Set DET to 1
+    Port->sctl = (Port->sctl & ~0xF) | 0x1;  // Set DET to 1
 
     // Wait 1ms
     for (volatile U32 i = 0; i < 10000; i++) {
         // Busy wait
     }
 
-    Port->sctl &= ~0xF; // Clear DET
+    Port->sctl &= ~0xF;  // Clear DET
 
     // Wait for device to be ready
     while (timeout--) {
@@ -444,11 +438,9 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
     }
     MemorySet(AHCIPort->CommandTable, 0, AHCI_CMD_TBL_SIZE);
 
-    if (!BufferPoolInit(&AHCIPort->SectorBufferPool,
-                        (UINT)sizeof(SECTORBUFFER),
-                        SATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
-                        SATA_SECTOR_BUFFER_INITIAL_SLABS,
-                        SATA_POOL_ALLOC_FLAGS)) {
+    if (!BufferPoolInit(
+            &AHCIPort->SectorBufferPool, (UINT)sizeof(SECTORBUFFER), SATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
+            SATA_SECTOR_BUFFER_INITIAL_SLABS, SATA_POOL_ALLOC_FLAGS, TEXT("SataSectorBuffer"))) {
         return FALSE;
     }
 
@@ -457,11 +449,9 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
         return FALSE;
     }
 
-    if (!BufferPoolInit(&AHCIPort->BounceBufferPool,
-                        SATA_BOUNCE_BUFFER_BYTES,
-                        SATA_BOUNCE_BUFFER_OBJECTS_PER_SLAB,
-                        SATA_BOUNCE_BUFFER_INITIAL_SLABS,
-                        SATA_POOL_ALLOC_FLAGS)) {
+    if (!BufferPoolInit(
+            &AHCIPort->BounceBufferPool, SATA_BOUNCE_BUFFER_BYTES, SATA_BOUNCE_BUFFER_OBJECTS_PER_SLAB,
+            SATA_BOUNCE_BUFFER_INITIAL_SLABS, SATA_POOL_ALLOC_FLAGS, TEXT("SataBounceBuffer"))) {
         return FALSE;
     }
 
@@ -493,8 +483,8 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
 #endif
 
     // Set up command header for slot 0
-    AHCIPort->CommandList[0].cfl = sizeof(FIS_REG_H2D) / 4; // FIS length
-    AHCIPort->CommandList[0].prdtl = 1; // One PRDT entry
+    AHCIPort->CommandList[0].cfl = sizeof(FIS_REG_H2D) / 4;  // FIS length
+    AHCIPort->CommandList[0].prdtl = 1;                      // One PRDT entry
     AHCIPort->CommandList[0].ctba = (U32)(CommandTablePhys & 0xFFFFFFFF);
     AHCIPort->CommandList[0].ctbau = 0;
 #ifdef __EXOS_64__
@@ -528,7 +518,6 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
     AHCIPort->Geometry.Heads = 16;
     AHCIPort->Geometry.SectorsPerTrack = 63;
     AHCIPort->Geometry.BytesPerSector = SECTOR_SIZE;
-
 
     return TRUE;
 }
@@ -586,7 +575,7 @@ static LPPCI_DEVICE AHCIAttach(LPPCI_DEVICE PciDevice) {
 
     // Check if AHCI is already initialized
     SAFE_USE(AHCIState.Base) {
-        return Device; // Return heap-allocated device but don't reinitialize
+        return Device;  // Return heap-allocated device but don't reinitialize
     }
 
     // Store the PCI device for interrupt handling
@@ -598,7 +587,6 @@ static LPPCI_DEVICE AHCIAttach(LPPCI_DEVICE PciDevice) {
         KernelHeapFree(Device);
         return NULL;
     }
-
 
     // Verify ABAR is in a reasonable range
     if (ABAR < 0x1000 || ABAR > 0xFFFFF000) {
@@ -643,7 +631,6 @@ static U32 InitializeAHCIController(void) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-
     if (!AHCIState.InterruptRegistered) {
         AHCIRegisterInterrupts();
     }
@@ -654,7 +641,6 @@ static U32 InitializeAHCIController(void) {
     // Get capabilities
     U32 cap = AHCIState.Base->cap;
     U32 nports = (cap & AHCI_CAP_NP_MASK) + 1;
-
 
     // Enable AHCI mode
     AHCIState.Base->ghc |= AHCI_GHC_AE;
@@ -680,7 +666,6 @@ static U32 InitializeAHCIController(void) {
     // storms on shared IRQ lines.
     AHCIState.Base->ghc &= ~AHCI_GHC_IE;
     AHCIState.InterruptEnabled = FALSE;
-
 
     return DF_RETURN_SUCCESS;
 }
@@ -759,26 +744,26 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
 
     // Set up command header for slot 0
     LPAHCI_CMD_HEADER cmdheader = &AHCIPort->CommandList[0];
-    cmdheader->cfl = sizeof(FIS_REG_H2D) / 4; // FIS length in DWORDs
-    cmdheader->w = IsWrite ? 1 : 0;           // Write flag
-    cmdheader->prdtl = 1;                     // One PRDT entry
+    cmdheader->cfl = sizeof(FIS_REG_H2D) / 4;  // FIS length in DWORDs
+    cmdheader->w = IsWrite ? 1 : 0;            // Write flag
+    cmdheader->prdtl = 1;                      // One PRDT entry
 
     // Set up command table
     LPAHCI_CMD_TBL cmdtbl = AHCIPort->CommandTable;
     MemorySet(cmdtbl, 0, sizeof(AHCI_CMD_TBL));
 
     // Set up FIS
-    FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)cmdtbl->cfis;
+    FIS_REG_H2D* cmdfis = (FIS_REG_H2D*)cmdtbl->cfis;
     cmdfis->fis_type = FIS_TYPE_REG_H2D;
-    cmdfis->c = 1; // Command
+    cmdfis->c = 1;  // Command
     cmdfis->command = Command;
     cmdfis->lba0 = LBA & 0xFF;
     cmdfis->lba1 = (LBA >> 8) & 0xFF;
     cmdfis->lba2 = (LBA >> 16) & 0xFF;
-    cmdfis->device = 1 << 6; // LBA mode
+    cmdfis->device = 1 << 6;  // LBA mode
     cmdfis->lba3 = (LBA >> 24) & 0xFF;
-    cmdfis->lba4 = 0; // LBA 32-39 (we're using 32-bit LBA)
-    cmdfis->lba5 = 0; // LBA 40-47
+    cmdfis->lba4 = 0;  // LBA 32-39 (we're using 32-bit LBA)
+    cmdfis->lba5 = 0;  // LBA 40-47
     cmdfis->countl = SectorCount & 0xFF;
     cmdfis->counth = (SectorCount >> 8) & 0xFF;
 
@@ -795,11 +780,11 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
 #ifdef __EXOS_64__
     cmdtbl->prdt_entry[0].dbau = (U32)((bufferPhys >> 32) & 0xFFFFFFFF);
 #endif
-    cmdtbl->prdt_entry[0].dbc = (SectorCount * 512) - 1; // Byte count - 1
-    cmdtbl->prdt_entry[0].i = 0; // No interrupt on completion for this entry
+    cmdtbl->prdt_entry[0].dbc = (SectorCount * 512) - 1;  // Byte count - 1
+    cmdtbl->prdt_entry[0].i = 0;                          // No interrupt on completion for this entry
 
     // Issue command
-    Port->ci = 1; // Issue command slot 0
+    Port->ci = 1;  // Issue command slot 0
 
     // Wait for completion
     timeout = 1000000;
@@ -872,8 +857,7 @@ static U32 Read(LPIOCONTROL Control) {
             Buffer->SectorHigh = Context.SectorHigh;
             Buffer->Dirty = 0;
 
-            Result = AHCICommand(
-                AHCIPort, ATA_CMD_READ_DMA_EXT, Context.SectorLow, 1, Buffer->Data, FALSE);
+            Result = AHCICommand(AHCIPort, ATA_CMD_READ_DMA_EXT, Context.SectorLow, 1, Buffer->Data, FALSE);
 
             if (Result != DF_RETURN_SUCCESS) {
                 BufferPoolRelease(&AHCIPort->SectorBufferPool, Buffer);
@@ -939,8 +923,7 @@ static U32 Write(LPIOCONTROL Control) {
         MemoryCopy(Buffer->Data, ((U8*)Control->Buffer) + (Current * SECTOR_SIZE), SECTOR_SIZE);
         Buffer->Dirty = 1;
 
-        Result = AHCICommand(
-            AHCIPort, ATA_CMD_WRITE_DMA_EXT, Context.SectorLow, 1, Buffer->Data, TRUE);
+        Result = AHCICommand(AHCIPort, ATA_CMD_WRITE_DMA_EXT, Context.SectorLow, 1, Buffer->Data, TRUE);
 
         if (Result != DF_RETURN_SUCCESS) {
             if (AddedToCache) {
@@ -985,8 +968,8 @@ static U32 GetInfo(LPDISKINFO Info) {
     Info->Type = DRIVER_TYPE_SATA_STORAGE;
     Info->Removable = 0;
     Info->BytesPerSector = AHCIPort->Geometry.BytesPerSector;
-    Info->NumSectors = U64_FromU32(
-        AHCIPort->Geometry.Cylinders * AHCIPort->Geometry.Heads * AHCIPort->Geometry.SectorsPerTrack);
+    Info->NumSectors =
+        U64_FromU32(AHCIPort->Geometry.Cylinders * AHCIPort->Geometry.Heads * AHCIPort->Geometry.SectorsPerTrack);
     Info->Access = AHCIPort->Access;
 
     return DF_RETURN_SUCCESS;
@@ -1188,9 +1171,7 @@ static void AHCIInterruptBottomHalf(LPDEVICE Device, LPVOID Context) {
 
         SAFE_USE_VALID_ID((LPLISTNODE)Port, KOID_DISK) {
             if ((PortStatus & (1U << 30)) != 0U) {
-                WARNING(TEXT("Port %u reported task file error (status=%x)"),
-                        PortIndex,
-                        PortStatus);
+                WARNING(TEXT("Port %u reported task file error (status=%x)"), PortIndex, PortStatus);
             } else if (BottomHalfLogCount < 4U) {
             }
         }
@@ -1217,9 +1198,7 @@ static void AHCIInterruptPoll(LPDEVICE Device, LPVOID Context) {
 
 /***************************************************************************/
 
-BOOL AHCIIsInitialized(void) {
-    return (AHCIState.Base != NULL);
-}
+BOOL AHCIIsInitialized(void) { return (AHCIState.Base != NULL); }
 
 /***************************************************************************/
 
@@ -1302,8 +1281,7 @@ static U32 SATA_EnumNext(LPDRIVER_ENUM_NEXT Next) {
     if (Next == NULL || Next->Query == NULL || Next->Item == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
-    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) ||
-        Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
+    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) || Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -1358,20 +1336,16 @@ static U32 SATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Pretty->Item->Domain != ENUM_DOMAIN_AHCI_PORT ||
-        Pretty->Item->DataSize < sizeof(DRIVER_ENUM_AHCI_PORT)) {
+    if (Pretty->Item->Domain != ENUM_DOMAIN_AHCI_PORT || Pretty->Item->DataSize < sizeof(DRIVER_ENUM_AHCI_PORT)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
     const DRIVER_ENUM_AHCI_PORT* Data = (const DRIVER_ENUM_AHCI_PORT*)Pretty->Item->Data;
     UINT Det = Data->Ssts & AHCI_PORT_SSTS_DET_MASK;
 
-    StringPrintFormat(Pretty->Buffer,
-                      TEXT("AHCI Port %u: DET=%s SSTS=%x SIG=%x"),
-                      Data->PortNumber,
-                      SataDetToString(Det),
-                      Data->Ssts,
-                      Data->Sig);
+    StringPrintFormat(
+        Pretty->Buffer, TEXT("AHCI Port %u: DET=%s SSTS=%x SIG=%x"), Data->PortNumber, SataDetToString(Det), Data->Ssts,
+        Data->Sig);
 
     return DF_RETURN_SUCCESS;
 }

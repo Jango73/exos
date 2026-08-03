@@ -24,10 +24,10 @@
 #include "memory/Memory-Descriptors.h"
 
 #include "console/Console.h"
-#include "text/CoreString.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
 #include "system/System.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 // Region descriptor tracking state
@@ -52,13 +52,14 @@ static BOOL GrowDescriptorSlab(void) {
         return FALSE;
     }
 
+    DEBUG(
+        TEXT("GrowDescriptorSlab phys=%p free=%u total=%u pages=%u"), (LPVOID)Physical, G_FreeRegionDescriptorCount,
+        G_TotalRegionDescriptorCount, G_RegionDescriptorPages);
 
     G_RegionDescriptorBootstrap = TRUE;
 
     LINEAR Linear = AllocKernelRegion(
-        Physical,
-        PAGE_SIZE,
-        ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
+        Physical, PAGE_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
         TEXT("RegionDescriptorSlab"));
     G_RegionDescriptorBootstrap = FALSE;
 
@@ -68,9 +69,11 @@ static BOOL GrowDescriptorSlab(void) {
         return FALSE;
     }
 
+    DEBUG(
+        TEXT("GrowDescriptorSlab linear=%p phys=%p free=%u total=%u"), (LPVOID)Linear, (LPVOID)Physical,
+        G_FreeRegionDescriptorCount, G_TotalRegionDescriptorCount);
 
     MemorySet((LPVOID)Linear, 0, PAGE_SIZE);
-
 
     UINT Capacity = (UINT)(PAGE_SIZE / (UINT)sizeof(MEMORY_REGION_DESCRIPTOR));
     LPMEMORY_REGION_DESCRIPTOR DescriptorArray = (LPMEMORY_REGION_DESCRIPTOR)(LINEAR)Linear;
@@ -253,9 +256,7 @@ LPMEMORY_REGION_DESCRIPTOR FindDescriptorForBase(LPMEMORY_REGION_LIST List, LINE
  * @param CanonicalBase Address to resolve.
  * @return Descriptor pointer or NULL when no descriptor covers the address.
  */
-LPMEMORY_REGION_DESCRIPTOR FindDescriptorCoveringAddress(
-    LPMEMORY_REGION_LIST List,
-    LINEAR CanonicalBase) {
+LPMEMORY_REGION_DESCRIPTOR FindDescriptorCoveringAddress(LPMEMORY_REGION_LIST List, LINEAR CanonicalBase) {
     LPMEMORY_REGION_DESCRIPTOR Current = List->Head;
 
     while (Current != NULL) {
@@ -286,9 +287,7 @@ void RefreshDescriptorGranularity(LPMEMORY_REGION_DESCRIPTOR Descriptor) {
         return;
     }
 
-    Descriptor->Granularity = ComputeDescriptorGranularity(
-        Descriptor->CanonicalBase,
-        Descriptor->PageCount);
+    Descriptor->Granularity = ComputeDescriptorGranularity(Descriptor->CanonicalBase, Descriptor->PageCount);
 }
 
 /************************************************************************/
@@ -306,7 +305,6 @@ void ExtendDescriptor(LPMEMORY_REGION_DESCRIPTOR Descriptor, UINT AdditionalPage
     Descriptor->Size += AdditionalBytes;
     Descriptor->PageCount += AdditionalPages;
     RefreshDescriptorGranularity(Descriptor);
-
 }
 
 /************************************************************************/
@@ -334,13 +332,13 @@ static LPMEMORY_REGION_LIST ResolveTrackingList(LPPROCESS Process) {
  * @param Flags Allocation flags.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL RegisterRegionDescriptor(LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List, LINEAR Base, UINT NumPages, PHYSICAL Target, U32 Flags, LPCSTR Tag) {
+BOOL RegisterRegionDescriptor(
+    LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List, LINEAR Base, UINT NumPages, PHYSICAL Target, U32 Flags,
+    LPCSTR Tag) {
     LPMEMORY_REGION_DESCRIPTOR Descriptor = AcquireRegionDescriptor();
 
     if (Descriptor == NULL) {
-        ERROR(TEXT("Descriptor pool exhausted (base=%p sizePages=%u)"),
-            (LPVOID)Base,
-            NumPages);
+        ERROR(TEXT("Descriptor pool exhausted (base=%p sizePages=%u)"), (LPVOID)Base, NumPages);
         return FALSE;
     }
 
@@ -375,6 +373,10 @@ BOOL RegisterRegionDescriptor(LPPROCESS OwnerProcess, LPMEMORY_REGION_LIST List,
 
     InsertDescriptorOrdered(List, Descriptor);
 
+    DEBUG(
+        TEXT("RegisterRegionDescriptor base=%p size=%u tag=%s listCount=%u free=%u"), (LPVOID)Descriptor->CanonicalBase,
+        Descriptor->Size, (Tag != NULL) ? Tag : TEXT("-"), List->Count, G_FreeRegionDescriptorCount);
+
     return TRUE;
 }
 
@@ -396,9 +398,7 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
     while (RemainingBytes != 0) {
         LPMEMORY_REGION_DESCRIPTOR Descriptor = FindDescriptorCoveringAddress(List, Cursor);
         if (Descriptor == NULL) {
-            WARNING(TEXT("Missing descriptor for base=%p size=%u"),
-                (LPVOID)Cursor,
-                RemainingBytes);
+            WARNING(TEXT("Missing descriptor for base=%p size=%u"), (LPVOID)Cursor, RemainingBytes);
             break;
         }
 
@@ -454,8 +454,7 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
             LPMEMORY_REGION_DESCRIPTOR Right = AcquireRegionDescriptor();
 
             if (Right == NULL) {
-                ERROR(TEXT("Unable to split descriptor at %p"),
-                    (LPVOID)FreeStart);
+                ERROR(TEXT("Unable to split descriptor at %p"), (LPVOID)FreeStart);
                 ConsolePanic(TEXT("Descriptor split allocation failed"));
             }
 
@@ -495,7 +494,6 @@ void UpdateDescriptorsForFree(LPMEMORY_REGION_LIST List, LINEAR Base, UINT SizeB
             } else {
                 InsertDescriptorOrdered(List, Right);
             }
-
         }
 
         if (RemainingBytes >= SegmentBytes) {
@@ -517,16 +515,13 @@ void InitializeRegionDescriptorTracking(void) {
         return;
     }
 
-
     if (EnsureDescriptorSlab() == FALSE) {
         ERROR(TEXT("Initial slab allocation failed"));
         return;
     }
     G_RegionDescriptorsEnabled = TRUE;
 
-    DEBUG(TEXT("Enabled (free=%u total=%u)"),
-        G_FreeRegionDescriptorCount,
-        G_TotalRegionDescriptorCount);
+    DEBUG(TEXT("Enabled (free=%u total=%u)"), G_FreeRegionDescriptorCount, G_TotalRegionDescriptorCount);
 }
 
 /************************************************************************/
@@ -583,9 +578,7 @@ BOOL RegionTrackAllocForProcess(LPPROCESS Process, LINEAR Base, PHYSICAL Target,
  * @param Size Size in bytes.
  * @return TRUE on success or when tracking is disabled.
  */
-BOOL RegionTrackFree(LINEAR Base, UINT Size) {
-    return RegionTrackFreeForProcess(NULL, Base, Size);
-}
+BOOL RegionTrackFree(LINEAR Base, UINT Size) { return RegionTrackFreeForProcess(NULL, Base, Size); }
 
 /************************************************************************/
 /**
@@ -626,6 +619,15 @@ BOOL RegionTrackFreeForProcess(LPPROCESS Process, LINEAR Base, UINT Size) {
 BOOL RegionTrackResize(LINEAR Base, UINT OldSize, UINT NewSize, U32 Flags) {
     return RegionTrackResizeForProcess(NULL, Base, OldSize, NewSize, Flags);
 }
+
+/************************************************************************/
+/**
+ * @brief Mark descriptors overlapping one committed range as committed.
+ * @param Base Base address for the committed range.
+ * @param Size Size of the committed range.
+ * @return TRUE on success or when tracking is disabled.
+ */
+BOOL RegionTrackCommit(LINEAR Base, UINT Size) { return RegionTrackCommitForProcess(NULL, Base, Size); }
 
 /************************************************************************/
 /**
@@ -671,9 +673,57 @@ BOOL RegionTrackResizeForProcess(LPPROCESS Process, LINEAR Base, UINT OldSize, U
 
     LPMEMORY_REGION_DESCRIPTOR Descriptor = FindDescriptorForBase(List, CanonicalBase);
     if (Descriptor == NULL) {
-        return RegisterRegionDescriptor(Process, List, Base, (NewSize + PAGE_SIZE - 1) >> PAGE_SIZE_MUL, 0, Flags, NULL);
+        return RegisterRegionDescriptor(
+            Process, List, Base, (NewSize + PAGE_SIZE - 1) >> PAGE_SIZE_MUL, 0, Flags, NULL);
     }
 
     ExtendDescriptor(Descriptor, AdditionalPages);
+    return TRUE;
+}
+
+/************************************************************************/
+/**
+ * @brief Mark one tracked range as committed.
+ * @param Process Tracking owner, or NULL for the current process.
+ * @param Base Base address for the committed range.
+ * @param Size Size of the committed range.
+ * @return TRUE on success or when tracking is disabled.
+ */
+BOOL RegionTrackCommitForProcess(LPPROCESS Process, LINEAR Base, UINT Size) {
+    LPMEMORY_REGION_LIST List = ResolveTrackingList(Process);
+    LINEAR Cursor;
+    LINEAR End;
+
+    if (G_RegionDescriptorsEnabled == FALSE || G_RegionDescriptorBootstrap == TRUE) {
+        return TRUE;
+    }
+
+    if (List == NULL || Size == 0) {
+        return FALSE;
+    }
+
+    Cursor = CanonicalizeLinearAddress(Base);
+    End = Cursor + (LINEAR)Size;
+    if (End < Cursor) {
+        return FALSE;
+    }
+
+    while (Cursor < End) {
+        LPMEMORY_REGION_DESCRIPTOR Descriptor = FindDescriptorCoveringAddress(List, Cursor);
+        LINEAR RegionEnd;
+
+        if (Descriptor == NULL) {
+            return FALSE;
+        }
+
+        Descriptor->Attributes |= MEMORY_REGION_DESCRIPTOR_ATTRIBUTE_COMMIT;
+        RegionEnd = Descriptor->CanonicalBase + (LINEAR)Descriptor->Size;
+        if (RegionEnd <= Cursor) {
+            return FALSE;
+        }
+
+        Cursor = RegionEnd;
+    }
+
     return TRUE;
 }

@@ -21,9 +21,8 @@
 
 \************************************************************************/
 
-#include "expose/Exposed.h"
-
 #include "core/KernelData.h"
+#include "expose/Exposed.h"
 
 /************************************************************************/
 
@@ -37,22 +36,13 @@
  * @return TRUE on success.
  */
 static BOOL ExposeRegisterDefaultHostSymbol(
-    LPSCRIPT_CONTEXT Context,
-    LPCSTR Name,
-    SCRIPT_HOST_SYMBOL_KIND Kind,
-    SCRIPT_HOST_HANDLE Handle,
+    LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_HOST_SYMBOL_KIND Kind, SCRIPT_HOST_HANDLE Handle,
     const SCRIPT_HOST_DESCRIPTOR* Descriptor) {
     if (Context == NULL || Name == NULL || Descriptor == NULL) {
         return FALSE;
     }
 
-    return ScriptRegisterHostSymbol(
-        Context,
-        Name,
-        Kind,
-        Handle,
-        Descriptor,
-        NULL);
+    return ScriptRegisterHostSymbol(Context, Name, Kind, Handle, Descriptor, NULL);
 }
 
 /************************************************************************/
@@ -68,137 +58,72 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("process"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetProcessList(),
-            &ProcessArrayDescriptor)) {
+            Context, TEXT("process"), SCRIPT_HOST_SYMBOL_ARRAY, GetProcessList(), &ProcessArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("task"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetTaskList(),
-            &TaskRootArrayDescriptor)) {
+            Context, TEXT("task"), SCRIPT_HOST_SYMBOL_ARRAY, GetTaskList(), &TaskRootArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("driver"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetDriverList(),
-            &DriverArrayDescriptor)) {
+            Context, TEXT("driver"), SCRIPT_HOST_SYMBOL_ARRAY, GetDriverList(), &DriverArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("graphics"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            GetGraphicsRootHandle(),
-            &GraphicsDescriptor)) {
+            Context, TEXT("graphics"), SCRIPT_HOST_SYMBOL_OBJECT, GetGraphicsRootHandle(), &GraphicsDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("clock"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            GetClockRootHandle(),
-            &ClockDescriptor)) {
+            Context, TEXT("clock"), SCRIPT_HOST_SYMBOL_OBJECT, GetClockRootHandle(), &ClockDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("storage"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetDiskList(),
-            &StorageArrayDescriptor)) {
+            Context, TEXT("storage"), SCRIPT_HOST_SYMBOL_ARRAY, GetDiskList(), &StorageArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("fileSystem"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            FileSystemRootHandle,
-            &FileSystemRootDescriptor)) {
+            Context, TEXT("fileSystem"), SCRIPT_HOST_SYMBOL_OBJECT, FileSystemRootHandle, &FileSystemRootDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("memoryMap"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            MemoryMapRootHandle,
-            &MemoryMapRootDescriptor)) {
+            Context, TEXT("pciBus"), SCRIPT_HOST_SYMBOL_ARRAY, GetPCIDeviceList(), &PciBusArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("pciBus"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetPCIDeviceList(),
-            &PciBusArrayDescriptor)) {
+            Context, TEXT("pciDevice"), SCRIPT_HOST_SYMBOL_ARRAY, GetPCIDeviceList(), &PciDeviceArrayDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("pciDevice"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetPCIDeviceList(),
-            &PciDeviceArrayDescriptor)) {
+            Context, TEXT("usb"), SCRIPT_HOST_SYMBOL_OBJECT, UsbRootHandle, &UsbDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("usb"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            UsbRootHandle,
-            &UsbDescriptor)) {
+            Context, TEXT("network"), SCRIPT_HOST_SYMBOL_OBJECT, NetworkRootHandle, &NetworkDescriptor)) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("network"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            NetworkRootHandle,
-            &NetworkDescriptor)) {
+            Context, TEXT("keyboard"), SCRIPT_HOST_SYMBOL_OBJECT, GetKeyboardRootHandle(), GetKeyboardDescriptor())) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("keyboard"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            GetKeyboardRootHandle(),
-            GetKeyboardDescriptor())) {
+            Context, TEXT("mouse"), SCRIPT_HOST_SYMBOL_OBJECT, GetMouseRootHandle(), GetMouseDescriptor())) {
         return FALSE;
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("mouse"),
-            SCRIPT_HOST_SYMBOL_OBJECT,
-            GetMouseRootHandle(),
-            GetMouseDescriptor())) {
-        return FALSE;
-    }
-
-    if (!ExposeRegisterDefaultHostSymbol(
-            Context,
-            TEXT("account"),
-            SCRIPT_HOST_SYMBOL_ARRAY,
-            GetAccountList(),
-            &AccountArrayDescriptor)) {
+            Context, TEXT("account"), SCRIPT_HOST_SYMBOL_ARRAY, GetAccountList(), &AccountArrayDescriptor)) {
         return FALSE;
     }
 

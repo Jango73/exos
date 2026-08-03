@@ -22,7 +22,6 @@
 
 \************************************************************************/
 
-
 #include "arch/x86-64/x86-64-Memory-Internal.h"
 #include "process/Process.h"
 
@@ -78,13 +77,7 @@ static void InitializeTemporaryLinearSlots(void) {
  * @return Encoded 64-bit PTE value.
  */
 U64 MakePageTableEntryValue(
-    PHYSICAL Physical,
-    U32 ReadWrite,
-    U32 Privilege,
-    U32 WriteThrough,
-    U32 CacheDisabled,
-    U32 Global,
-    U32 Fixed) {
+    PHYSICAL Physical, U32 ReadWrite, U32 Privilege, U32 WriteThrough, U32 CacheDisabled, U32 Global, U32 Fixed) {
     U64 Flags = BuildPageFlags(ReadWrite, Privilege, WriteThrough, CacheDisabled, Global, Fixed);
     return ((U64)Physical & PAGE_MASK) | Flags;
 }
@@ -96,9 +89,7 @@ U64 MakePageTableEntryValue(
  * @param Flags Pre-built flag mask.
  * @return Encoded paging entry value.
  */
-U64 MakePageEntryRaw(PHYSICAL Physical, U64 Flags) {
-    return ((U64)Physical & PAGE_MASK) | (Flags & 0xFFFu);
-}
+U64 MakePageEntryRaw(PHYSICAL Physical, U64 Flags) { return ((U64)Physical & PAGE_MASK) | (Flags & 0xFFFu); }
 
 /************************************************************************/
 /**
@@ -118,9 +109,7 @@ void WritePageDirectoryEntryValue(LPPAGE_DIRECTORY Directory, UINT Index, U64 Va
  * @param Index Entry index within the table.
  * @param Value Encoded PTE value.
  */
-void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) {
-    ((volatile U64*)Table)[Index] = Value;
-}
+void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) { ((volatile U64*)Table)[Index] = Value; }
 
 /************************************************************************/
 /**
@@ -131,8 +120,7 @@ void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) {
  */
 U64 ReadPageDirectoryEntryValue(const LPPAGE_DIRECTORY Directory, UINT Index) {
     if (Directory == NULL) {
-        ERROR(TEXT("NULL directory pointer (Index=%u)"),
-            Index);
+        ERROR(TEXT("NULL directory pointer (Index=%u)"), Index);
         return 0;
     }
 
@@ -146,9 +134,7 @@ U64 ReadPageDirectoryEntryValue(const LPPAGE_DIRECTORY Directory, UINT Index) {
  * @param Index Entry index.
  * @return Encoded PTE value.
  */
-U64 ReadPageTableEntryValue(const LPPAGE_TABLE Table, UINT Index) {
-    return ((volatile const U64*)Table)[Index];
-}
+U64 ReadPageTableEntryValue(const LPPAGE_TABLE Table, UINT Index) { return ((volatile const U64*)Table)[Index]; }
 
 /************************************************************************/
 /**
@@ -221,27 +207,21 @@ void ClearPageDirectoryEntry(LPPAGE_DIRECTORY Directory, UINT Index) {
  * @param Table Page table pointer.
  * @param Index Entry index.
  */
-void ClearPageTableEntry(LPPAGE_TABLE Table, UINT Index) {
-    WritePageTableEntryValue(Table, Index, (U64)0);
-}
+void ClearPageTableEntry(LPPAGE_TABLE Table, UINT Index) { WritePageTableEntryValue(Table, Index, (U64)0); }
 
 /************************************************************************/
 /**
  * @brief Return the first non-canonical linear address.
  * @return Maximum linear address plus one.
  */
-U64 GetMaxLinearAddressPlusOne(void) {
-    return (U64)1 << 48;
-}
+U64 GetMaxLinearAddressPlusOne(void) { return (U64)1 << 48; }
 
 /************************************************************************/
 /**
  * @brief Return the first non-addressable physical address.
  * @return Maximum physical address plus one.
  */
-U64 GetMaxPhysicalAddressPlusOne(void) {
-    return (U64)1 << 52;
-}
+U64 GetMaxPhysicalAddressPlusOne(void) { return (U64)1 << 52; }
 
 /************************************************************************/
 /**
@@ -283,7 +263,8 @@ void MapOnePage(
     UINT tab = GetTableEntry(Linear);
 
     WritePageTableEntryValue(
-        Table, tab, MakePageTableEntryValue(Physical, ReadWrite, Privilege, WriteThrough, CacheDisabled, Global, Fixed));
+        Table, tab,
+        MakePageTableEntryValue(Physical, ReadWrite, Privilege, WriteThrough, CacheDisabled, Global, Fixed));
 
     InvalidatePage(Linear);
 }
@@ -300,7 +281,6 @@ static inline void UnmapOnePage(LINEAR Linear) {
     ClearPageTableEntry(Table, tab);
     InvalidatePage(Linear);
 }
-
 
 /************************************************************************/
 // Public temporary map #1
@@ -522,12 +502,10 @@ LINEAR AllocPageTable(LINEAR Base) {
         MemorySet(NewDirectory, 0, PAGE_SIZE);
 
         WritePageDirectoryEntryValue(
-            PdptLinear,
-            PdptIndex,
+            PdptLinear, PdptIndex,
             MakePageDirectoryEntryValue(
                 DirectoryPhysical,
-                /*ReadWrite*/ 1,
-                PAGE_PRIVILEGE(Base),
+                /*ReadWrite*/ 1, PAGE_PRIVILEGE(Base),
                 /*WriteThrough*/ 0,
                 /*CacheDisabled*/ 0,
                 /*Global*/ 0,
@@ -557,8 +535,7 @@ LINEAR AllocPageTable(LINEAR Base) {
     U32 Privilege = PAGE_PRIVILEGE(Base);
     U64 DirectoryEntryValue = MakePageDirectoryEntryValue(
         PMA_Table,
-        /*ReadWrite*/ 1,
-        Privilege,
+        /*ReadWrite*/ 1, Privilege,
         /*WriteThrough*/ 0,
         /*CacheDisabled*/ 0,
         /*Global*/ 0,
@@ -595,10 +572,7 @@ LINEAR AllocPageTable(LINEAR Base) {
  * @param OutLargePage Optionally receives TRUE when the entry maps a large page.
  * @return TRUE if a table is available, FALSE otherwise.
  */
-BOOL TryGetPageTableForIterator(
-    const ARCH_PAGE_ITERATOR* Iterator,
-    LPPAGE_TABLE* OutTable,
-    BOOL* OutLargePage) {
+BOOL TryGetPageTableForIterator(const ARCH_PAGE_ITERATOR* Iterator, LPPAGE_TABLE* OutTable, BOOL* OutLargePage) {
     if (Iterator == NULL || OutTable == NULL) return FALSE;
 
     if (OutLargePage != NULL) {
@@ -773,9 +747,7 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     LPPML4 KernelPml4 = (LPPML4)KernelPml4Linear;
     U64 KernelPml4Value = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)KernelPml4, Pml4Index);
     if ((KernelPml4Value & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("Kernel PML4[%u] not present (Address=%p)"),
-              Pml4Index,
-              (LPVOID)Address);
+        DEBUG(TEXT("Kernel PML4[%u] not present (Address=%p)"), Pml4Index, (LPVOID)Address);
         return FALSE;
     }
 
@@ -786,6 +758,7 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     U64 CurrentPml4Value = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)CurrentPml4, Pml4Index);
     if ((CurrentPml4Value & PAGE_FLAG_PRESENT) == 0u || CurrentPml4Value != KernelPml4Value) {
         WritePageDirectoryEntryValue((LPPAGE_DIRECTORY)CurrentPml4, Pml4Index, KernelPml4Value);
+        CurrentPml4Value = KernelPml4Value;
         Updated = TRUE;
         NeedsFullFlush = TRUE;
     }
@@ -800,16 +773,24 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     LPPDPT KernelPdpt = (LPPDPT)KernelPdptLinear;
     U64 KernelPdptValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)KernelPdpt, PdptIndex);
     if ((KernelPdptValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("Kernel PDPT[%u] not present (Address=%p)"),
-              PdptIndex,
-              (LPVOID)Address);
+        DEBUG(TEXT("Kernel PDPT[%u] not present (Address=%p)"), PdptIndex, (LPVOID)Address);
         return FALSE;
     }
 
-    LPPDPT CurrentPdpt = GetPageDirectoryPointerTableVAFor(Address);
+    // Mirror the current PDPT entry through a temporary slot. The recursive
+    // window cannot traverse the kernel PDPT entries below the kernel VMA.
+    PHYSICAL CurrentPdptPhysical = (PHYSICAL)(CurrentPml4Value & PAGE_MASK);
+    LINEAR CurrentPdptLinear = MapTemporaryPhysicalPage4(CurrentPdptPhysical);
+    if (CurrentPdptLinear == 0) {
+        ERROR(TEXT("Unable to map current PDPT"));
+        return FALSE;
+    }
+
+    LPPDPT CurrentPdpt = (LPPDPT)CurrentPdptLinear;
     U64 CurrentPdptValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)CurrentPdpt, PdptIndex);
     if ((CurrentPdptValue & PAGE_FLAG_PRESENT) == 0u || CurrentPdptValue != KernelPdptValue) {
         WritePageDirectoryEntryValue((LPPAGE_DIRECTORY)CurrentPdpt, PdptIndex, KernelPdptValue);
+        CurrentPdptValue = KernelPdptValue;
         Updated = TRUE;
         NeedsFullFlush = TRUE;
     }
@@ -838,13 +819,19 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     LPPAGE_DIRECTORY KernelDirectory = (LPPAGE_DIRECTORY)KernelDirectoryLinear;
     U64 KernelDirectoryValue = ReadPageDirectoryEntryValue(KernelDirectory, DirectoryIndex);
     if ((KernelDirectoryValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("Kernel directory[%u] not present (Address=%p)"),
-              DirectoryIndex,
-              (LPVOID)Address);
+        DEBUG(TEXT("Kernel directory[%u] not present (Address=%p)"), DirectoryIndex, (LPVOID)Address);
         return FALSE;
     }
 
-    LPPAGE_DIRECTORY CurrentDirectory = GetPageDirectoryVAFor(Address);
+    // Mirror the current directory entry through a temporary slot.
+    PHYSICAL CurrentPageDirectoryPhysical = (PHYSICAL)(CurrentPdptValue & PAGE_MASK);
+    LINEAR CurrentDirectoryLinear = MapTemporaryPhysicalPage5(CurrentPageDirectoryPhysical);
+    if (CurrentDirectoryLinear == 0) {
+        ERROR(TEXT("Unable to map current page directory"));
+        return FALSE;
+    }
+
+    LPPAGE_DIRECTORY CurrentDirectory = (LPPAGE_DIRECTORY)CurrentDirectoryLinear;
     U64 CurrentDirectoryValue = ReadPageDirectoryEntryValue(CurrentDirectory, DirectoryIndex);
     if ((CurrentDirectoryValue & PAGE_FLAG_PRESENT) == 0u || CurrentDirectoryValue != KernelDirectoryValue) {
         WritePageDirectoryEntryValue(CurrentDirectory, DirectoryIndex, KernelDirectoryValue);
@@ -876,13 +863,19 @@ BOOL ResolveKernelPageFault(LINEAR FaultAddress) {
     LPPAGE_TABLE KernelTable = (LPPAGE_TABLE)KernelTableLinear;
     U64 KernelTableValue = ReadPageTableEntryValue(KernelTable, TableIndex);
     if ((KernelTableValue & PAGE_FLAG_PRESENT) == 0u) {
-        DEBUG(TEXT("Kernel PTE[%u] not present (Address=%p)"),
-              TableIndex,
-              (LPVOID)Address);
+        DEBUG(TEXT("Kernel PTE[%u] not present (Address=%p)"), TableIndex, (LPVOID)Address);
         return FALSE;
     }
 
-    LPPAGE_TABLE CurrentTable = GetPageTableVAFor(Address);
+    // Mirror the current page table entry through a temporary slot.
+    PHYSICAL CurrentTablePhysical = (PHYSICAL)(CurrentDirectoryValue & PAGE_MASK);
+    LINEAR CurrentTableLinear = MapTemporaryPhysicalPage6(CurrentTablePhysical);
+    if (CurrentTableLinear == 0) {
+        ERROR(TEXT("Unable to map current page table"));
+        return FALSE;
+    }
+
+    LPPAGE_TABLE CurrentTable = (LPPAGE_TABLE)CurrentTableLinear;
     U64 CurrentTableValue = ReadPageTableEntryValue(CurrentTable, TableIndex);
     if (CurrentTableValue != KernelTableValue) {
         WritePageTableEntryValue(CurrentTable, TableIndex, KernelTableValue);
@@ -925,7 +918,7 @@ BOOL IsRegionFree(LINEAR Base, UINT Size) {
         BOOL TableAvailable = TryGetPageTableForIterator(&Iterator, &Table, &IsLargePage);
 
         if (TableAvailable) {
-            if (PageTableEntryIsPresent(Table, TabEntry)) {
+            if (ReadPageTableEntryValue(Table, TabEntry) != 0u) {
                 return FALSE;
             }
         } else {

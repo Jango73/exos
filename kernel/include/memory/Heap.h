@@ -34,7 +34,11 @@
 
 /***************************************************************************/
 
-typedef BOOL (*HEAP_RESIZE_CALLBACK)(LPVOID Context, LINEAR HeapBase, UINT OldSize, UINT NewSize, U32 Flags);
+typedef struct tag_HEAP_CONTROL_BLOCK HEAP_CONTROL_BLOCK, *LPHEAP_CONTROL_BLOCK;
+
+/***************************************************************************/
+
+typedef BOOL (*HEAP_RESIZE_CALLBACK)(LPVOID Context, LPHEAP_CONTROL_BLOCK ControlBlock, UINT NewSize);
 
 /***************************************************************************/
 
@@ -55,7 +59,7 @@ typedef struct tag_HEAP_BLOCK_HEADER {
 
 /***************************************************************************/
 
-typedef struct tag_HEAP_CONTROL_BLOCK {
+struct tag_HEAP_CONTROL_BLOCK {
     UINT TypeID;
     LINEAR HeapBase;
     UINT HeapSize;
@@ -67,21 +71,25 @@ typedef struct tag_HEAP_CONTROL_BLOCK {
     HEAP_RESIZE_CALLBACK ResizeCallback;
     UINT MaximumSize;
     U32 RegionFlags;
-} HEAP_CONTROL_BLOCK, *LPHEAP_CONTROL_BLOCK;
+};
 
 /***************************************************************************/
 
 typedef struct tag_PROCESS_MEMORY_INFO PROCESS_MEMORY_INFO, *LPPROCESS_MEMORY_INFO;
 
+typedef struct tag_HEAP_FRAGMENTATION_INFO {
+    UINT FreeBlockCount;        // Number of free blocks
+    UINT LargestFreeBlock;      // Largest free block payload in bytes
+    UINT FreeBytes;             // Total free payload bytes
+    UINT TotalBytes;            // Total committed payload bytes
+    UINT FragmentationPercent;  // Fragmentation ratio in percent
+} HEAP_FRAGMENTATION_INFO, *LPHEAP_FRAGMENTATION_INFO;
+
 /***************************************************************************/
 
 void HeapInit(LPPROCESS Process, LINEAR HeapBase, UINT HeapSize);
 void HeapConfigureGrowth(
-    LINEAR HeapBase,
-    LPVOID ResizeContext,
-    HEAP_RESIZE_CALLBACK ResizeCallback,
-    UINT MaximumSize,
-    U32 RegionFlags);
+    LINEAR HeapBase, LPVOID ResizeContext, HEAP_RESIZE_CALLBACK ResizeCallback, UINT MaximumSize, U32 RegionFlags);
 
 // Allocates memory space in the calling process' heap
 // Must provide the heap's limits.
@@ -123,6 +131,7 @@ LPVOID HeapRealloc(LPVOID Pointer, UINT Size);
 void HeapFree(LPVOID Pointer);
 
 BOOL HeapQueryProcessMemoryInfo(LPPROCESS Process, LPPROCESS_MEMORY_INFO Info);
+BOOL HeapQueryFragmentation(LPPROCESS Process, LPHEAP_FRAGMENTATION_INFO Info);
 
 /***************************************************************************/
 

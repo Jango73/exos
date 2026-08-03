@@ -22,12 +22,12 @@
 \************************************************************************/
 
 #include "Base.h"
-#include "memory/Heap.h"
-#include "utils/List.h"
 #include "log/Log.h"
-#include "text/CoreString.h"
-#include "script/Script.h"
+#include "memory/Heap.h"
 #include "script/Script-Internal.h"
+#include "script/Script.h"
+#include "text/CoreString.h"
+#include "utils/List.h"
 
 /************************************************************************/
 /**
@@ -135,16 +135,14 @@ LPAST_NODE ScriptParseStatementAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) 
         }
 
         while (TRUE) {
-            if (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
-                Parser->CurrentToken.Value[0] == '=') {
+            if (Parser->CurrentToken.Type == TOKEN_OPERATOR && Parser->CurrentToken.Value[0] == '=') {
                 IsAssignment = TRUE;
                 break;
             }
 
             if (Parser->CurrentToken.Type == TOKEN_LBRACKET) {
                 ScriptNextToken(Parser);
-                while (Parser->CurrentToken.Type != TOKEN_RBRACKET &&
-                       Parser->CurrentToken.Type != TOKEN_EOF) {
+                while (Parser->CurrentToken.Type != TOKEN_RBRACKET && Parser->CurrentToken.Type != TOKEN_EOF) {
                     ScriptNextToken(Parser);
                 }
 
@@ -155,8 +153,7 @@ LPAST_NODE ScriptParseStatementAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) 
                 break;
             }
 
-            if (Parser->CurrentToken.Type == TOKEN_OPERATOR &&
-                Parser->CurrentToken.Value[0] == '.') {
+            if (Parser->CurrentToken.Type == TOKEN_OPERATOR && Parser->CurrentToken.Value[0] == '.') {
                 ScriptNextToken(Parser);
                 if (Parser->CurrentToken.Type != TOKEN_IDENTIFIER) {
                     break;
@@ -299,8 +296,7 @@ LPAST_NODE ScriptParseShellCommandExpression(LPSCRIPT_PARSER Parser, SCRIPT_ERRO
 
     // Extract command name for Value field (trim whitespace and quotes)
     U32 CmdIndex = 0;
-    while (Node->Data.Expression.CommandLine[CmdIndex] == ' ' ||
-           Node->Data.Expression.CommandLine[CmdIndex] == '\t') {
+    while (Node->Data.Expression.CommandLine[CmdIndex] == ' ' || Node->Data.Expression.CommandLine[CmdIndex] == '\t') {
         CmdIndex++;
     }
 
@@ -367,9 +363,8 @@ LPAST_NODE ScriptParseBlockAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
 
     BlockNode->Data.Block.Capacity = 16;
     BlockNode->Data.Block.Count = 0;
-    BlockNode->Data.Block.Statements = (LPAST_NODE*)ScriptAlloc(
-        Parser->Context,
-        BlockNode->Data.Block.Capacity * sizeof(LPAST_NODE));
+    BlockNode->Data.Block.Statements =
+        (LPAST_ENTRY*)ScriptAlloc(Parser->Context, BlockNode->Data.Block.Capacity * sizeof(LPAST_ENTRY));
     if (BlockNode->Data.Block.Statements == NULL) {
         *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
         ScriptDestroyAST(BlockNode);
@@ -378,8 +373,19 @@ LPAST_NODE ScriptParseBlockAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
 
     // Parse statements until we hit the closing brace
     while (Parser->CurrentToken.Type != TOKEN_RBRACE && Parser->CurrentToken.Type != TOKEN_EOF) {
+        U32 StatementOffset = Parser->CurrentToken.Position;
         LPAST_NODE Statement = ScriptParseStatementAST(Parser, Error);
         if (*Error != SCRIPT_OK || Statement == NULL) {
+            ScriptDestroyAST(BlockNode);
+            return NULL;
+        }
+        U32 StatementLength = Parser->Position - StatementOffset;
+        AST_NODE_TYPE StatementType = Statement->Type;
+
+        LPAST_ENTRY StatementEntry = ScriptRegisterStatementEntry(
+            Parser->Context, Statement, StatementOffset, StatementLength, Parser->LoopDepth);
+        if (StatementEntry == NULL) {
+            ScriptDestroyAST(Statement);
             ScriptDestroyAST(BlockNode);
             return NULL;
         }
@@ -387,12 +393,10 @@ LPAST_NODE ScriptParseBlockAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
         // Add statement to block
         if (BlockNode->Data.Block.Count >= BlockNode->Data.Block.Capacity) {
             BlockNode->Data.Block.Capacity *= 2;
-            LPAST_NODE* NewStatements = (LPAST_NODE*)ScriptAlloc(
-                Parser->Context,
-                BlockNode->Data.Block.Capacity * sizeof(LPAST_NODE));
+            LPAST_ENTRY* NewStatements =
+                (LPAST_ENTRY*)ScriptAlloc(Parser->Context, BlockNode->Data.Block.Capacity * sizeof(LPAST_ENTRY));
             if (NewStatements == NULL) {
                 *Error = SCRIPT_ERROR_OUT_OF_MEMORY;
-                ScriptDestroyAST(Statement);
                 ScriptDestroyAST(BlockNode);
                 return NULL;
             }
@@ -403,10 +407,10 @@ LPAST_NODE ScriptParseBlockAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error) {
             BlockNode->Data.Block.Statements = NewStatements;
         }
 
-        BlockNode->Data.Block.Statements[BlockNode->Data.Block.Count++] = Statement;
+        BlockNode->Data.Block.Statements[BlockNode->Data.Block.Count++] = StatementEntry;
 
         // Semicolon is mandatory after assignments and returns.
-        if (Statement->Type == AST_ASSIGNMENT || Statement->Type == AST_RETURN || Statement->Type == AST_CONTINUE) {
+        if (StatementType == AST_ASSIGNMENT || StatementType == AST_RETURN || StatementType == AST_CONTINUE) {
             if (Parser->CurrentToken.Type != TOKEN_SEMICOLON && Parser->CurrentToken.Type != TOKEN_RBRACE) {
                 *Error = SCRIPT_ERROR_SYNTAX;
                 ScriptDestroyAST(BlockNode);
@@ -478,21 +482,44 @@ LPAST_NODE ScriptParseIfStatementAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Error
     ScriptNextToken(Parser);
 
     // Parse then branch
-    IfNode->Data.If.Then = ScriptParseStatementAST(Parser, Error);
-    if (*Error != SCRIPT_OK || IfNode->Data.If.Then == NULL) {
+    U32 ThenOffset = Parser->CurrentToken.Position;
+    LPAST_NODE ThenStatement = ScriptParseStatementAST(Parser, Error);
+    U32 ThenLength = Parser->Position - ThenOffset;
+    if (*Error != SCRIPT_OK || ThenStatement == NULL) {
         ScriptDestroyAST(IfNode);
         return NULL;
     }
+
+    LPAST_ENTRY ThenEntry =
+        ScriptRegisterStatementEntry(Parser->Context, ThenStatement, ThenOffset, ThenLength, Parser->LoopDepth);
+    if (ThenEntry == NULL) {
+        ScriptDestroyAST(ThenStatement);
+        ScriptDestroyAST(IfNode);
+        return NULL;
+    }
+    IfNode->Data.If.Then = ThenEntry;
 
     // Parse else branch if present
     IfNode->Data.If.Else = NULL;
     if (Parser->CurrentToken.Type == TOKEN_ELSE) {
         ScriptNextToken(Parser);
-        IfNode->Data.If.Else = ScriptParseStatementAST(Parser, Error);
-        if (*Error != SCRIPT_OK || IfNode->Data.If.Else == NULL) {
+
+        U32 ElseOffset = Parser->CurrentToken.Position;
+        LPAST_NODE ElseStatement = ScriptParseStatementAST(Parser, Error);
+        U32 ElseLength = Parser->Position - ElseOffset;
+        if (*Error != SCRIPT_OK || ElseStatement == NULL) {
             ScriptDestroyAST(IfNode);
             return NULL;
         }
+
+        LPAST_ENTRY ElseEntry =
+            ScriptRegisterStatementEntry(Parser->Context, ElseStatement, ElseOffset, ElseLength, Parser->LoopDepth);
+        if (ElseEntry == NULL) {
+            ScriptDestroyAST(ElseStatement);
+            ScriptDestroyAST(IfNode);
+            return NULL;
+        }
+        IfNode->Data.If.Else = ElseEntry;
     }
 
     return IfNode;
@@ -574,12 +601,28 @@ LPAST_NODE ScriptParseForStatementAST(LPSCRIPT_PARSER Parser, SCRIPT_ERROR* Erro
 
     // Parse body
     Parser->LoopDepth++;
-    ForNode->Data.For.Body = ScriptParseStatementAST(Parser, Error);
+    U32 BodyOffset = Parser->CurrentToken.Position;
+    LPAST_NODE BodyStatement = ScriptParseStatementAST(Parser, Error);
+    U32 BodyLength = Parser->Position - BodyOffset;
+    LPAST_ENTRY BodyEntry = NULL;
+    if (*Error == SCRIPT_OK && BodyStatement != NULL) {
+        BodyEntry =
+            ScriptRegisterStatementEntry(Parser->Context, BodyStatement, BodyOffset, BodyLength, Parser->LoopDepth);
+    }
     Parser->LoopDepth--;
-    if (*Error != SCRIPT_OK || ForNode->Data.For.Body == NULL) {
+
+    if (*Error != SCRIPT_OK || BodyStatement == NULL) {
         ScriptDestroyAST(ForNode);
         return NULL;
     }
+
+    if (BodyEntry == NULL) {
+        ScriptDestroyAST(BodyStatement);
+        ScriptDestroyAST(ForNode);
+        return NULL;
+    }
+
+    ForNode->Data.For.Body = BodyEntry;
 
     return ForNode;
 }

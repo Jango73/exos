@@ -24,20 +24,20 @@
 
 #include "arch/x86-32/x86-32.h"
 
+#include "arch/x86-32/x86-32-Log.h"
+#include "console/Console.h"
+#include "core/Kernel.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
-#include "console/Console.h"
 #include "process/Process.h"
 #include "process/Schedule.h"
-#include "arch/x86-32/x86-32-Log.h"
 #include "process/Stack.h"
-#include "text/CoreString.h"
-#include "system/System.h"
 #include "process/Task.h"
-#include "text/Text.h"
-#include "core/Kernel.h"
 #include "system/Interrupt.h"
 #include "system/SYSCall.h"
+#include "system/System.h"
+#include "text/CoreString.h"
+#include "text/Text.h"
 
 /************************************************************************\
 
@@ -191,11 +191,7 @@ static UINT InterruptsDriverCommands(UINT Function, UINT Parameter);
 
 /************************************************************************/
 
-KERNEL_DATA_X86_32 DATA_SECTION Kernel_x86_32 = {
-    .IDT = NULL,
-    .GDT = NULL,
-    .TSS = NULL
-};
+KERNEL_DATA_X86_32 DATA_SECTION Kernel_x86_32 = {.IDT = NULL, .GDT = NULL, .TSS = NULL};
 
 DRIVER DATA_SECTION InterruptsDriver = {
     .TypeID = KOID_DRIVER,
@@ -220,9 +216,7 @@ DRIVER DATA_SECTION InterruptsDriver = {
  * @brief Retrieves the interrupts driver descriptor.
  * @return Pointer to the interrupts driver.
  */
-LPDRIVER InterruptsGetDriver(void) {
-    return &InterruptsDriver;
-}
+LPDRIVER InterruptsGetDriver(void) { return &InterruptsDriver; }
 
 /************************************************************************/
 
@@ -248,11 +242,7 @@ void SetGateDescriptorOffset(LPGATE_DESCRIPTOR Descriptor, LINEAR Handler) {
  * @param Privilege Descriptor privilege level.
  */
 void InitializeGateDescriptor(
-    LPGATE_DESCRIPTOR Descriptor,
-    LINEAR Handler,
-    U16 Type,
-    U16 Privilege,
-    U8 InterruptStackTable) {
+    LPGATE_DESCRIPTOR Descriptor, LINEAR Handler, U16 Type, U16 Privilege, U8 InterruptStackTable) {
     UNUSED(InterruptStackTable);
     Descriptor->Selector = SELECTOR_KERNEL_CODE;
     Descriptor->Reserved = 0;
@@ -270,11 +260,7 @@ void InitializeInterrupts(void) {
 
     for (U32 Index = 0; Index < NUM_INTERRUPTS; Index++) {
         InitializeGateDescriptor(
-            IDT + Index,
-            (LINEAR)(InterruptTable[Index]),
-            GATE_TYPE_386_INT,
-            CPU_PRIVILEGE_KERNEL,
-            0u);
+            IDT + Index, (LINEAR)(InterruptTable[Index]), GATE_TYPE_386_INT, CPU_PRIVILEGE_KERNEL, 0u);
     }
 
     InitializeSystemCall();
@@ -584,28 +570,30 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     }
     UNUSED(BaseVMA);
 
+    UINT SystemStackAllocationSize = TASK_MINIMUM_SYSTEM_STACK_SIZE + STACK_GROW_MIN_INCREMENT;
+
     Task->Arch.Stack.Size = Info->StackSize;
     Task->Arch.SystemStack.Size = TASK_MINIMUM_SYSTEM_STACK_SIZE;
 
     Task->Arch.Stack.Base = ProcessArenaAllocateTaskStack(Process, Task->Arch.Stack.Size);
+    Task->Arch.Stack.AllocationBase = Task->Arch.Stack.Base;
 
-    Task->Arch.SystemStack.Base =
-        AllocKernelRegion(0, Task->Arch.SystemStack.Size, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStack"));
+    Task->Arch.SystemStack.AllocationBase = AllocKernelRegion(
+        0, SystemStackAllocationSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStack"));
+    Task->Arch.SystemStack.Base = (Task->Arch.SystemStack.AllocationBase != 0)
+                                      ? Task->Arch.SystemStack.AllocationBase + STACK_GROW_MIN_INCREMENT
+                                      : 0;
 
     DEBUG(TEXT("BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
     DEBUG(TEXT("Actually got StackBase=%p"), Task->Arch.Stack.Base);
 
     if (Task->Arch.Stack.Base == NULL || Task->Arch.SystemStack.Base == NULL) {
         if (Task->Arch.Stack.Base != NULL) {
-            FreeRegion(Task->Arch.Stack.Base, Task->Arch.Stack.Size);
-            Task->Arch.Stack.Base = 0;
-            Task->Arch.Stack.Size = 0;
+            StackRelease(&(Task->Arch.Stack));
         }
 
         if (Task->Arch.SystemStack.Base != NULL) {
-            FreeRegion(Task->Arch.SystemStack.Base, Task->Arch.SystemStack.Size);
-            Task->Arch.SystemStack.Base = 0;
-            Task->Arch.SystemStack.Size = 0;
+            StackRelease(&(Task->Arch.SystemStack));
         }
 
         ERROR(TEXT("Stack or system stack allocation failed"));
@@ -613,8 +601,7 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     }
 
     DEBUG(TEXT("Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
-    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
-        Task->Arch.SystemStack.Base);
+    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size, Task->Arch.SystemStack.Base);
 
     MemorySet((LPVOID)(Task->Arch.Stack.Base), 0, Task->Arch.Stack.Size);
     MemorySet((LPVOID)(Task->Arch.SystemStack.Base), 0, Task->Arch.SystemStack.Size);
@@ -702,7 +689,7 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         SAFE_USE(CurrentTask) {
             GetFS(CurrentTask->Arch.Context.Registers.FS);
             GetGS(CurrentTask->Arch.Context.Registers.GS);
-            SaveFPU((LPVOID)&(CurrentTask->Arch.Context.FPURegisters));
+            SaveFPU((LPVOID) & (CurrentTask->Arch.Context.FPURegisters));
         }
 
         SetDS(NextTask->Arch.Context.Registers.DS);
@@ -763,11 +750,7 @@ void PreInitializeKernel(void) {
 
 void InitializeSystemCall(void) {
     InitializeGateDescriptor(
-        IDT + EXOS_USER_CALL,
-        (LINEAR)Interrupt_SystemCall,
-        GATE_TYPE_386_TRAP,
-        CPU_PRIVILEGE_USER,
-        0u);
+        IDT + EXOS_USER_CALL, (LINEAR)Interrupt_SystemCall, GATE_TYPE_386_TRAP, CPU_PRIVILEGE_USER, 0u);
 }
 
 /************************************************************************/

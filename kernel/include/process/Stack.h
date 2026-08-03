@@ -27,7 +27,9 @@
 
 /************************************************************************/
 
+#include "Arch.h"
 #include "Base.h"
+#include "Task-Stack.h"
 
 /************************************************************************/
 
@@ -61,6 +63,12 @@ BOOL GrowCurrentStack(UINT AdditionalBytes);
 
 // Ensure a minimum amount of free stack space is available
 BOOL EnsureCurrentStackSpace(UINT MinimumFreeBytes);
+
+// Grow the current task system stack reactively to cover a stack-underflow fault
+BOOL GrowFaultingSystemStack(LINEAR FaultAddress, LPINTERRUPT_FRAME Frame);
+
+// Release a stack region, freeing the full tracked allocation
+void StackRelease(LPSTACK Stack);
 
 // Check current task's stack safety
 BOOL CheckStack(void);

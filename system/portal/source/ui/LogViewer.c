@@ -22,9 +22,10 @@
 \************************************************************************/
 
 #include "ui/LogViewer.h"
+#include "portal-string.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "text/CoreString.h"
-#include "log/Log.h"
 
 /***************************************************************************/
 
@@ -72,7 +73,7 @@ static void LogViewerDrawLines(HANDLE GraphicsContext, LPRECT ClientRect, I32 Li
     LineY = DrawInfo.Y;
 
     while (Line != NULL && *Line != 0) {
-        NextLine = StringFindChar(Line, '\n');
+        NextLine = (LPSTR)strchr((const char*)Line, '\n');
         if (NextLine != NULL) {
             *NextLine = 0;
         }
@@ -94,7 +95,7 @@ U32 LogViewerWindowFunc(HANDLE Window, U32 Message, U32 Param1, U32 Param2) {
     RECT ClientRect;
     HANDLE GraphicsContext;
     TEXT_MEASURE_INFO MeasureInfo;
-    KERNEL_LOG_RECENT_VIEW View;
+    KERNEL_LOG_RECENT_INFO View;
     STR TextBuffer[LOG_VIEWER_TEXT_BUFFER_SIZE];
     I32 ClientHeight;
     I32 AvailableHeight;

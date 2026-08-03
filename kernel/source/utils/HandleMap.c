@@ -25,9 +25,9 @@
 #include "utils/HandleMap.h"
 
 #include "console/Console.h"
-#include "text/CoreString.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
+#include "text/CoreString.h"
 
 /************************************************************************/
 
@@ -129,11 +129,9 @@ void HandleMapInit(LPHANDLE_MAP Map) {
         return;
     }
 
-    BOOL AllocatorReady = BlockListInit(&Map->EntryAllocator,
-                                        (UINT)sizeof(HANDLE_MAP_ENTRY),
-                                        HANDLE_MAP_ENTRIES_PER_SLAB,
-                                        HANDLE_MAP_INITIAL_SLABS,
-                                        0);
+    BOOL AllocatorReady = BlockListInit(
+        &Map->EntryAllocator, (UINT)sizeof(HANDLE_MAP_ENTRY), HANDLE_MAP_ENTRIES_PER_SLAB, HANDLE_MAP_INITIAL_SLABS, 0,
+        TEXT("HandleMapPool"));
     if (!AllocatorReady) {
         ConsolePanic(TEXT("[HandleMapInit] BlockListInit failed"));
         return;

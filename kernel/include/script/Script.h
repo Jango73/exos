@@ -26,12 +26,13 @@
 #define SCRIPT_H_INCLUDED
 
 #include "Base.h"
-#include "utils/List.h"
 #include "utils/Allocator.h"
+#include "utils/List.h"
+#include "utils/MemoryAccounting.h"
 
 /************************************************************************/
 
-#pragma pack (push, 1)
+#pragma pack(push, 1)
 
 /************************************************************************/
 
@@ -42,6 +43,7 @@
 #define E0_SCRIPT_FILE_EXTENSION TEXT(".e0")
 #define SCRIPT_FUNCTION_STATUS_UNKNOWN ((INT)MAX_UINT)
 #define SCRIPT_FUNCTION_STATUS_ERROR ((INT)(MAX_UINT - 1))
+#define SCRIPT_AST_CACHE_BUDGET_BYTES (8 * 1024)
 
 /************************************************************************/
 
@@ -96,13 +98,13 @@ typedef enum {
 
 // AST Node Types
 typedef enum {
-    AST_ASSIGNMENT,     // var = expr
-    AST_IF,             // if (cond) then [else]
-    AST_FOR,            // for (init; cond; inc) body
-    AST_BLOCK,          // { statements }
-    AST_RETURN,         // return expr
-    AST_CONTINUE,       // continue
-    AST_EXPRESSION      // standalone expr
+    AST_ASSIGNMENT,  // var = expr
+    AST_IF,          // if (cond) then [else]
+    AST_FOR,         // for (init; cond; inc) body
+    AST_BLOCK,       // { statements }
+    AST_RETURN,      // return expr
+    AST_CONTINUE,    // continue
+    AST_EXPRESSION   // standalone expr
 } AST_NODE_TYPE;
 
 /************************************************************************/
@@ -113,11 +115,14 @@ struct tag_SCRIPT_VALUE;
 struct tag_SCRIPT_HOST_DESCRIPTOR;
 struct tag_SCRIPT_CONTEXT;
 struct tag_SCRIPT_OBJECT;
+struct tag_SCRIPT_AST_ENTRY;
+struct tag_SCRIPT_AST_CACHE;
 
 typedef struct tag_SCRIPT_CONTEXT SCRIPT_CONTEXT;
 typedef struct tag_SCRIPT_CONTEXT* LPSCRIPT_CONTEXT;
 typedef struct tag_SCRIPT_OBJECT SCRIPT_OBJECT;
 typedef struct tag_SCRIPT_OBJECT* LPSCRIPT_OBJECT;
+typedef struct tag_SCRIPT_AST_ENTRY* LPAST_ENTRY;
 
 /************************************************************************/
 
@@ -160,8 +165,10 @@ typedef struct tag_SCRIPT_VAR_TABLE {
     U32 Count;
 } SCRIPT_VAR_TABLE, *LPSCRIPT_VAR_TABLE;
 
-typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_PROPERTY)(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, struct tag_SCRIPT_VALUE* OutValue);
-typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_ELEMENT)(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, struct tag_SCRIPT_VALUE* OutValue);
+typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_PROPERTY)(
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, struct tag_SCRIPT_VALUE* OutValue);
+typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_ELEMENT)(
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, struct tag_SCRIPT_VALUE* OutValue);
 typedef void (*SCRIPT_HOST_RELEASE_HANDLE)(LPVOID Context, SCRIPT_HOST_HANDLE Handle);
 
 typedef struct tag_SCRIPT_HOST_DESCRIPTOR {
@@ -259,17 +266,17 @@ typedef struct tag_AST_NODE {
         } Assignment;
         struct {
             struct tag_AST_NODE* Condition;
-            struct tag_AST_NODE* Then;
-            struct tag_AST_NODE* Else;
+            LPAST_ENTRY Then;
+            LPAST_ENTRY Else;
         } If;
         struct {
             struct tag_AST_NODE* Init;
             struct tag_AST_NODE* Condition;
             struct tag_AST_NODE* Increment;
-            struct tag_AST_NODE* Body;
+            LPAST_ENTRY Body;
         } For;
         struct {
-            struct tag_AST_NODE** Statements;
+            LPAST_ENTRY* Statements;
             U32 Count;
             U32 Capacity;
         } Block;
@@ -304,6 +311,44 @@ typedef struct tag_AST_NODE {
 
 /************************************************************************/
 
+// Parse kind of a statement unit, used to re-parse evicted cache entries on demand.
+typedef enum {
+    AST_PARSE_ASSIGNMENT,
+    AST_PARSE_IF,
+    AST_PARSE_FOR,
+    AST_PARSE_BLOCK,
+    AST_PARSE_RETURN,
+    AST_PARSE_CONTINUE,
+    AST_PARSE_EXPRESSION,
+    AST_PARSE_SHELL_COMMAND
+} SCRIPT_AST_PARSE_KIND;
+
+/************************************************************************/
+
+typedef struct tag_SCRIPT_AST_ENTRY {
+    LISTNODE_FIELDS
+    struct tag_SCRIPT_AST_CACHE* Cache;
+    U32 SourceOffset;
+    U32 SourceLength;
+    SCRIPT_AST_PARSE_KIND ParseKind;
+    U32 LoopDepth;
+    U32 RefCount;
+    struct tag_AST_NODE* Node;
+    U32 NodeBytes;
+} SCRIPT_AST_ENTRY;
+
+typedef struct tag_SCRIPT_AST_CACHE {
+    LPSCRIPT_CONTEXT Context;
+    LPCSTR Source;
+    U32 SourceLength;
+    LPLIST List;
+    U32 ResidentBytes;
+    U32 BudgetBytes;
+    BOOL Resolving;
+} SCRIPT_AST_CACHE, *LPSCRIPT_AST_CACHE;
+
+/************************************************************************/
+
 typedef struct tag_SCRIPT_PARSER {
     LPCSTR Input;
     U32 Position;
@@ -319,6 +364,7 @@ struct tag_SCRIPT_CONTEXT {
     SCRIPT_VAR_TABLE Variables;
     SCRIPT_CALLBACKS Callbacks;
     ALLOCATOR Allocator;
+    MEMORY_ACCOUNTING_ALLOCATOR Accounting;
     SCRIPT_ERROR ErrorCode;
     STR ErrorMessage[MAX_ERROR_MESSAGE];
     BOOL HasReturnValue;
@@ -329,6 +375,7 @@ struct tag_SCRIPT_CONTEXT {
     LPSCRIPT_SCOPE GlobalScope;
     LPSCRIPT_SCOPE CurrentScope;
     SCRIPT_HOST_REGISTRY HostRegistry;
+    LPSCRIPT_AST_CACHE AstCache;
 };
 
 /************************************************************************/
@@ -340,7 +387,8 @@ void ScriptDestroyContext(LPSCRIPT_CONTEXT Context);
 SCRIPT_ERROR ScriptExecute(LPSCRIPT_CONTEXT Context, LPCSTR Script);
 BOOL ScriptIsE0FileName(LPCSTR FileName);
 
-LPSCRIPT_VARIABLE ScriptSetVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
+LPSCRIPT_VARIABLE ScriptSetVariable(
+    LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
 LPSCRIPT_VARIABLE ScriptGetVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name);
 void ScriptDeleteVariable(LPSCRIPT_CONTEXT Context, LPCSTR Name);
 
@@ -354,7 +402,8 @@ LPSCRIPT_ARRAY ScriptCreateArray(LPSCRIPT_CONTEXT Context, U32 InitialCapacity);
 void ScriptDestroyArray(LPSCRIPT_ARRAY Array);
 SCRIPT_ERROR ScriptArraySet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
 SCRIPT_ERROR ScriptArrayGet(LPSCRIPT_ARRAY Array, U32 Index, SCRIPT_VAR_TYPE* Type, SCRIPT_VAR_VALUE* Value);
-LPSCRIPT_VARIABLE ScriptSetArrayElement(LPSCRIPT_CONTEXT Context, LPCSTR Name, U32 Index, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
+LPSCRIPT_VARIABLE ScriptSetArrayElement(
+    LPSCRIPT_CONTEXT Context, LPCSTR Name, U32 Index, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
 LPSCRIPT_VARIABLE ScriptGetArrayElement(LPSCRIPT_CONTEXT Context, LPCSTR Name, U32 Index);
 
 // Object support functions
@@ -365,23 +414,16 @@ SCRIPT_ERROR ScriptSetObjectProperty(LPSCRIPT_OBJECT Object, LPCSTR Name, const 
 SCRIPT_ERROR ScriptGetObjectProperty(LPSCRIPT_OBJECT Object, LPCSTR Name, LPSCRIPT_VALUE OutValue);
 
 // Host object registration
-BOOL ScriptRegisterHostSymbol(LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_HOST_SYMBOL_KIND Kind, SCRIPT_HOST_HANDLE Handle, const SCRIPT_HOST_DESCRIPTOR* Descriptor, LPVOID ContextPointer);
+BOOL ScriptRegisterHostSymbol(
+    LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_HOST_SYMBOL_KIND Kind, SCRIPT_HOST_HANDLE Handle,
+    const SCRIPT_HOST_DESCRIPTOR* Descriptor, LPVOID ContextPointer);
 void ScriptUnregisterHostSymbol(LPSCRIPT_CONTEXT Context, LPCSTR Name);
 void ScriptClearHostSymbols(LPSCRIPT_CONTEXT Context);
 void ScriptValueInit(SCRIPT_VALUE* Value);
 void ScriptValueRelease(SCRIPT_VALUE* Value);
-SCRIPT_ERROR ScriptGetHostSymbolValue(
-    LPSCRIPT_CONTEXT Context,
-    LPCSTR Name,
-    LPSCRIPT_VALUE OutValue);
-SCRIPT_ERROR ScriptGetHostPropertyValue(
-    const SCRIPT_VALUE* ParentValue,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue);
-SCRIPT_ERROR ScriptGetHostElementValue(
-    const SCRIPT_VALUE* ParentValue,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue);
+SCRIPT_ERROR ScriptGetHostSymbolValue(LPSCRIPT_CONTEXT Context, LPCSTR Name, LPSCRIPT_VALUE OutValue);
+SCRIPT_ERROR ScriptGetHostPropertyValue(const SCRIPT_VALUE* ParentValue, LPCSTR Property, LPSCRIPT_VALUE OutValue);
+SCRIPT_ERROR ScriptGetHostElementValue(const SCRIPT_VALUE* ParentValue, U32 Index, LPSCRIPT_VALUE OutValue);
 
 // Scope management functions
 LPSCRIPT_SCOPE ScriptCreateScope(LPSCRIPT_CONTEXT Context, LPSCRIPT_SCOPE Parent);
@@ -389,15 +431,16 @@ void ScriptDestroyScope(LPSCRIPT_SCOPE Scope);
 LPSCRIPT_SCOPE ScriptPushScope(LPSCRIPT_CONTEXT Context);
 void ScriptPopScope(LPSCRIPT_CONTEXT Context);
 LPSCRIPT_VARIABLE ScriptFindVariableInScope(LPSCRIPT_SCOPE Scope, LPCSTR Name, BOOL SearchParents);
-LPSCRIPT_VARIABLE ScriptSetVariableInScope(LPSCRIPT_SCOPE Scope, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
+LPSCRIPT_VARIABLE ScriptSetVariableInScope(
+    LPSCRIPT_SCOPE Scope, LPCSTR Name, SCRIPT_VAR_TYPE Type, SCRIPT_VAR_VALUE Value);
 
 // AST management functions
 LPAST_NODE ScriptCreateASTNode(LPSCRIPT_CONTEXT Context, AST_NODE_TYPE Type);
 void ScriptDestroyAST(LPAST_NODE Node);
-SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_NODE Node);
+SCRIPT_ERROR ScriptExecuteAST(LPSCRIPT_PARSER Parser, LPAST_ENTRY Entry);
 
 /************************************************************************/
 
-#pragma pack (pop)
+#pragma pack(pop)
 
 #endif  // SCRIPT_H_INCLUDED

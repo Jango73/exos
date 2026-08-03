@@ -18,7 +18,7 @@
 
 /***************************************************************************/
 
-HANDLE CreateDesktop(void) { return (HANDLE)exoscall(SYSCALL_CreateDesktop, EXOS_PARAM(0)); }
+HANDLE CreateDesktop(HANDLE RootWindow) { return (HANDLE)exoscall(SYSCALL_CreateDesktop, EXOS_PARAM(RootWindow)); }
 
 /***************************************************************************/
 
@@ -31,6 +31,28 @@ HANDLE GetDesktopWindow(HANDLE Desktop) { return (HANDLE)exoscall(SYSCALL_GetDes
 /***************************************************************************/
 
 HANDLE GetCurrentDesktop(void) { return (HANDLE)exoscall(SYSCALL_GetCurrentDesktop, EXOS_PARAM(0)); }
+
+/***************************************************************************/
+
+BOOL GetDesktopScreenRect(HANDLE Desktop, LPRECT Rect) {
+    DESKTOP_RECT_INFO Info;
+
+    if (Desktop == NULL || Rect == NULL) return FALSE;
+
+    Info.Header.Size = sizeof Info;
+    Info.Header.Version = EXOS_ABI_VERSION;
+    Info.Header.Flags = 0;
+    Info.Desktop = Desktop;
+    Info.Rect.X1 = 0;
+    Info.Rect.Y1 = 0;
+    Info.Rect.X2 = 0;
+    Info.Rect.Y2 = 0;
+
+    if (exoscall(SYSCALL_GetDesktopScreenRect, EXOS_PARAM(&Info)) == FALSE) return FALSE;
+
+    *Rect = Info.Rect;
+    return TRUE;
+}
 
 /***************************************************************************/
 
@@ -206,6 +228,25 @@ BOOL ClearWindowStyle(HANDLE Window, U32 Style) {
 
 /***************************************************************************/
 
+BOOL GetWindowStyle(HANDLE Window, U32* Style) {
+    WINDOW_INFO WindowInfo;
+
+    if (Window == NULL || Style == NULL) return FALSE;
+
+    WindowInfo.Header.Size = sizeof WindowInfo;
+    WindowInfo.Header.Version = EXOS_ABI_VERSION;
+    WindowInfo.Header.Flags = 0;
+    WindowInfo.Window = Window;
+    WindowInfo.Style = 0;
+
+    if (exoscall(SYSCALL_GetWindowStyle, EXOS_PARAM(&WindowInfo)) == FALSE) return FALSE;
+
+    *Style = WindowInfo.Style;
+    return TRUE;
+}
+
+/***************************************************************************/
+
 BOOL InvalidateWindowRect(HANDLE Window, LPRECT Rect) {
     WINDOW_RECT WindowRect;
 
@@ -322,6 +363,23 @@ UINT GetWindowProp(HANDLE Window, LPCSTR Name) {
 
 /***************************************************************************/
 
+HANDLE FindWindow(HANDLE Parent, U32 WindowID) {
+    WINDOW_FIND_INFO FindInfo;
+
+    if (Parent == NULL) return NULL;
+
+    FindInfo.Header.Size = sizeof FindInfo;
+    FindInfo.Header.Version = EXOS_ABI_VERSION;
+    FindInfo.Header.Flags = 0;
+    FindInfo.Parent = Parent;
+    FindInfo.WindowID = WindowID;
+    FindInfo.Window = NULL;
+
+    return (HANDLE)exoscall(SYSCALL_FindWindow, EXOS_PARAM(&FindInfo));
+}
+
+/***************************************************************************/
+
 HANDLE GetWindowGC(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_GetWindowGC, EXOS_PARAM(Window)); }
 
 /***************************************************************************/
@@ -338,16 +396,60 @@ BOOL GetGCSurface(HANDLE GC, LPGC_SURFACE_INFO Info) {
 
 /***************************************************************************/
 
+static STR BeginWindowDrawProp[] = "runtime.begin_window_draw.gc";
+
+/***************************************************************************/
+
 HANDLE BeginWindowDraw(HANDLE Window) {
-    UNUSED(Window);
-    return NULL;
+    HANDLE GC;
+
+    if (Window == NULL) return NULL;
+
+    GC = GetWindowGC(Window);
+    if (GC != NULL) {
+        (void)SetWindowProp(Window, BeginWindowDrawProp, (UINT)(LINEAR)GC);
+    }
+
+    return GC;
 }
 
 /***************************************************************************/
 
 BOOL EndWindowDraw(HANDLE Window) {
-    UNUSED(Window);
-    return NULL;
+    HANDLE GC;
+
+    if (Window == NULL) return FALSE;
+
+    GC = (HANDLE)(LINEAR)GetWindowProp(Window, BeginWindowDrawProp);
+    if (GC == NULL) return TRUE;
+
+    (void)SetWindowProp(Window, BeginWindowDrawProp, 0);
+    return ReleaseWindowGC(GC);
+}
+
+/***************************************************************************/
+
+BOOL GetWindowCaption(HANDLE Window, LPSTR Caption, UINT CaptionLength) {
+    WINDOW_CAPTION WindowCaption;
+    UINT Index;
+
+    if (Window == NULL || Caption == NULL || CaptionLength == 0) return FALSE;
+
+    WindowCaption.Header.Size = sizeof WindowCaption;
+    WindowCaption.Header.Version = EXOS_ABI_VERSION;
+    WindowCaption.Header.Flags = 0;
+    WindowCaption.Window = Window;
+    memset(WindowCaption.Text, 0, sizeof WindowCaption.Text);
+
+    if (exoscall(SYSCALL_GetWindowCaption, EXOS_PARAM(&WindowCaption)) == FALSE) return FALSE;
+
+    for (Index = 0; Index + 1 < CaptionLength && Index < MAX_WINDOW_CAPTION; Index++) {
+        Caption[Index] = (STR)WindowCaption.Text[Index];
+        if (Caption[Index] == STR_NULL) return TRUE;
+    }
+
+    Caption[Index] = STR_NULL;
+    return TRUE;
 }
 
 /***************************************************************************/

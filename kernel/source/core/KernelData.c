@@ -350,7 +350,6 @@ static KERNEL_DATA DATA_SECTION Kernel = {
     .DeferredWorkWaitTimeoutMS = DEFERRED_WORK_WAIT_TIMEOUT_MS,
     .DeferredWorkPollDelayMS = DEFERRED_WORK_POLL_DELAY_MS,
     .DoLogin = 0,
-    .ShowDesktop = 0,
     .BootTime = {0},
     .Debug = {
         .UseDeadlockMonitor = 0,
@@ -888,16 +887,6 @@ BOOL GetUseDeadlockMonitor(void) {
 /************************************************************************/
 
 /**
- * @brief Gets the automatic desktop activation flag.
- * @return TRUE when automatic desktop activation is enabled.
- */
-BOOL GetShowDesktop(void) {
-    return Kernel.ShowDesktop;
-}
-
-/************************************************************************/
-
-/**
  * @brief Gets the desktop window pipeline trace flag.
  * @return TRUE when the visual window pipeline trace is enabled.
  */
@@ -936,16 +925,6 @@ void SetUseDeadlockMonitor(BOOL Enabled) {
  */
 void SetDoLogin(BOOL DoLogin) {
     Kernel.DoLogin = DoLogin;
-}
-
-/************************************************************************/
-
-/**
- * @brief Sets the automatic desktop activation flag.
- * @param ShowDesktop TRUE to enable automatic desktop activation, FALSE to disable.
- */
-void SetShowDesktop(BOOL ShowDesktop) {
-    Kernel.ShowDesktop = ShowDesktop;
 }
 
 /************************************************************************/

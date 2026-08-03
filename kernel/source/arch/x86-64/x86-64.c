@@ -23,8 +23,8 @@
 \************************************************************************/
 
 #include "arch/x86-64/x86-64.h"
-#include "arch/x86-64/x86-64-Log.h"
 
+#include "arch/x86-64/x86-64-Log.h"
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
@@ -32,11 +32,11 @@
 #include "process/Process-Arena.h"
 #include "process/Schedule.h"
 #include "process/Stack.h"
-#include "text/CoreString.h"
-#include "system/System.h"
-#include "text/Text.h"
 #include "system/Interrupt.h"
 #include "system/SYSCall.h"
+#include "system/System.h"
+#include "text/CoreString.h"
+#include "text/Text.h"
 
 /************************************************************************/
 
@@ -67,9 +67,7 @@ DRIVER DATA_SECTION InterruptsDriver = {
  * @brief Retrieves the interrupts driver descriptor.
  * @return Pointer to the interrupts driver.
  */
-LPDRIVER InterruptsGetDriver(void) {
-    return &InterruptsDriver;
-}
+LPDRIVER InterruptsGetDriver(void) { return &InterruptsDriver; }
 
 /************************************************************************\
 
@@ -176,7 +174,7 @@ static U64 ReadMSR64Local(U32 Msr) {
     U32 Low;
     U32 High;
 
-    __asm__ volatile ("rdmsr" : "=a"(Low), "=d"(High) : "c"(Msr));
+    __asm__ volatile("rdmsr" : "=a"(Low), "=d"(High) : "c"(Msr));
 
     return (((U64)High) << 32) | (U64)Low;
 }
@@ -207,11 +205,7 @@ void SetGateDescriptorOffset(LPGATE_DESCRIPTOR Descriptor, LINEAR Handler) {
  * @param Privilege Descriptor privilege level.
  */
 void InitializeGateDescriptor(
-    LPGATE_DESCRIPTOR Descriptor,
-    LINEAR Handler,
-    U16 Type,
-    U16 Privilege,
-    U8 InterruptStackTable) {
+    LPGATE_DESCRIPTOR Descriptor, LINEAR Handler, U16 Type, U16 Privilege, U8 InterruptStackTable) {
     Descriptor->Selector = SELECTOR_KERNEL_CODE;
     Descriptor->InterruptStackTable = InterruptStackTable & 0x7u;
     Descriptor->Reserved_0 = 0;
@@ -232,15 +226,15 @@ extern VOIDFUNC InterruptTable[];
 
 static U8 SelectInterruptStackTable(U32 InterruptIndex) {
     switch (InterruptIndex) {
-    case 8u:   // Double fault
-    case 10u:  // Invalid TSS
-    case 11u:  // Segment not present
-    case 12u:  // Stack fault
-    case 13u:  // General protection fault
-    case 14u:  // Page fault
-        return 1u;
-    default:
-        return 0u;
+        case 8u:   // Double fault
+        case 10u:  // Invalid TSS
+        case 11u:  // Segment not present
+        case 12u:  // Stack fault
+        case 13u:  // General protection fault
+        case 14u:  // Page fault
+            return 1u;
+        default:
+            return 0u;
     }
 }
 
@@ -253,11 +247,7 @@ void InitializeInterrupts(void) {
         U8 InterruptStack = SelectInterruptStackTable(Index);
 
         InitializeGateDescriptor(
-            IDT + Index,
-            (LINEAR)(InterruptTable[Index]),
-            GATE_TYPE_386_INT,
-            CPU_PRIVILEGE_KERNEL,
-            InterruptStack);
+            IDT + Index, (LINEAR)(InterruptTable[Index]), GATE_TYPE_386_INT, CPU_PRIVILEGE_KERNEL, InterruptStack);
     }
 
     InitializeSystemCall();
@@ -369,24 +359,30 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
         DataSelector = SELECTOR_USER_DATA;
     }
 
+    UINT SystemStackAllocationSize = TASK_MINIMUM_SYSTEM_STACK_SIZE + STACK_GROW_MIN_INCREMENT;
+
     Task->Arch.Stack.Size = Info->StackSize;
     Task->Arch.SystemStack.Size = TASK_MINIMUM_SYSTEM_STACK_SIZE;
     Task->Arch.Ist1Stack.Size = TASK_MINIMUM_SYSTEM_STACK_SIZE;
 
     Task->Arch.Stack.Base = ProcessArenaAllocateTaskStack(Process, Task->Arch.Stack.Size);
-    Task->Arch.SystemStack.Base =
-        AllocKernelRegion(0, Task->Arch.SystemStack.Size, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStack"));
+    Task->Arch.Stack.AllocationBase = Task->Arch.Stack.Base;
+
+    Task->Arch.SystemStack.AllocationBase = AllocKernelRegion(
+        0, SystemStackAllocationSize, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("SystemStack"));
+    Task->Arch.SystemStack.Base = (Task->Arch.SystemStack.AllocationBase != 0)
+                                      ? Task->Arch.SystemStack.AllocationBase + STACK_GROW_MIN_INCREMENT
+                                      : 0;
     if (Task->Arch.SystemStack.Base != 0) {
         LINEAR MinimumIst1Base =
             Task->Arch.SystemStack.Base + (LINEAR)Task->Arch.SystemStack.Size + X86_64_SYSTEM_STACK_GUARD_GAP;
         Task->Arch.Ist1Stack.Base = AllocRegion(
-            MinimumIst1Base,
-            0,
-            Task->Arch.Ist1Stack.Size,
-            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
-            TEXT("Ist1Stack"));
+            MinimumIst1Base, 0, Task->Arch.Ist1Stack.Size,
+            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER, TEXT("Ist1Stack"));
+        Task->Arch.Ist1Stack.AllocationBase = Task->Arch.Ist1Stack.Base;
     } else {
         Task->Arch.Ist1Stack.Base = 0;
+        Task->Arch.Ist1Stack.AllocationBase = 0;
     }
 
     DEBUG(TEXT("BaseVMA=%p, Requested StackBase at BaseVMA"), BaseVMA);
@@ -394,21 +390,15 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
 
     if (Task->Arch.Stack.Base == NULL || Task->Arch.SystemStack.Base == NULL || Task->Arch.Ist1Stack.Base == NULL) {
         if (Task->Arch.Stack.Base != NULL) {
-            FreeRegion(Task->Arch.Stack.Base, Task->Arch.Stack.Size);
-            Task->Arch.Stack.Base = 0;
-            Task->Arch.Stack.Size = 0;
+            StackRelease(&(Task->Arch.Stack));
         }
 
         if (Task->Arch.SystemStack.Base != NULL) {
-            FreeRegion(Task->Arch.SystemStack.Base, Task->Arch.SystemStack.Size);
-            Task->Arch.SystemStack.Base = 0;
-            Task->Arch.SystemStack.Size = 0;
+            StackRelease(&(Task->Arch.SystemStack));
         }
 
         if (Task->Arch.Ist1Stack.Base != NULL) {
-            FreeRegion(Task->Arch.Ist1Stack.Base, Task->Arch.Ist1Stack.Size);
-            Task->Arch.Ist1Stack.Base = 0;
-            Task->Arch.Ist1Stack.Size = 0;
+            StackRelease(&(Task->Arch.Ist1Stack));
         }
 
         ERROR(TEXT("Stack or system stack allocation failed"));
@@ -416,10 +406,8 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     }
 
     DEBUG(TEXT("Stack (%u bytes) allocated at %p"), Task->Arch.Stack.Size, Task->Arch.Stack.Base);
-    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size,
-        Task->Arch.SystemStack.Base);
-    DEBUG(TEXT("IST1 stack (%u bytes) allocated at %p"), Task->Arch.Ist1Stack.Size,
-        Task->Arch.Ist1Stack.Base);
+    DEBUG(TEXT("System stack (%u bytes) allocated at %p"), Task->Arch.SystemStack.Size, Task->Arch.SystemStack.Base);
+    DEBUG(TEXT("IST1 stack (%u bytes) allocated at %p"), Task->Arch.Ist1Stack.Size, Task->Arch.Ist1Stack.Base);
 
     MemorySet((LPVOID)(Task->Arch.Stack.Base), 0, Task->Arch.Stack.Size);
     MemorySet((LPVOID)(Task->Arch.SystemStack.Base), 0, Task->Arch.SystemStack.Size);
@@ -507,8 +495,9 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
  */
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask) {
     SAFE_USE(NextTask) {
-        FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
-            CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
+        FINE_DEBUG(
+            TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"), CurrentTask, CurrentTask->Name, NextTask,
+            NextTask->Name);
 
         LINEAR NextSysStackTop = NextTask->Arch.SystemStack.Base + NextTask->Arch.SystemStack.Size;
         LINEAR NextIst1StackTop = NextTask->Arch.Ist1Stack.Base + NextTask->Arch.Ist1Stack.Size;
@@ -525,11 +514,8 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
 
             GetFS(CurrentTask->Arch.Context.Registers.FS);
             GetGS(CurrentTask->Arch.Context.Registers.GS);
-            if (!(CurrentTask->OwnerProcess != NULL &&
-                  CurrentTask->OwnerProcess->Privilege == CPU_PRIVILEGE_USER &&
-                  CurrentTask->UserTlsAnchor != 0 &&
-                  CurrentTask->Arch.UserTlsBase != 0 &&
-                  CurrentFsBase == 0)) {
+            if (!(CurrentTask->OwnerProcess != NULL && CurrentTask->OwnerProcess->Privilege == CPU_PRIVILEGE_USER &&
+                  CurrentTask->UserTlsAnchor != 0 && CurrentTask->Arch.UserTlsBase != 0 && CurrentFsBase == 0)) {
                 CurrentTask->Arch.UserTlsBase = (LINEAR)CurrentFsBase;
             }
             SaveFPU(&(CurrentTask->Arch.Context.FPURegisters));
@@ -540,9 +526,9 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         // SetES(NextTask->Arch.Context.Registers.ES);
         SetFS(NextTask->Arch.Context.Registers.FS);
         SetGS(NextTask->Arch.Context.Registers.GS);
-        WriteMSR64(IA32_FS_BASE_MSR,
-                   (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
-                   (U32)(((U64)NextTask->Arch.UserTlsBase) >> 32));
+        WriteMSR64(
+            IA32_FS_BASE_MSR, (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
+            (U32)(((U64)NextTask->Arch.UserTlsBase) >> 32));
         WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
 
         RestoreFPU(&(NextTask->Arch.Context.FPURegisters));
@@ -570,9 +556,9 @@ BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
         if (Task == GetCurrentTask()) {
             SetFS(Task->Arch.Context.Registers.FS);
             SetGS(Task->Arch.Context.Registers.GS);
-            WriteMSR64(IA32_FS_BASE_MSR,
-                       (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
-                       (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
+            WriteMSR64(
+                IA32_FS_BASE_MSR, (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+                (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
             WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
         }
         return TRUE;
@@ -594,9 +580,9 @@ void RestoreCurrentTaskUserTlsBase(void) {
             return;
         }
 
-        WriteMSR64(IA32_FS_BASE_MSR,
-                   (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
-                   (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
+        WriteMSR64(
+            IA32_FS_BASE_MSR, (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+            (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
         WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
     }
 }
@@ -632,7 +618,6 @@ void PreInitializeKernel(void) {
     Cr0 &= ~(U64)(CR0_EMULATION | CR0_TASKSWITCH);
     __asm__ volatile("mov %0, %%cr0" : : "r"(Cr0));
 
-
     DEBUG(TEXT("CR4 : CR4_OSFXSR and CR4_OSXMMEXCPT on"));
 
     __asm__ volatile("mov %%cr4, %0" : "=r"(Cr4));
@@ -643,7 +628,6 @@ void PreInitializeKernel(void) {
     __asm__ volatile("fnclex");
 
     InitializePat();
-
 }
 
 /************************************************************************/
@@ -672,11 +656,7 @@ void InitializeSystemCall(void) {
     WriteMSR64(IA32_EFER_MSR, (U32)(EferValue & 0xFFFFFFFF), (U32)(EferValue >> 32));
 #else
     InitializeGateDescriptor(
-        IDT + EXOS_USER_CALL,
-        (LINEAR)Interrupt_SystemCall,
-        GATE_TYPE_386_TRAP,
-        CPU_PRIVILEGE_USER,
-        0u);
+        IDT + EXOS_USER_CALL, (LINEAR)Interrupt_SystemCall, GATE_TYPE_386_TRAP, CPU_PRIVILEGE_USER, 0u);
 #endif
 }
 
@@ -707,8 +687,9 @@ void DebugLogSyscallFrame(LINEAR SaveArea, UINT FunctionId) {
     UNUSED(SavedRbxValue);
     UNUSED(ReturnAddress);
 
-    DEBUG(TEXT("Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"),
-          FunctionId, (LPVOID)SaveArea, (LPVOID)StackPointer, (LPVOID)SavedRbxValue, (LPVOID)ReturnAddress);
+    DEBUG(
+        TEXT("Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"), FunctionId, (LPVOID)SaveArea,
+        (LPVOID)StackPointer, (LPVOID)SavedRbxValue, (LPVOID)ReturnAddress);
 }
 
 /************************************************************************/

@@ -117,7 +117,7 @@ void exit(int ErrorCode) { __exit__(ErrorCode); }
 #ifdef __KERNEL__
 void* malloc(size_t s) { return KernelHeapAlloc(s); }
 #else
-void* malloc(size_t s) { return (void*)exoscall(SYSCALL_HeapAlloc, EXOS_PARAM(s)); }
+void* malloc(size_t s) { return HeapAlloc((UINT)s); }
 #endif
 
 /************************************************************************/
@@ -125,7 +125,7 @@ void* malloc(size_t s) { return (void*)exoscall(SYSCALL_HeapAlloc, EXOS_PARAM(s)
 #ifdef __KERNEL__
 void free(void* p) { KernelHeapFree(p); }
 #else
-void free(void* p) { exoscall(SYSCALL_HeapFree, EXOS_PARAM(p)); }
+void free(void* p) { HeapFree(p); }
 #endif
 
 /************************************************************************/
