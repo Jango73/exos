@@ -1,17 +1,17 @@
-boot_year = clock.bootDatetime.year;
-boot_month = clock.bootDatetime.month;
-boot_day = clock.bootDatetime.day;
-current_year = clock.currentDatetime.year;
-current_month = clock.currentDatetime.month;
-current_day = clock.currentDatetime.day;
+bootYear = clock.bootDatetime.year;
+bootMonth = clock.bootDatetime.month;
+bootDay = clock.bootDatetime.day;
+currentYear = clock.currentDatetime.year;
+currentMonth = clock.currentDatetime.month;
+currentDay = clock.currentDatetime.day;
 uptime = clock.uptimeMs;
 
-if (boot_year >= 2020) {
-    if (boot_month >= 1) {
-        if (boot_day >= 1) {
-            if (current_year >= boot_year) {
-                if (current_month >= 1) {
-                    if (current_day >= 1) {
+if (bootYear >= 2020) {
+    if (bootMonth >= 1) {
+        if (bootDay >= 1) {
+            if (currentYear >= bootYear) {
+                if (currentMonth >= 1) {
+                    if (currentDay >= 1) {
                         if (uptime >= 0) {
                             return 42;
                         }

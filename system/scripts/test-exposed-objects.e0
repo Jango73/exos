@@ -44,25 +44,25 @@ if (driver.count >= 1) {
     }
 }
 
-driver_with_mode_count = 0;
-driver_with_mode_width = 0;
+driverWithModeCount = 0;
+driverWithModeWidth = 0;
 for (i = 0; i < driver.count; i = i + 1) {
-    if (driver_with_mode_count == 0) {
+    if (driverWithModeCount == 0) {
         if (driver[i].mode.count > 0) {
-            driver_with_mode_count = 1;
+            driverWithModeCount = 1;
 
             if (driver[i].mode[0].width > 0) {
-                driver_with_mode_width = 1;
+                driverWithModeWidth = 1;
             }
         }
     }
 }
 
-if (driver_with_mode_count != 0) {
+if (driverWithModeCount != 0) {
     score = score + 1;
 }
 
-if (driver_with_mode_width != 0) {
+if (driverWithModeWidth != 0) {
     score = score + 1;
 }
 
@@ -98,23 +98,23 @@ if (storage.count >= 1) {
     }
 }
 
-storage_with_model = 0;
-storage_found_by_id = 0;
+storageWithModel = 0;
+storageFoundById = 0;
 for (i = 0; i < storage.count; i = i + 1) {
     if (storage[i].model != "") {
-        storage_with_model = 1;
+        storageWithModel = 1;
     }
 
     if (storage[i].id == "ramdisk_0") {
-        storage_found_by_id = 1;
+        storageFoundById = 1;
     }
 }
 
-if (storage_with_model != 0) {
+if (storageWithModel != 0) {
     score = score + 1;
 }
 
-if (storage_found_by_id != 0) {
+if (storageFoundById != 0) {
     score = score + 1;
 }
 
