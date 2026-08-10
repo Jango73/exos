@@ -24,6 +24,7 @@
 #include "expose/Exposed.h"
 
 #include "fs/Disk.h"
+#include "utils/DiskID.h"
 
 /************************************************************************/
 
@@ -35,12 +36,7 @@
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR StorageGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR StorageGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -66,6 +62,11 @@ SCRIPT_ERROR StorageGetProperty(
         EXPOSE_BIND_STRING("driverManufacturer", Storage->Driver->Manufacturer);
         EXPOSE_BIND_STRING("driverProduct", Storage->Driver->Product);
 
+        EXPOSE_BIND_STRING("id", DiskIdGet(Storage));
+        EXPOSE_BIND_STRING("vendor", Storage->Vendor);
+        EXPOSE_BIND_STRING("model", Storage->Model);
+        EXPOSE_BIND_STRING("serial", Storage->Serial);
+
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }
 
@@ -83,11 +84,7 @@ SCRIPT_ERROR StorageGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR StorageArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -112,12 +109,7 @@ SCRIPT_ERROR StorageArrayGetProperty(
  * @param OutValue Output holder for the resulting storage handle
  * @return SCRIPT_OK when the storage object exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR StorageArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR StorageArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -142,18 +134,8 @@ SCRIPT_ERROR StorageArrayGetElement(
 
 /************************************************************************/
 
-const SCRIPT_HOST_DESCRIPTOR StorageDescriptor = {
-    StorageGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR StorageDescriptor = { StorageGetProperty, NULL, NULL, NULL };
 
-const SCRIPT_HOST_DESCRIPTOR StorageArrayDescriptor = {
-    StorageArrayGetProperty,
-    StorageArrayGetElement,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR StorageArrayDescriptor = { StorageArrayGetProperty, StorageArrayGetElement, NULL, NULL };
 
 /************************************************************************/

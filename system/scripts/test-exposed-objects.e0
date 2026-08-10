@@ -92,6 +92,30 @@ if (storage.count >= 1) {
     if (storage[0].bytesPerSector > 0) {
         score = score + 1;
     }
+
+    if (storage[0].id != "") {
+        score = score + 1;
+    }
+}
+
+storage_with_model = 0;
+storage_found_by_id = 0;
+for (i = 0; i < storage.count; i = i + 1) {
+    if (storage[i].model != "") {
+        storage_with_model = 1;
+    }
+
+    if (storage[i].id == "ramdisk_0") {
+        storage_found_by_id = 1;
+    }
+}
+
+if (storage_with_model != 0) {
+    score = score + 1;
+}
+
+if (storage_found_by_id != 0) {
+    score = score + 1;
 }
 
 if (fileSystem.activePartitionName != "") {

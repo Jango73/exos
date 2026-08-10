@@ -200,6 +200,15 @@ user.name;
 disk.size;
 ```
 
+Storage units exposed through `storage[i]` carry a stable hardware-derived ID plus the identity parts they were built from:
+- `storage[i].id`: stable disk ID, composed as `vendor_model_serial` (empty parts skipped), following the Linux `/dev/disk/by-id` model; deterministic for disks without hardware identity (for example `ramdisk_0`).
+- `storage[i].vendor`, `storage[i].model`, `storage[i].serial`: sanitized identity parts read at enumeration time (all lower-case-safe characters; unsafe characters become `_`).
+- `storage[i].driverManufacturer`, `storage[i].driverProduct`, `storage[i].type`, `storage[i].removable`, `storage[i].bytesPerSector`, `storage[i].numSectorsLow`, `storage[i].numSectorsHigh`, `storage[i].access`: controller and geometry information.
+
+```text
+if (storage[i].id == "QEMU_HARDDISK_QM00013") { ... }
+```
+
 ### Shell command statements
 At statement start:
 - Quoted string → command  

@@ -124,7 +124,7 @@ static LPCSTR G_EmbeddedScripts[SHELL_EMBEDDED_SCRIPT_COUNT] = {
         "    print(\"No disk detected\");\n"
         "}\n"
         "for (i = 0; i < count; i = i + 1) {\n"
-        "    print(\"disk=\" + i + \" type=\" + storage[i].type + \" removable=\" + storage[i].removable + \" access=\" + storage[i].access + \" bytesPerSector=\" + storage[i].bytesPerSector + \" sectors_high=\" + storage[i].numSectorsHigh + \" sectors_low=\" + storage[i].numSectorsLow + \" manufacturer=\" + storage[i].driverManufacturer + \" product=\" + storage[i].driverProduct);\n"
+        "    print(\"disk=\" + i + \" id=\" + storage[i].id + \" type=\" + storage[i].type + \" removable=\" + storage[i].removable + \" access=\" + storage[i].access + \" bytesPerSector=\" + storage[i].bytesPerSector + \" sectors_high=\" + storage[i].numSectorsHigh + \" sectors_low=\" + storage[i].numSectorsLow + \" manufacturer=\" + storage[i].driverManufacturer + \" product=\" + storage[i].driverProduct + \" model=\" + storage[i].model + \" serial=\" + storage[i].serial);\n"
         "}\n",
     [SHELL_EMBEDDED_SCRIPT_FILE_SYSTEM_LIST] = (LPCSTR)
         "activePartitionName = fileSystem.activePartitionName;\n"
