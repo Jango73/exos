@@ -56,6 +56,7 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - **Number suffixes**: Do not add numeric suffixes like `u` to constants; they are not wanted here.
 - **Documentation**: Update `doc/guides/Kernel.md` when adding/modifying kernel components.
 - **Scripting documentation**: Any change to the E0 scripting engine, syntax, semantics, operators, control flow, host exposure, or observable script behavior MUST update `doc/guides/E0-Scripting.md` in the same work.
+- **E0 script style**: Script code (runtime/system samples and embedded shell scripts) uses camelCase for identifiers (variables, loop counters, exposed property names).
 - **Documentation wording**: Use timeless technical wording. Do not use temporal terms like "now", "currently", "at this time" in documentation/comments.
 - **Kernel logical paths**: For kernel file/folder logical paths, use `utils/KernelPath` (`KernelPathResolve` / `KernelPathBuildFile`) and `KernelPath.*` config keys instead of hardcoded absolute paths.
 - **Languages**: C for kernel, avoid Python (use Node.js/JS if needed).

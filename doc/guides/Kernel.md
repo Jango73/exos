@@ -347,6 +347,16 @@ User login and session unlock flows apply a short cooldown after failures and a 
 
 Child process creation inherits the parent session (`Process->Session`) and stable owner identifier (`Process->UserID`), preserving identity continuity across spawned processes even when the live session pointer is absent (`kernel/source/process/Process.c`, `kernel/source/user/UserSession.c`).
 
+##### Boot login and recovery
+
+An administrator session is obtained only through a successful login: `HandleUserLoginProcess` runs at boot when `General.DoLogin` is enabled, prompts for credentials, and creates the session (`kernel/source/shell/Shell-Main.c`, `kernel/source/shell/Shell-Commands-Users.c`). Administrator privilege resolution (`ProcessAccessIsAdministratorProcess`, `utils/ProcessAccess`) requires either a kernel process or an account with `EXOS_PRIVILEGE_ADMIN` resolved through a session `UserID`.
+
+`General.DoLogin=0` skips the login prompt but does NOT grant administrator access: without a session the effective user identifier is empty, so the `ADMIN|KERNEL` exposure gates and admin-level syscall checks reject the caller. The smoke-test harness sets `DoLogin=0` and therefore runs without administrator privileges.
+
+The recovery path for a missing or unreadable user database is bootstrap re-creation: when `LoadUserDatabase()` fails, the account list is empty and the boot flow prompts to create the first administrator account, which then overwrites the database through `SaveUserDatabase()` (`kernel/source/user/Account.c`). This path triggers on deletion or detectable corruption, not on silent tampering.
+
+Known boundary: `users.database` carries no integrity protection. A modification that keeps the file loadable (privilege bit flip, password hash replacement) is not detected and loads silently, granting the attacker whatever the edited account allows. Physical access to the disk bypasses all software-level barriers.
+
 ##### Process and object targeting policy
 
 Same-user process targeting policy and caller privilege resolution are centralized in `utils/ProcessAccess`: a process may target itself, processes owned by the same effective user, or any process when the caller resolves to administrator or kernel privilege.

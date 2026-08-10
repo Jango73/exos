@@ -23,8 +23,8 @@
 - [x] Reference disks by stable ID in the kernel, not by position index. Introduce a stable disk ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference disks by ID (default method) and by index as a fallback.
   - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Disks without hardware serial (RAMDisk) get a deterministic synthetic ID derived from the driver alias and the count of already-registered disks of the same driver type, so it stays stable across reboots.
   - DONE: kernel-side `DiskID` module (`kernel/source/utils/DiskID.c`) + identity capture in ATA, SATA (real AHCI IDENTIFY DEVICE), NVMe, USB and RAMDisk drivers; `id`/`vendor`/`model`/`serial` exposed to scripts via `storage[i].id` etc. Validated on x86-32 and x86-64 UEFI.
-  - FOLLOW-UP: expose a script-side lookup by ID (the kernel has `DiskIdFindById` but no script-facing equivalent yet); `disk` command treats no-argument as `disk list`.
-- [ ] Change partition naming (`GetDefaultFileSystemName`) so partition names embed the stable disk ID instead of the per-driver-type list index, keeping the partition index within the disk. This keeps volume names (used in VFS paths and `ActivePartitionName`) stable across disk reorder/removal.
+- [ ] Expose a script-side lookup of storage units by stable disk ID. The kernel has `DiskIdFindById`, but no script-facing equivalent yet: add a lookup path (for example `storage.findById("...")` or `storage.byId[...]`) so scripts reference disks by ID as the default method, with index access as a fallback.
+- [ ] Make the `disk` command treat a missing argument as `disk list`.
 
 ### Network
 - [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
@@ -117,6 +117,7 @@
 - [ ] Signed kernel modules + Secure Boot : Allows only cryptographically signed kernel modules and verifies the boot chain to prevent unauthorized code from loading.
 - [ ] KASLR : Randomizes the kernel's memory base to make kernel address offsets unpredictable for exploitation.
 - [ ] Audit/fuzz pipeline + ASAN/UBSAN : Continuous auditing and fuzzing with sanitizers to catch memory errors and undefined behavior during development.
+- [ ] Administrator recovery when `users.database` is tampered while remaining loadable: the database has no integrity protection, so a privilege flip or password-hash replacement loads silently. Options: checksum/HMAC on the file so `LoadUserDatabase()` fails and the existing first-admin bootstrap re-creation triggers, plus an explicit recovery flag (distinct from `General.DoLogin=0`, which does not grant administrator access). See `doc/guides/Kernel.md` "Boot login and recovery".
 
 ### File systems
 
