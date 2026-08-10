@@ -126,6 +126,13 @@ typedef struct tag_ATADRIVEID {
 
 /***************************************************************************/
 
+// Decode a byte-swapped ATA IDENTIFY string field (words) into a plain
+// null-terminated string. Shared by the ATA and SATA (AHCI) drivers.
+
+void ATADecodeIdentifyString(LPSTR Output, UINT OutputSize, U16* Words, UINT WordOffset, UINT WordCount);
+
+/***************************************************************************/
+
 #pragma pack(pop)
 
 #endif

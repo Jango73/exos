@@ -20,8 +20,10 @@
 
 ### Disks
 
-- [ ] Reference disks by stable ID in the kernel, not by position index. Introduce a stable disk ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference disks by ID (default method) and by index as a fallback.
-  - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Disks without hardware serial (RAMDisk) get a synthetic ID persisted in the registry so it stays stable across reboots.
+- [x] Reference disks by stable ID in the kernel, not by position index. Introduce a stable disk ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference disks by ID (default method) and by index as a fallback.
+  - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Disks without hardware serial (RAMDisk) get a deterministic synthetic ID derived from the driver alias and the count of already-registered disks of the same driver type, so it stays stable across reboots.
+  - DONE: kernel-side `DiskID` module (`kernel/source/utils/DiskID.c`) + identity capture in ATA, SATA (real AHCI IDENTIFY DEVICE), NVMe, USB and RAMDisk drivers; `id`/`vendor`/`model`/`serial` exposed to scripts via `storage[i].id` etc. Validated on x86-32 and x86-64 UEFI.
+  - FOLLOW-UP: expose a script-side lookup by ID (the kernel has `DiskIdFindById` but no script-facing equivalent yet); `disk` command treats no-argument as `disk list`.
 - [ ] Change partition naming (`GetDefaultFileSystemName`) so partition names embed the stable disk ID instead of the per-driver-type list index, keeping the partition index within the disk. This keeps volume names (used in VFS paths and `ActivePartitionName`) stable across disk reorder/removal.
 
 ### Network

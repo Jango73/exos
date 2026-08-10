@@ -33,6 +33,7 @@
 #include "system/System.h"
 #include "utils/BufferPool.h"
 #include "utils/Cache.h"
+#include "utils/DiskID.h"
 
 /***************************************************************************/
 // Version
@@ -52,23 +53,22 @@
 
 UINT ATADiskCommands(UINT, UINT);
 
-DRIVER DATA_SECTION ATADiskDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .OwnerProcess = &KernelProcess,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_ATA_STORAGE,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "IBM PC and compatibles",
-    .Product = "ATA Disk Controller",
-    .Alias = "ata",
-    .Flags = 0,
-    .Command = ATADiskCommands,
-    .EnumDomainCount = 1,
-    .EnumDomains = {ENUM_DOMAIN_ATA_DEVICE}};
+DRIVER DATA_SECTION ATADiskDriver = { .TypeID = KOID_DRIVER,
+                                      .References = 1,
+                                      .OwnerProcess = &KernelProcess,
+                                      .Next = NULL,
+                                      .Prev = NULL,
+                                      .Type = DRIVER_TYPE_ATA_STORAGE,
+                                      .VersionMajor = VER_MAJOR,
+                                      .VersionMinor = VER_MINOR,
+                                      .Designer = "Jango73",
+                                      .Manufacturer = "IBM PC and compatibles",
+                                      .Product = "ATA Disk Controller",
+                                      .Alias = "ata",
+                                      .Flags = 0,
+                                      .Command = ATADiskCommands,
+                                      .EnumDomainCount = 1,
+                                      .EnumDomains = { ENUM_DOMAIN_ATA_DEVICE } };
 
 /***************************************************************************/
 
@@ -76,7 +76,9 @@ DRIVER DATA_SECTION ATADiskDriver = {
  * @brief Retrieves the ATA disk driver descriptor.
  * @return Pointer to the ATA disk driver.
  */
-LPDRIVER ATADiskGetDriver(void) { return &ATADiskDriver; }
+LPDRIVER ATADiskGetDriver(void) {
+    return &ATADiskDriver;
+}
 
 /***************************************************************************/
 
@@ -196,6 +198,33 @@ static BOOL ATAWaitDataReady(U32 Port, U32 TimeOut) {
 
 /***************************************************************************/
 
+/**
+ * @brief Decode an ATA IDENTIFY string field.
+ *
+ * ATA IDENTIFY strings are stored as 16-bit words with the two characters
+ * byte-swapped. The output is a plain null-terminated string.
+ *
+ * @param Output Destination buffer.
+ * @param OutputSize Destination buffer size.
+ * @param Words Source IDENTIFY word array.
+ * @param WordOffset Index of the first word of the field.
+ * @param WordCount Number of words of the field.
+ */
+void ATADecodeIdentifyString(LPSTR Output, UINT OutputSize, U16* Words, UINT WordOffset, UINT WordCount) {
+    UINT WordIndex;
+    UINT CharIndex = 0;
+
+    for (WordIndex = 0; WordIndex < WordCount && CharIndex < (OutputSize - 1); WordIndex++) {
+        Output[CharIndex++] = (STR)((Words[WordOffset + WordIndex] >> 8) & 0xFF);
+        if (CharIndex < (OutputSize - 1)) {
+            Output[CharIndex++] = (STR)(Words[WordOffset + WordIndex] & 0xFF);
+        }
+    }
+    Output[CharIndex] = STR_NULL;
+}
+
+/***************************************************************************/
+
 static BOOL InitializeATA(void) {
     LPATADISK Disk;
     LPATADRIVEID ATAID;
@@ -260,9 +289,24 @@ static BOOL InitializeATA(void) {
                 Disk->IOPort = RealPort;
                 Disk->IRQ = IRQ_ATA;
                 Disk->Drive = Drive;
+
+                STR Serial[DISK_ID_SERIAL_MAX_SIZE];
+                STR Model[DISK_ID_MODEL_MAX_SIZE];
+                U16* Words = (U16*)Buffer;
+
+                ATADecodeIdentifyString(Serial, sizeof(Serial), Words, 10, 10);
+                ATADecodeIdentifyString(Model, sizeof(Model), Words, 27, 20);
+
+                DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, Model, Serial);
+                DiskIdEnsure((LPSTORAGE_UNIT)Disk);
+
                 if (!BufferPoolInit(
-                        &Disk->SectorBufferPool, (UINT)sizeof(SECTOR_BUFFER), ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
-                        ATA_SECTOR_BUFFER_INITIAL_SLABS, ATA_POOL_ALLOC_FLAGS, TEXT("AtaSectorBuffer"))) {
+                        &Disk->SectorBufferPool,
+                        (UINT)sizeof(SECTOR_BUFFER),
+                        ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
+                        ATA_SECTOR_BUFFER_INITIAL_SLABS,
+                        ATA_POOL_ALLOC_FLAGS,
+                        TEXT("AtaSectorBuffer"))) {
                     KernelHeapFree(Disk);
                     continue;
                 }
@@ -429,7 +473,7 @@ static U32 Read(LPIOCONTROL Control) {
     CacheCleanup(&Disk->SectorCache, GetSystemTime());
 
     for (Current = 0; Current < Control->NumSectors; Current++) {
-        SECTOR_CACHE_CONTEXT Context = {Control->SectorLow + Current, 0};
+        SECTOR_CACHE_CONTEXT Context = { Control->SectorLow + Current, 0 };
         LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Disk->SectorCache, SectorCacheMatcher, &Context);
 
         if (Buffer == NULL) {
@@ -449,7 +493,13 @@ static U32 Read(LPIOCONTROL Control) {
             SectorToBlockParams(&(Disk->Geometry), Context.SectorLow, &Params);
 
             ATADriveOut(
-                Disk->IOPort, Disk->Drive, HD_COMMAND_READ, Buffer->Data, Params.Cylinder, Params.Head, Params.Sector,
+                Disk->IOPort,
+                Disk->Drive,
+                HD_COMMAND_READ,
+                Buffer->Data,
+                Params.Cylinder,
+                Params.Head,
+                Params.Sector,
                 1);
 
             EnableInterrupt(Disk->IRQ);
@@ -499,7 +549,7 @@ static U32 Write(LPIOCONTROL Control) {
     CacheCleanup(&Disk->SectorCache, GetSystemTime());
 
     for (Current = 0; Current < Control->NumSectors; Current++) {
-        SECTOR_CACHE_CONTEXT Context = {Control->SectorLow + Current, 0};
+        SECTOR_CACHE_CONTEXT Context = { Control->SectorLow + Current, 0 };
         LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Disk->SectorCache, SectorCacheMatcher, &Context);
         BOOL AddedToCache = FALSE;
 
@@ -709,8 +759,14 @@ static U32 ATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
 
     const DRIVER_ENUM_ATA_DEVICE* Data = (const DRIVER_ENUM_ATA_DEVICE*)Pretty->Item->Data;
     StringPrintFormat(
-        Pretty->Buffer, TEXT("ATA Port %x Drive=%u IRQ=%u CHS=%u/%u/%u"), Data->IOPort, Data->Drive, Data->IRQ,
-        Data->Cylinders, Data->Heads, Data->SectorsPerTrack);
+        Pretty->Buffer,
+        TEXT("ATA Port %x Drive=%u IRQ=%u CHS=%u/%u/%u"),
+        Data->IOPort,
+        Data->Drive,
+        Data->IRQ,
+        Data->Cylinders,
+        Data->Heads,
+        Data->SectorsPerTrack);
 
     return DF_RETURN_SUCCESS;
 }

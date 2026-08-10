@@ -1261,7 +1261,15 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 ```
 
 **AHCI interrupt policy**: the SATA driver registers the controller with the shared `DeviceInterruptRegister` infrastructure and installs dedicated top and bottom halves so IRQ 11 traffic can be routed through a private slot when the hardware gets its own vector (MSI/MSI-X or a non-shared INTx line). Commands complete synchronously, therefore all AHCI per-port interrupt masks (`PORT.ie`) and the global `GHC.IE` bit are cleared in shipping builds so the shared IRQ 11 line stays quiet for the `E1000` NIC.
-Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+ Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+
+**Stable disk IDs**: each `STORAGE_UNIT` carries a stable ID (`StorageId`) unique per disk and independent of enumeration order and driver type, following the Linux `/dev/disk/by-id` model. The identity is captured at enumeration time by each storage driver through `utils/DiskID` (`kernel/source/utils/DiskID.c`):
+- ATA/SATA: serial + model from IDENTIFY DEVICE (decoded through `ATADecodeIdentifyString`, reused by the AHCI path after a real IDENTIFY command).
+- NVMe: serial + model from Identify Controller.
+- USB: vendor + product from SCSI INQUIRY.
+- RAMDisk and disks without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered disks of the same driver type, stable across reboots.
+
+`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed). `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`.
 
 ## Storage and Filesystems
 

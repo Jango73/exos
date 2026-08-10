@@ -142,6 +142,9 @@ typedef struct tag_NVME_DEVICE {
     U16 IoQueueId;
     U16 IoCommandId;
     U32 LogicalBlockSize;
+    STR Serial[21];   // Controller serial string from Identify Controller
+    STR Model[41];    // Controller model string from Identify Controller
+    STR Firmware[9];  // Controller firmware string from Identify Controller
     COOLDOWN IoCompletionMismatchWarningCooldown;
     COOLDOWN IoCompletionTimeoutWarningCooldown;
     COOLDOWN IoCompletionCoherencyWarningCooldown;

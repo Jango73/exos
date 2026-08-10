@@ -26,6 +26,7 @@
 #include "fs/DiskTransferLayer.h"
 #include "fs/File-System.h"
 #include "text/CoreString.h"
+#include "utils/DiskID.h"
 
 /************************************************************************/
 
@@ -248,6 +249,9 @@ static LPNVME_DISK NVMeCreateDisk(LPNVME_DEVICE Device, U32 NamespaceId, U64 Num
     Disk->NumSectors = NumSectors;
     Disk->BytesPerSector = BytesPerSector;
     Disk->Access = 0;
+
+    DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, Device->Model, Device->Serial);
+    DiskIdEnsure((LPSTORAGE_UNIT)Disk);
 
     return Disk;
 }
