@@ -37,22 +37,26 @@
 #define INTCTRL_VER_MAJOR 1
 #define INTCTRL_VER_MINOR 0
 
+#define IOAPIC_SAVED_ENTRIES_MAX IOAPIC_MAX_ENTRIES
+
+static IO_APIC_REDIRECTION_ENTRY DATA_SECTION g_SavedIOAPICEntries[IOAPIC_MAX_CONTROLLERS][IOAPIC_SAVED_ENTRIES_MAX];
+static BOOL DATA_SECTION g_IOAPICEntriesSaved = FALSE;
+
 static UINT InterruptControllerDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION InterruptControllerDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INTERRUPT,
-    .VersionMajor = INTCTRL_VER_MAJOR,
-    .VersionMinor = INTCTRL_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "N/A",
-    .Product = "InterruptController",
-    .Alias = "interrupt_controller",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = InterruptControllerDriverCommands};
+DRIVER DATA_SECTION InterruptControllerDriver = { .TypeID = KOID_DRIVER,
+                                                  .References = 1,
+                                                  .Next = NULL,
+                                                  .Prev = NULL,
+                                                  .Type = DRIVER_TYPE_INTERRUPT,
+                                                  .VersionMajor = INTCTRL_VER_MAJOR,
+                                                  .VersionMinor = INTCTRL_VER_MINOR,
+                                                  .Designer = "Jango73",
+                                                  .Manufacturer = "N/A",
+                                                  .Product = "InterruptController",
+                                                  .Alias = "interrupt_controller",
+                                                  .Flags = DRIVER_FLAG_CRITICAL,
+                                                  .Command = InterruptControllerDriverCommands };
 
 /************************************************************************/
 
@@ -72,25 +76,25 @@ static INTERRUPT_CONTROLLER_CONFIG DATA_SECTION g_InterruptControllerConfig;
 /************************************************************************/
 // PIC 8259 constants and functions
 
-#define PIC1_COMMAND    0x20
-#define PIC1_DATA       0x21
-#define PIC2_COMMAND    0xA0
-#define PIC2_DATA       0xA1
+#define PIC1_COMMAND 0x20
+#define PIC1_DATA 0x21
+#define PIC2_COMMAND 0xA0
+#define PIC2_DATA 0xA1
 
-#define PIC_EOI         0x20
+#define PIC_EOI 0x20
 
 // PIC initialization command words
-#define ICW1_ICW4       0x01    // ICW4 (not) needed
-#define ICW1_SINGLE     0x02    // Single (cascade) mode
-#define ICW1_INTERVAL4  0x04    // Call address interval 4 (8)
-#define ICW1_LEVEL      0x08    // Level triggered (edge) mode
-#define ICW1_INIT       0x10    // Initialization - required!
+#define ICW1_ICW4 0x01       // ICW4 (not) needed
+#define ICW1_SINGLE 0x02     // Single (cascade) mode
+#define ICW1_INTERVAL4 0x04  // Call address interval 4 (8)
+#define ICW1_LEVEL 0x08      // Level triggered (edge) mode
+#define ICW1_INIT 0x10       // Initialization - required!
 
-#define ICW4_8086       0x01    // 8086/88 (MCS-80/85) mode
-#define ICW4_AUTO       0x02    // Auto (normal) EOI
-#define ICW4_BUF_SLAVE  0x08    // Buffered mode/slave
-#define ICW4_BUF_MASTER 0x0C    // Buffered mode/master
-#define ICW4_SFNM       0x10    // Special fully nested (not)
+#define ICW4_8086 0x01        // 8086/88 (MCS-80/85) mode
+#define ICW4_AUTO 0x02        // Auto (normal) EOI
+#define ICW4_BUF_SLAVE 0x08   // Buffered mode/slave
+#define ICW4_BUF_MASTER 0x0C  // Buffered mode/master
+#define ICW4_SFNM 0x10        // Special fully nested (not)
 
 /************************************************************************/
 
@@ -256,8 +260,8 @@ static void InitializePIC8259(void) {
     OutPortByte(PIC1_DATA, 0x20);
     OutPortByte(PIC2_DATA, 0x28);
 
-    OutPortByte(PIC1_DATA, 0x04); // IRQ2 connects to slave
-    OutPortByte(PIC2_DATA, 0x02); // Slave ID
+    OutPortByte(PIC1_DATA, 0x04);  // IRQ2 connects to slave
+    OutPortByte(PIC2_DATA, 0x02);  // Slave ID
 
     OutPortByte(PIC1_DATA, ICW4_8086);
     OutPortByte(PIC2_DATA, ICW4_8086);
@@ -267,8 +271,7 @@ static void InitializePIC8259(void) {
 
     UNUSED(Mask1);
     UNUSED(Mask2);
-    DEBUG(TEXT("Remapped PIC (0x20/0x28), masks %x/%x"),
-          Mask1, Mask2);
+    DEBUG(TEXT("Remapped PIC (0x20/0x28), masks %x/%x"), Mask1, Mask2);
 }
 
 /************************************************************************/
@@ -298,8 +301,8 @@ static void InitializeDefaultIRQMappings(void) {
     for (i = 0; i < 16; i++) {
         g_InterruptControllerConfig.IRQMappings[i].LegacyIRQ = i;
         g_InterruptControllerConfig.IRQMappings[i].ActualPin = i;
-        g_InterruptControllerConfig.IRQMappings[i].TriggerMode = 0; // Edge-triggered
-        g_InterruptControllerConfig.IRQMappings[i].Polarity = 0;    // Active high
+        g_InterruptControllerConfig.IRQMappings[i].TriggerMode = 0;  // Edge-triggered
+        g_InterruptControllerConfig.IRQMappings[i].Polarity = 0;     // Active high
         g_InterruptControllerConfig.IRQMappings[i].Override = FALSE;
     }
 }
@@ -327,9 +330,10 @@ static void DetectInterruptControllers(void) {
         }
     }
 
-    DEBUG(TEXT("PIC=%s, IOAPIC=%s"),
-          g_InterruptControllerConfig.PICPresent ? "YES" : "NO",
-          g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
+    DEBUG(
+        TEXT("PIC=%s, IOAPIC=%s"),
+        g_InterruptControllerConfig.PICPresent ? "YES" : "NO",
+        g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
 }
 
 /************************************************************************/
@@ -382,8 +386,7 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
         case INTCTRL_MODE_AUTO:
         default:
             // Prefer I/O APIC if available, otherwise use PIC
-            DEBUG(TEXT("Auto mode - IOAPICPresent=%s"),
-                  g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
+            DEBUG(TEXT("Auto mode - IOAPICPresent=%s"), g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
             if (g_InterruptControllerConfig.IOAPICPresent) {
                 DEBUG(TEXT("Attempting transition to I/O APIC mode"));
                 if (TransitionToIOAPICMode()) {
@@ -403,9 +406,11 @@ BOOL InitializeInterruptController(INTERRUPT_CONTROLLER_MODE RequestedMode) {
             break;
     }
 
-    WARNING(TEXT("Type=%s PIC=%s IOAPIC=%s"),
-        (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_PIC) ? "PIC" :
-        (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_IOAPIC) ? "IOAPIC" : "NONE",
+    WARNING(
+        TEXT("Type=%s PIC=%s IOAPIC=%s"),
+        (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_PIC)      ? "PIC"
+        : (g_InterruptControllerConfig.ActiveType == INTCTRL_TYPE_IOAPIC) ? "IOAPIC"
+                                                                          : "NONE",
         g_InterruptControllerConfig.PICPresent ? "YES" : "NO",
         g_InterruptControllerConfig.IOAPICPresent ? "YES" : "NO");
 
@@ -487,15 +492,13 @@ BOOL EnableInterrupt(U8 IRQ) {
             U32 ControllerIndex = 0;
             U8 Entry = 0;
             U32 MappedIRQ = MapInterrupt(IRQ);
-            IOAPIC_REDIRECTION_ENTRY RedirEntry;
+            IO_APIC_REDIRECTION_ENTRY RedirEntry;
             BOOL ReadOk = MapIRQToIOAPIC((U8)MappedIRQ, &ControllerIndex, &Entry) &&
-                ReadRedirectionEntry(ControllerIndex, Entry, &RedirEntry);
+                          ReadRedirectionEntry(ControllerIndex, Entry, &RedirEntry);
 
             if (ReadOk) {
             } else {
-                WARNING(TEXT("IRQ=%u GSI=%u IOAPIC entry read failed"),
-                    IRQ,
-                    MappedIRQ);
+                WARNING(TEXT("IRQ=%u GSI=%u IOAPIC entry read failed"), IRQ, MappedIRQ);
             }
         }
     }
@@ -555,7 +558,7 @@ void UnmaskAllInterrupts(void) {
         DEBUG(TEXT("TODO: Implement I/O APIC unmask all"));
     } else if (IsPICModeActive()) {
         WritePICMask(1, g_InterruptControllerConfig.PICBaseMask);
-        WritePICMask(2, 0xFF); // Keep PIC2 masked unless needed
+        WritePICMask(2, 0xFF);  // Keep PIC2 masked unless needed
     }
 }
 
@@ -596,8 +599,7 @@ static BOOL TestIOAPICFunctionality(void) {
 
     // Test all I/O APIC controllers to find at least one functional
     for (i = 0; i < IOApicConfig->ControllerCount; i++) {
-        DEBUG(TEXT("Testing controller %u at mapped address %08X"),
-              i, IOApicConfig->Controllers[i].MappedAddress);
+        DEBUG(TEXT("Testing controller %u at mapped address %08X"), i, IOApicConfig->Controllers[i].MappedAddress);
 
         // Read version register to test MMIO access
         VersionReg = ReadIOAPICRegister(i, IOAPIC_REG_VER);
@@ -615,8 +617,7 @@ static BOOL TestIOAPICFunctionality(void) {
 
         // Check if we have enough redirection entries for basic PC interrupts
         if (MaxRedirEntries < 15) {
-            DEBUG(TEXT("Controller %u: Insufficient redirection entries (%u) - skipping"),
-                  i, MaxRedirEntries);
+            DEBUG(TEXT("Controller %u: Insufficient redirection entries (%u) - skipping"), i, MaxRedirEntries);
             continue;
         }
 
@@ -712,7 +713,7 @@ BOOL TransitionToIOAPICMode(void) {
 
 BOOL ShutdownPIC8259(void) {
     if (!g_InterruptControllerConfig.PICPresent) {
-        return TRUE; // Nothing to shutdown
+        return TRUE;  // Nothing to shutdown
     }
 
     DEBUG(TEXT("Shutting down PIC 8259"));
@@ -725,7 +726,7 @@ BOOL ShutdownPIC8259(void) {
     OutPortByte(PIC2_COMMAND, PIC_EOI);
 
     // Small delay to ensure commands are processed
-    InPortByte(0x80); // I/O delay
+    InPortByte(0x80);  // I/O delay
     InPortByte(0x80);
 
     DEBUG(TEXT("PIC 8259 shutdown complete"));
@@ -756,20 +757,26 @@ BOOL SetupIRQMappings(void) {
         OverrideInfo = GetInterruptOverrideInfo(i);
         if (OverrideInfo && OverrideInfo->Bus == 0 && OverrideInfo->Source < 16) {
             // Only handle ISA bus (bus 0) overrides for IRQ 0-15
-            U8 TriggerMode = (OverrideInfo->Flags & 0x0C) >> 2; // Bits 3:2
-            U8 Polarity = (OverrideInfo->Flags & 0x03);         // Bits 1:0
+            U8 TriggerMode = (OverrideInfo->Flags & 0x0C) >> 2;  // Bits 3:2
+            U8 Polarity = (OverrideInfo->Flags & 0x03);          // Bits 1:0
 
             // Convert MPS INTI flags to our format
-            if (TriggerMode == 0x01) TriggerMode = 0; // Edge-triggered
-            else if (TriggerMode == 0x03) TriggerMode = 1; // Level-triggered
-            else TriggerMode = 0; // Default to edge-triggered
+            if (TriggerMode == 0x01)
+                TriggerMode = 0;  // Edge-triggered
+            else if (TriggerMode == 0x03)
+                TriggerMode = 1;  // Level-triggered
+            else
+                TriggerMode = 0;  // Default to edge-triggered
 
-            if (Polarity == 0x01) Polarity = 0; // Active high
-            else if (Polarity == 0x03) Polarity = 1; // Active low
-            else Polarity = 0; // Default to active high
+            if (Polarity == 0x01)
+                Polarity = 0;  // Active high
+            else if (Polarity == 0x03)
+                Polarity = 1;  // Active low
+            else
+                Polarity = 0;  // Default to active high
 
-            HandleInterruptSourceOverride(OverrideInfo->Source, OverrideInfo->GlobalSystemInterrupt,
-                                        TriggerMode, Polarity);
+            HandleInterruptSourceOverride(
+                OverrideInfo->Source, OverrideInfo->GlobalSystemInterrupt, TriggerMode, Polarity);
         }
     }
 
@@ -811,9 +818,8 @@ BOOL ConfigureInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
             TargetCPU = GetLocalAPICId();
         }
 
-        return ConfigureIOAPICInterrupt(ActualPin, Vector,
-                                       IOAPIC_REDTBL_DELMOD_FIXED,
-                                       TriggerMode, Polarity, TargetCPU);
+        return ConfigureIOAPICInterrupt(
+            ActualPin, Vector, IOAPIC_REDTBL_DELMOD_FIXED, TriggerMode, Polarity, TargetCPU);
     } else if (IsPICModeActive()) {
         // PIC configuration is simpler - just enable the IRQ
         return EnableInterrupt(IRQ);
@@ -825,10 +831,7 @@ BOOL ConfigureInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
 /************************************************************************/
 
 BOOL ConfigureDeviceInterrupt(U8 IRQ, U8 Vector, U8 DestCPU) {
-    DEBUG(TEXT("Legacy IRQ %u -> vector %u on CPU %u"),
-          IRQ,
-          Vector,
-          DestCPU);
+    DEBUG(TEXT("Legacy IRQ %u -> vector %u on CPU %u"), IRQ, Vector, DestCPU);
 
     return ConfigureInterrupt(IRQ, Vector, DestCPU);
 }
@@ -854,8 +857,12 @@ void HandleInterruptSourceOverride(U8 LegacyIRQ, U32 GlobalIRQ, U8 TriggerMode, 
         return;
     }
 
-    DEBUG(TEXT("IRQ override: Legacy IRQ %u -> Global IRQ %u, Trigger=%u, Polarity=%u"),
-          LegacyIRQ, GlobalIRQ, TriggerMode, Polarity);
+    DEBUG(
+        TEXT("IRQ override: Legacy IRQ %u -> Global IRQ %u, Trigger=%u, Polarity=%u"),
+        LegacyIRQ,
+        GlobalIRQ,
+        TriggerMode,
+        Polarity);
 
     g_InterruptControllerConfig.IRQMappings[LegacyIRQ].ActualPin = (U8)GlobalIRQ;
     g_InterruptControllerConfig.IRQMappings[LegacyIRQ].TriggerMode = TriggerMode;
@@ -904,9 +911,28 @@ BOOL GetInterruptStatistics(U8 IRQ, U32* Count, U32* LastTimestamp) {
  * @return TRUE if switch successful, FALSE otherwise
  */
 BOOL SwitchToPICForRealMode(void) {
-
     if (g_InterruptControllerConfig.ActiveType != INTCTRL_TYPE_IOAPIC) {
         return TRUE;
+    }
+
+    // Save all IOAPIC redirection entries before masking
+    g_IOAPICEntriesSaved = FALSE;
+
+    for (U32 c = 0; c < GetIOAPICConfig()->ControllerCount; c++) {
+        if (!GetIOAPICConfig()->Controllers[c].Present) {
+            continue;
+        }
+
+        U8 MaxEntry = GetIOAPICConfig()->Controllers[c].MaxRedirectionEntry;
+        if (MaxEntry >= IOAPIC_SAVED_ENTRIES_MAX) {
+            MaxEntry = IOAPIC_SAVED_ENTRIES_MAX - 1;
+        }
+
+        for (U8 e = 0; e <= MaxEntry; e++) {
+            ReadRedirectionEntry(c, e, &g_SavedIOAPICEntries[c][e]);
+        }
+
+        g_IOAPICEntriesSaved = TRUE;
     }
 
     // Mask all IOAPIC interrupts for all controllers
@@ -924,16 +950,16 @@ BOOL SwitchToPICForRealMode(void) {
     OutPortByte(PIC2_DATA, 0x70);
 
     // ICW3: Set cascade connection
-    OutPortByte(PIC1_DATA, 0x04); // IRQ2 connects to slave
-    OutPortByte(PIC2_DATA, 0x02); // Slave ID
+    OutPortByte(PIC1_DATA, 0x04);  // IRQ2 connects to slave
+    OutPortByte(PIC2_DATA, 0x02);  // Slave ID
 
     // ICW4: Set mode
     OutPortByte(PIC1_DATA, ICW4_8086);
     OutPortByte(PIC2_DATA, ICW4_8086);
 
     // Unmask some basic interrupts for real mode
-    OutPortByte(PIC1_DATA, 0xFE); // Enable IRQ0 (timer) only
-    OutPortByte(PIC2_DATA, 0xFF); // Disable all slave interrupts
+    OutPortByte(PIC1_DATA, 0xFE);  // Enable IRQ0 (timer) only
+    OutPortByte(PIC2_DATA, 0xFF);  // Disable all slave interrupts
 
     return TRUE;
 }
@@ -958,8 +984,28 @@ BOOL RestoreIOAPICAfterRealMode(void) {
     OutPortByte(PIC1_COMMAND, PIC_EOI);
     OutPortByte(PIC2_COMMAND, PIC_EOI);
 
-    // Restore default IOAPIC configuration
-    SetDefaultIOAPICConfiguration();
+    // Restore saved IOAPIC redirection entries if available
+    if (g_IOAPICEntriesSaved) {
+        for (U32 c = 0; c < GetIOAPICConfig()->ControllerCount; c++) {
+            if (!GetIOAPICConfig()->Controllers[c].Present) {
+                continue;
+            }
+
+            U8 MaxEntry = GetIOAPICConfig()->Controllers[c].MaxRedirectionEntry;
+            if (MaxEntry >= IOAPIC_SAVED_ENTRIES_MAX) {
+                MaxEntry = IOAPIC_SAVED_ENTRIES_MAX - 1;
+            }
+
+            for (U8 e = 0; e <= MaxEntry; e++) {
+                WriteRedirectionEntry(c, e, &g_SavedIOAPICEntries[c][e]);
+            }
+        }
+
+        g_IOAPICEntriesSaved = FALSE;
+    } else {
+        // Fallback: restore default IOAPIC configuration
+        SetDefaultIOAPICConfiguration();
+    }
 
     return TRUE;
 }

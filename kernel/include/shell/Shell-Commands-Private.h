@@ -28,6 +28,15 @@
 
 /************************************************************************/
 
+typedef enum tag_LIST_SORT_MODE {
+    LIST_SORT_NONE = 0,
+    LIST_SORT_NAME = 1,
+    LIST_SORT_EXTENSION = 2,
+    LIST_SORT_MODIFIED = 3
+} LIST_SORT_MODE;
+
+/************************************************************************/
+
 U32 CMD_commands(LPSHELLCONTEXT Context);
 U32 CMD_clearScreen(LPSHELLCONTEXT Context);
 U32 CMD_consoleMode(LPSHELLCONTEXT Context);
@@ -65,8 +74,18 @@ U32 CMD_usb(LPSHELLCONTEXT Context);
 U32 CMD_nvme(LPSHELLCONTEXT Context);
 U32 CMD_dataView(LPSHELLCONTEXT Context);
 U32 CMD_credits(LPSHELLCONTEXT Context);
+U32 CMD_ping(LPSHELLCONTEXT Context);
+U32 CMD_dnsresolve(LPSHELLCONTEXT Context);
 
-void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, BOOL Recurse, U32* NumListed);
+void ListDirectory(
+    LPSHELLCONTEXT Context,
+    LPCSTR Base,
+    U32 Indent,
+    BOOL Pause,
+    BOOL Recurse,
+    LIST_SORT_MODE SortMode,
+    U32 Limit,
+    U32* NumListed);
 BOOL RunScriptFile(LPSHELLCONTEXT Context, LPCSTR ScriptFileName);
 UINT RunEmbeddedScript(LPSHELLCONTEXT Context, LPCSTR ScriptText);
 UINT ShellCreateAccount(LPCSTR UserName, LPCSTR Password, U32 Privilege);

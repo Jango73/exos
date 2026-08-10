@@ -10,7 +10,7 @@
   - images must be placed in build/image/x86-.../ instead of build/image/x86-.../boot-mbr or build/image/x86-.../boot-uefi (the "x86-..." path component already contains the boot type)
   - add ability NOT TO build disk images (--no-images)
 
-- [x] User.h MUST NOT contain Kernel function definitions : it is a file visible by userland. Userland CANNOT call kernel functions directly.
+- [x] User.h / Base.h MUST NOT contain Kernel function definitions : they are files visible by userland. Userland CANNOT call kernel functions directly.
   - Userland uses functions defined in exos.h and implemented in exos-runtime-c.c
   - Kernel must place those function prototypes in a different header
 
@@ -87,8 +87,10 @@
 - [ ] Implement full UTF and Unicode.md
 - [ ] Handle languages
 
-- [ ] Fix input-info #PF on exit
-- [ ] Keyboard : Handle '<' key in french keyboard mapping.
+- [x] Fix input-info #PF on exit
+  - Not reproducible under Predator -> pop_os -> QEMU. Might be happening elsewhere.
+
+- [x] Keyboard : Handle '<' key in french keyboard mapping.
 
 - [x] Scripting memory : AST cache with execution-stack-based eviction
 
@@ -102,13 +104,126 @@
   - Detect overlapping zones and layout inconsistencies and list every overlap found.
   - Provide an option to assess heap fragmentation (must not be enabled by default; heaps are used at too fine a granularity by the different components).
 
+- [x] TOML parsing allocations too many small objects and fragments heap.
+  - `TomlParse()` uses a single-allocation two-pass parse: one block covers
+    the `TOML` structure, the `TOML_ITEM` array and one contiguous string area,
+    so 3 allocations per item become 1 allocation total, and `TomlFree()` is a
+    single free.
+
+- [x] Prevent `edit` editor flicker: every keypress triggers a full UI redraw, which visibly flickers. Redraw only the affected parts of the screen (the edited line, cursor, status bar) instead of the whole interface.
+  - Fixed by selective redraw in 9915dac (`kernel/source/system/Edit-Main.c`): only the edited line, cursor and status bar are redrawn, and the title bar is kept stable on scroll.
+
+- [x] Keyboard repeat delay and frequency are configurable via `Keyboard.RepeatDelayMS` (default 400 ms) and `Keyboard.RepeatIntervalMS` (default 50 ms) in the `[Keyboard]` config section; values are cached once in `Keyboard-Common.c` and drive `KeyboardRepeatPoll`.
+  - Note: the previous item stated "200 ms" for the initial delay, but the code hardcodes 400 ms (`Keyboard-Common.c`).
+  - Note: infinite repeat from a lost key-up (e.g. QEMU `usb-kbd` HID queue overflow on rapid scripted input) is an emulator limitation, not a kernel defect; a duration cap is intentionally NOT added because it would break intentional long key holds. The non-disruptive recovery path is the periodic GET_REPORT state-reconciliation item under Medium-priority Keyboard.
+
 ## Medium priority
+
+### Shell
+
+- [x] Fix IP address octet display reversed in dns, ping, SystemDataView and Expose-Network.
+  The `Ntohl()` + MSB-first extraction pattern byte-swapped on little-endian x86,
+  reversing the octets. Added `FormatIPv4()` to CoreString; all call sites now
+  extract directly from the big-endian value.
+  - `dns google.com` was showing "174.22.217.172" instead of "172.217.22.174".
+- [x] Add two alternatives to commands in shell for the following (rest stays blank) :
+  - changeFolder, cf, cd
+  - listFolder, lf, dir, ls
+  - makeFolder, mf, md, mkdir
+  - `SHELL_COMMAND_ENTRY.AltName` now holds a space-separated alias list; the command dispatcher matches the primary name or any alias, and `commands` renders the whole alias list.
+- [x] Add options to lf : sort by name, extension, modified date. limit output to n items.
+  - `listFolder --sort=name|extension|modified` sorts entries; `--limit=n` caps output per folder to n items. Short forms: `-sn` (sort by name), `-se` (sort by extension), `-sm` (sort by modified), `-l<n>` (limit); `-s` is now the sort prefix, stress is `--stress` only.
+  - Sorting snapshots each folder's entries then orders them with the reusable `utils/Sort` module; the default listing keeps the file system order.
+- [ ] Make the shell syscall-clean: the shell will become a userland program, so no shell command may call a kernel function directly; every service access must go through a syscall (`DoSystemCall`/`exoscall`). Existing direct kernel calls in shell commands (for example `NetworkManager_*` device checks, socket layer calls) are known and will be migrated to their syscall equivalents progressively.
 
 ### Naming
 
 - [x] Make all script exposed function camelCase instead of snake_case.
 - [x] Add a comment for every member of every structure in Process.h.
 - [x] Rename all script exposed object/member using camelCase.
+- [x] Rename the following structures :
+  - ATADISK -> ATA_DISK
+  - ATADRIVEID -> ATA_DRIVE_ID
+  - COFFHEADER -> COFF_HEADER
+  - COFFRELOCATION -> COFF_RELOCATION
+  - COFFSECTION -> COFF_SECTION
+  - COFFSYMBOL -> COFF_SYMBOL
+  - COMMANDLINEEDITOR -> COMMAND_LINE_EDITOR
+  - CPUIDREGISTERS -> CPU_ID_REGISTERS
+  - DISKACCESS -> DISK_ACCESS
+  - DISKGEOMETRY -> DISK_GEOMETRY
+  - DISKINFO -> DISK_INFO
+  - DRIVERCAPS -> DRIVER_CAPS
+  - E1000DEVICE -> E1000_DEVICE
+  - EDITCONTEXT -> EDIT_CONTEXT
+  - EDITFILE -> EDIT_FILE
+  - EDITLINE -> EDIT_LINE
+  - EDITMENUITEM -> EDIT_MENU_ITEM
+  - EXFSFILE -> EXFS_FILE
+  - EXFSFILEREC -> EXFS_FILE_RECORD
+  - EXFSFILESYSTEM -> EXFS_FILE_SYSTEM
+  - EXFSMBR -> EXFS_MBR
+  - EXFSSUPER -> EXFS_SUPER
+  - EXFSTIME -> EXFS_TIME
+  - EXOSCHUNK -> EXOS_CHUNK
+  - EXOSCHUNK_FIXUP -> EXOS_CHUNK_FIXUP (skipped: name collides with the EXOS_CHUNK_FIXUP chunk-ID macro in Executable-EXOS.h)
+  - EXOSCHUNK_INIT -> EXOS_CHUNK_INIT (skipped: name collides with the EXOS_CHUNK_INIT chunk-ID macro in Executable-EXOS.h)
+  - EXOSHEADER -> EXOS_HEADER
+  - EXT2BLOCKGROUP -> EXT2_BLOCK_GROUP
+  - EXT2DIRECTORYENTRY -> EXT2_DIRECTORY_ENTRY
+  - EXT2FILE -> EXT2_FILE
+  - EXT2FILESYSTEM -> EXT2_FILE_SYSTEM
+  - EXT2INODE -> EXT2_INODE
+  - EXT2SUPER -> EXT2_SUPER
+  - FAT16FILESYSTEM -> FAT16_FILE_SYSTEM
+  - FAT16MBR -> FAT16_MBR
+  - FAT32FILESYSTEM -> FAT32_FILE_SYSTEM
+  - FAT32MBR -> FAT32_MBR
+  - FATDIRENTRY -> FAT_DIR_ENTRY
+  - FATDIRENTRY_EXT -> FAT_DIR_ENTRY_EXT
+  - FATDIRENTRY_LFN -> FAT_DIR_ENTRY_LFN
+  - FATFILE -> FAT_FILE
+  - FATFILELOC -> FAT_FILE_LOCATION
+  - FILESYSTEM_GLOBAL_INFO -> FILE_SYSTEM_GLOBAL_INFO
+  - FILESYSTEM_MOUNT_CONTROL -> FILE_SYSTEM_MOUNT_CONTROL
+  - FILESYSTEM_PATHCHECK -> FILE_SYSTEM_PATH_CHECK
+  - GCSELECT -> GC_SELECT
+  - GRAPHICSCONTEXT -> GRAPHICS_CONTEXT
+  - IOAPIC_CONFIG -> IO_APIC_CONFIG
+  - IOAPIC_CONTROLLER -> IO_APIC_CONTROLLER
+  - IOAPIC_REDIRECTION_ENTRY -> IO_APIC_REDIRECTION_ENTRY
+  - KEYBOARDSTRUCT -> KEYBOARD_STRUCT
+  - KEYCODE -> KEY_CODE
+  - KEYNAME -> KEY_NAME
+  - KEYTRANS -> KEY_TRANS
+  - MEMEDITCONTEXT -> MEM_EDIT_CONTEXT
+  - MESSAGEQUEUE -> MESSAGE_QUEUE
+  - MODEINFOBLOCK -> MODE_INFO_BLOCK
+  - NTFS_FILERECORD -> NTFS_FILE_RECORD
+  - NTFS_FILEREF -> NTFS_FILE_REF
+  - NTFS_STDINFO -> NTFS_STANDARD_INFO
+  - NTFSFILE -> NTFS_FILE
+  - NTFSFILESYSTEM -> NTFS_FILE_SYSTEM
+  - PACKAGEFS_NODE -> PACKAGE_FS_NODE
+  - PACKAGEFSFILE -> PACKAGE_FS_FILE
+  - PACKAGEFSFILESYSTEM -> PACKAGE_FS_FILESYSTEM
+  - PACKAGENAMESPACE_PATHS -> PACKAGE_NAMESPACE_PATHS
+  - PATHCOMPLETION -> PATH_COMPLETION
+  - RAMDISK -> RAM_DISK
+  - SECTORBUFFER -> SECTOR_BUFFER
+  - SHELLCONTEXT -> SHELL_CONTEXT
+  - SHELLINPUTSTATE -> SHELL_INPUT_STATE
+  - STRINGARRAY -> STRING_ARRAY
+  - STRINGBUILDER -> STRING_BUILDER
+  - SYSTEMFSFILE -> SYSTEMFS_FILE
+  - SYSTEMFSFILESYSTEM -> SYSTEMFS_FILE_SYSTEM
+  - TASKLIST ->  TASK_LIST
+  - TOMLITEM -> TOML_ITEM
+  - VESAINFOBLOCK -> VESA_INFO_BLOCK
+  - VGAMODEINFO -> VGA_MODE_INFO
+  - VGAMODEREGS -> VGA_MODE_REGS
+  - VIDEOMODESPECS -> VIDEO_MODE_SPECS
+  - XFSFILELOC -> XFS_FILE_LOC
 
 ### Clock
 
@@ -125,20 +240,7 @@
 
 ### Smoke test
 
-- [ ] tcc-global-hello must actually print something: `system/tcc/samples/hello.c` only returns 0, so the smoke command `tcc ... -o /temp/tcc-global-hello` compiles and runs a binary that produces no output. Give the sample at least one print (for example via `printf`) so the compiled binary is exercised meaningfully.
-
-### Scheduling
-
-- [ ] Improve the scheduler (task priorities):
-  - [ ] Split scheduler timing state into dedicated fields (for example sleep deadline vs time-slice deadline) instead of reusing one `WakeUpTime` for both semantics.
-  - [ ] Rearm task time-slice budget on each dispatch/preemption boundary so priority-based quantum remains effective after the first run.
-  - [ ] Replace single global runnable scan with priority run queues (one FIFO per priority level) plus a bitmap for O(1) highest-priority selection.
-  - [ ] Keep round-robin fairness inside each priority level while always selecting the highest runnable priority level first.
-  - [ ] Introduce effective dynamic priority (`BasePriority` + temporary boosts + mutex donation) and preempt immediately when a higher effective priority task becomes runnable.
-  - [ ] Add anti-starvation aging: gradually increase effective priority of runnable tasks that wait too long without CPU time.
-  - [ ] Implement priority inheritance for mutex contention: when a high-priority waiter blocks on a low-priority owner, temporarily donate priority to the owner and restore it on unlock.
-  - [ ] Keep quantum configuration coherent: when `General.QuantumMS` overrides minimum quantum, recompute/update maximum quantum consistently (preserve policy ratio).
-- [ ] A CPU-bound task that never blocks can starve lower-priority deferred work and input handling (e.g., System Data View loop). Preference: force yield when a task is too CPU-hungry.
+- [x] tcc-global-hello must actually print something: `system/tcc/samples/hello.c` only returns 0, so the smoke command `tcc ... -o /temp/tcc-global-hello` compiles and runs a binary that produces no output. Give the sample at least one print (for example via `printf`) so the compiled binary is exercised meaningfully.
 
 ### Multicore
 
@@ -151,10 +253,11 @@
   - [x] sv-SE (deploy/keyboard/sv-SE.ekm1)
   - [x] fi-FI (deploy/keyboard/fi-FI.ekm1)
   - [x] ru-RU (deploy/keyboard/ru-RU.ekm1)
-
-### Shell
-
-- [ ] Add options to the command dir : sort by name, extension, modified date. limit output to n items.
+- [ ] Add periodic keyboard state reconciliation to recover from lost key-up events.
+  - Symptom: under rapid input (e.g. scripted `sendkey` bursts faster than the guest's USB poll drains the device queue), QEMU's `usb-kbd` HID event queue silently drops key-up events (a known QEMU limitation, see AGENTS.md). A dropped key-up leaves `Keyboard.UsageStatus[Usage] == 1` and `Keyboard.RepeatUsage == Usage`; `KeyboardRepeatPoll` (`Keyboard-Common.c`) then re-fires that key's key-down every 50 ms forever, so one character repeats infinitely until another key is pressed. The kernel's char buffer (`MAXKEYBUFFER`) and process message queue (capacity 100) are NOT the cause — no "Queue full" warnings are emitted, because the loss happens above the kernel, in the emulator.
+  - Requirement: the fix must NOT break intentional long key holds (a user may legitimately hold a key to repeat). A blind duration cap would falsely terminate genuine holds, so it is rejected.
+  - Chosen approach: a periodic GET_REPORT reconciliation that queries the device's actual current key state and clears `UsageStatus`/`RepeatUsage` entries the device no longer reports as pressed. This self-heals lost key-ups (device reports no key down while the kernel thinks one is) without affecting genuinely held keys (device reports the held key down, so the kernel state stays consistent).
+  - Scope: implement for the USB HID boot-protocol path in `Keyboard-USB.c` (issue `GetReport` on the interrupt IN endpoint / HID control pipe) and, where the bus supports it, the PS/2 path in `Keyboard-PS2.c`; share the reconciliation sweep over `UsageStatus` from `Keyboard-Common.c`. Gate behind a config knob (`Keyboard.StuckKeyRecovery` / `Keyboard.ReconciliationInterval`) so it can be disabled for hosts where GET_REPORT is unsupported.
 
 ## Low priority
 
@@ -164,7 +267,7 @@
 
 ### Core
 
-- [ ] Split Kernel.c : put kernel object magangement functions in dedicated file
+- [ ] Split Kernel.c : put kernel object management functions in dedicated file
 
 ### Tools
 
@@ -191,7 +294,6 @@
 
 - [ ] Align x86-32 page directory creation (`AllocPageDirectory` and `AllocUserPageDirectory`) with the modular x86-64 region-based approach (low region, kernel region, task runner, recursive slot) while preserving current behavior. Execute this refactor in small validated steps to limit boot and paging regression risk.
 - [ ] Improve the memory stress tests: the existing `memory-stress` app did not expose the region allocator race fixed in the x86-64 allocator (concurrent region carve-outs between tasks overlapping one another and corrupting descriptor slabs). Add a stress mode that runs concurrent allocation/release loops from several tasks, mixing large multi-page reservations with single-page allocations, so allocator races and descriptor/PTE inconsistencies surface deterministically.
-- [ ] TOML parsing allocations too many small objects and fragments heap.
 - [ ] Region descriptor tracking is tied to `GetCurrentProcess()` instead of the actual region owner, which yields `[UpdateDescriptorsForFree] Missing descriptor` warnings during task/process teardown : rework alloc/free tracking so descriptors are registered and removed against the owning process/kernel address space, not the current execution context.
 - [x] UEFI portal crash on teardown: the deterministic crash was a GCC stack-probe underflow in `LogViewerWindowFunc` (32KB local buffer, probe `sub $0x8000,%rsp` at user RIP `0x40618C`, CR2=`FFFFFFFFE0B4BD40` = SystemStack base `E0B4C000` minus `0x2C0`). The reactive grow (`GrowFaultingSystemStack`) could not allocate the extension because the ShellHeap reserved regions (#1 `E094C000..E0B4C000`, #2 `E0B4C000..E0D4C000`) butt directly against the SystemStack with zero free page below (`[GrowFaultingSystemStack] AllocRegion failed base=E0B47000 size=20480`), and the subsequent x86-64 kernel page-table walk faulted fatally. Fix: allocate a committed `STACK_GROW_MIN_INCREMENT` (16KB) margin below each SystemStack at creation (`Stack.AllocationBase`, region size `TASK_MINIMUM_SYSTEM_STACK_SIZE + STACK_GROW_MIN_INCREMENT`), so compiler probes land in mapped memory; `StackRelocateAndGrow`, `GrowCurrentStack` and `GrowFaultingSystemStack` now resize/free the full region through `AllocationBase`, and stack teardown uses `StackRelease`. `ResolveKernelPageFault` was hardened to use temporary paging slots instead of recursive windowing. Validated on x86-64 MBR, x86-64 UEFI and x86-32 MBR global smoke tests: portal runs with no fault and no grow trigger.
 
@@ -232,12 +334,12 @@
 
 ### Filesystem cache
 
-- [ ] Create a generic fixed-size cache
-- [ ] Add a cluster cache to FAT16 and FAT32
+- [ ] Add a cluster-chain navigation cache to FAT16 and FAT32 (FAT sectors are already cached by the generic DiskTransferLayer sector cache)
 
 ### Network
 - [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
 - [ ] Optimize/evolve the network stack
+- [ ] Verify downloaded file integrity: netget / HTTP_DownloadToFile only checks that the byte count matches Content-Length; no content checksum/hash is computed. The network smoke test compares only the file size (`file-size-compare`), not the bytes. Add a hash (for example CRC) exposed by the HTTP server and verified at the end of the download.
 
 ### Security 
 

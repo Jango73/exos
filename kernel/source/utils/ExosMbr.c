@@ -24,6 +24,7 @@
 
 #include "utils/ExosMbr.h"
 
+#include "fs/DiskTransferLayer.h"
 #include "text/CoreString.h"
 
 /************************************************************************/
@@ -36,7 +37,7 @@
 void ExosMbrFill(LPEXFSMBR Master, U16 SectorsPerCluster) {
     if (Master == NULL) return;
 
-    MemorySet(Master, 0, sizeof(EXFSMBR));
+    MemorySet(Master, 0, sizeof(EXFS_MBR));
 
     Master->OEMName[0] = 'E';
     Master->OEMName[1] = 'X';
@@ -66,7 +67,7 @@ void ExosMbrFill(LPEXFSMBR Master, U16 SectorsPerCluster) {
  * @return TRUE on success, FALSE otherwise.
  */
 BOOL ExosMbrWrite(LPSTORAGE_UNIT Disk, U32 StartSector, U16 SectorsPerCluster) {
-    EXFSMBR Master;
+    EXFS_MBR Master;
     IOCONTROL Control;
     U32 Result;
 
@@ -80,9 +81,9 @@ BOOL ExosMbrWrite(LPSTORAGE_UNIT Disk, U32 StartSector, U16 SectorsPerCluster) {
     Control.SectorHigh = 0;
     Control.NumSectors = 2;
     Control.Buffer = (LPVOID)&Master;
-    Control.BufferSize = sizeof(EXFSMBR);
+    Control.BufferSize = sizeof(EXFS_MBR);
 
-    Result = Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+    Result = DiskTransferLayerWrite(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }

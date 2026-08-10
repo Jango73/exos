@@ -424,7 +424,7 @@ void PCI_RegisterDriver(LPPCI_DRIVER Driver) {
  * 7. On success: return the heap-allocated device structure
  *
  * CORRECT EXAMPLE:
- *   Device = (LPE1000DEVICE)KernelHeapAlloc(sizeof(E1000DEVICE));
+ *   Device = (LPE1000DEVICE)KernelHeapAlloc(sizeof(E1000_DEVICE));
  *   if (Device == NULL) return NULL;
  *   MemoryCopy(Device, PciDevice, sizeof(PCI_DEVICE));
  *   Device->Next = NULL;

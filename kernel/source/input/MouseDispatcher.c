@@ -130,7 +130,7 @@ static void GetConsoleMouseScale(I32* ScaleX, I32* ScaleY) {
     I32 X = 8;
     I32 Y = 16;
     U32 ModeIndex;
-    VGAMODEINFO Info;
+    VGA_MODE_INFO Info;
 
     if (Console.Width > 0 && Console.Height > 0) {
         if (VGAFindTextMode(Console.Width, Console.Height, &ModeIndex) == TRUE &&

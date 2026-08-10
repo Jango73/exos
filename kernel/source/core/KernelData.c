@@ -40,7 +40,7 @@ typedef struct tag_CPUIDREGISTERS {
     U32 reg_EBX;
     U32 reg_ECX;
     U32 reg_EDX;
-} CPUIDREGISTERS, *LPCPUIDREGISTERS;
+} CPU_ID_REGISTERS, *LPCPUIDREGISTERS;
 
 /************************************************************************/
 
@@ -49,245 +49,223 @@ static UINT StartupDriverEntryCount = 0;
 
 /************************************************************************/
 
-static LIST StartupDriverList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST StartupDriverList = { .First = NULL,
+                                  .Last = NULL,
+                                  .Current = NULL,
+                                  .NumItems = 0,
+                                  .MemAllocFunc = KernelHeapAlloc,
+                                  .MemFreeFunc = KernelHeapFree,
+                                  .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST DriverList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST DriverList = { .First = NULL,
+                           .Last = NULL,
+                           .Current = NULL,
+                           .NumItems = 0,
+                           .MemAllocFunc = KernelHeapAlloc,
+                           .MemFreeFunc = KernelHeapFree,
+                           .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST WindowClassList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST WindowClassList = { .First = NULL,
+                                .Last = NULL,
+                                .Current = NULL,
+                                .NumItems = 0,
+                                .MemAllocFunc = KernelHeapAlloc,
+                                .MemFreeFunc = KernelHeapFree,
+                                .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST DesktopList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST DesktopList = { .First = NULL,
+                            .Last = NULL,
+                            .Current = NULL,
+                            .NumItems = 0,
+                            .MemAllocFunc = KernelHeapAlloc,
+                            .MemFreeFunc = KernelHeapFree,
+                            .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST ProcessList = {
-    .First = (LPLISTNODE)&KernelProcess,
-    .Last = (LPLISTNODE)&KernelProcess,
-    .Current = (LPLISTNODE)&KernelProcess,
-    .NumItems = 1,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST ProcessList = { .First = (LPLISTNODE)&KernelProcess,
+                            .Last = (LPLISTNODE)&KernelProcess,
+                            .Current = (LPLISTNODE)&KernelProcess,
+                            .NumItems = 1,
+                            .MemAllocFunc = KernelHeapAlloc,
+                            .MemFreeFunc = KernelHeapFree,
+                            .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST TaskList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST TaskList = { .First = NULL,
+                         .Last = NULL,
+                         .Current = NULL,
+                         .NumItems = 0,
+                         .MemAllocFunc = KernelHeapAlloc,
+                         .MemFreeFunc = KernelHeapFree,
+                         .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST MutexList = {
-    .First = (LPLISTNODE)&KernelMutex,
-    .Last = (LPLISTNODE)&SessionMutex,
-    .Current = (LPLISTNODE)&KernelMutex,
-    .NumItems = 13,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST MutexList = { .First = (LPLISTNODE)&KernelMutex,
+                          .Last = (LPLISTNODE)&SessionMutex,
+                          .Current = (LPLISTNODE)&KernelMutex,
+                          .NumItems = 13,
+                          .MemAllocFunc = KernelHeapAlloc,
+                          .MemFreeFunc = KernelHeapFree,
+                          .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST DiskList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST DiskList = { .First = NULL,
+                         .Last = NULL,
+                         .Current = NULL,
+                         .NumItems = 0,
+                         .MemAllocFunc = KernelHeapAlloc,
+                         .MemFreeFunc = KernelHeapFree,
+                         .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST USBDeviceList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST USBDeviceList = { .First = NULL,
+                              .Last = NULL,
+                              .Current = NULL,
+                              .NumItems = 0,
+                              .MemAllocFunc = KernelHeapAlloc,
+                              .MemFreeFunc = KernelHeapFree,
+                              .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST USBInterfaceList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST USBInterfaceList = { .First = NULL,
+                                 .Last = NULL,
+                                 .Current = NULL,
+                                 .NumItems = 0,
+                                 .MemAllocFunc = KernelHeapAlloc,
+                                 .MemFreeFunc = KernelHeapFree,
+                                 .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST USBEndpointList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST USBEndpointList = { .First = NULL,
+                                .Last = NULL,
+                                .Current = NULL,
+                                .NumItems = 0,
+                                .MemAllocFunc = KernelHeapAlloc,
+                                .MemFreeFunc = KernelHeapFree,
+                                .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST USBStorageList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST USBStorageList = { .First = NULL,
+                               .Last = NULL,
+                               .Current = NULL,
+                               .NumItems = 0,
+                               .MemAllocFunc = KernelHeapAlloc,
+                               .MemFreeFunc = KernelHeapFree,
+                               .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST PciDeviceList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST PciDeviceList = { .First = NULL,
+                              .Last = NULL,
+                              .Current = NULL,
+                              .NumItems = 0,
+                              .MemAllocFunc = KernelHeapAlloc,
+                              .MemFreeFunc = KernelHeapFree,
+                              .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST NetworkDeviceList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST NetworkDeviceList = { .First = NULL,
+                                  .Last = NULL,
+                                  .Current = NULL,
+                                  .NumItems = 0,
+                                  .MemAllocFunc = KernelHeapAlloc,
+                                  .MemFreeFunc = KernelHeapFree,
+                                  .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST EventList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST EventList = { .First = NULL,
+                          .Last = NULL,
+                          .Current = NULL,
+                          .NumItems = 0,
+                          .MemAllocFunc = KernelHeapAlloc,
+                          .MemFreeFunc = KernelHeapFree,
+                          .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST FileSystemList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST FileSystemList = { .First = NULL,
+                               .Last = NULL,
+                               .Current = NULL,
+                               .NumItems = 0,
+                               .MemAllocFunc = KernelHeapAlloc,
+                               .MemFreeFunc = KernelHeapFree,
+                               .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST UnusedFileSystemList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST UnusedFileSystemList = { .First = NULL,
+                                     .Last = NULL,
+                                     .Current = NULL,
+                                     .NumItems = 0,
+                                     .MemAllocFunc = KernelHeapAlloc,
+                                     .MemFreeFunc = KernelHeapFree,
+                                     .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST FileList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST FileList = { .First = NULL,
+                         .Last = NULL,
+                         .Current = NULL,
+                         .NumItems = 0,
+                         .MemAllocFunc = KernelHeapAlloc,
+                         .MemFreeFunc = KernelHeapFree,
+                         .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST ExecutableModuleImageList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST ExecutableModuleImageList = { .First = NULL,
+                                          .Last = NULL,
+                                          .Current = NULL,
+                                          .NumItems = 0,
+                                          .MemAllocFunc = KernelHeapAlloc,
+                                          .MemFreeFunc = KernelHeapFree,
+                                          .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST TCPConnectionList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST TCPConnectionList = { .First = NULL,
+                                  .Last = NULL,
+                                  .Current = NULL,
+                                  .NumItems = 0,
+                                  .MemAllocFunc = KernelHeapAlloc,
+                                  .MemFreeFunc = KernelHeapFree,
+                                  .Destructor = NULL };
 
 /************************************************************************/
 
-static LIST SocketList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = SocketDestructor};
+static LIST SocketList = { .First = NULL,
+                           .Last = NULL,
+                           .Current = NULL,
+                           .NumItems = 0,
+                           .MemAllocFunc = KernelHeapAlloc,
+                           .MemFreeFunc = KernelHeapFree,
+                           .Destructor = SocketDestructor };
 
 /************************************************************************/
 
-static LIST AccountList = {
-    .First = NULL,
-    .Last = NULL,
-    .Current = NULL,
-    .NumItems = 0,
-    .MemAllocFunc = KernelHeapAlloc,
-    .MemFreeFunc = KernelHeapFree,
-    .Destructor = NULL};
+static LIST AccountList = { .First = NULL,
+                            .Last = NULL,
+                            .Current = NULL,
+                            .NumItems = 0,
+                            .MemAllocFunc = KernelHeapAlloc,
+                            .MemFreeFunc = KernelHeapFree,
+                            .Destructor = NULL };
 
 /************************************************************************/
 
@@ -317,44 +295,35 @@ static KERNEL_DATA DATA_SECTION Kernel = {
     .UserAccount = &AccountList,
     .ActiveDesktop = NULL,
     .FocusedProcess = &KernelProcess,
-    .FileSystemInfo = {.ActivePartitionName = ""},
-    .SystemFS = {
-        .Header = {
-            .TypeID = KOID_FILESYSTEM,
-            .References = 1,
-            .Next = NULL,
-            .Prev = NULL,
-            .Mutex = EMPTY_MUTEX,
-            .Mounted = TRUE,
-            .Driver = &SystemFSDriver,
-            .StorageUnit = NULL,
-            .Partition = {
-                .Scheme = PARTITION_SCHEME_VIRTUAL,
-                .Type = FSID_NONE,
-                .Format = PARTITION_FORMAT_UNKNOWN,
-                .Index = 0,
-                .Flags = 0,
-                .StartSector = 0,
-                .NumSectors = 0,
-                .TypeGuid = {0}
-            },
-            .Name = "System"
-        },
-        .Root = NULL
-    },
-    .HandleMap = {0},
-    .CPU = {.Name = "", .Type = 0, .Family = 0, .Model = 0, .Stepping = 0, .Features = 0, .BaseFrequencyMHz = 0},
+    .FileSystemInfo = { .ActivePartitionName = "" },
+    .SystemFS = { .Header = { .TypeID = KOID_FILESYSTEM,
+                              .References = 1,
+                              .Next = NULL,
+                              .Prev = NULL,
+                              .Mutex = EMPTY_MUTEX,
+                              .Mounted = TRUE,
+                              .Driver = &SystemFSDriver,
+                              .StorageUnit = NULL,
+                              .Partition = { .Scheme = PARTITION_SCHEME_VIRTUAL,
+                                             .Type = FSID_NONE,
+                                             .Format = PARTITION_FORMAT_UNKNOWN,
+                                             .Index = 0,
+                                             .Flags = 0,
+                                             .StartSector = 0,
+                                             .NumSectors = 0,
+                                             .TypeGuid = { 0 } },
+                              .Name = "System" },
+                  .Root = NULL },
+    .HandleMap = { 0 },
+    .CPU = { .Name = "", .Type = 0, .Family = 0, .Model = 0, .Stepping = 0, .Features = 0, .BaseFrequencyMHz = 0 },
     .Configuration = NULL,
-    .MinimumQuantum = 1,
-    .MaximumQuantum = 8,
+    .MinimumQuantum = SCHEDULING_QUANTUM_DEFAULT_MINIMUM,
+    .MaximumQuantum = SCHEDULING_QUANTUM_DEFAULT_MAXIMUM,
     .DeferredWorkWaitTimeoutMS = DEFERRED_WORK_WAIT_TIMEOUT_MS,
     .DeferredWorkPollDelayMS = DEFERRED_WORK_POLL_DELAY_MS,
     .DoLogin = 0,
-    .BootTime = {0},
-    .Debug = {
-        .UseDeadlockMonitor = 0,
-        .WindowPipelineTraceEnabled = 0
-    },
+    .BootTime = { 0 },
+    .Debug = { .UseDeadlockMonitor = 0, .WindowPipelineTraceEnabled = 0 },
     .LanguageCode = "en-US",
     .KeyboardCode = "fr-FR"
 };
@@ -427,7 +396,7 @@ static void RegisterStartupDriver(LPDRIVER Driver) {
     }
 
     Entry = &StartupDriverEntries[StartupDriverEntryCount++];
-    *Entry = (STARTUP_DRIVER_ENTRY){0};
+    *Entry = (STARTUP_DRIVER_ENTRY){ 0 };
     Entry->Driver = Driver;
 
     ListAddTail(Kernel.StartupDrivers, Entry);
@@ -762,7 +731,7 @@ void SetAccountList(LPLIST List) {
  * @brief Retrieves the global file system info structure.
  * @return Pointer to the file system info structure.
  */
-FILESYSTEM_GLOBAL_INFO* GetFileSystemGlobalInfo(void) {
+FILE_SYSTEM_GLOBAL_INFO* GetFileSystemGlobalInfo(void) {
     return &(Kernel.FileSystemInfo);
 }
 
@@ -965,7 +934,9 @@ LPCSTR GetLanguageCode(void) {
  * @param LanguageCode Null-terminated language code.
  */
 void SetLanguageCode(LPCSTR LanguageCode) {
-    SAFE_USE(LanguageCode) { StringCopy(Kernel.LanguageCode, LanguageCode); }
+    SAFE_USE(LanguageCode) {
+        StringCopy(Kernel.LanguageCode, LanguageCode);
+    }
 }
 
 /************************************************************************/
@@ -985,7 +956,9 @@ LPCSTR GetKeyboardCode(void) {
  * @param KeyboardCode Null-terminated keyboard code.
  */
 void SetKeyboardCode(LPCSTR KeyboardCode) {
-    SAFE_USE(KeyboardCode) { StringCopy(Kernel.KeyboardCode, KeyboardCode); }
+    SAFE_USE(KeyboardCode) {
+        StringCopy(Kernel.KeyboardCode, KeyboardCode);
+    }
 }
 
 /************************************************************************/
@@ -1050,7 +1023,8 @@ void SetActiveDesktop(LPDESKTOP Desktop) {
 
     SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
         Kernel.ActiveDesktop = Desktop;
-    } else {
+    }
+    else {
         Kernel.ActiveDesktop = NULL;
         if (FocusedProcess == NULL || FocusedProcess->TypeID != KOID_PROCESS ||
             FocusedProcess->Status == PROCESS_STATUS_DEAD) {
@@ -1104,7 +1078,8 @@ void SetFocusedProcess(LPPROCESS Process) {
         } else {
             Kernel.ActiveDesktop = NULL;
         }
-    } else {
+    }
+    else {
         Kernel.FocusedProcess = &KernelProcess;
         if (KernelProcess.Desktop != NULL && KernelProcess.Desktop->TypeID == KOID_DESKTOP) {
             Kernel.ActiveDesktop = KernelProcess.Desktop;
@@ -1153,9 +1128,9 @@ static void ReadCPUIDLeaf(U32 Leaf, U32 SubLeaf, LPCPUIDREGISTERS Registers) {
 /************************************************************************/
 
 static U32 DetectCPUBaseFrequencyMHz(void) {
-    CPUIDREGISTERS Leaf0;
-    CPUIDREGISTERS Leaf15;
-    CPUIDREGISTERS Leaf16;
+    CPU_ID_REGISTERS Leaf0;
+    CPU_ID_REGISTERS Leaf15;
+    CPU_ID_REGISTERS Leaf16;
     U32 MaximumBasicLeaf;
 
     MemorySet(&Leaf0, 0, sizeof(Leaf0));
@@ -1201,7 +1176,7 @@ static U32 DetectCPUBaseFrequencyMHz(void) {
  * @return TRUE on success.
  */
 BOOL GetCPUInformation(LPCPU_INFORMATION Info) {
-    CPUIDREGISTERS Regs[8];
+    CPU_ID_REGISTERS Regs[8];
 
     MemorySet(Info, 0, sizeof(CPU_INFORMATION));
 

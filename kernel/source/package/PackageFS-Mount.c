@@ -61,7 +61,7 @@ U32 PackageFSMountFromBuffer(LPCVOID PackageBytes,
         EffectiveOptions = *Options;
     }
 
-    FileSystem = (LPPACKAGEFSFILESYSTEM)CreateKernelObject(sizeof(PACKAGEFSFILESYSTEM), KOID_FILESYSTEM);
+    FileSystem = (LPPACKAGEFSFILESYSTEM)CreateKernelObject(sizeof(PACKAGE_FS_FILESYSTEM), KOID_FILESYSTEM);
     if (FileSystem == NULL) {
         return DF_RETURN_NO_MEMORY;
     }

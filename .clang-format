@@ -3,7 +3,15 @@ UseTab: Never
 IndentWidth: 4
 TabWidth: 4
 ContinuationIndentWidth: 4
+BinPackArguments: false
 AlignAfterOpenBracket: AlwaysBreak
 ColumnLimit: 120
 DerivePointerAlignment: false
 PointerAlignment: Left
+SortIncludes: Never
+IncludeBlocks: Preserve
+BinPackParameters: false
+MaxEmptyLinesToKeep: 2
+IndentPPDirectives: BeforeHash
+AllowShortFunctionsOnASingleLine: None
+Cpp11BracedListStyle: false

@@ -46,20 +46,19 @@
 
 static UINT InterruptsDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION InterruptsDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INTERRUPT,
-    .VersionMajor = INTERRUPTS_VER_MAJOR,
-    .VersionMinor = INTERRUPTS_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Intel",
-    .Product = "Interrupts",
-    .Alias = "interrupts",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = InterruptsDriverCommands};
+DRIVER DATA_SECTION InterruptsDriver = { .TypeID = KOID_DRIVER,
+                                         .References = 1,
+                                         .Next = NULL,
+                                         .Prev = NULL,
+                                         .Type = DRIVER_TYPE_INTERRUPT,
+                                         .VersionMajor = INTERRUPTS_VER_MAJOR,
+                                         .VersionMinor = INTERRUPTS_VER_MINOR,
+                                         .Designer = "Jango73",
+                                         .Manufacturer = "Intel",
+                                         .Product = "Interrupts",
+                                         .Alias = "interrupts",
+                                         .Flags = DRIVER_FLAG_CRITICAL,
+                                         .Command = InterruptsDriverCommands };
 
 /************************************************************************/
 
@@ -67,7 +66,9 @@ DRIVER DATA_SECTION InterruptsDriver = {
  * @brief Retrieves the interrupts driver descriptor.
  * @return Pointer to the interrupts driver.
  */
-LPDRIVER InterruptsGetDriver(void) { return &InterruptsDriver; }
+LPDRIVER InterruptsGetDriver(void) {
+    return &InterruptsDriver;
+}
 
 /************************************************************************\
 
@@ -377,8 +378,11 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
         LINEAR MinimumIst1Base =
             Task->Arch.SystemStack.Base + (LINEAR)Task->Arch.SystemStack.Size + X86_64_SYSTEM_STACK_GUARD_GAP;
         Task->Arch.Ist1Stack.Base = AllocRegion(
-            MinimumIst1Base, 0, Task->Arch.Ist1Stack.Size,
-            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER, TEXT("Ist1Stack"));
+            MinimumIst1Base,
+            0,
+            Task->Arch.Ist1Stack.Size,
+            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
+            TEXT("Ist1Stack"));
         Task->Arch.Ist1Stack.AllocationBase = Task->Arch.Ist1Stack.Base;
     } else {
         Task->Arch.Ist1Stack.Base = 0;
@@ -459,6 +463,11 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
     if (Info->Flags & TASK_CREATE_MAIN_KERNEL) {
         Task->SchedulerState.Status = TASK_STATUS_RUNNING;
 
+        // The boot task already runs on the boot stack and is never dispatched
+        // through JumpToReadyTask: mark it as started so the scheduler resumes
+        // its saved context instead of re-bootstrapping it on first switch back.
+        Task->SchedulerState.InitDone = TRUE;
+
         Task->Arch.Context.SS0 = SELECTOR_KERNEL_DATA;
         Task->Arch.Context.RSP0 = SysStackTop - STACK_SAFETY_MARGIN;
 
@@ -496,7 +505,10 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask) {
     SAFE_USE(NextTask) {
         FINE_DEBUG(
-            TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"), CurrentTask, CurrentTask->Name, NextTask,
+            TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
+            CurrentTask,
+            CurrentTask->Name,
+            NextTask,
             NextTask->Name);
 
         LINEAR NextSysStackTop = NextTask->Arch.SystemStack.Base + NextTask->Arch.SystemStack.Size;
@@ -527,7 +539,8 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         SetFS(NextTask->Arch.Context.Registers.FS);
         SetGS(NextTask->Arch.Context.Registers.GS);
         WriteMSR64(
-            IA32_FS_BASE_MSR, (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
+            IA32_FS_BASE_MSR,
+            (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
             (U32)(((U64)NextTask->Arch.UserTlsBase) >> 32));
         WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
 
@@ -557,7 +570,8 @@ BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
             SetFS(Task->Arch.Context.Registers.FS);
             SetGS(Task->Arch.Context.Registers.GS);
             WriteMSR64(
-                IA32_FS_BASE_MSR, (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+                IA32_FS_BASE_MSR,
+                (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
                 (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
             WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
         }
@@ -581,7 +595,8 @@ void RestoreCurrentTaskUserTlsBase(void) {
         }
 
         WriteMSR64(
-            IA32_FS_BASE_MSR, (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
+            IA32_FS_BASE_MSR,
+            (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
             (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
         WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
     }
@@ -688,8 +703,12 @@ void DebugLogSyscallFrame(LINEAR SaveArea, UINT FunctionId) {
     UNUSED(ReturnAddress);
 
     DEBUG(
-        TEXT("Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"), FunctionId, (LPVOID)SaveArea,
-        (LPVOID)StackPointer, (LPVOID)SavedRbxValue, (LPVOID)ReturnAddress);
+        TEXT("Function=%u SaveArea=%p StackPtr=%p SavedRBX=%p Return=%p"),
+        FunctionId,
+        (LPVOID)SaveArea,
+        (LPVOID)StackPointer,
+        (LPVOID)SavedRbxValue,
+        (LPVOID)ReturnAddress);
 }
 
 /************************************************************************/

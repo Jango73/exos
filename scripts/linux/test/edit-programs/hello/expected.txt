@@ -1,0 +1,1 @@
+EDIT_SMOKE_HELLO:Hello from an edited program

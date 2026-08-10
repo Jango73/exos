@@ -28,6 +28,7 @@
 #include "text/Text.h"
 #include "utils/ProcessAccess.h"
 #include "utils/SizeFormat.h"
+#include "network/ICMP.h"
 
 /************************************************************************/
 
@@ -45,7 +46,9 @@ static UINT RunEmbeddedDriverDetailsScript(LPSHELLCONTEXT Context, LPCSTR Alias)
     }
 
     StringPrintFormat(
-        ScriptText, TEXT("target_alias = \"%s\";\n%s"), Alias,
+        ScriptText,
+        TEXT("target_alias = \"%s\";\n%s"),
+        Alias,
         ShellGetEmbeddedScript(SHELL_EMBEDDED_SCRIPT_DRIVER_DETAILS));
     return RunEmbeddedScript(Context, ScriptText);
 }
@@ -143,8 +146,10 @@ static void MemoryMapPrintProcessHeader(LPPROCESS Process, LPPROCESS_MEMORY_CARV
 
     SizeFormatBytesText(U64_FromUINT(Snapshot->HeapSize), SizeText);
     ConsolePrint(
-        TEXT("  Heap : [%p, %p)  size : %s\n"), (LPVOID)Snapshot->HeapBase,
-        (LPVOID)(Snapshot->HeapBase + Snapshot->HeapSize), SizeText);
+        TEXT("  Heap : [%p, %p)  size : %s\n"),
+        (LPVOID)Snapshot->HeapBase,
+        (LPVOID)(Snapshot->HeapBase + Snapshot->HeapSize),
+        SizeText);
 
     ConsolePrint(
         TEXT("  Address space : %s  carved partition : %s\n"),
@@ -167,8 +172,12 @@ static void MemoryMapPrintArenas(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
         }
 
         ConsolePrint(
-            TEXT("  Arena %-8s : [%p, %p)  low=%p  high=%p\n"), MemoryAnalysisGetArenaName(ArenaIndex),
-            (LPVOID)Range->Base, (LPVOID)Range->Limit, (LPVOID)Range->NextLow, (LPVOID)Range->NextHigh);
+            TEXT("  Arena %-8s : [%p, %p)  low=%p  high=%p\n"),
+            MemoryAnalysisGetArenaName(ArenaIndex),
+            (LPVOID)Range->Base,
+            (LPVOID)Range->Limit,
+            (LPVOID)Range->NextLow,
+            (LPVOID)Range->NextHigh);
     }
 }
 
@@ -185,8 +194,13 @@ static void MemoryMapPrintRegions(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
         LPMEMORY_CARVING_REGION Region = &(Snapshot->Regions[RegionIndex]);
 
         ConsolePrint(
-            TEXT("    [%p, %p)  size=%u  pages=%u  attr=%x  tag=%s\n"), (LPVOID)Region->Base, (LPVOID)Region->Limit,
-            Region->Size, Region->PageCount, Region->Attributes, Region->Tag);
+            TEXT("    [%p, %p)  size=%u  pages=%u  attr=%x  tag=%s\n"),
+            (LPVOID)Region->Base,
+            (LPVOID)Region->Limit,
+            Region->Size,
+            Region->PageCount,
+            Region->Attributes,
+            Region->Tag);
     }
 }
 
@@ -203,8 +217,12 @@ static void MemoryMapPrintStacks(LPPROCESS_MEMORY_CARVING_SNAPSHOT Snapshot) {
         LPMEMORY_CARVING_STACK Stack = &(Snapshot->Stacks[StackIndex]);
 
         ConsolePrint(
-            TEXT("    [%p, %p)  size=%u  kind=%s  task=%s\n"), (LPVOID)Stack->Base, (LPVOID)Stack->Limit, Stack->Size,
-            MemoryAnalysisGetStackKindName(Stack->Kind), Stack->TaskName);
+            TEXT("    [%p, %p)  size=%u  kind=%s  task=%s\n"),
+            (LPVOID)Stack->Base,
+            (LPVOID)Stack->Limit,
+            Stack->Size,
+            MemoryAnalysisGetStackKindName(Stack->Kind),
+            Stack->TaskName);
     }
 }
 
@@ -221,8 +239,11 @@ static void MemoryMapPrintIssues(LPMEMORY_CARVING_REPORT Report) {
     UINT InfoCount = MemoryAnalysisCountSeverity(Report, MEMORY_CARVING_SEVERITY_INFO);
 
     ConsolePrint(
-        TEXT("  Carving issues : %u errors, %u warnings, %u info  (overlaps : %u)\n"), ErrorCount, WarningCount,
-        InfoCount, Report->OverlapCount);
+        TEXT("  Carving issues : %u errors, %u warnings, %u info  (overlaps : %u)\n"),
+        ErrorCount,
+        WarningCount,
+        InfoCount,
+        Report->OverlapCount);
 
     for (UINT IssueIndex = 0; IssueIndex < Report->IssueCount; IssueIndex++) {
         LPMEMORY_CARVING_ISSUE Issue = &(Report->Issues[IssueIndex]);
@@ -266,7 +287,10 @@ static void MemoryMapPrintHeapFragmentation(LPPROCESS Process, LPPROCESS_MEMORY_
     SizeFormatBytesText(U64_FromUINT(Fragmentation.LargestFreeBlock), SizeText);
     ConsolePrint(
         TEXT("  Heap fragmentation : freeBlocks=%u  largest=%s  freeBytes=%u  totalBytes=%u  fragmentation=%u%%\n"),
-        Fragmentation.FreeBlockCount, SizeText, Fragmentation.FreeBytes, Fragmentation.TotalBytes,
+        Fragmentation.FreeBlockCount,
+        SizeText,
+        Fragmentation.FreeBytes,
+        Fragmentation.TotalBytes,
         Fragmentation.FragmentationPercent);
 }
 
@@ -470,8 +494,14 @@ static void PrintProfileEntry(LPPROFILE_ENTRY_INFO Entry) {
     }
 
     PrintProfileDumpLine(
-        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us"), Entry->Name, Entry->CallCount,
-        Entry->TimedCallCount, Entry->LastTicks, Average, Entry->MaxTicks, Entry->TotalTicks);
+        TEXT("%-32s calls=%u timed=%u last=%u us avg=%u us max=%u us total=%u us"),
+        Entry->Name,
+        Entry->CallCount,
+        Entry->TimedCallCount,
+        Entry->LastTicks,
+        Average,
+        Entry->MaxTicks,
+        Entry->TotalTicks);
 }
 
 /************************************************************************/
@@ -518,9 +548,98 @@ U32 CMD_profiling(LPSHELLCONTEXT Context) {
     }
 
     PrintProfileDumpLine(
-        TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s"), Query.EntryCount, Query.TotalEntryCount,
-        Query.SampleCount, Query.DroppedCount,
+        TEXT("entries=%u total_entries=%u samples=%u dropped=%u%s"),
+        Query.EntryCount,
+        Query.TotalEntryCount,
+        Query.SampleCount,
+        Query.DroppedCount,
         (Query.Flags & PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
+    return DF_RETURN_SUCCESS;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Print one task statistics snapshot entry.
+ * @param Entry Snapshot entry to print.
+ */
+static void PrintTaskProfileEntry(LPTASK_PROFILE_ENTRY_INFO Entry) {
+    if (Entry == NULL) {
+        return;
+    }
+
+    PrintProfileDumpLine(
+        TEXT("%-24s status=%u prio=%u quantum=%u used=%u max=%u run=%u sleep=%u wakeLat=%u disp=%u prempt=%u woken=%u"),
+        Entry->Name,
+        Entry->Status,
+        Entry->Priority,
+        Entry->QuantumGrantedMilliseconds,
+        Entry->QuantumUsedMilliseconds,
+        Entry->MaxQuantumUsedMilliseconds,
+        Entry->TotalRunTimeMilliseconds,
+        Entry->TotalSleepTimeMilliseconds,
+        Entry->TotalWakeupLatencyMilliseconds,
+        Entry->DispatchCount,
+        Entry->PreemptionCount,
+        Entry->WakeupCount);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Show per-task scheduling statistics.
+ * @param Context Shell context.
+ * @return DF_RETURN_SUCCESS on completion.
+ */
+U32 CMD_taskStat(LPSHELLCONTEXT Context) {
+    TASK_PROFILE_ENTRY_INFO Entries[TASK_PROFILE_MAX_ENTRIES];
+    TASK_PROFILE_QUERY_INFO Query;
+    UINT Result;
+
+    MemorySet(Entries, 0, sizeof(Entries));
+    MemorySet(&Query, 0, sizeof(Query));
+
+    ParseNextCommandLineComponent(Context);
+
+    Query.Header.Size = sizeof(Query);
+    Query.Header.Version = EXOS_ABI_VERSION;
+    Query.Header.Flags = 0;
+    Query.Capacity = TASK_PROFILE_MAX_ENTRIES;
+    Query.Flags = 0;
+    Query.Entries = Entries;
+
+    if (StringLength(Context->Command) != 0) {
+        if (StringCompareNC(Context->Command, TEXT("reset")) == 0) {
+            Query.Flags = TASK_PROFILE_QUERY_FLAG_RESET;
+        } else {
+            ConsolePrint(TEXT("Usage: taskStat [reset]\n"));
+            return DF_RETURN_SUCCESS;
+        }
+    }
+
+    Result = DoSystemCall(SYSCALL_GetTaskProfileInfo, SYSCALL_PARAM(&Query));
+    if (Result != DF_RETURN_SUCCESS) {
+        ConsolePrint(TEXT("Task statistics snapshot unavailable.\n"));
+        return Result;
+    }
+
+    if (Query.EntryCount == 0) {
+        PrintProfileDumpLine(TEXT("No task statistics available."));
+        return DF_RETURN_SUCCESS;
+    }
+
+    for (UINT Index = 0; Index < Query.EntryCount; ++Index) {
+        PrintTaskProfileEntry(&Entries[Index]);
+    }
+
+    PrintProfileDumpLine(
+        TEXT("tasks=%u dispatches=%u run=%u sleep=%u%s"),
+        Query.TotalTaskCount,
+        Query.TotalDispatchCount,
+        Query.TotalRunTimeMilliseconds,
+        Query.TotalSleepTimeMilliseconds,
+        (Query.Flags & TASK_PROFILE_QUERY_FLAG_RESET) != 0 ? TEXT(" reset=yes") : TEXT(""));
+    TEST(TEXT("taskStat : OK"));
     return DF_RETURN_SUCCESS;
 }
 
@@ -532,21 +651,34 @@ U32 CMD_profiling(LPSHELLCONTEXT Context) {
  * @return DF_RETURN_SUCCESS.
  */
 U32 CMD_autotest(LPSHELLCONTEXT Context) {
+    U8 TestName[64];
     BOOL Result = FALSE;
 
     ParseNextCommandLineComponent(Context);
 
-    if (StringLength(Context->Command) == 0 || StringCompareNC(Context->Command, TEXT("stack")) != 0) {
-        ConsolePrint(TEXT("Usage: autotest stack\n"));
+    if (StringLength(Context->Command) == 0) {
+        ConsolePrint(TEXT("Usage: autotest <testname>\n"));
+        ListAllTests();
         return DF_RETURN_SUCCESS;
     }
 
-    Result = RunSingleTestByName(TEXT("TestCopyStack"));
+    if (StringCompareNC(Context->Command, TEXT("stack")) == 0) {
+        StringCopy(TestName, TEXT("TestCopyStack"));
+    } else if (StringCompareNC(Context->Command, TEXT("udp")) == 0) {
+        StringCopy(TestName, TEXT("TestUDP"));
+    } else if (StringCompareNC(Context->Command, TEXT("tcp")) == 0) {
+        StringCopy(TestName, TEXT("TestTCP"));
+    } else {
+        StringCopy(TestName, Context->Command);
+    }
+
+    Result = RunSingleTestByName(TestName);
 
     if (Result) {
-        ConsolePrint(TEXT("autotest stack: passed\n"));
+        ConsolePrint(TEXT("autotest %s: passed\n"), Context->Command);
     } else {
-        ConsolePrint(TEXT("autotest stack: failed\n"));
+        ConsolePrint(TEXT("autotest %s: failed\n"), Context->Command);
+        ERROR(TEXT("autotest %s failed"), Context->Command);
     }
 
     return DF_RETURN_SUCCESS;
@@ -622,6 +754,169 @@ U32 CMD_credits(LPSHELLCONTEXT Context) {
     UNUSED(Context);
 
     ConsolePrint(Text_Credits);
+
+    return DF_RETURN_SUCCESS;
+}
+
+/************************************************************************/
+
+#define PING_DEFAULT_COUNT 4
+#define PING_TIMEOUT_MILLISECONDS 2000
+#define PING_POLL_INTERVAL_MILLISECONDS 20
+
+/**
+ * @brief Send ICMP echo requests to an IPv4 address.
+ * @param Context Shell context.
+ * @return DF_RETURN_SUCCESS on completion.
+ */
+U32 CMD_ping(LPSHELLCONTEXT Context) {
+    STR TargetString[32];
+    STR DisplayTarget[32];
+    U32 TargetIP;
+    U32 Count = PING_DEFAULT_COUNT;
+    LPPCI_DEVICE Device;
+    U32 PingIndex;
+    U32 SentCount = 0;
+    U32 ReceivedCount = 0;
+
+    ParseNextCommandLineComponent(Context);
+    if (StringLength(Context->Command) == 0) {
+        ConsolePrint(TEXT("Usage: ping IPv4Address [Count]\n"));
+        return DF_RETURN_SUCCESS;
+    }
+
+    StringCopyLimit(DisplayTarget, Context->Command, sizeof(DisplayTarget));
+    TargetIP = ParseIPAddress(Context->Command);
+    if (TargetIP == 0) {
+        ConsolePrint(TEXT("Invalid IPv4 address: %s\n"), DisplayTarget);
+        return DF_RETURN_SUCCESS;
+    }
+    StringCopyLimit(TargetString, DisplayTarget, sizeof(TargetString));
+
+    ParseNextCommandLineComponent(Context);
+    if (StringLength(Context->Command) != 0) {
+        U32 ParsedCount = StringToU32(Context->Command);
+        if (ParsedCount != 0 && ParsedCount <= 64) {
+            Count = ParsedCount;
+        }
+    }
+
+    Device = NetworkManager_GetPrimaryDevice();
+    if (Device == NULL) {
+        ConsolePrint(TEXT("No network device available\n"));
+        return DF_RETURN_SUCCESS;
+    }
+
+    if (!NetworkManager_IsDeviceReady((LPDEVICE)Device)) {
+        ConsolePrint(TEXT("Network device is not ready\n"));
+        return DF_RETURN_SUCCESS;
+    }
+
+    ConsolePrint(TEXT("Pinging %s with %u request(s)\n"), TargetString, Count);
+
+    for (PingIndex = 0; PingIndex < Count; PingIndex++) {
+        U16 Identifier;
+        U16 SequenceNumber;
+        U32 StartTick;
+        ICMP_ECHO_STATUS Status = ICMP_ECHO_PENDING;
+
+        if (!ICMP_StartEcho((LPDEVICE)Device, TargetIP, &Identifier, &SequenceNumber)) {
+            ConsolePrint(TEXT("Ping request failed\n"));
+            break;
+        }
+        SentCount++;
+
+        StartTick = GetSystemTime();
+        while ((GetSystemTime() - StartTick) < PING_TIMEOUT_MILLISECONDS) {
+            U32 ReplySource;
+            U32 RoundTripMilliseconds;
+
+            Status = ICMP_CheckEcho(Identifier, SequenceNumber, &ReplySource, &RoundTripMilliseconds);
+            if (Status == ICMP_ECHO_RECEIVED) {
+                STR ReplyIpString[24];
+                FormatIPv4(ReplySource, ReplyIpString);
+                ConsolePrint(TEXT("Reply from %s: time=%ums\n"), ReplyIpString, RoundTripMilliseconds);
+                ReceivedCount++;
+                break;
+            }
+            Sleep(PING_POLL_INTERVAL_MILLISECONDS);
+        }
+
+        if (Status != ICMP_ECHO_RECEIVED) {
+            ConsolePrint(TEXT("Request timed out\n"));
+        }
+
+        ICMP_CancelEcho(Identifier, SequenceNumber);
+    }
+
+    ConsolePrint(
+        TEXT("Ping statistics: sent=%u received=%u lost=%u\n"), SentCount, ReceivedCount, SentCount - ReceivedCount);
+    TEST(TEXT("ping %s sent=%u received=%u : OK"), TargetString, SentCount, ReceivedCount);
+
+    return DF_RETURN_SUCCESS;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Resolve a host name to an IPv4 address through DNS.
+ * @param Context Shell context.
+ * @return DF_RETURN_SUCCESS on completion.
+ */
+
+U32 CMD_dnsresolve(LPSHELLCONTEXT Context) {
+    STR DisplayName[DNS_RESOLVE_MAX_HOST_NAME_LENGTH + 1];
+    STR StatusText[32];
+    DNS_RESOLVE_INFO Info;
+
+    ParseNextCommandLineComponent(Context);
+    if (StringLength(Context->Command) == 0) {
+        ConsolePrint(TEXT("Usage: dnsresolve HostName\n"));
+        return DF_RETURN_SUCCESS;
+    }
+
+    StringCopyLimit(DisplayName, Context->Command, sizeof(DisplayName));
+
+    MemorySet(&Info, 0, sizeof(Info));
+    Info.Header.Size = sizeof(Info);
+    Info.Header.Version = EXOS_ABI_VERSION;
+    Info.Header.Flags = 0;
+    Info.TimeoutMillis = DNS_RESOLVE_DEFAULT_TIMEOUT_MILLISECONDS;
+    StringCopyLimit(Info.Name, DisplayName, sizeof(Info.Name));
+
+    ConsolePrint(TEXT("Resolving %s ...\n"), DisplayName);
+
+    DoSystemCall(SYSCALL_DNSResolve, SYSCALL_PARAM(&Info));
+
+    if (Info.Status == DNS_RESOLVE_STATUS_SUCCESS) {
+        STR IpString[24];
+        FormatIPv4(Info.IP_Be, IpString);
+
+        ConsolePrint(TEXT("Resolved %s to %s\n"), DisplayName, IpString);
+        TEST(TEXT("dnsresolve %s : OK"), DisplayName);
+        return DF_RETURN_SUCCESS;
+    }
+
+    switch (Info.Status) {
+        case DNS_RESOLVE_STATUS_TIMEOUT:
+            StringCopy(StatusText, TEXT("timed out"));
+            break;
+        case DNS_RESOLVE_STATUS_NAME_ERROR:
+            StringCopy(StatusText, TEXT("name error (NXDOMAIN)"));
+            break;
+        case DNS_RESOLVE_STATUS_NO_ANSWER:
+            StringCopy(StatusText, TEXT("no A record"));
+            break;
+        case DNS_RESOLVE_STATUS_TRUNCATED:
+            StringCopy(StatusText, TEXT("truncated response"));
+            break;
+        default:
+            StringCopy(StatusText, TEXT("error"));
+            break;
+    }
+
+    ConsolePrint(TEXT("Resolution of %s %s\n"), DisplayName, StatusText);
+    TEST(TEXT("dnsresolve %s : %s"), DisplayName, StatusText);
 
     return DF_RETURN_SUCCESS;
 }

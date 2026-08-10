@@ -67,12 +67,12 @@ static void PackageFSDecodeDateTime(U64 Packed, LPDATETIME OutTime) {
 static LPPACKAGEFS_NODE PackageFSCreateNode(LPCSTR Name, LPPACKAGEFS_NODE Parent) {
     LPPACKAGEFS_NODE Node;
 
-    Node = (LPPACKAGEFS_NODE)KernelHeapAlloc(sizeof(PACKAGEFS_NODE));
+    Node = (LPPACKAGEFS_NODE)KernelHeapAlloc(sizeof(PACKAGE_FS_NODE));
     if (Node == NULL) {
         return NULL;
     }
 
-    MemorySet(Node, 0, sizeof(PACKAGEFS_NODE));
+    MemorySet(Node, 0, sizeof(PACKAGE_FS_NODE));
     Node->ParentNode = Parent;
     Node->NodeType = PACKAGEFS_NODE_TYPE_ROOT;
     Node->TocIndex = MAX_U32;

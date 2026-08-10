@@ -54,13 +54,13 @@ typedef BOOL (*COMMANDLINEEDITOR_IDLE_CALLBACK)(LPVOID);
 /***************************************************************************/
 
 typedef struct tag_COMMANDLINEEDITOR {
-    STRINGARRAY History;
+    STRING_ARRAY History;
     U32 HistoryCapacity;
     COMMANDLINEEDITOR_COMPLETION_CALLBACK CompletionCallback;
     LPVOID CompletionUserData;
     COMMANDLINEEDITOR_IDLE_CALLBACK IdleCallback;
     LPVOID IdleUserData;
-} COMMANDLINEEDITOR, *LPCOMMANDLINEEDITOR;
+} COMMAND_LINE_EDITOR, *LPCOMMANDLINEEDITOR;
 
 /***************************************************************************/
 

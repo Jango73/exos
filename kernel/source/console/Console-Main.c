@@ -714,7 +714,7 @@ int SetConsoleForeColor(U32 Color) {
 /***************************************************************************/
 
 BOOL ConsoleGetString(LPSTR Buffer, U32 Size) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
     U32 Index = 0;
     U32 Done = 0;
 
@@ -1132,7 +1132,7 @@ UINT ConsoleGetModeCount(void) {
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
 UINT ConsoleGetModeInfo(LPCONSOLE_MODE_INFO Info) {
-    VGAMODEINFO VgaInfo;
+    VGA_MODE_INFO VgaInfo;
 
     if (Info == NULL) return DF_RETURN_GENERIC;
 

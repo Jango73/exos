@@ -36,7 +36,7 @@ typedef struct tag_STRINGARRAY {
     U32 Capacity;
     U32 Count;
     LPSTR *Items;
-} STRINGARRAY, *LPSTRINGARRAY;
+} STRING_ARRAY, *LPSTRINGARRAY;
 
 /***************************************************************************/
 

@@ -225,7 +225,7 @@ typedef struct tag_INTEL_GFX_STATE {
     U32 FrameBufferSize;
     LINEAR ShadowFrameBufferLinear;
     UINT ShadowFrameBufferSize;
-    GRAPHICSCONTEXT Context;
+    GRAPHICS_CONTEXT Context;
     INTEL_GFX_CAPS IntelCapabilities;
     GFX_CAPABILITIES Capabilities;
     U32 NextSurfaceId;

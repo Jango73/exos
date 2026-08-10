@@ -37,59 +37,60 @@
 /***************************************************************************/
 // I/O APIC register offsets (indirect access via IOREGSEL/IOWIN)
 
-#define IOAPIC_REGSEL               0x00        // I/O Register Select (Index)
-#define IOAPIC_IOWIN                0x10        // I/O Window (Data)
+#define IOAPIC_REGSEL 0x00  // I/O Register Select (Index)
+#define IOAPIC_IOWIN 0x10   // I/O Window (Data)
 
 /***************************************************************************/
 // I/O APIC register indices (values to write to IOREGSEL)
 
-#define IOAPIC_REG_ID               0x00        // I/O APIC ID
-#define IOAPIC_REG_VER              0x01        // I/O APIC Version
-#define IOAPIC_REG_ARB              0x02        // I/O APIC Arbitration ID
-#define IOAPIC_REG_REDTBL_BASE      0x10        // Redirection Table entries (0x10-0x3F)
+#define IOAPIC_REG_ID 0x00           // I/O APIC ID
+#define IOAPIC_REG_VER 0x01          // I/O APIC Version
+#define IOAPIC_REG_ARB 0x02          // I/O APIC Arbitration ID
+#define IOAPIC_REG_REDTBL_BASE 0x10  // Redirection Table entries (0x10-0x3F)
 
 /***************************************************************************/
 // I/O APIC ID Register bits
 
-#define IOAPIC_ID_MASK              0x0F000000  // APIC ID field mask
-#define IOAPIC_ID_SHIFT             24          // APIC ID field shift
+#define IOAPIC_ID_MASK 0x0F000000  // APIC ID field mask
+#define IOAPIC_ID_SHIFT 24         // APIC ID field shift
 
 /***************************************************************************/
 // I/O APIC Version Register bits
 
-#define IOAPIC_VER_VERSION_MASK     0x000000FF  // Version field mask
-#define IOAPIC_VER_MRE_MASK         0x00FF0000  // Maximum Redirection Entry mask
-#define IOAPIC_VER_MRE_SHIFT        16          // Maximum Redirection Entry shift
+#define IOAPIC_VER_VERSION_MASK 0x000000FF  // Version field mask
+#define IOAPIC_VER_MRE_MASK 0x00FF0000      // Maximum Redirection Entry mask
+#define IOAPIC_VER_MRE_SHIFT 16             // Maximum Redirection Entry shift
 
 /***************************************************************************/
 // Redirection Table Entry bits (64-bit entry, split into low/high 32-bit)
 
 // Low 32 bits (REDTBL+0)
-#define IOAPIC_REDTBL_VECTOR_MASK   0x000000FF  // Interrupt Vector
-#define IOAPIC_REDTBL_DELMOD_MASK   0x00000700  // Delivery Mode mask
-#define IOAPIC_REDTBL_DELMOD_FIXED  0x00000000  // Fixed delivery mode
+#define IOAPIC_REDTBL_VECTOR_MASK 0x000000FF    // Interrupt Vector
+#define IOAPIC_REDTBL_DELMOD_MASK 0x00000700    // Delivery Mode mask
+#define IOAPIC_REDTBL_DELMOD_FIXED 0x00000000   // Fixed delivery mode
 #define IOAPIC_REDTBL_DELMOD_LOWEST 0x00000100  // Lowest Priority delivery mode
-#define IOAPIC_REDTBL_DELMOD_SMI    0x00000200  // SMI delivery mode
-#define IOAPIC_REDTBL_DELMOD_NMI    0x00000400  // NMI delivery mode
-#define IOAPIC_REDTBL_DELMOD_INIT   0x00000500  // INIT delivery mode
+#define IOAPIC_REDTBL_DELMOD_SMI 0x00000200     // SMI delivery mode
+#define IOAPIC_REDTBL_DELMOD_NMI 0x00000400     // NMI delivery mode
+#define IOAPIC_REDTBL_DELMOD_INIT 0x00000500    // INIT delivery mode
 #define IOAPIC_REDTBL_DELMOD_EXTINT 0x00000700  // ExtINT delivery mode
-#define IOAPIC_REDTBL_DESTMOD       0x00000800  // Destination Mode (0=Physical, 1=Logical)
-#define IOAPIC_REDTBL_DELIVS        0x00001000  // Delivery Status (RO)
-#define IOAPIC_REDTBL_INTPOL        0x00002000  // Interrupt Input Pin Polarity
-#define IOAPIC_REDTBL_REMOTEIRR     0x00004000  // Remote IRR (RO)
-#define IOAPIC_REDTBL_TRIGGERMOD    0x00008000  // Trigger Mode (0=Edge, 1=Level)
-#define IOAPIC_REDTBL_MASK          0x00010000  // Interrupt Mask
+#define IOAPIC_REDTBL_DESTMOD 0x00000800        // Destination Mode (0=Physical, 1=Logical)
+#define IOAPIC_REDTBL_DELIVS 0x00001000         // Delivery Status (RO)
+#define IOAPIC_REDTBL_INTPOL 0x00002000         // Interrupt Input Pin Polarity
+#define IOAPIC_REDTBL_REMOTEIRR 0x00004000      // Remote IRR (RO)
+#define IOAPIC_REDTBL_TRIGGERMOD 0x00008000     // Trigger Mode (0=Edge, 1=Level)
+#define IOAPIC_REDTBL_MASK 0x00010000           // Interrupt Mask
 
 // High 32 bits (REDTBL+1) - contains destination field
-#define IOAPIC_REDTBL_DEST_MASK     0xFF000000  // Destination field mask
-#define IOAPIC_REDTBL_DEST_SHIFT    24          // Destination field shift
+#define IOAPIC_REDTBL_DEST_MASK 0xFF000000  // Destination field mask
+#define IOAPIC_REDTBL_DEST_SHIFT 24         // Destination field shift
 
 /***************************************************************************/
 // I/O APIC constants
 
-#define IOAPIC_MAX_ENTRIES          24          // Maximum redirection entries per I/O APIC
-#define IOAPIC_IRQ_BASE             0x20        // Base interrupt vector for I/O APIC (avoid PIC conflicts)
-#define IOAPIC_SPURIOUS_VECTOR      0xFF        // Spurious interrupt vector
+#define IOAPIC_MAX_ENTRIES 24        // Maximum redirection entries per I/O APIC
+#define IOAPIC_MAX_CONTROLLERS 8     // Maximum number of I/O APIC controllers
+#define IOAPIC_IRQ_BASE 0x20         // Base interrupt vector for I/O APIC (avoid PIC conflicts)
+#define IOAPIC_SPURIOUS_VECTOR 0xFF  // Spurious interrupt vector
 
 /***************************************************************************/
 // Redirection Table Entry structure
@@ -97,50 +98,50 @@
 typedef struct tag_IOAPIC_REDIRECTION_ENTRY {
     union {
         struct {
-            U32 Vector          : 8;    // Interrupt vector (0-255)
-            U32 DeliveryMode    : 3;    // Delivery mode
-            U32 DestMode        : 1;    // Destination mode (0=Physical, 1=Logical)
-            U32 DeliveryStatus  : 1;    // Delivery status (read-only)
-            U32 IntPolarity     : 1;    // Interrupt polarity (0=Active High, 1=Active Low)
-            U32 RemoteIRR       : 1;    // Remote IRR (read-only)
-            U32 TriggerMode     : 1;    // Trigger mode (0=Edge, 1=Level)
-            U32 Mask            : 1;    // Interrupt mask (0=Enabled, 1=Disabled)
-            U32 Reserved1       : 15;   // Reserved
+            U32 Vector : 8;          // Interrupt vector (0-255)
+            U32 DeliveryMode : 3;    // Delivery mode
+            U32 DestMode : 1;        // Destination mode (0=Physical, 1=Logical)
+            U32 DeliveryStatus : 1;  // Delivery status (read-only)
+            U32 IntPolarity : 1;     // Interrupt polarity (0=Active High, 1=Active Low)
+            U32 RemoteIRR : 1;       // Remote IRR (read-only)
+            U32 TriggerMode : 1;     // Trigger mode (0=Edge, 1=Level)
+            U32 Mask : 1;            // Interrupt mask (0=Enabled, 1=Disabled)
+            U32 Reserved1 : 15;      // Reserved
         };
         U32 Low;
     };
     union {
         struct {
-            U32 Reserved2       : 24;   // Reserved
-            U32 Destination     : 8;    // Destination field
+            U32 Reserved2 : 24;   // Reserved
+            U32 Destination : 8;  // Destination field
         };
         U32 High;
     };
-} IOAPIC_REDIRECTION_ENTRY, *LPIOAPIC_REDIRECTION_ENTRY;
+} IO_APIC_REDIRECTION_ENTRY, *LPIOAPIC_REDIRECTION_ENTRY;
 
 /***************************************************************************/
 // I/O APIC controller information
 
 typedef struct tag_IOAPIC_CONTROLLER {
-    U8      IoApicId;               // I/O APIC ID from ACPI
-    U32     PhysicalAddress;        // Physical base address
-    LINEAR  MappedAddress;          // Virtual address where I/O APIC is mapped
-    U32     GlobalInterruptBase;    // Global system interrupt base
-    U8      Version;                // I/O APIC version
-    U8      MaxRedirectionEntry;    // Maximum redirection entry (0-based)
-    BOOL    Present;                // TRUE if I/O APIC is present and mapped
-} IOAPIC_CONTROLLER, *LPIOAPIC_CONTROLLER;
+    U8 IoApicId;              // I/O APIC ID from ACPI
+    U32 PhysicalAddress;      // Physical base address
+    LINEAR MappedAddress;     // Virtual address where I/O APIC is mapped
+    U32 GlobalInterruptBase;  // Global system interrupt base
+    U8 Version;               // I/O APIC version
+    U8 MaxRedirectionEntry;   // Maximum redirection entry (0-based)
+    BOOL Present;             // TRUE if I/O APIC is present and mapped
+} IO_APIC_CONTROLLER, *LPIOAPIC_CONTROLLER;
 
 /***************************************************************************/
 // I/O APIC configuration
 
 typedef struct tag_IOAPIC_CONFIG {
-    BOOL    Initialized;            // TRUE if I/O APIC subsystem is initialized
-    U32     ControllerCount;        // Number of I/O APIC controllers
-    U32     TotalInterrupts;        // Total number of interrupt inputs across all I/O APICs
-    U32     NextFreeVector;         // Next available interrupt vector
-    IOAPIC_CONTROLLER Controllers[8]; // Array of I/O APIC controllers (max 8)
-} IOAPIC_CONFIG, *LPIOAPIC_CONFIG;
+    BOOL Initialized;                                        // TRUE if I/O APIC subsystem is initialized
+    U32 ControllerCount;                                     // Number of I/O APIC controllers
+    U32 TotalInterrupts;                                     // Total number of interrupt inputs across all I/O APICs
+    U32 NextFreeVector;                                      // Next available interrupt vector
+    IO_APIC_CONTROLLER Controllers[IOAPIC_MAX_CONTROLLERS];  // Array of I/O APIC controllers
+} IO_APIC_CONFIG, *LPIOAPIC_CONFIG;
 
 /***************************************************************************/
 // Function prototypes
@@ -259,4 +260,4 @@ void SetDefaultIOAPICConfiguration(void);
 
 #pragma pack(pop)
 
-#endif // IOAPIC_H_INCLUDED
+#endif  // IOAPIC_H_INCLUDED

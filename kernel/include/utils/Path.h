@@ -40,9 +40,9 @@ LPLIST DecomposePath(LPCSTR Path);
 typedef struct tag_PATHCOMPLETION {
     LPFILESYSTEM FileSystem;
     STR Base[MAX_PATH_NAME];
-    STRINGARRAY Matches;
+    STRING_ARRAY Matches;
     U32 Index;
-} PATHCOMPLETION, *LPPATHCOMPLETION;
+} PATH_COMPLETION, *LPPATHCOMPLETION;
 
 /***************************************************************************/
 

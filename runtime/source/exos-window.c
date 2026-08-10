@@ -602,7 +602,7 @@ HANDLE CreatePen(LPPEN_INFO PenInfo) { return exoscall(SYSCALL_CreatePen, EXOS_P
 /***************************************************************************/
 
 HANDLE SelectBrush(HANDLE GC, HANDLE Brush) {
-    GCSELECT Select;
+    GC_SELECT Select;
 
     Select.Header.Size = sizeof Select;
     Select.Header.Version = EXOS_ABI_VERSION;
@@ -616,7 +616,7 @@ HANDLE SelectBrush(HANDLE GC, HANDLE Brush) {
 /***************************************************************************/
 
 HANDLE SelectPen(HANDLE GC, HANDLE Pen) {
-    GCSELECT Select;
+    GC_SELECT Select;
 
     Select.Header.Size = sizeof Select;
     Select.Header.Version = EXOS_ABI_VERSION;

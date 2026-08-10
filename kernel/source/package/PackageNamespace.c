@@ -38,9 +38,9 @@ typedef struct tag_PACKAGENAMESPACE_PATHS {
     STR PrivatePackageAlias[MAX_PATH_NAME];
     STR PrivateUserDataAlias[MAX_PATH_NAME];
     BOOL Loaded;
-} PACKAGENAMESPACE_PATHS;
+} PACKAGE_NAMESPACE_PATHS;
 
-static PACKAGENAMESPACE_PATHS PackageNamespacePaths = {
+static PACKAGE_NAMESPACE_PATHS PackageNamespacePaths = {
     .UsersRoot = "",
     .CurrentUserAlias = "",
     .PrivatePackageAlias = "",
@@ -108,7 +108,7 @@ static BOOL PackageNamespaceEnsurePathsLoaded(void) {
  * @return TRUE when path exists.
  */
 static BOOL PackageNamespacePathExists(LPCSTR Path) {
-    FILESYSTEM_PATHCHECK Check;
+    FILE_SYSTEM_PATH_CHECK Check;
 
     if (Path == NULL || Path[0] != PATH_SEP) return FALSE;
 
@@ -206,7 +206,7 @@ static BOOL PackageNamespaceBuildChildPath(LPCSTR Base, LPCSTR Name, STR OutPath
  * @return TRUE when mounted or already present.
  */
 static BOOL PackageNamespaceMountPath(LPFILESYSTEM FileSystem, LPCSTR Path, LPCSTR SourcePath) {
-    FILESYSTEM_MOUNT_CONTROL Control;
+    FILE_SYSTEM_MOUNT_CONTROL Control;
     U32 Result;
 
     if (FileSystem == NULL || Path == NULL || Path[0] != PATH_SEP) return FALSE;
@@ -263,7 +263,7 @@ static BOOL PackageNamespaceUnmountPath(LPCSTR Path) {
  * @return Active filesystem pointer or NULL when unavailable.
  */
 static LPFILESYSTEM PackageNamespaceGetActiveFileSystem(void) {
-    FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
+    FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
     LPLIST FileSystemList = GetFileSystemList();
     LPLISTNODE Node;
 

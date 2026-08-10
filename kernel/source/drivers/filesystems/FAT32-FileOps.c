@@ -185,7 +185,7 @@ static BOOL LocateFile(LPFAT32FILESYSTEM FileSystem, LPCSTR Path, LPFATFILELOC F
             //-------------------------------------
             // Advance to the next entry
 
-            FileLoc->Offset += sizeof(FATDIRENTRY_EXT);
+            FileLoc->Offset += sizeof(FAT_DIR_ENTRY_EXT);
 
             if (FileLoc->Offset >= FileSystem->BytesPerCluster) {
                 FileLoc->Offset = 0;
@@ -266,7 +266,7 @@ static U32 Initialize(void) { return DF_RETURN_SUCCESS; }
  */
 static U32 CreateFile(LPFILE_INFO File, BOOL IsFolder) {
     LPFAT32FILESYSTEM FileSystem = NULL;
-    FATFILELOC FileLoc;
+    FAT_FILE_LOCATION FileLoc;
     STR Component[MAX_FILE_NAME];
     STR Name[MAX_FILE_NAME];
     LPFATDIRENTRY_EXT DirEntry;
@@ -381,7 +381,7 @@ static U32 CreateFile(LPFILE_INFO File, BOOL IsFolder) {
             //-------------------------------------
             // Advance to the next entry
 
-            FileLoc.Offset += sizeof(FATDIRENTRY_EXT);
+            FileLoc.Offset += sizeof(FAT_DIR_ENTRY_EXT);
 
             if (FileLoc.Offset >= FileSystem->BytesPerCluster) {
                 FileLoc.Offset = 0;
@@ -433,7 +433,7 @@ static U32 CreateFile(LPFILE_INFO File, BOOL IsFolder) {
                                 }
                             }
 
-                            FileLoc.Offset += sizeof(FATDIRENTRY_EXT);
+                            FileLoc.Offset += sizeof(FAT_DIR_ENTRY_EXT);
                             if (FileLoc.Offset >= FileSystem->BytesPerCluster) {
                                 return DF_RETURN_GENERIC; // Should have found the directory we just created
                             }
@@ -486,7 +486,7 @@ static LPFATFILE OpenFile(LPFILE_INFO Find) {
     LPFAT32FILESYSTEM FileSystem = NULL;
     LPFATFILE File = NULL;
     LPFATDIRENTRY_EXT DirEntry = NULL;
-    FATFILELOC FileLoc;
+    FAT_FILE_LOCATION FileLoc;
     //-------------------------------------
     // Check validity of parameters
 
@@ -605,7 +605,7 @@ static U32 OpenNext(LPFATFILE File) {
     }
 
     FOREVER {
-        File->Location.Offset += sizeof(FATDIRENTRY_EXT);
+        File->Location.Offset += sizeof(FAT_DIR_ENTRY_EXT);
 
         if (File->Location.Offset >= FileSystem->BytesPerCluster) {
             File->Location.Offset = 0;
@@ -911,7 +911,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     //-------------------------------------
 
-    Master = (LPFAT32MBR)KernelHeapAlloc(sizeof(FAT32MBR));
+    Master = (LPFAT32MBR)KernelHeapAlloc(sizeof(FAT32_MBR));
 
     if (Master == NULL) return DF_RETURN_NO_MEMORY;
 

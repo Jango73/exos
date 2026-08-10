@@ -50,30 +50,30 @@
 #define PAGE_PRIVILEGE_KERNEL 0
 #define PAGE_PRIVILEGE_USER 1
 
-#define PAGE_ALIGN(a) (((a) + PAGE_SIZE - 1) & PAGE_MASK)
+#define PAGE_ALIGN(a) ALIGN_UP((a), PAGE_SIZE)
 
-#define VMA_RAM 0x00000000                         // Reserved for kernel
-#define VMA_VIDEO 0x000A0000                       // Reserved for kernel
-#define VMA_CONSOLE 0x000B8000                     // Reserved for kernel
-#define VMA_USER 0x00400000                        // Start of user address space
-#define VMA_USER_LIMIT 0xA0000000                    // Upper user arena anchor
+#define VMA_RAM 0x00000000                            // Reserved for kernel
+#define VMA_VIDEO 0x000A0000                          // Reserved for kernel
+#define VMA_CONSOLE 0x000B8000                        // Reserved for kernel
+#define VMA_USER 0x00400000                           // Start of user address space
+#define VMA_USER_LIMIT 0xA0000000                     // Upper user arena anchor
 #define VMA_TASK_RUNNER (VMA_USER_LIMIT - PAGE_SIZE)  // User alias for TaskRunner
 
 #ifndef CONFIG_VMA_KERNEL
-#error "CONFIG_VMA_KERNEL is not defined"
+    #error "CONFIG_VMA_KERNEL is not defined"
 #endif
 
 #if defined(__KERNEL__) && (CONFIG_VMA_KERNEL) > 0xFFFFFFFFu
-#error "CONFIG_VMA_KERNEL does not fit in 32 bits"
+    #error "CONFIG_VMA_KERNEL does not fit in 32 bits"
 #endif
 
 #define VMA_KERNEL (CONFIG_VMA_KERNEL)
 
 #define PAGE_PRIVILEGE(adr) ((adr >= VMA_USER && adr < VMA_KERNEL) ? PAGE_PRIVILEGE_USER : PAGE_PRIVILEGE_KERNEL)
 
-#define PD_RECURSIVE_SLOT 1023u         // PDE index used for self-map
-#define PD_VA ((LINEAR)0xFFFFF000)      // Page Directory linear alias
-#define PT_BASE_VA ((LINEAR)0xFFC00000) // Page Tables linear window
+#define PD_RECURSIVE_SLOT 1023u          // PDE index used for self-map
+#define PD_VA ((LINEAR)0xFFFFF000)       // Page Directory linear alias
+#define PT_BASE_VA ((LINEAR)0xFFC00000)  // Page Tables linear window
 
 #define PAGE_FLAG_PRESENT (1u << 0)
 #define PAGE_FLAG_READ_WRITE (1u << 1)

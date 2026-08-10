@@ -29,10 +29,13 @@
 #include "network/IPv4.h"
 #include "network/UDP.h"
 #include "network/DHCP.h"
+#include "network/DNS.h"
 #include "network/TCP.h"
+#include "network/ICMP.h"
 #include "core/Kernel.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
 #include "log/Log.h"
+#include "log/Profile.h"
 #include "memory/Memory.h"
 #include "network/Network.h"
 #include "core/Driver.h"
@@ -48,20 +51,19 @@
 
 static UINT NetworkManagerDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION NetworkManagerDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_NETWORK,
-    .VersionMajor = NETWORK_MANAGER_VER_MAJOR,
-    .VersionMinor = NETWORK_MANAGER_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "N/A",
-    .Product = "NetworkManager",
-    .Alias = "network",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = NetworkManagerDriverCommands};
+DRIVER DATA_SECTION NetworkManagerDriver = { .TypeID = KOID_DRIVER,
+                                             .References = 1,
+                                             .Next = NULL,
+                                             .Prev = NULL,
+                                             .Type = DRIVER_TYPE_NETWORK,
+                                             .VersionMajor = NETWORK_MANAGER_VER_MAJOR,
+                                             .VersionMinor = NETWORK_MANAGER_VER_MINOR,
+                                             .Designer = "Jango73",
+                                             .Manufacturer = "N/A",
+                                             .Product = "NetworkManager",
+                                             .Alias = "network",
+                                             .Flags = DRIVER_FLAG_CRITICAL,
+                                             .Command = NetworkManagerDriverCommands };
 
 /************************************************************************/
 
@@ -106,7 +108,8 @@ static U32 NetworkManager_GetConfigIP(LPCSTR configPath, U32 fallbackValue) {
  * @return Parsed IP in host order or fallback
  */
 // Helper function to get per-device network configuration
-static U32 NetworkManager_GetDeviceConfigIP(LPCSTR deviceName, LPCSTR configKey, LPCSTR fallbackGlobalKey, U32 fallbackValue) {
+static U32 NetworkManager_GetDeviceConfigIP(
+    LPCSTR deviceName, LPCSTR configKey, LPCSTR fallbackGlobalKey, U32 fallbackValue) {
     STR path[128];
     U32 index = 0;
 
@@ -116,7 +119,7 @@ static U32 NetworkManager_GetDeviceConfigIP(LPCSTR deviceName, LPCSTR configKey,
         StringPrintFormat(path, TEXT(CONFIG_NETWORK_INTERFACE_DEVICE_NAME_FMT), index);
 
         LPCSTR configDeviceName = GetConfigurationValue(path);
-        if (configDeviceName == NULL) break; // No more NetworkInterface entries
+        if (configDeviceName == NULL) break;  // No more NetworkInterface entries
 
         // Check if this is the device we're looking for
         if (STRINGS_EQUAL(configDeviceName, deviceName)) {
@@ -148,7 +151,7 @@ static U32 NetworkManager_GetDeviceConfigIP(LPCSTR deviceName, LPCSTR configKey,
 /************************************************************************/
 
 // Forward declaration
-static void NetworkManager_RxCallback(const U8 *Frame, U32 Length, LPVOID UserData);
+static void NetworkManager_RxCallback(const U8* Frame, U32 Length, LPVOID UserData);
 
 /**
  * @brief Internal frame reception handler that dispatches to protocol layers.
@@ -157,9 +160,10 @@ static void NetworkManager_RxCallback(const U8 *Frame, U32 Length, LPVOID UserDa
  * @param Length Length of the frame in bytes
  * @param UserData Pointer to the NETWORK_DEVICE_CONTEXT
  */
-static void NetworkManager_RxCallback(const U8 *Frame, U32 Length, LPVOID UserData) {
+static void NetworkManager_RxCallback(const U8* Frame, U32 Length, LPVOID UserData) {
     LPNETWORK_DEVICE_CONTEXT Context = (LPNETWORK_DEVICE_CONTEXT)UserData;
     LPDEVICE Device = NULL;
+    PROFILE_SCOPE Scope;
 
     SAFE_USE_VALID_ID(Context, KOID_NETWORKDEVICE) {
         Device = (LPDEVICE)Context->Device;
@@ -168,6 +172,8 @@ static void NetworkManager_RxCallback(const U8 *Frame, U32 Length, LPVOID UserDa
     if (!Device || !Frame || Length < 14U) {
         return;
     }
+
+    ProfileStart(&Scope, TEXT("NetRxFrame"));
 
     U16 EthType = (U16)((Frame[12] << 8) | Frame[13]);
 
@@ -182,6 +188,8 @@ static void NetworkManager_RxCallback(const U8 *Frame, U32 Length, LPVOID UserDa
         default:
             break;
     }
+
+    ProfileStop(&Scope);
 }
 
 /************************************************************************/
@@ -199,26 +207,28 @@ static U32 NetworkManager_FindNetworkDevices(void) {
 
     SAFE_USE(PciDeviceList) {
         SAFE_USE_VALID_ID(PciDeviceList->First, KOID_PCIDEVICE) {
-
             for (Node = PciDeviceList->First; Node != NULL; Node = Node->Next) {
                 LPPCI_DEVICE Device = (LPPCI_DEVICE)Node;
 
                 SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
                     SAFE_USE_VALID_ID(Device->Driver, KOID_DRIVER) {
-
                         if (Device->Driver->Type == DRIVER_TYPE_NETWORK) {
                             // Allocate a new network device context
-                            LPNETWORK_DEVICE_CONTEXT Context = (LPNETWORK_DEVICE_CONTEXT)
-                                CreateKernelObject(sizeof(NETWORK_DEVICE_CONTEXT), KOID_NETWORKDEVICE);
+                            LPNETWORK_DEVICE_CONTEXT Context = (LPNETWORK_DEVICE_CONTEXT)CreateKernelObject(
+                                sizeof(NETWORK_DEVICE_CONTEXT), KOID_NETWORKDEVICE);
 
                             SAFE_USE(Context) {
                                 Context->Device = Device;
-                                
+
                                 // Generate device name
                                 GetDefaultDeviceName(Device->Name, (LPDEVICE)Device, DRIVER_TYPE_NETWORK);
 
                                 // Use per-device configuration with fallback to global config
-                                Context->ActiveConfig.LocalIPv4_Be = NetworkManager_GetDeviceConfigIP(Device->Name, TEXT("LocalIP"), TEXT(CONFIG_NETWORK_LOCAL_IP), Htonl(NETWORK_FALLBACK_IPV4_BASE + Count));
+                                Context->ActiveConfig.LocalIPv4_Be = NetworkManager_GetDeviceConfigIP(
+                                    Device->Name,
+                                    TEXT("LocalIP"),
+                                    TEXT(CONFIG_NETWORK_LOCAL_IP),
+                                    Htonl(NETWORK_FALLBACK_IPV4_BASE + Count));
                                 Context->ActiveConfig.SubnetMask_Be = 0;
                                 Context->ActiveConfig.Gateway_Be = 0;
                                 Context->ActiveConfig.DNSServer_Be = 0;
@@ -239,17 +249,20 @@ static U32 NetworkManager_FindNetworkDevices(void) {
                                 UnlockMutex(MUTEX_KERNEL);
 
                                 Count++;
-                            } else {
+                            }
+                            else {
                                 ERROR(TEXT("Failed to allocate network device context"));
                             }
                         }
                     }
                 }
             }
-        } else {
+        }
+        else {
             WARNING(TEXT("No PCI devices available"));
         }
-    } else {
+    }
+    else {
         WARNING(TEXT("PCI device list is unavailable"));
     }
 
@@ -284,7 +297,6 @@ void InitializeNetwork(void) {
             }
         }
     }
-
 }
 
 /************************************************************************/
@@ -364,13 +376,13 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             }
 
             // Reset the device
-            NETWORK_RESET Reset = {.Device = Device};
+            NETWORK_RESET Reset = { .Device = Device };
             Device->Driver->Command(DF_NT_RESET, (UINT)(LPVOID)&Reset);
 
             // Get device information
             NETWORK_INFO Info;
             MemorySet(&Info, 0, sizeof(Info));
-            NETWORK_GET_INFO GetInfo = {.Device = Device, .Info = &Info};
+            NETWORK_GET_INFO GetInfo = { .Device = Device, .Info = &Info };
             Device->Driver->Command(DF_NT_GETINFO, (UINT)(LPVOID)&GetInfo);
 
             // Initialize ARP subsystem for this device
@@ -379,8 +391,14 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             // Initialize IPv4 subsystem for this device
             IPv4_Initialize((LPDEVICE)Device, LocalIPv4_Be);
 
+            // Initialize ICMP subsystem for this device
+            ICMP_Initialize((LPDEVICE)Device);
+
             // Initialize UDP subsystem for this device
             UDP_Initialize((LPDEVICE)Device);
+
+            // Initialize DNS subsystem for this device
+            DNS_Initialize((LPDEVICE)Device);
 
             // Initialize DHCP subsystem if enabled in configuration
             LPCSTR UseDHCP = GetConfigurationValue(TEXT(CONFIG_NETWORK_USE_DHCP));
@@ -394,8 +412,12 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             }
 
             // Configure network settings from TOML configuration (per-device with global fallback)
-            U32 NetmaskBe = NetworkManager_GetDeviceConfigIP(Device->Name, TEXT("Netmask"), TEXT(CONFIG_NETWORK_NETMASK), Htonl(NETWORK_FALLBACK_IPV4_NETMASK));
-            U32 GatewayBe = NetworkManager_GetDeviceConfigIP(Device->Name, TEXT("Gateway"), TEXT(CONFIG_NETWORK_GATEWAY), Htonl(NETWORK_FALLBACK_IPV4_GATEWAY));
+            U32 NetmaskBe = NetworkManager_GetDeviceConfigIP(
+                Device->Name, TEXT("Netmask"), TEXT(CONFIG_NETWORK_NETMASK), Htonl(NETWORK_FALLBACK_IPV4_NETMASK));
+            U32 GatewayBe = NetworkManager_GetDeviceConfigIP(
+                Device->Name, TEXT("Gateway"), TEXT(CONFIG_NETWORK_GATEWAY), Htonl(NETWORK_FALLBACK_IPV4_GATEWAY));
+            U32 DNSServerBe =
+                NetworkManager_GetDeviceConfigIP(Device->Name, TEXT("DNSServer"), TEXT(CONFIG_NETWORK_DNS_SERVER), 0);
             IPv4_SetNetworkConfig((LPDEVICE)Device, LocalIPv4_Be, NetmaskBe, GatewayBe);
             DeviceContext->ActiveConfig.SubnetMask_Be = NetmaskBe;
             DeviceContext->ActiveConfig.Gateway_Be = GatewayBe;
@@ -403,6 +425,10 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             DeviceContext->StaticConfig.SubnetMask_Be = NetmaskBe;
             DeviceContext->StaticConfig.Gateway_Be = GatewayBe;
             DeviceContext->StaticConfig.LocalIPv4_Be = LocalIPv4_Be;
+            DeviceContext->StaticConfig.DNSServer_Be = DNSServerBe;
+            if (DeviceContext->ActiveConfig.DNSServer_Be == 0) {
+                DeviceContext->ActiveConfig.DNSServer_Be = DNSServerBe;
+            }
 
             // Initialize TCP subsystem (global for all devices)
             static BOOL DATA_SECTION TCPInitialized = FALSE;
@@ -412,7 +438,9 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
             }
 
             // Install RX callback with device context as UserData
-            NETWORK_SET_RX_CB SetRxCb = {.Device = Device, .Callback = NetworkManager_RxCallback, .UserData = (LPVOID)DeviceContext};
+            NETWORK_SET_RX_CB SetRxCb = { .Device = Device,
+                                          .Callback = NetworkManager_RxCallback,
+                                          .UserData = (LPVOID)DeviceContext };
             U32 Result = Device->Driver->Command(DF_NT_SETRXCB, (UINT)(LPVOID)&SetRxCb);
             UNUSED(Result);
 
@@ -432,15 +460,17 @@ void NetworkManager_InitializeDevice(LPPCI_DEVICE Device, U32 LocalIPv4_Be) {
                 DeviceContext->InterruptSlot = InterruptConfig.VectorSlot;
                 DeviceContext->InterruptsEnabled = InterruptConfig.InterruptEnabled;
                 if (!DeviceContext->InterruptsEnabled) {
-                    WARNING(TEXT("Hardware interrupts unavailable, using polling on slot %u"),
-                            DeviceContext->InterruptSlot);
+                    WARNING(
+                        TEXT("Hardware interrupts unavailable, using polling on slot %u"),
+                        DeviceContext->InterruptSlot);
                 }
             } else {
                 DeviceContext->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
                 DeviceContext->InterruptsEnabled = FALSE;
-                WARNING(TEXT("Falling back to polling mode (Result=%u, Slot=%u)"),
-                        InterruptResult,
-                        InterruptConfig.VectorSlot);
+                WARNING(
+                    TEXT("Falling back to polling mode (Result=%u, Slot=%u)"),
+                    InterruptResult,
+                    InterruptConfig.VectorSlot);
             }
 
             // Register TCP protocol handler now that device is initialized
@@ -498,6 +528,34 @@ BOOL NetworkManager_IsDeviceReady(LPDEVICE Device) {
 /************************************************************************/
 
 /**
+ * @brief Get the configured DNS server for a network device.
+ *
+ * @param Device Device to query.
+ * @return DNS server IPv4 address in big-endian order, or 0 when unset.
+ */
+
+U32 NetworkManager_GetDNSServer(LPDEVICE Device) {
+    LPLIST NetworkDeviceList = GetNetworkDeviceList();
+
+    SAFE_USE(NetworkDeviceList) {
+        for (LPLISTNODE Node = NetworkDeviceList->First; Node != NULL; Node = Node->Next) {
+            LPNETWORK_DEVICE_CONTEXT Ctx = (LPNETWORK_DEVICE_CONTEXT)Node;
+            SAFE_USE_VALID_ID(Ctx, KOID_NETWORKDEVICE) {
+                if ((LPDEVICE)Ctx->Device == Device) {
+                    if (Ctx->ActiveConfig.DNSServer_Be != 0) {
+                        return Ctx->ActiveConfig.DNSServer_Be;
+                    }
+                    return Ctx->StaticConfig.DNSServer_Be;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+/************************************************************************/
+
+/**
  * @brief Periodic maintenance routine for a network device context.
  *
  * Runs ARP/DHCP ticks, TCP update, and socket maintenance every 100 cycles
@@ -519,6 +577,7 @@ void NetworkManager_MaintenanceTick(LPNETWORK_DEVICE_CONTEXT Context) {
             SAFE_USE_VALID_ID(Context->Device, KOID_PCIDEVICE) {
                 ARP_Tick((LPDEVICE)Context->Device);
                 DHCP_Tick((LPDEVICE)Context->Device);
+                DNS_Tick((LPDEVICE)Context->Device);
             }
 
             if (NetworkManager_GetPrimaryDevice() == Context->Device) {

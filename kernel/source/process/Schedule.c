@@ -45,7 +45,7 @@ typedef struct tag_TASKLIST {
     volatile UINT NumTasks;
     volatile UINT CurrentIndex;  // Index of current task instead of pointer
     LPTASK Tasks[NUM_TASKS];
-} TASKLIST, *LPTASKLIST;
+} TASK_LIST, *LPTASKLIST;
 
 /***************************************************************************/
 
@@ -59,7 +59,9 @@ typedef struct tag_SCHEDULER_TICK_SLOT {
 
 /***************************************************************************/
 
-static TASKLIST DATA_SECTION TaskList = {.Freeze = 0, .SchedulerTime = 0, .NumTasks = 0, .CurrentIndex = 0, .Tasks = {NULL}};
+static TASK_LIST DATA_SECTION TaskList = {
+    .Freeze = 0, .SchedulerTime = 0, .NumTasks = 0, .CurrentIndex = 0, .Tasks = { NULL }
+};
 static SCHEDULER_TICK_SLOT DATA_SECTION SchedulerTickSlots[SCHEDULER_TICK_MAX_CALLBACKS];
 
 /***************************************************************************/
@@ -125,9 +127,10 @@ static void WakeUpExpiredTasks(void) {
 
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
 
-        if (State.Status == TASK_STATUS_SLEEPING && State.WakeUpTime != INFINITY &&
-            CurrentTime >= State.WakeUpTime) {
-            (void)SetTaskSchedulerStatus(Task, TASK_STATUS_RUNNING);
+        if (State.Status == TASK_STATUS_SLEEPING && State.WakeUpTime != INFINITY && CurrentTime >= State.WakeUpTime) {
+            // The task is only made runnable here; the scheduler promotes it to
+            // RUNNING when it is actually dispatched.
+            (void)SetTaskSchedulerStatus(Task, TASK_STATUS_READY);
         }
     }
 }
@@ -199,8 +202,8 @@ static UINT CountRunnableTasks(void) {
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
         if (ScheduleGetProcessState(Task->OwnerProcess, &ProcessState) == FALSE) continue;
 
-        if ((State.Status == TASK_STATUS_READY || State.Status == TASK_STATUS_RUNNING) &&
-            State.Suspended == FALSE && ProcessState.Paused == FALSE) {
+        if ((State.Status == TASK_STATUS_READY || State.Status == TASK_STATUS_RUNNING) && State.Suspended == FALSE &&
+            ProcessState.Paused == FALSE) {
             RunnableCount++;
         }
     }
@@ -230,8 +233,8 @@ UINT FindNextRunnableTask(UINT StartIndex) {
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
         if (ScheduleGetProcessState(Task->OwnerProcess, &ProcessState) == FALSE) continue;
 
-        if ((State.Status == TASK_STATUS_READY || State.Status == TASK_STATUS_RUNNING) &&
-            State.Suspended == FALSE && ProcessState.Paused == FALSE) {
+        if ((State.Status == TASK_STATUS_READY || State.Status == TASK_STATUS_RUNNING) && State.Suspended == FALSE &&
+            ProcessState.Paused == FALSE) {
             return Index;
         }
     }
@@ -284,8 +287,8 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
 
         TaskList.Tasks[TaskList.NumTasks] = NewTask;
 
-        // Set quantum time for this task
-        SetTaskWakeUpTime(NewTask, ComputeTaskQuantumTime(NewTask->Priority));
+        // Set time-slice deadline for this task
+        SetTaskTimeSlice(NewTask, ComputeTaskQuantumTime(NewTask->Priority));
 
         // If this is the first task, make it current
         if (TaskList.NumTasks == 0) {
@@ -369,7 +372,9 @@ BOOL RemoveTaskFromQueue(LPTASK OldTask) {
  */
 LPPROCESS GetCurrentProcess(void) {
     LPTASK Task = GetCurrentTask();
-    SAFE_USE(Task) { return Task->OwnerProcess; }
+    SAFE_USE(Task) {
+        return Task->OwnerProcess;
+    }
     return &KernelProcess;
 }
 
@@ -512,8 +517,8 @@ void SchedulerUnregisterTickCallback(U32 Handle) {
 void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
     TASK_SCHEDULER_STATE NextTaskState;
 
-    FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
-        CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
+    FINE_DEBUG(
+        TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"), CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
     LINEAR CurrentStackPointer, CurrentFramePointer;
@@ -528,8 +533,7 @@ void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
     }
 
     if (NextTaskState.Status > TASK_STATUS_DEAD) {
-        ERROR(TEXT("MEMORY CORRUPTION: Task status %x is out of range"),
-            NextTaskState.Status);
+        ERROR(TEXT("MEMORY CORRUPTION: Task status %x is out of range"), NextTaskState.Status);
         return;
     }
 
@@ -542,8 +546,8 @@ void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
     }
 
     // SAFE_USE_VALID_ID_2(CurrentTask, NextTask, KOID_TASK) {
-        // __asm__ __volatile__("xchg %%bx,%%bx" : : );     // A breakpoint
-        SwitchToNextTask_2(CurrentTask, NextTask, NextCr3);
+    // __asm__ __volatile__("xchg %%bx,%%bx" : : );     // A breakpoint
+    SwitchToNextTask_2(CurrentTask, NextTask, NextCr3);
     // }
 
     FINE_DEBUG(TEXT("Exit for task %p (%s)"), CurrentTask, CurrentTask->Name);
@@ -554,8 +558,8 @@ void SwitchToNextTask(LPTASK CurrentTask, LPTASK NextTask) {
 void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
     TASK_SCHEDULER_STATE NextTaskState;
 
-    FINE_DEBUG(TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
-        CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
+    FINE_DEBUG(
+        TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"), CurrentTask, CurrentTask->Name, NextTask, NextTask->Name);
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
     LINEAR CurrentStackPointer, CurrentFramePointer;
@@ -570,9 +574,13 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
         return;
     }
 
-    // First time run for the task
-    if (NextTaskState.Status == TASK_STATUS_READY) {
+    // First time run for the task: the stack has never been set up and the
+    // task must be bootstrapped through JumpToReadyTask. A task woken from
+    // sleep or message wait is READY too, but its InitDone flag distinguishes
+    // it from a never-started task.
+    if (NextTaskState.InitDone == FALSE) {
         (void)SetTaskSchedulerStatus(NextTask, TASK_STATUS_RUNNING);
+        NextTask->SchedulerState.InitDone = TRUE;
 
         if (NextTask->OwnerProcess->Privilege == CPU_PRIVILEGE_KERNEL) {
             LINEAR StackPointer = NextTask->Arch.Stack.Base + NextTask->Arch.Stack.Size - STACK_SAFETY_MARGIN;
@@ -608,12 +616,17 @@ void SwitchToNextTask_3(register LPTASK CurrentTask, register LPTASK NextTask) {
 
             JumpToReadyTask(NextTask, SysStackPointer);
         }
+    } else {
+        // Resuming an already-started task: promote it to RUNNING so that at
+        // most one task is RUNNING at any time.
+        (void)SetTaskSchedulerStatus(NextTask, TASK_STATUS_RUNNING);
     }
 
     FINE_DEBUG(TEXT("Exit"));
 
 #if SCHEDULING_DEBUG_OUTPUT == 1
-    LINEAR ESP; GetESP(ESP);
+    LINEAR ESP;
+    GetESP(ESP);
     KernelLogMem(LOG_DEBUG, ESP, 256);
     LogTaskSystemStructures(LOG_DEBUG);
 #endif
@@ -678,8 +691,7 @@ void Scheduler(void) {
 
     if (CurrentTask != NULL && ScheduleGetTaskState(CurrentTask, &CurrentTaskState) != FALSE) {
         HasCurrentTaskSnapshot = TRUE;
-        QuantumExpired =
-            CurrentTaskState.WakeUpTime != INFINITY && GetSystemTime() >= CurrentTaskState.WakeUpTime;
+        QuantumExpired = CurrentTaskState.TimeSlice != INFINITY && GetSystemTime() >= CurrentTaskState.TimeSlice;
     }
 
     // Wake up expired sleeping tasks first
@@ -708,14 +720,42 @@ void Scheduler(void) {
     // Time to switch - find next runnable task
     UINT NextIndex = FindNextRunnableTask((TaskList.CurrentIndex + 1) % TaskList.NumTasks);
 
+    if (NextIndex == INFINITY) {
+        // No runnable task found despite a positive runnable count; keep the
+        // current scheduling state untouched.
+        return;
+    }
+
+    if (TaskList.CurrentIndex == NextIndex) {
+        // The current task is the only runnable task. Give it the CPU again:
+        // promote a just-woken task back to RUNNING and re-arm its time slice
+        // so sleep/wait loops can observe the status change and exit.
+        if (CurrentTask != NULL) {
+            TASK_SCHEDULER_STATE FreshCurrentState;
+
+            if (ScheduleGetTaskState(CurrentTask, &FreshCurrentState) != FALSE &&
+                FreshCurrentState.Status == TASK_STATUS_READY) {
+                (void)SetTaskSchedulerStatus(CurrentTask, TASK_STATUS_RUNNING);
+            }
+
+            (void)SetTaskTimeSliceDirect(CurrentTask, ComputeTaskQuantumTime(CurrentTask->Priority));
+        }
+
+        return;
+    }
+
     if (TaskList.CurrentIndex != NextIndex) {
         // Get task pointers BEFORE any queue manipulation
         LPTASK CurrentTask = (TaskList.CurrentIndex < TaskList.NumTasks) ? TaskList.Tasks[TaskList.CurrentIndex] : NULL;
         LPTASK NextTask = TaskList.Tasks[NextIndex];
 
-        FINE_DEBUG(TEXT("Switch between task index %u (%s @ %s) and %u (%s @ %s)"),
-            TaskList.CurrentIndex, CurrentTask ? CurrentTask->Name : TEXT("NULL"),
-            CurrentTask ? CurrentTask->OwnerProcess->FileName : TEXT("NULL"), NextIndex, NextTask->Name,
+        FINE_DEBUG(
+            TEXT("Switch between task index %u (%s @ %s) and %u (%s @ %s)"),
+            TaskList.CurrentIndex,
+            CurrentTask ? CurrentTask->Name : TEXT("NULL"),
+            CurrentTask ? CurrentTask->OwnerProcess->FileName : TEXT("NULL"),
+            NextIndex,
+            NextTask->Name,
             NextTask->OwnerProcess->FileName);
 
         if (NextIndex >= TaskList.NumTasks) {
@@ -743,6 +783,17 @@ void Scheduler(void) {
 
         TaskList.CurrentIndex = NextIndex;
         TaskList.SchedulerTime = 0;
+
+        // The outgoing task leaves the CPU: demote it back to READY so that at
+        // most one task is RUNNING at any time. Tasks that are sleeping or
+        // waiting for messages keep their blocking status.
+        if (CurrentTask != NULL && CurrentTaskState.Status == TASK_STATUS_RUNNING) {
+            (void)SetTaskSchedulerStatus(CurrentTask, TASK_STATUS_READY);
+        }
+
+        // Rearm the next task's time-slice budget on each dispatch so the
+        // priority-based quantum stays effective after the first run.
+        (void)SetTaskTimeSliceDirect(NextTask, ComputeTaskQuantumTime(NextTask->Priority));
 
         if (CurrentTask && CurrentTask->OwnerProcess != NextTask->OwnerProcess &&
             CurrentTask->OwnerProcess->Privilege != NextTask->OwnerProcess->Privilege) {
@@ -776,11 +827,8 @@ static BOOL IsObjectSignaled(LPVOID Object) {
     LockMutex(MUTEX_KERNEL, INFINITY);
 
     // First check termination cache
-    LPOBJECT_TERMINATION_STATE TermState = (LPOBJECT_TERMINATION_STATE)CacheFind(
-        GetObjectTerminationCache(),
-        MatchObject,
-        Object
-    );
+    LPOBJECT_TERMINATION_STATE TermState =
+        (LPOBJECT_TERMINATION_STATE)CacheFind(GetObjectTerminationCache(), MatchObject, Object);
 
     SAFE_USE(TermState) {
         DEBUG(TEXT("Object %x found in termination cache - marking as signaled"), Object);
@@ -804,15 +852,11 @@ static BOOL IsObjectSignaled(LPVOID Object) {
 /************************************************************************/
 
 static UINT GetObjectExitCode(LPVOID Object) {
-
     LockMutex(MUTEX_KERNEL, INFINITY);
 
     // First check termination cache
-    LPOBJECT_TERMINATION_STATE TermState = (LPOBJECT_TERMINATION_STATE)CacheFind(
-        GetObjectTerminationCache(),
-        MatchObject,
-        Object
-    );
+    LPOBJECT_TERMINATION_STATE TermState =
+        (LPOBJECT_TERMINATION_STATE)CacheFind(GetObjectTerminationCache(), MatchObject, Object);
 
     SAFE_USE(TermState) {
         DEBUG(TEXT("Object %x found in termination cache, ExitCode=%u"), Object, TermState->ExitCode);
@@ -890,8 +934,12 @@ U32 Wait(LPWAIT_INFO WaitInfo) {
 
         // Periodic debug output every 2 seconds
         if (CurrentTime - LastDebugTime >= 2000) {
-            DEBUG(TEXT("Task %p (%s) waiting for %u objects for %u ms"),
-                  CurrentTask, CurrentTask->Name, WaitInfo->Count, (U32)(CurrentTime - StartTime));
+            DEBUG(
+                TEXT("Task %p (%s) waiting for %u objects for %u ms"),
+                CurrentTask,
+                CurrentTask->Name,
+                WaitInfo->Count,
+                (U32)(CurrentTime - StartTime));
             LastDebugTime = CurrentTime;
         }
 

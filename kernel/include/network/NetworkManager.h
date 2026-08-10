@@ -96,6 +96,17 @@ LPPCI_DEVICE NetworkManager_GetPrimaryDevice(void);
 BOOL NetworkManager_IsDeviceReady(LPDEVICE Device);
 
 /**
+ * @brief Get the configured DNS server for a network device.
+ *
+ * Returns the active configuration first, falling back to the static
+ * configuration when DHCP did not provide a server.
+ *
+ * @param Device Pointer to the network device
+ * @return DNS server IPv4 address in big-endian order, or 0 when unset
+ */
+U32 NetworkManager_GetDNSServer(LPDEVICE Device);
+
+/**
  * @brief Perform periodic maintenance for a network device.
  *
  * This updates ARP, DHCP, TCP and socket state at a low frequency

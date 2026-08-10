@@ -1471,7 +1471,7 @@ static BOOL IntelGfxBuildTakeoverContext(void) {
         return FALSE;
     }
 
-    IntelGfxState.Context = (GRAPHICSCONTEXT){
+    IntelGfxState.Context = (GRAPHICS_CONTEXT){
         .TypeID = KOID_GRAPHICSCONTEXT,
         .References = 1,
         .Mutex = EMPTY_MUTEX,

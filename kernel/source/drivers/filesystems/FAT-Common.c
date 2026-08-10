@@ -23,6 +23,7 @@
 \************************************************************************/
 
 #include "drivers/filesystems/FAT.h"
+#include "fs/DiskTransferLayer.h"
 
 /***************************************************************************/
 
@@ -48,7 +49,7 @@ BOOL FATReadBootSector(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
     BiosMark = (U16*)((U8*)Buffer + (SECTOR_SIZE - sizeof(U16)));

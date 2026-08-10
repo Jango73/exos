@@ -47,10 +47,10 @@ SCRIPT_ERROR StorageGetProperty(
 
     LPSTORAGE_UNIT Storage = (LPSTORAGE_UNIT)Parent;
     SAFE_USE_VALID_ID(Storage, KOID_DISK) {
-        DISKINFO DiskInfo;
+        DISK_INFO DiskInfo;
         U32 Result = 0;
 
-        MemorySet(&DiskInfo, 0, sizeof(DISKINFO));
+        MemorySet(&DiskInfo, 0, sizeof(DISK_INFO));
         DiskInfo.Disk = Storage;
         Result = Storage->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo);
         if (Result != DF_RETURN_SUCCESS) {

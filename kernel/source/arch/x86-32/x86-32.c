@@ -191,22 +191,21 @@ static UINT InterruptsDriverCommands(UINT Function, UINT Parameter);
 
 /************************************************************************/
 
-KERNEL_DATA_X86_32 DATA_SECTION Kernel_x86_32 = {.IDT = NULL, .GDT = NULL, .TSS = NULL};
+KERNEL_DATA_X86_32 DATA_SECTION Kernel_x86_32 = { .IDT = NULL, .GDT = NULL, .TSS = NULL };
 
-DRIVER DATA_SECTION InterruptsDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INTERRUPT,
-    .VersionMajor = INTERRUPTS_VER_MAJOR,
-    .VersionMinor = INTERRUPTS_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Intel",
-    .Product = "Interrupts",
-    .Alias = "interrupts",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = InterruptsDriverCommands};
+DRIVER DATA_SECTION InterruptsDriver = { .TypeID = KOID_DRIVER,
+                                         .References = 1,
+                                         .Next = NULL,
+                                         .Prev = NULL,
+                                         .Type = DRIVER_TYPE_INTERRUPT,
+                                         .VersionMajor = INTERRUPTS_VER_MAJOR,
+                                         .VersionMinor = INTERRUPTS_VER_MINOR,
+                                         .Designer = "Jango73",
+                                         .Manufacturer = "Intel",
+                                         .Product = "Interrupts",
+                                         .Alias = "interrupts",
+                                         .Flags = DRIVER_FLAG_CRITICAL,
+                                         .Command = InterruptsDriverCommands };
 
 /************************************************************************/
 
@@ -216,7 +215,9 @@ DRIVER DATA_SECTION InterruptsDriver = {
  * @brief Retrieves the interrupts driver descriptor.
  * @return Pointer to the interrupts driver.
  */
-LPDRIVER InterruptsGetDriver(void) { return &InterruptsDriver; }
+LPDRIVER InterruptsGetDriver(void) {
+    return &InterruptsDriver;
+}
 
 /************************************************************************/
 
@@ -642,6 +643,11 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
 
     if (Info->Flags & TASK_CREATE_MAIN_KERNEL) {
         Task->SchedulerState.Status = TASK_STATUS_RUNNING;
+
+        // The boot task already runs on the boot stack and is never dispatched
+        // through JumpToReadyTask: mark it as started so the scheduler resumes
+        // its saved context instead of re-bootstrapping it on first switch back.
+        Task->SchedulerState.InitDone = TRUE;
 
         Kernel_x86_32.TSS->ESP0 = SysStackTop - STACK_SAFETY_MARGIN;
 

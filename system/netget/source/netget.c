@@ -32,7 +32,7 @@
  */
 static void PrintUsage(void) {
     printf("Usage: netget <URL> [output_file]\n");
-    printf("  URL         : HTTP URL to download (e.g., http://192.168.1.100/file.txt)\n");
+    printf("  URL         : HTTP URL to download (e.g., http://example.com/file.txt)\n");
     printf("  output_file : Optional output filename (default: extracted from URL)\n");
 }
 

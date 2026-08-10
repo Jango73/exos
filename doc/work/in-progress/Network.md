@@ -11,18 +11,18 @@
   - Fill protocol field (`1 = ICMP`, `6 = TCP`, `17 = UDP`)  
 
 ## ICMP (recommended before UDP/TCP)
-- [ ] Implement Echo Request/Reply (ping)  
-- [ ] Validates IPv4 (checksum, send/receive)  
+- [X] Implement Echo Request/Reply (ping)  
+- [X] Validates IPv4 (checksum, send/receive)  
 
 ## UDP
 - [X] Simple header: source port, destination port, length, checksum  
   - Can start with `checksum = 0` (disabled)  
 - [X] Basic UDP socket interface  
-- [ ] UDP socket routing refinement
+- [X] UDP socket routing refinement
   - Validate destination local IPv4 on receive path before socket dispatch
   - Filter datagrams by connected peer when socket has a remote endpoint
   - Allow multiple sockets on the same local port with `SO_REUSEADDR` policy
-- [ ] UDP socket robustness
+- [X] UDP socket robustness
   - Return explicit truncation status/code when payload exceeds user buffer
   - Add stress tests for high-rate datagram loss/overflow behavior
   - Add end-to-end sendto/recvfrom tests in smoke/autotest suite
@@ -55,6 +55,36 @@
   - Accept multiple connections
   - Send back everything received
   - Demonstrate full TCP functionality
+
+## DNS Protocol Implementation
+- [x] DNS resolver module
+  - [x] `DNS.c`/`DNS.h` in kernel network layer
+  - [x] Use the DNS server address received via DHCP (`DNSServer_Be` in `NETWORK_IP_CONFIG`)
+  - [x] Fallback to configured static DNS server when DHCP does not provide one
+- [x] DNS client over UDP
+  - [x] Query encoding (header, question section: name, type, class)
+  - [x] Query transmission to port 53
+  - [x] Response parsing (answer records: name, type, class, TTL, RDATA)
+  - [x] A record extraction and IPv4 address conversion
+  - [x] Response validation (transaction ID match, question echo, truncation flag)
+- [x] Error handling
+  - [x] Timeout and retry policy with backoff
+  - [x] Error response codes (NXDOMAIN, SERVFAIL, etc.)
+  - [x] Malformed response rejection
+- [x] Autotests
+  - [x] Unit tests for query/name encoding, wire-format name reading and response parsing
+  - [x] Fixed `DNS_EncodeName` to emit the terminating zero length byte (invalid QNAME encoding)
+- [x] Hostname resolution API
+  - [x] `gethostbyname`-style blocking API for the socket layer (`DNS_Resolve`)
+  - [x] `SYSCALL_DNSResolve` syscall exposed to userland
+  - [x] Userland wrapper in the runtime (`InternetAddressFromHostName`)
+  - [x] Shell and system utility integration (`dnsresolve` shell command, `netget` hostname support)
+- [x] Caching
+  - [x] Entry cache with TTL-based expiration
+  - [x] Cache lookup before sending a query
+- [ ] IPv6 support
+  - [ ] AAAA record parsing
+  - [ ] Use of the DNS server address from the per-device IPv6 context
 
 ## HTTP Protocol Implementation
 - [ ] HTTP protocol support

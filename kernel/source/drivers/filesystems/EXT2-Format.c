@@ -25,6 +25,8 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
+#include "fs/DiskTransferLayer.h"
+
 /************************************************************************/
 
 static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Disk, U32 StartSector, U32 Count, LPCVOID Buffer) {
@@ -43,7 +45,7 @@ static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Disk, U32 StartSector, U32 Count, LPC
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    Result = Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+    Result = DiskTransferLayerWrite(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }
@@ -51,16 +53,8 @@ static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Disk, U32 StartSector, U32 Count, LPC
 /************************************************************************/
 
 static BOOL WriteBlockRaw(
-    LPSTORAGE_UNIT Disk,
-    U32 PartitionStartSector,
-    U32 SectorsPerBlock,
-    U32 Block,
-    LPCVOID Buffer) {
-    return WriteSectorsRaw(
-        Disk,
-        PartitionStartSector + (Block * SectorsPerBlock),
-        SectorsPerBlock,
-        Buffer);
+    LPSTORAGE_UNIT Disk, U32 PartitionStartSector, U32 SectorsPerBlock, U32 Block, LPCVOID Buffer) {
+    return WriteSectorsRaw(Disk, PartitionStartSector + (Block * SectorsPerBlock), SectorsPerBlock, Buffer);
 }
 
 /************************************************************************/
@@ -82,12 +76,12 @@ static U16 AlignDirEntryLength(U16 Length) {
 /************************************************************************/
 
 static void BuildRootDirectoryBlock(U8* Buffer, U32 BlockSize) {
-    EXT2DIRECTORYENTRY* Entry;
+    EXT2_DIRECTORY_ENTRY* Entry;
     U16 EntrySize;
 
     MemorySet(Buffer, 0, BlockSize);
 
-    Entry = (EXT2DIRECTORYENTRY*)Buffer;
+    Entry = (EXT2_DIRECTORY_ENTRY*)Buffer;
     Entry->Inode = EXT2_ROOT_INODE;
     Entry->NameLength = 1;
     Entry->FileType = EXT2_FT_DIR;
@@ -95,7 +89,7 @@ static void BuildRootDirectoryBlock(U8* Buffer, U32 BlockSize) {
     Entry->RecordLength = EntrySize;
     Entry->Name[0] = '.';
 
-    Entry = (EXT2DIRECTORYENTRY*)(Buffer + EntrySize);
+    Entry = (EXT2_DIRECTORY_ENTRY*)(Buffer + EntrySize);
     Entry->Inode = EXT2_ROOT_INODE;
     Entry->NameLength = 2;
     Entry->FileType = EXT2_FT_DIR;
@@ -130,15 +124,15 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     U32 InodesCount;
     U32 FreeInodes;
     const U32 ReservedInodes = 11;
-    EXT2SUPER Super;
-    EXT2BLOCKGROUP Group;
+    EXT2_SUPER Super;
+    EXT2_BLOCK_GROUP Group;
     U8 BlockBuffer[EXT2_DEFAULT_BLOCK_SIZE];
     U8 BitmapBuffer[EXT2_DEFAULT_BLOCK_SIZE];
     U32 Index;
     U32 RootIndexInGroup;
     U32 RootBlockOffset;
     U32 RootOffsetInBlock;
-    EXT2INODE RootInode;
+    EXT2_INODE RootInode;
 
     if (Create == NULL) return DF_RETURN_BAD_PARAMETER;
     if (Create->Size != sizeof(PARTITION_CREATION)) return DF_RETURN_BAD_PARAMETER;
@@ -156,7 +150,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     TotalBlocks = Create->PartitionNumSectors / SectorsPerBlock;
     if (TotalBlocks < 16) return DF_RETURN_BAD_PARAMETER;
 
-    InodeSize = sizeof(EXT2INODE);
+    InodeSize = sizeof(EXT2_INODE);
     InodesPerGroup = 128;
     InodeTableBlocks = (InodesPerGroup * InodeSize + BlockSize - 1) / BlockSize;
 
@@ -177,7 +171,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     if (InodesCount < ReservedInodes) return DF_RETURN_BAD_PARAMETER;
     FreeInodes = InodesCount - ReservedInodes;
 
-    MemorySet(&Super, 0, sizeof(EXT2SUPER));
+    MemorySet(&Super, 0, sizeof(EXT2_SUPER));
     Super.InodesCount = InodesCount;
     Super.BlocksCount = TotalBlocks;
     Super.ReservedBlocksCount = 0;
@@ -203,12 +197,12 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     StringCopy(Super.VolumeName, Create->VolumeName);
 
     MemorySet(BlockBuffer, 0, BlockSize);
-    MemoryCopy(BlockBuffer, &Super, sizeof(EXT2SUPER));
+    MemoryCopy(BlockBuffer, &Super, sizeof(EXT2_SUPER));
     if (WriteSectorsRaw(Create->Disk, Create->PartitionStartSector + 2, 2, BlockBuffer) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
-    MemorySet(&Group, 0, sizeof(EXT2BLOCKGROUP));
+    MemorySet(&Group, 0, sizeof(EXT2_BLOCK_GROUP));
     Group.BlockBitmap = BlockBitmapBlock;
     Group.InodeBitmap = InodeBitmapBlock;
     Group.InodeTable = InodeTableBlock;
@@ -217,8 +211,9 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     Group.UsedDirsCount = 1;
 
     MemorySet(BlockBuffer, 0, BlockSize);
-    MemoryCopy(BlockBuffer, &Group, sizeof(EXT2BLOCKGROUP));
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, GroupDescBlock, BlockBuffer) == FALSE) {
+    MemoryCopy(BlockBuffer, &Group, sizeof(EXT2_BLOCK_GROUP));
+    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, GroupDescBlock, BlockBuffer) ==
+        FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
@@ -245,23 +240,28 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     RootBlockOffset = RootIndexInGroup / (BlockSize / InodeSize);
     RootOffsetInBlock = (RootIndexInGroup % (BlockSize / InodeSize)) * InodeSize;
 
-    MemorySet(&RootInode, 0, sizeof(EXT2INODE));
+    MemorySet(&RootInode, 0, sizeof(EXT2_INODE));
     RootInode.Mode = (U16)(EXT2_MODE_DIRECTORY | 0x01ED);
     RootInode.LinksCount = 2;
     RootInode.Size = BlockSize;
     RootInode.Blocks = BlockSize / SECTOR_SIZE;
     RootInode.Block[0] = RootDataBlock;
 
-    MemoryCopy(BlockBuffer + RootOffsetInBlock, &RootInode, sizeof(EXT2INODE));
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock,
-        InodeTableBlock + RootBlockOffset, BlockBuffer) == FALSE) {
+    MemoryCopy(BlockBuffer + RootOffsetInBlock, &RootInode, sizeof(EXT2_INODE));
+    if (WriteBlockRaw(
+            Create->Disk,
+            Create->PartitionStartSector,
+            SectorsPerBlock,
+            InodeTableBlock + RootBlockOffset,
+            BlockBuffer) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
     MemorySet(BlockBuffer, 0, BlockSize);
     for (Index = 1; Index < InodeTableBlocks; Index++) {
-        if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock,
-            InodeTableBlock + Index, BlockBuffer) == FALSE) {
+        if (WriteBlockRaw(
+                Create->Disk, Create->PartitionStartSector, SectorsPerBlock, InodeTableBlock + Index, BlockBuffer) ==
+            FALSE) {
             return DF_RETURN_FS_CANT_WRITE_SECTOR;
         }
     }

@@ -791,12 +791,106 @@ void GotoEndOfFile(LPEDITFILE File) {
 /***************************************************************************/
 
 /**
+ * @brief Refresh only the rows affected by a cursor move.
+ * @param Context Editor context.
+ * @param PreviousTop Viewport top before the move.
+ * @param PreviousLeft Viewport left before the move.
+ * @param HadSelection TRUE if a selection existed before the move.
+ * @param ShiftDown TRUE if the shift key extends the selection.
+ * @param PreviousRow Cursor row before the move.
+ */
+static void RefreshCursorMove(
+    LPEDITCONTEXT Context, I32 PreviousTop, I32 PreviousLeft, BOOL HadSelection, BOOL ShiftDown, I32 PreviousRow) {
+    LPEDITFILE File;
+    I32 NewRow;
+    U32 FirstRow;
+    U32 LastRow;
+    U32 RowIndex;
+
+    if (Context == NULL) return;
+
+    File = Context->Current;
+    if (File == NULL) return;
+
+    if (File->Top != PreviousTop || File->Left != PreviousLeft) {
+        RenderContent(Context, GetConsoleForeColor(), GetConsoleBackColor());
+        return;
+    }
+
+    NewRow = File->Cursor.Y;
+
+    if (ShiftDown) {
+        if (NewRow > PreviousRow) {
+            FirstRow = (U32)PreviousRow;
+            LastRow = (U32)NewRow;
+        } else {
+            FirstRow = (U32)NewRow;
+            LastRow = (U32)PreviousRow;
+        }
+
+        for (RowIndex = FirstRow; RowIndex <= LastRow && RowIndex < (U32)MAX_LINES; RowIndex++) {
+            RenderContentRow(Context, RowIndex, GetConsoleForeColor(), GetConsoleBackColor());
+        }
+    } else if (HadSelection) {
+        RenderContent(Context, GetConsoleForeColor(), GetConsoleBackColor());
+        return;
+    }
+
+    UpdateCursor(Context);
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Refresh only the rows affected by an edit operation.
+ * @param Context Editor context.
+ * @param PreviousTop Viewport top before the edit.
+ * @param PreviousLeft Viewport left before the edit.
+ * @param PreviousNumItems Number of lines before the edit.
+ * @param PreviousRow Cursor row before the edit.
+ */
+static void RefreshContentEdit(
+    LPEDITCONTEXT Context, I32 PreviousTop, I32 PreviousLeft, U32 PreviousNumItems, I32 PreviousRow) {
+    LPEDITFILE File;
+    I32 NewRow;
+    U32 FirstRow;
+    U32 RowIndex;
+
+    if (Context == NULL) return;
+
+    File = Context->Current;
+    if (File == NULL) return;
+
+    if (File->Top != PreviousTop || File->Left != PreviousLeft) {
+        RenderContent(Context, GetConsoleForeColor(), GetConsoleBackColor());
+        return;
+    }
+
+    NewRow = File->Cursor.Y;
+
+    if (File->Lines->NumItems == PreviousNumItems && NewRow == PreviousRow) {
+        RenderContentRow(Context, (U32)NewRow, GetConsoleForeColor(), GetConsoleBackColor());
+    } else {
+        FirstRow = (U32)((NewRow < PreviousRow) ? NewRow : PreviousRow);
+        if (FirstRow >= (U32)MAX_LINES) return;
+
+        for (RowIndex = FirstRow; RowIndex < (U32)MAX_LINES; RowIndex++) {
+            RenderContentRow(Context, RowIndex, GetConsoleForeColor(), GetConsoleBackColor());
+        }
+    }
+
+    UpdateCursor(Context);
+}
+
+/***************************************************************************/
+
+/**
  * @brief Main editor loop handling user input.
  * @param Context Editor context.
  * @return Exit code.
  */
 I32 Loop(LPEDITCONTEXT Context) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
     MESSAGE_INFO Message;
     U32 Item;
     BOOL Handled;
@@ -821,93 +915,107 @@ I32 Loop(LPEDITCONTEXT Context) {
         KeyCode.VirtualKey = Message.Param1;
         KeyCode.ASCIICode = (STR)Message.Param2;
 
-            Handled = FALSE;
-            for (Item = 0; Item < MenuItems; Item++) {
-                if (KeyCode.VirtualKey == Menu[Item].Key.VirtualKey) {
-                    if (Menu[Item].Modifier.VirtualKey == VK_NONE || GetKeyCodeDown(Menu[Item].Modifier)) {
-                        Handled = TRUE;
-                        if (Menu[Item].Function(Context)) {
-                            return 0;
-                        }
-                        Render(Context);
+        Handled = FALSE;
+        for (Item = 0; Item < MenuItems; Item++) {
+            if (KeyCode.VirtualKey == Menu[Item].Key.VirtualKey) {
+                if (Menu[Item].Modifier.VirtualKey == VK_NONE || GetKeyCodeDown(Menu[Item].Modifier)) {
+                    Handled = TRUE;
+                    if (Menu[Item].Function(Context)) {
+                        return 0;
                     }
-                    break;
+                    Render(Context);
                 }
+                break;
             }
+        }
 
-            if (Handled) continue;
+        if (Handled) continue;
 
-            if (Context->Current == NULL) continue;
+        if (Context->Current == NULL) continue;
 
+        {
+            LPEDITFILE File = Context->Current;
             BOOL ShiftDown = GetKeyCodeDown(ShiftKey);
-            POINT PreviousPosition = GetAbsoluteCursor(Context->Current);
+            POINT PreviousPosition = GetAbsoluteCursor(File);
+            BOOL HadSelection = SelectionHasRange(File);
+            I32 PreviousTop = File->Top;
+            I32 PreviousLeft = File->Left;
+            U32 PreviousNumItems = File->Lines->NumItems;
+            I32 PreviousRow = File->Cursor.Y;
 
             if (KeyCode.VirtualKey == VK_DOWN) {
-                Context->Current->Cursor.Y++;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Cursor.Y++;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_UP) {
-                Context->Current->Cursor.Y--;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Cursor.Y--;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_RIGHT) {
-                Context->Current->Cursor.X++;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Cursor.X++;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_LEFT) {
-                Context->Current->Cursor.X--;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Cursor.X--;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_PAGEDOWN) {
                 I32 Lines = (Console.Height * 8) / 10;
-                Context->Current->Top += Lines;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Top += Lines;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RenderContent(Context, GetConsoleForeColor(), GetConsoleBackColor());
             } else if (KeyCode.VirtualKey == VK_PAGEUP) {
                 I32 Lines = (Console.Height * 8) / 10;
-                Context->Current->Top -= Lines;
-                if (Context->Current->Top < 0) Context->Current->Top = 0;
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                File->Top -= Lines;
+                if (File->Top < 0) File->Top = 0;
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RenderContent(Context, GetConsoleForeColor(), GetConsoleBackColor());
             } else if (KeyCode.VirtualKey == VK_HOME) {
                 if (GetKeyCodeDown(ControlKey)) {
-                    GotoStartOfFile(Context->Current);
+                    GotoStartOfFile(File);
                 } else {
-                    GotoStartOfLine(Context->Current);
+                    GotoStartOfLine(File);
                 }
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_END) {
                 if (GetKeyCodeDown(ControlKey)) {
-                    GotoEndOfFile(Context->Current);
+                    GotoEndOfFile(File);
                 } else {
-                    GotoEndOfLine(Context->Current);
+                    GotoEndOfLine(File);
                 }
-                UpdateSelectionAfterMove(Context->Current, ShiftDown, PreviousPosition);
-                Render(Context);
+                UpdateSelectionAfterMove(File, ShiftDown, PreviousPosition);
+                CheckPositions(File);
+                RefreshCursorMove(Context, PreviousTop, PreviousLeft, HadSelection, ShiftDown, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_BACKSPACE) {
-                DeleteCharacter(Context->Current, 0);
-                Render(Context);
+                DeleteCharacter(File, 0);
+                CheckPositions(File);
+                RefreshContentEdit(Context, PreviousTop, PreviousLeft, PreviousNumItems, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_DELETE) {
-                DeleteCharacter(Context->Current, 1);
-                Render(Context);
+                DeleteCharacter(File, 1);
+                CheckPositions(File);
+                RefreshContentEdit(Context, PreviousTop, PreviousLeft, PreviousNumItems, PreviousRow);
             } else if (KeyCode.VirtualKey == VK_ENTER) {
-                AddLine(Context->Current);
-                Render(Context);
-            } else {
-                switch (KeyCode.ASCIICode) {
-                    default: {
-                        if (KeyCode.ASCIICode >= STR_SPACE) {
-                            AddCharacter(Context->Current, KeyCode.ASCIICode);
-                            Render(Context);
-                        }
-                    } break;
-                }
+                AddLine(File);
+                CheckPositions(File);
+                RefreshContentEdit(Context, PreviousTop, PreviousLeft, PreviousNumItems, PreviousRow);
+            } else if (KeyCode.ASCIICode >= STR_SPACE) {
+                AddCharacter(File, KeyCode.ASCIICode);
+                CheckPositions(File);
+                RefreshContentEdit(Context, PreviousTop, PreviousLeft, PreviousNumItems, PreviousRow);
             }
         }
     }
+}
 
- 
+
 /***************************************************************************/
 
 /**

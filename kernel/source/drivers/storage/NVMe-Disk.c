@@ -23,6 +23,7 @@
 
 #include "core/KernelData.h"
 #include "drivers/storage/NVMe-Internal.h"
+#include "fs/DiskTransferLayer.h"
 #include "fs/File-System.h"
 #include "text/CoreString.h"
 
@@ -68,7 +69,9 @@ void NVMeInitDiskDriver(LPNVME_DEVICE Device) {
  * @param Buffer Buffer pointer.
  * @return TRUE when aligned, FALSE otherwise.
  */
-static BOOL NVMeIsAlignedBuffer(LPVOID Buffer) { return (((LINEAR)Buffer & (N_4KB - 1)) == 0); }
+static BOOL NVMeIsAlignedBuffer(LPVOID Buffer) {
+    return (((LINEAR)Buffer & (N_4KB - 1)) == 0);
+}
 
 /************************************************************************/
 
@@ -113,7 +116,12 @@ static BOOL NVMeIsContiguousBuffer(LPVOID Buffer, U32 TransferBytes) {
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL NVMeReadSectorsBuffered(
-    LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount, U32 BytesPerSector, LPVOID Buffer,
+    LPNVME_DEVICE Device,
+    U32 NamespaceId,
+    U64 Lba,
+    U32 SectorCount,
+    U32 BytesPerSector,
+    LPVOID Buffer,
     U32 BufferBytes) {
     if (Device == NULL || Buffer == NULL) {
         return FALSE;
@@ -169,7 +177,12 @@ static BOOL NVMeReadSectorsBuffered(
  * @return TRUE on success, FALSE on failure.
  */
 static BOOL NVMeWriteSectorsBuffered(
-    LPNVME_DEVICE Device, U32 NamespaceId, U64 Lba, U32 SectorCount, U32 BytesPerSector, LPCVOID Buffer,
+    LPNVME_DEVICE Device,
+    U32 NamespaceId,
+    U64 Lba,
+    U32 SectorCount,
+    U32 BytesPerSector,
+    LPCVOID Buffer,
     U32 BufferBytes) {
     if (Device == NULL || Buffer == NULL) {
         return FALSE;
@@ -294,6 +307,14 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
                 Device->LogicalBlockSize = BytesPerSector;
             }
 
+            // Attach the generic transfer layer (sector cache + chunking).
+            // The transfer limit mirrors the buffered transfer cap.
+            if (!DiskTransferLayerInit((LPSTORAGE_UNIT)Disk, (2 * N_4KB) / BytesPerSector, NULL)) {
+                WARNING(TEXT("Unable to attach transfer layer NSID=%u"), (U32)NamespaceId);
+                ReleaseKernelObject(Disk);
+                continue;
+            }
+
             LPLIST DiskList = GetDiskList();
             if (DiskList == NULL || !ListAddItem(DiskList, Disk)) {
                 ERROR(TEXT("Unable to register disk NSID=%u"), (U32)NamespaceId);
@@ -386,7 +407,9 @@ static UINT NVMeDiskRead(LPIOCONTROL Control) {
                 if (!NVMeReadSectorsBuffered(
                         Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, Out, ChunkBytes)) {
                     WARNING(
-                        TEXT("Read failed LBA=%x:%x sectors=%u"), (U32)U64_High32(Lba), (U32)U64_Low32(Lba),
+                        TEXT("Read failed LBA=%x:%x sectors=%u"),
+                        (U32)U64_High32(Lba),
+                        (U32)U64_Low32(Lba),
                         (U32)Chunk);
                     return DF_RETURN_UNEXPECTED;
                 }
@@ -450,7 +473,9 @@ static UINT NVMeDiskWrite(LPIOCONTROL Control) {
                 if (!NVMeWriteSectorsBuffered(
                         Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, In, ChunkBytes)) {
                     WARNING(
-                        TEXT("Write failed LBA=%x:%x sectors=%u"), (U32)U64_High32(Lba), (U32)U64_Low32(Lba),
+                        TEXT("Write failed LBA=%x:%x sectors=%u"),
+                        (U32)U64_High32(Lba),
+                        (U32)U64_Low32(Lba),
                         (U32)Chunk);
                     return DF_RETURN_UNEXPECTED;
                 }

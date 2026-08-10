@@ -96,17 +96,17 @@
 /***************************************************************************/
 
 typedef struct tag_KEYTRANS {
-    KEYCODE Normal;
-    KEYCODE Shift;
-    KEYCODE Alt;
-} KEYTRANS, *LPKEYTRANS;
+    KEY_CODE Normal;
+    KEY_CODE Shift;
+    KEY_CODE Alt;
+} KEY_TRANS, *LPKEYTRANS;
 
 /***************************************************************************/
 
 typedef UINT KEY_USAGE;
 
 typedef struct tag_KEY_LAYOUT_HID_ENTRY {
-    KEYCODE Levels[KEY_LAYOUT_HID_MAX_LEVELS];
+    KEY_CODE Levels[KEY_LAYOUT_HID_MAX_LEVELS];
 } KEY_LAYOUT_HID_ENTRY, *LPKEY_LAYOUT_HID_ENTRY;
 
 /***************************************************************************/
@@ -131,11 +131,11 @@ typedef struct tag_KEY_HID_COMPOSE_ENTRY {
 typedef struct tag_KEY_LAYOUT_HID {
     LPCSTR Code;
     UINT LevelCount;
-    const KEY_LAYOUT_HID_ENTRY *Entries;
+    const KEY_LAYOUT_HID_ENTRY* Entries;
     UINT EntryCount;
-    const KEY_HID_DEAD_KEY *DeadKeys;
+    const KEY_HID_DEAD_KEY* DeadKeys;
     UINT DeadKeyCount;
-    const KEY_HID_COMPOSE_ENTRY *ComposeEntries;
+    const KEY_HID_COMPOSE_ENTRY* ComposeEntries;
     UINT ComposeCount;
 } KEY_LAYOUT_HID, *LPKEY_LAYOUT_HID;
 
@@ -154,9 +154,9 @@ typedef struct tag_KEYBOARDSTRUCT {
     U32 ScrollLock;
     U32 Pause;
 
-    KEYCODE Buffer[MAXKEYBUFFER];
+    KEY_CODE Buffer[MAXKEYBUFFER];
 
-    const KEY_LAYOUT_HID *LayoutHid;
+    const KEY_LAYOUT_HID* LayoutHid;
     U32 PendingDeadKey;
     U32 PendingComposeKey;
     U8 UsageStatus[KEYTABSIZE];
@@ -166,12 +166,15 @@ typedef struct tag_KEYBOARDSTRUCT {
     KEY_USAGE RepeatUsage;
     UINT RepeatStartTick;
     UINT RepeatLastTick;
+    UINT RepeatDelayMS;
+    UINT RepeatIntervalMS;
+    BOOL RepeatConfigInitialized;
     DEFERRED_WORK_TOKEN RepeatToken;
-} KEYBOARDSTRUCT, *LPKEYBOARDSTRUCT;
+} KEYBOARD_STRUCT, *LPKEYBOARDSTRUCT;
 
 /***************************************************************************/
 
-extern KEYBOARDSTRUCT Keyboard;
+extern KEYBOARD_STRUCT Keyboard;
 
 /***************************************************************************/
 
@@ -183,13 +186,13 @@ void KeyboardCommonInitialize(void);
 BOOL PeekChar(void);
 STR GetChar(void);
 BOOL GetKeyCode(LPKEYCODE);
-BOOL GetKeyCodeDown(KEYCODE);
+BOOL GetKeyCodeDown(KEY_CODE);
 U32 GetKeyModifiers(void);
 void WaitKey(void);
 void KeyboardHandler(void);
 LPCSTR GetKeyName(U8);
 void UseKeyboardLayout(LPCSTR Code);
-const KEY_LAYOUT_HID *LoadKeyboardLayout(LPCSTR Path);
+const KEY_LAYOUT_HID* LoadKeyboardLayout(LPCSTR Path);
 U16 DetectKeyboard(void);
 void ClearKeyboardBuffer(void);
 

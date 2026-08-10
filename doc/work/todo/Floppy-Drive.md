@@ -57,8 +57,8 @@ Goal: expose floppy media through the shared storage contract.
 - [ ] Implement `DF_DISK_WRITE`.
 - [ ] Implement `DF_DISK_GETINFO`.
 - [ ] Implement `DF_DISK_SETACCESS`.
-- [ ] Fill `DISKINFO` with removable media semantics and correct geometry-derived sector count.
-- [ ] Reuse `DISKGEOMETRY` and `SectorToBlockParams()` for CHS addressing.
+- [ ] Fill `DISK_INFO` with removable media semantics and correct geometry-derived sector count.
+- [ ] Reuse `DISK_GEOMETRY` and `SectorToBlockParams()` for CHS addressing.
 - [ ] Handle read-only mode and absent-media cases cleanly.
 Success: shell and filesystem code can read sector 0 through the generic disk API.
 

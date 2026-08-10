@@ -66,13 +66,13 @@
 
 typedef struct tag_SHELLINPUTSTATE {
     STR CommandLine[MAX_PATH_NAME];
-    COMMANDLINEEDITOR Editor;
-} SHELLINPUTSTATE, *LPSHELLINPUTSTATE;
+    COMMAND_LINE_EDITOR Editor;
+} SHELL_INPUT_STATE, *LPSHELLINPUTSTATE;
 
 typedef struct tag_SHELLCONTEXT {
     U32 Component;
     U32 CommandChar;
-    SHELLINPUTSTATE Input;
+    SHELL_INPUT_STATE Input;
     STR Command[256];
     STR CurrentFolder[MAX_PATH_NAME];
     RESERVED_HEAP ReservedHeap;
@@ -80,10 +80,10 @@ typedef struct tag_SHELLCONTEXT {
     LPVOID BufferBase;
     U32 BufferSize;
     LPSTR Buffer[SHELL_NUM_BUFFERS];
-    STRINGARRAY Options;
-    PATHCOMPLETION PathCompletion;
+    STRING_ARRAY Options;
+    PATH_COMPLETION PathCompletion;
     LPSCRIPT_CONTEXT ScriptContext;
-} SHELLCONTEXT, *LPSHELLCONTEXT;
+} SHELL_CONTEXT, *LPSHELLCONTEXT;
 
 typedef U32 (*SHELLCOMMAND)(LPSHELLCONTEXT Context);
 
@@ -124,6 +124,7 @@ BOOL ShellGetAccountCount(LPSHELLCONTEXT Context, UINT* OutCount);
 
 U32 CMD_addUser(LPSHELLCONTEXT Context);
 U32 CMD_login(LPSHELLCONTEXT Context);
+U32 CMD_taskStat(LPSHELLCONTEXT Context);
 U32 ShowMainDesktopFromShell(void);
 
 void SystemDataViewMode(void);

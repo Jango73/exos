@@ -2,7 +2,7 @@
 set -e
 
 function Usage() {
-    echo "Usage: $0 --arch <x86-32|x86-64> [--fs <ext2|fat32>] [--debug|--release] [--split] [--build-core-name <name>] [--build-image-name <name>] [--gdb] [--usb3|--no-usb3] [--uefi] [--nvme|--no-nvme] [--ntfs-live] [--net-card <e1000|rtl8139> ...]"
+    echo "Usage: $0 --arch <x86-32|x86-64> [--fs <ext2|fat32>] [--debug|--release] [--split] [--build-core-name <name>] [--build-image-name <name>] [--gdb] [--usb3|--no-usb3] [--uefi] [--nvme|--no-nvme] [--ntfs-live] [--net-card <e1000|rtl8139> ...] [--kvm|--no-kvm]"
 }
 
 ARCH="x86-32"
@@ -12,6 +12,7 @@ USE_UEFI=0
 USB3_ENABLED=1
 NVME_ENABLED=1
 NTFS_LIVE_ENABLED=0
+USE_KVM=0
 MONITOR_PORT="${MONITOR_PORT:-4444}"
 BOOT_MODE="mbr"
 BUILD_CONFIGURATION="release"
@@ -120,6 +121,12 @@ while [ $# -gt 0 ]; do
             ;;
         --ntfs-live)
             NTFS_LIVE_ENABLED=1
+            ;;
+        --kvm)
+            USE_KVM=1
+            ;;
+        --no-kvm)
+            USE_KVM=0
             ;;
         --net-card)
             shift
@@ -276,6 +283,7 @@ FLOPPY_ARGUMENTS=()
 AUDIO_ARGUMENTS=()
 NETWORK_ARGUMENTS=()
 UEFI_ARGUMENTS=()
+ACCEL_ARGUMENTS=()
 
 function BuildUsbArguments() {
     USB_ARGUMENTS=(
@@ -395,6 +403,27 @@ function FindFirmwareFile() {
     return 1
 }
 
+function DetectAcceleration() {
+    ACCEL_ARGUMENTS=()
+
+    if [ "$USE_KVM" -eq 0 ]; then
+        return 0
+    fi
+
+    if [ ! -e /dev/kvm ] || [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+        echo "KVM not usable (/dev/kvm missing or not accessible), falling back to TCG"
+        return 0
+    fi
+
+    if ! "$QEMU_BIN" -accel help 2>&1 | grep -qi kvm; then
+        echo "$QEMU_BIN does not support KVM, falling back to TCG"
+        return 0
+    fi
+
+    ACCEL_ARGUMENTS=(-enable-kvm)
+    echo "Using KVM acceleration"
+}
+
 function BuildUefiArguments() {
     UEFI_ARGUMENTS=()
 
@@ -430,6 +459,7 @@ function RunStandardQemu() {
     BuildAudioArguments
     BuildNetworkArguments
     BuildUefiArguments
+    DetectAcceleration
 
     if [ ! -x "$CYCLE_BIN" ]; then
         echo "Cycle tool not found or not executable: $CYCLE_BIN"
@@ -440,6 +470,7 @@ function RunStandardQemu() {
     -machine q35,acpi=on,kernel-irqchip=split \
     -nodefaults \
     -smp cpus=1,cores=1,threads=1 \
+    "${ACCEL_ARGUMENTS[@]}" \
     "${USB_ARGUMENTS[@]}" \
     "${STORAGE_ARGUMENTS[@]}" \
     "${FLOPPY_ARGUMENTS[@]}" \
@@ -463,6 +494,7 @@ function RunGdbQemu() {
     BuildAudioArguments
     BuildNetworkArguments
     BuildUefiArguments
+    DetectAcceleration
 
     if [ ! -f "$DEBUG_ELF" ]; then
         echo "Debug symbol file not found: $DEBUG_ELF"
@@ -478,6 +510,7 @@ function RunGdbQemu() {
     -machine q35,acpi=on,kernel-irqchip=split \
     -nodefaults \
     -smp cpus=1,cores=1,threads=1 \
+    "${ACCEL_ARGUMENTS[@]}" \
     "${USB_ARGUMENTS[@]}" \
     "${STORAGE_ARGUMENTS[@]}" \
     "${FLOPPY_ARGUMENTS[@]}" \

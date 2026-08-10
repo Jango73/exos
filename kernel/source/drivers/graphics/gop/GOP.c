@@ -44,7 +44,7 @@ typedef struct tag_GOP_GFX_STATE {
     PHYSICAL FrameBufferPhysical;
     LINEAR FrameBufferLinear;
     U32 FrameBufferSize;
-    GRAPHICSCONTEXT Context;
+    GRAPHICS_CONTEXT Context;
     GFX_CAPABILITIES Capabilities;
 } GOP_GFX_STATE, *LPGOP_GFX_STATE;
 
@@ -316,7 +316,7 @@ static UINT GOPGfxLoad(void) {
     GOPGfxState.FrameBufferPhysical = Console.FramebufferPhysical;
     GOPGfxState.FrameBufferSize = FrameBufferSize;
 
-    GOPGfxState.Context = (GRAPHICSCONTEXT){
+    GOPGfxState.Context = (GRAPHICS_CONTEXT){
         .TypeID = KOID_GRAPHICSCONTEXT,
         .References = 1,
         .Mutex = EMPTY_MUTEX,

@@ -37,11 +37,11 @@ extern "C" {
 #define CHAR_BIT 8
 
 #ifdef __CHAR_SIGNED__
-#define CHAR_MIN (-128)
-#define CHAR_MAX 127
+    #define CHAR_MIN (-128)
+    #define CHAR_MAX 127
 #else
-#define CHAR_MIN 0
-#define CHAR_MAX 255
+    #define CHAR_MIN 0
+    #define CHAR_MAX 255
 #endif
 
 #define MB_LEN_MAX 2
@@ -76,7 +76,7 @@ extern "C" {
 #define ERANGE 34
 
 #ifndef NULL
-#define NULL 0L
+    #define NULL 0L
 #endif
 
 #define PI 3.1415926535f
@@ -117,7 +117,7 @@ typedef unsigned long fpos_t;
 typedef unsigned long uintptr_t;
 typedef signed long intptr_t;
 #else
-#error "Unsupported compiler for Base.h"
+    #error "Unsupported compiler for Base.h"
 #endif
 
 typedef int_t ssize_t;
@@ -145,6 +145,7 @@ struct sockaddr_in {
 
 // Socket option constants
 #define SOL_SOCKET 1
+#define SO_REUSEADDR 2
 #define SO_RCVTIMEO 20
 
 /************************************************************************/
@@ -152,29 +153,43 @@ struct sockaddr_in {
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 
-static inline unsigned short htons(unsigned short Value) { return Value; }
+static inline unsigned short htons(unsigned short Value) {
+    return Value;
+}
 
-static inline unsigned short ntohs(unsigned short Value) { return Value; }
+static inline unsigned short ntohs(unsigned short Value) {
+    return Value;
+}
 
-static inline unsigned long htonl(unsigned long Value) { return Value; }
+static inline unsigned long htonl(unsigned long Value) {
+    return Value;
+}
 
-static inline unsigned long ntohl(unsigned long Value) { return Value; }
+static inline unsigned long ntohl(unsigned long Value) {
+    return Value;
+}
 
 #elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
-static inline unsigned short htons(unsigned short Value) { return (unsigned short)((Value << 8) | (Value >> 8)); }
+static inline unsigned short htons(unsigned short Value) {
+    return (unsigned short)((Value << 8) | (Value >> 8));
+}
 
-static inline unsigned short ntohs(unsigned short Value) { return htons(Value); }
+static inline unsigned short ntohs(unsigned short Value) {
+    return htons(Value);
+}
 
 static inline unsigned long htonl(unsigned long Value) {
     return ((Value & 0x000000FFU) << 24) | ((Value & 0x0000FF00U) << 8) | ((Value & 0x00FF0000U) >> 8) |
            ((Value & 0xFF000000U) >> 24);
 }
 
-static inline unsigned long ntohl(unsigned long Value) { return htonl(Value); }
+static inline unsigned long ntohl(unsigned long Value) {
+    return htonl(Value);
+}
 
 #else
-#error "Endianness not defined"
+    #error "Endianness not defined"
 #endif
 
 /************************************************************************/

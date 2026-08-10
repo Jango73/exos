@@ -33,7 +33,7 @@
 /***************************************************************************/
 // The file object of SystemFS
 
-typedef struct tag_SYSTEMFSFILE SYSTEMFSFILE, *LPSYSTEMFSFILE;
+typedef struct tag_SYSTEMFSFILE SYSTEMFS_FILE, *LPSYSTEMFSFILE;
 
 struct tag_SYSTEMFSFILE {
     LISTNODE_FIELDS
@@ -52,7 +52,7 @@ struct tag_SYSTEMFSFILE {
 typedef struct tag_SYSTEMFSFILESYSTEM {
     FILESYSTEM Header;
     LPSYSTEMFSFILE Root;
-} SYSTEMFSFILESYSTEM, *LPSYSTEMFSFILESYSTEM;
+} SYSTEMFS_FILE_SYSTEM, *LPSYSTEMFSFILESYSTEM;
 
 /***************************************************************************/
 // The file object created when opening a file

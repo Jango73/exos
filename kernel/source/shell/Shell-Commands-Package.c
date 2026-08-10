@@ -31,18 +31,18 @@
 
 static void ShellSkipSpaces(LPCSTR Text, UINT* InOutIndex);
 static BOOL ShellParseRawToken(LPCSTR Text, UINT* InOutIndex, STR OutToken[MAX_PATH_NAME]);
-static BOOL ShellResolvePackageFilePath(LPSHELLCONTEXT Context,
-                                        LPCSTR PackageName,
-                                        STR OutQualifiedPackage[MAX_PATH_NAME]);
+static BOOL ShellResolvePackageFilePath(
+    LPSHELLCONTEXT Context, LPCSTR PackageName, STR OutQualifiedPackage[MAX_PATH_NAME]);
 static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath);
 static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath);
 static BOOL ShellIsPackageFileName(LPCSTR FileName);
-static BOOL ShellLaunchPackage(LPSHELLCONTEXT Context,
-                               LPCSTR QualifiedCommandLine,
-                               LPCSTR QualifiedCommand,
-                               LPCSTR PreferredCommandName,
-                               LPCSTR PreferredCommandArguments,
-                               BOOL Background);
+static BOOL ShellLaunchPackage(
+    LPSHELLCONTEXT Context,
+    LPCSTR QualifiedCommandLine,
+    LPCSTR QualifiedCommand,
+    LPCSTR PreferredCommandName,
+    LPCSTR PreferredCommandArguments,
+    BOOL Background);
 
 /***************************************************************************/
 
@@ -291,7 +291,8 @@ U32 CMD_package(LPSHELLCONTEXT Context) {
             CommandArguments++;
         }
 
-        if (!ShellLaunchPackage(Context,
+        if (!ShellLaunchPackage(
+                Context,
                 QualifiedCommandLine,
                 QualifiedPackage,
                 HasFirstArgumentToken ? FirstArgumentToken : NULL,
@@ -394,9 +395,8 @@ static BOOL ShellParseRawToken(LPCSTR Text, UINT* InOutIndex, STR OutToken[MAX_P
  * @param OutQualifiedPackage Receives absolute package file path.
  * @return TRUE on success.
  */
-static BOOL ShellResolvePackageFilePath(LPSHELLCONTEXT Context,
-                                        LPCSTR PackageName,
-                                        STR OutQualifiedPackage[MAX_PATH_NAME]) {
+static BOOL ShellResolvePackageFilePath(
+    LPSHELLCONTEXT Context, LPCSTR PackageName, STR OutQualifiedPackage[MAX_PATH_NAME]) {
     STR AppsRoot[MAX_PATH_NAME];
     STR LocalToken[MAX_PATH_NAME];
 
@@ -405,10 +405,7 @@ static BOOL ShellResolvePackageFilePath(LPSHELLCONTEXT Context,
     }
 
     if (!KernelPathResolve(
-            KERNEL_PATH_KEY_SYSTEM_APPS_ROOT,
-            KERNEL_PATH_DEFAULT_SYSTEM_APPS_ROOT,
-            AppsRoot,
-            MAX_PATH_NAME)) {
+            KERNEL_PATH_KEY_SYSTEM_APPS_ROOT, KERNEL_PATH_DEFAULT_SYSTEM_APPS_ROOT, AppsRoot, MAX_PATH_NAME)) {
         return FALSE;
     }
 
@@ -488,9 +485,7 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     Status = PackageManifestParseFromPackageBuffer(PackageBytes, PackageSize, &Manifest);
     if (Status != PACKAGE_MANIFEST_STATUS_OK) {
-        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"),
-            PackageManifestStatusToString(Status),
-            Status);
+        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"), PackageManifestStatusToString(Status), Status);
         TEST(TEXT("package list %s : KO"), QualifiedPackage);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -525,7 +520,8 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
         goto Exit;
     }
 
-    ConsolePrint(TEXT("Package: %s (%s) arch=%s kernel_api=%s\n"),
+    ConsolePrint(
+        TEXT("Package: %s (%s) arch=%s kernel_api=%s\n"),
         Manifest.Name,
         Manifest.Version,
         Manifest.Arch,
@@ -534,13 +530,11 @@ static U32 ShellPackageList(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
     if (Manifest.CommandCount > 0) {
         ConsolePrint(TEXT("Commands:\n"));
         for (UINT Index = 0; Index < Manifest.CommandCount; Index++) {
-            ConsolePrint(TEXT("  %s -> %s\n"),
-                Manifest.Commands[Index].Name,
-                Manifest.Commands[Index].Target);
+            ConsolePrint(TEXT("  %s -> %s\n"), Manifest.Commands[Index].Name, Manifest.Commands[Index].Target);
         }
     }
     ConsolePrint(TEXT("Content:\n"));
-    ListDirectory(Context, PrivatePackageAlias, 0, FALSE, TRUE, &NumListed);
+    ListDirectory(Context, PrivatePackageAlias, 0, FALSE, TRUE, LIST_SORT_NONE, 0, &NumListed);
     Success = TRUE;
 
 Exit:
@@ -598,9 +592,7 @@ static U32 ShellPackageAdd(LPSHELLCONTEXT Context, LPCSTR PackageNameOrPath) {
 
     Status = PackageManifestParseFromPackageBuffer(PackageBytes, PackageSize, &Manifest);
     if (Status != PACKAGE_MANIFEST_STATUS_OK) {
-        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"),
-            PackageManifestStatusToString(Status),
-            Status);
+        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"), PackageManifestStatusToString(Status), Status);
         TEST(TEXT("package add %s : KO"), SourcePackagePath);
         KernelHeapFree(PackageBytes);
         return DF_RETURN_SUCCESS;
@@ -713,10 +705,8 @@ static BOOL ShellBuildPackageLaunchCommandLine(LPCSTR EntryPath, LPCSTR Argument
  * @param OutProcess Optional process pointer when background launch succeeds.
  * @return TRUE on success.
  */
-static BOOL ShellLaunchCommandLine(LPSHELLCONTEXT Context,
-                                   LPCSTR QualifiedCommandLine,
-                                   BOOL Background,
-                                   LPPROCESS* OutProcess) {
+static BOOL ShellLaunchCommandLine(
+    LPSHELLCONTEXT Context, LPCSTR QualifiedCommandLine, BOOL Background, LPPROCESS* OutProcess) {
     if (Context == NULL || STRING_EMPTY(QualifiedCommandLine)) {
         return FALSE;
     }
@@ -760,12 +750,13 @@ static BOOL ShellLaunchCommandLine(LPSHELLCONTEXT Context,
  * @param Background TRUE for background launch.
  * @return TRUE on success.
  */
-static BOOL ShellLaunchPackage(LPSHELLCONTEXT Context,
-                               LPCSTR QualifiedCommandLine,
-                               LPCSTR QualifiedCommand,
-                               LPCSTR PreferredCommandName,
-                               LPCSTR PreferredCommandArguments,
-                               BOOL Background) {
+static BOOL ShellLaunchPackage(
+    LPSHELLCONTEXT Context,
+    LPCSTR QualifiedCommandLine,
+    LPCSTR QualifiedCommand,
+    LPCSTR PreferredCommandName,
+    LPCSTR PreferredCommandArguments,
+    BOOL Background) {
     UINT PackageSize = 0;
     U8* PackageBytes = NULL;
     PACKAGE_MANIFEST Manifest;
@@ -792,18 +783,14 @@ static BOOL ShellLaunchPackage(LPSHELLCONTEXT Context,
 
     Status = PackageManifestParseFromPackageBuffer(PackageBytes, PackageSize, &Manifest);
     if (Status != PACKAGE_MANIFEST_STATUS_OK) {
-        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"),
-            PackageManifestStatusToString(Status),
-            Status);
+        ConsolePrint(TEXT("Package manifest error: %s (%u)\n"), PackageManifestStatusToString(Status), Status);
         KernelHeapFree(PackageBytes);
         return FALSE;
     }
 
     Status = PackageManifestCheckCompatibility(&Manifest);
     if (Status != PACKAGE_MANIFEST_STATUS_OK) {
-        ConsolePrint(TEXT("Package compatibility error: %s (%u)\n"),
-            PackageManifestStatusToString(Status),
-            Status);
+        ConsolePrint(TEXT("Package compatibility error: %s (%u)\n"), PackageManifestStatusToString(Status), Status);
         PackageManifestRelease(&Manifest);
         KernelHeapFree(PackageBytes);
         return FALSE;
@@ -898,8 +885,7 @@ BOOL SpawnExecutable(LPSHELLCONTEXT Context, LPCSTR CommandName, BOOL Background
     U32 CommandIndex = 0;
 
     if (QualifyCommandLine(Context, CommandName, QualifiedCommandLine)) {
-        while (QualifiedCommandLine[CommandIndex] != STR_NULL &&
-               QualifiedCommandLine[CommandIndex] > STR_SPACE &&
+        while (QualifiedCommandLine[CommandIndex] != STR_NULL && QualifiedCommandLine[CommandIndex] > STR_SPACE &&
                CommandIndex < MAX_PATH_NAME - 1) {
             QualifiedCommand[CommandIndex] = QualifiedCommandLine[CommandIndex];
             CommandIndex++;

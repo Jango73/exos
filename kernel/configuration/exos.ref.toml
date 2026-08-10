@@ -43,6 +43,11 @@ MinimumSystemStackSize=16384
 # Specify maximum number of pending messages in task and process message queues
 MessageQueueMaxMessages=100
 
+[RAMDisk]
+# Maximum number of sectors transferred in a single RAM disk operation.
+# The generic disk transfer layer chunks larger requests into this limit.
+# MaxSectorsPerTransfer=1024
+
 [KernelPath]
 # Logical kernel file/folder paths.
 UsersDatabase="/system/data/users.database"
@@ -88,10 +93,16 @@ Path="/scripts"
 [Keyboard]
 # Available layouts : de-DE, en-US, fr-FR
 Layout="en-US"
+# Auto-repeat timing for held keys, in milliseconds.
+# Only effective when software repeat is active (USB/PS2 HID keyboard paths).
+# RepeatDelayMS: delay before a held key starts repeating.
+# RepeatIntervalMS: period between repeated key-down events.
+#RepeatDelayMS=400
+#RepeatIntervalMS=50
 
 [Hotkey.0]
 # Switch display ownership back to the text console front-end
-Key="ctrl-alt-f1"
+Key="ctrl-shift-f1"
 Action="switch_to_console"
 
 [Network]
@@ -100,6 +111,7 @@ UseDHCP=1
 LocalIP="10.0.2.15"
 Netmask="255.255.255.0"
 Gateway="10.0.2.2"
+# DNSServer="10.0.2.3"
 DefaultPort=8080
 
 [[NetworkInterface]]

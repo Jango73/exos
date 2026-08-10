@@ -187,7 +187,7 @@ typedef struct tag_GRAPHICSCONTEXT {
     LPPEN Pen;
     LPFONT Font;
     LPBITMAP Bitmap;
-} GRAPHICSCONTEXT, *LPGRAPHICSCONTEXT;
+} GRAPHICS_CONTEXT, *LPGRAPHICSCONTEXT;
 
 /***************************************************************************/
 

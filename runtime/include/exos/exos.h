@@ -37,21 +37,25 @@ extern "C" {
 
 // Helper macro to cast parameters to the architecture-sized integer type.
 #ifndef EXOS_PARAM
-#define EXOS_PARAM(Value) ((uint_t)(Value))
+    #define EXOS_PARAM(Value) ((uint_t)(Value))
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-#define EXOS_MODULE_EXPORT __attribute__((visibility("default")))
-#define EXOS_MODULE_IMPORT extern
-#define EXOS_THREAD_LOCAL __thread
+    #define EXOS_MODULE_EXPORT __attribute__((visibility("default")))
+    #define EXOS_MODULE_IMPORT extern
+    #define EXOS_THREAD_LOCAL __thread
 #else
-#define EXOS_MODULE_EXPORT
-#define EXOS_MODULE_IMPORT extern
-#define EXOS_THREAD_LOCAL
+    #define EXOS_MODULE_EXPORT
+    #define EXOS_MODULE_IMPORT extern
+    #define EXOS_THREAD_LOCAL
 #endif
 
-static inline I32 imin(I32 A, I32 B) { return (A < B) ? A : B; }
-static inline I32 imax(I32 A, I32 B) { return (A > B) ? A : B; }
+static inline I32 imin(I32 A, I32 B) {
+    return (A < B) ? A : B;
+}
+static inline I32 imax(I32 A, I32 B) {
+    return (A > B) ? A : B;
+}
 
 /************************************************************************/
 
@@ -60,7 +64,7 @@ typedef struct tag_DESKTOP DESKTOP, *LPDESKTOP;
 /************************************************************************/
 
 #ifndef EXOS_MESSAGE_DEFINED
-#define EXOS_MESSAGE_DEFINED
+    #define EXOS_MESSAGE_DEFINED
 typedef struct tag_MESSAGE {
     HANDLE Target;
     DATETIME Time;
@@ -72,7 +76,9 @@ typedef struct tag_MESSAGE {
 
 /************************************************************************/
 
-static inline BOOL ExosIsSuccess(UINT Status) { return Status == DF_RETURN_SUCCESS; }
+static inline BOOL ExosIsSuccess(UINT Status) {
+    return Status == DF_RETURN_SUCCESS;
+}
 
 /************************************************************************/
 
@@ -85,6 +91,7 @@ UINT GetSystemTime(void);
 BOOL GetLocalTime(LPDATETIME Time);
 BOOL GetProcessMemoryInfo(LPPROCESS_MEMORY_INFO Info);
 BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info);
+BOOL GetTaskProfileInfo(LPTASK_PROFILE_QUERY_INFO Info);
 LPVOID HeapAlloc(UINT Size);
 void HeapFree(LPVOID Pointer);
 HANDLE LoadModule(LPCSTR Path);
@@ -190,7 +197,11 @@ I32 SocketReceive(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Fla
 I32 SocketSendTo(
     SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress, U32 AddressLength);
 I32 SocketReceiveFrom(
-    SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress,
+    SOCKET_HANDLE SocketHandle,
+    LPVOID Buffer,
+    U32 Length,
+    U32 Flags,
+    LPSOCKET_ADDRESS SourceAddress,
     U32* AddressLength);
 U32 SocketClose(SOCKET_HANDLE SocketHandle);
 U32 SocketShutdown(SOCKET_HANDLE SocketHandle, U32 How);
@@ -201,6 +212,7 @@ U32 SocketGetSocketName(SOCKET_HANDLE SocketHandle, LPSOCKET_ADDRESS Address, U3
 
 // Address utility functions
 U32 InternetAddressFromString(LPCSTR IPString);
+U32 InternetAddressFromHostName(LPCSTR HostName, U32 TimeoutMillis, U32* OutStatus);
 LPCSTR InternetAddressToString(U32 IPAddress);
 
 // Socket address utility functions
@@ -208,23 +220,37 @@ U32 SocketAddressInetToGeneric(LPSOCKET_ADDRESS_INET InetAddress, LPSOCKET_ADDRE
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 
-static inline unsigned short HToNs(unsigned short Value) { return Value; }
-static inline unsigned short NToHs(unsigned short Value) { return Value; }
-static inline unsigned long HToNl(unsigned long Value) { return Value; }
-static inline unsigned long NToHl(unsigned long Value) { return Value; }
+static inline unsigned short HToNs(unsigned short Value) {
+    return Value;
+}
+static inline unsigned short NToHs(unsigned short Value) {
+    return Value;
+}
+static inline unsigned long HToNl(unsigned long Value) {
+    return Value;
+}
+static inline unsigned long NToHl(unsigned long Value) {
+    return Value;
+}
 
 #elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
-static inline unsigned short HToNs(unsigned short Value) { return (unsigned short)((Value << 8) | (Value >> 8)); }
-static inline unsigned short NToHs(unsigned short Value) { return HToNs(Value); }
+static inline unsigned short HToNs(unsigned short Value) {
+    return (unsigned short)((Value << 8) | (Value >> 8));
+}
+static inline unsigned short NToHs(unsigned short Value) {
+    return HToNs(Value);
+}
 static inline unsigned long HToNl(unsigned long Value) {
     return ((Value & 0x000000FFU) << 24) | ((Value & 0x0000FF00U) << 8) | ((Value & 0x00FF0000U) >> 8) |
            ((Value & 0xFF000000U) >> 24);
 }
-static inline unsigned long NToHl(unsigned long Value) { return HToNl(Value); }
+static inline unsigned long NToHl(unsigned long Value) {
+    return HToNl(Value);
+}
 
 #else
-#error "Endianness not defined"
+    #error "Endianness not defined"
 #endif
 
 /************************************************************************/

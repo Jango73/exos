@@ -30,8 +30,8 @@
 
 BOOL GetExecutableInfo_EXOS(LPFILE File, LPEXECUTABLE_INFO Info) {
     FILE_OPERATION FileOperation;
-    EXOSCHUNK Chunk;
-    EXOSHEADER Header;
+    EXOS_CHUNK Chunk;
+    EXOS_HEADER Header;
     EXOSCHUNK_INIT Init;
     U32 BytesTransferred;
     U32 Index;
@@ -50,7 +50,7 @@ BOOL GetExecutableInfo_EXOS(LPFILE File, LPEXECUTABLE_INFO Info) {
     //-------------------------------------
     // Read the header
 
-    FileOperation.NumBytes = sizeof(EXOSHEADER);
+    FileOperation.NumBytes = sizeof(EXOS_HEADER);
     FileOperation.Buffer = (LPVOID)&Header;
     BytesTransferred = ReadFile(&FileOperation);
 
@@ -61,11 +61,11 @@ BOOL GetExecutableInfo_EXOS(LPFILE File, LPEXECUTABLE_INFO Info) {
     }
 
     FOREVER {
-        FileOperation.NumBytes = sizeof(EXOSCHUNK);
+        FileOperation.NumBytes = sizeof(EXOS_CHUNK);
         FileOperation.Buffer = (LPVOID)&Chunk;
         BytesTransferred = ReadFile(&FileOperation);
 
-        if (BytesTransferred != sizeof(EXOSCHUNK)) break;
+        if (BytesTransferred != sizeof(EXOS_CHUNK)) break;
 
         if (Chunk.ID == EXOS_CHUNK_INIT) {
             FileOperation.NumBytes = sizeof(EXOSCHUNK_INIT);
@@ -111,8 +111,8 @@ Out_Error:
 
 BOOL LoadExecutable_EXOS(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, LINEAR DataBase) {
     FILE_OPERATION FileOperation;
-    EXOSCHUNK Chunk;
-    EXOSHEADER Header;
+    EXOS_CHUNK Chunk;
+    EXOS_HEADER Header;
     EXOSCHUNK_FIXUP Fixup;
     LINEAR ItemAddress;
     U32 BytesTransferred;
@@ -146,7 +146,7 @@ BOOL LoadExecutable_EXOS(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, L
     //-------------------------------------
     // Read the header
 
-    FileOperation.NumBytes = sizeof(EXOSHEADER);
+    FileOperation.NumBytes = sizeof(EXOS_HEADER);
     FileOperation.Buffer = (LPVOID)&Header;
     BytesTransferred = ReadFile(&FileOperation);
 
@@ -155,11 +155,11 @@ BOOL LoadExecutable_EXOS(LPFILE File, LPEXECUTABLE_INFO Info, LINEAR CodeBase, L
     }
 
     FOREVER {
-        FileOperation.NumBytes = sizeof(EXOSCHUNK);
+        FileOperation.NumBytes = sizeof(EXOS_CHUNK);
         FileOperation.Buffer = (LPVOID)&Chunk;
         BytesTransferred = ReadFile(&FileOperation);
 
-        if (BytesTransferred != sizeof(EXOSCHUNK)) break;
+        if (BytesTransferred != sizeof(EXOS_CHUNK)) break;
 
         if (Chunk.ID == EXOS_CHUNK_CODE) {
             if (CodeRead == 1) {

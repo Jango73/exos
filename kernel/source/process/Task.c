@@ -57,8 +57,11 @@ static BOOL TaskEnsureMessageQueueReservedHeap(void) {
     }
 
     if (ReservedHeapInit(
-            &TaskMessageQueueReservedHeap, &KernelProcess, TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE,
-            TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
+            &TaskMessageQueueReservedHeap,
+            &KernelProcess,
+            TASK_MESSAGE_QUEUE_RESERVED_HEAP_INITIAL_SIZE,
+            TASK_MESSAGE_QUEUE_RESERVED_HEAP_MAXIMUM_SIZE,
+            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
             TEXT("TaskMessageQueueHeap")) == FALSE) {
         ERROR(TEXT("[TaskEnsureMessageQueueReservedHeap] Could not initialize task message queue reserved heap"));
         return FALSE;
@@ -80,11 +83,15 @@ static void TaskInitializeStackConfig(void) {
     }
 
     TaskMinimumTaskStackSize = GetConfigurationUInt(
-        TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE), TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
-        TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT, MAX_U32);
+        TEXT(CONFIG_TASK_MINIMUM_TASK_STACK_SIZE),
+        TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
+        TASK_MINIMUM_TASK_STACK_SIZE_DEFAULT,
+        MAX_U32);
     TaskMinimumSystemStackSize = GetConfigurationUInt(
-        TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE), TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
-        TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT, MAX_U32);
+        TEXT(CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE),
+        TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
+        TASK_MINIMUM_SYSTEM_STACK_SIZE_DEFAULT,
+        MAX_U32);
     TaskStackConfigInitialized = TRUE;
 }
 
@@ -92,8 +99,12 @@ static void TaskInitializeStackConfig(void) {
 
 static BOOL TaskInitializeMessageBuffer(LPTASK Task) {
     UINT MessageQueueCapacity = GetConfigurationUIntLazy(
-        &TaskMessageQueueMaximumMessages, &TaskMessageQueueConfigInitialized,
-        TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES), TASK_MESSAGE_QUEUE_MAX_MESSAGES, 1, MAX_U32 / sizeof(MESSAGE));
+        &TaskMessageQueueMaximumMessages,
+        &TaskMessageQueueConfigInitialized,
+        TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES),
+        TASK_MESSAGE_QUEUE_MAX_MESSAGES,
+        1,
+        MAX_U32 / sizeof(MESSAGE));
     UINT MessageBufferSize = MessageQueueCapacity * sizeof(MESSAGE);
     LINEAR MessageBufferBase;
     LPMESSAGE MessageBufferStorage;
@@ -202,13 +213,15 @@ LPTASK NewTask(void) {
     This->Type = TASK_TYPE_NONE;
     This->SchedulerState.Status = TASK_STATUS_READY;
     This->SchedulerState.WakeUpTime = INFINITY;
+    This->SchedulerState.TimeSlice = INFINITY;
     This->SchedulerState.Suspended = FALSE;
+    This->SchedulerState.InitDone = FALSE;
     This->WaitingMutex = NULL;
     This->WaitingSince = 0;
     This->HeldMutexClassDepth = 0;
     MemorySet(This->HeldMutexClasses, 0, sizeof(This->HeldMutexClasses));
     MemorySet(This->HeldMutexes, 0, sizeof(This->HeldMutexes));
-    MemorySet(&(This->MessageQueue), 0, sizeof(MESSAGEQUEUE));
+    MemorySet(&(This->MessageQueue), 0, sizeof(MESSAGE_QUEUE));
 
     //-------------------------------------
     // Initialize the message queue
@@ -264,7 +277,8 @@ void DeleteTask(LPTASK This) {
 
     SAFE_USE_VALID_ID(This, KOID_TASK) {
         // Lock kernel mutex for the entire operation
-        SAFE_USE(This->OwnerProcess) {}
+        SAFE_USE(This->OwnerProcess) {
+        }
 
         LockMutex(MUTEX_KERNEL, INFINITY);
 
@@ -295,14 +309,20 @@ void DeleteTask(LPTASK This) {
         //-------------------------------------
         // Delete the task's stacks
 
-        SAFE_USE(This->Arch.SystemStack.Base) { StackRelease(&(This->Arch.SystemStack)); }
+        SAFE_USE(This->Arch.SystemStack.Base) {
+            StackRelease(&(This->Arch.SystemStack));
+        }
 
 #if defined(__EXOS_ARCH_X86_64__)
-        SAFE_USE(This->Arch.Ist1Stack.Base) { StackRelease(&(This->Arch.Ist1Stack)); }
+        SAFE_USE(This->Arch.Ist1Stack.Base) {
+            StackRelease(&(This->Arch.Ist1Stack));
+        }
 #endif
 
         SAFE_USE(This->OwnerProcess) {
-            SAFE_USE(This->Arch.Stack.Base) { StackRelease(&(This->Arch.Stack)); }
+            SAFE_USE(This->Arch.Stack.Base) {
+                StackRelease(&(This->Arch.Stack));
+            }
         }
 
         //-------------------------------------
@@ -406,7 +426,8 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
 
     LPTASK Task = NULL;
 
-    SAFE_USE(Info) {}
+    SAFE_USE(Info) {
+    }
 
     //-------------------------------------
     // Check parameters
@@ -458,6 +479,10 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
     Task->Function = Info->Func;
     Task->Parameter = Info->Parameter;
 
+#if PROFILING
+    TaskProfileInitialize(&(Task->Profile), GetSystemTime());
+#endif
+
     // Increment process task count
     SAFE_USE(Process) {
         LockMutex(MUTEX_PROCESS, INFINITY);
@@ -469,7 +494,7 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
                  : Process->TaskCount == 1                    ? TASK_TYPE_USER_MAIN
                                                               : TASK_TYPE_USER_OTHER;
 
-    SetTaskWakeUpTime(Task, ComputeTaskQuantumTime(Task->Priority));
+    SetTaskTimeSlice(Task, ComputeTaskQuantumTime(Task->Priority));
 
     // Copy task name for debugging
     if (Info->Name[0] != STR_NULL) {
@@ -629,7 +654,9 @@ BOOL SetTaskExitCode(LPTASK Task, UINT Code) {
         Task->ExitCode = Code;
 
         if (Task->Type == TASK_TYPE_USER_MAIN) {
-            SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) { Task->OwnerProcess->ExitCode = Code; }
+            SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) {
+                Task->OwnerProcess->ExitCode = Code;
+            }
         }
 
         UnlockMutex(MUTEX_KERNEL);
@@ -695,7 +722,8 @@ void DeleteDeadTasksAndProcesses(void) {
                 if (Process->PackageFileSystem != NULL) {
                     if (!PackageFSUnmount(Process->PackageFileSystem)) {
                         WARNING(
-                            TEXT("PackageFS unmount failed process=%s fs=%p"), Process->FileName,
+                            TEXT("PackageFS unmount failed process=%s fs=%p"),
+                            Process->FileName,
                             Process->PackageFileSystem);
                     }
                     Process->PackageFileSystem = NULL;
@@ -735,6 +763,12 @@ U32 SetTaskPriority(LPTASK Task, U32 Priority) {
 
         OldPriority = Task->Priority;
         Task->Priority = Priority;
+
+        // Apply the new priority to the time-slice deadline so a running task
+        // immediately benefits from the updated quantum.
+        if (Task->SchedulerState.Status == TASK_STATUS_RUNNING) {
+            SetTaskTimeSliceDirect(Task, ComputeTaskQuantumTime(Priority));
+        }
 
         UnlockMutex(MUTEX_KERNEL);
     }
@@ -852,7 +886,9 @@ BOOL GetTaskSchedulerState(LPTASK Task, LPTASK_SCHEDULER_STATE State) {
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
         State->Status = Task->SchedulerState.Status;
         State->WakeUpTime = Task->SchedulerState.WakeUpTime;
+        State->TimeSlice = Task->SchedulerState.TimeSlice;
         State->Suspended = Task->SchedulerState.Suspended;
+        State->InitDone = Task->SchedulerState.InitDone;
         return TRUE;
     }
 
@@ -898,6 +934,10 @@ void SetTaskStatus(LPTASK Task, U32 Status) {
 
         Task->SchedulerState.Status = Status;
 
+#if PROFILING
+        TaskProfileStatusChanged(&(Task->Profile), OldStatus, Status, GetSystemTime());
+#endif
+
         if (Task->SchedulerState.Status == TASK_STATUS_DEAD) {
             // Store termination state in cache before task is destroyed
             StoreObjectTerminationState(Task, Task->ExitCode);
@@ -926,6 +966,10 @@ void SetTaskStatusDirect(LPTASK Task, U32 Status) {
         UNUSED(OldStatus);
 
         Task->SchedulerState.Status = Status;
+
+#if PROFILING
+        TaskProfileStatusChanged(&(Task->Profile), OldStatus, Status, GetSystemTime());
+#endif
 
         FINE_DEBUG(TEXT("Task %p (%s): %u -> %u"), Task, Task->Name, OldStatus, Status);
     }
@@ -960,18 +1004,16 @@ BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status) {
 /************************************************************************/
 
 /**
- * @brief Updates one task wake-up time without taking the task mutex.
+ * @brief Updates one task sleep wake-up deadline without taking the task mutex.
  *
  * The caller must already own whatever synchronization protects task-local
  * scheduler state.
  *
  * @param Task Pointer to task to modify.
- * @param WakeupTime Wake-up time in milliseconds.
+ * @param WakeupTime Sleep duration in milliseconds from the current time.
  */
 void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime) {
     UINT CurrentTime;
-    UINT Quantum;
-    UINT BaseTime;
     UINT TargetTime;
 
     if (Task == NULL) return;
@@ -982,25 +1024,18 @@ void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime) {
     }
 
     CurrentTime = GetSystemTime();
-    Quantum = GetMinimumQuantum();
-    BaseTime = CurrentTime + Quantum;
+    TargetTime = CurrentTime + WakeupTime;
 
-    if (BaseTime < CurrentTime) {
-        Task->SchedulerState.WakeUpTime = INFINITY;
-        return;
-    }
-
-    TargetTime = BaseTime + WakeupTime;
-    Task->SchedulerState.WakeUpTime = (TargetTime < BaseTime) ? INFINITY : TargetTime;
+    Task->SchedulerState.WakeUpTime = (TargetTime < CurrentTime) ? INFINITY : TargetTime;
 }
 
 /************************************************************************/
 
 /**
- * @brief Sets the wake-up time for a task in a thread-safe manner.
+ * @brief Sets the sleep wake-up deadline for a task in a thread-safe manner.
  *
  * @param Task Pointer to task to modify
- * @param WakeupTime Wake-up time in milliseconds
+ * @param WakeupTime Sleep duration in milliseconds from the current time
  */
 void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime) {
     if (Task == NULL) return;
@@ -1011,12 +1046,63 @@ void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime) {
     UnlockMutex(&(Task->Mutex));
 }
 
+/************************************************************************/
+
+/**
+ * @brief Rearms one task time-slice deadline without taking the task mutex.
+ *
+ * This helper is reserved for scheduler-owned paths. The scheduler may run
+ * from interrupt context and must not block on one task-local mutex while
+ * writing scheduler-visible state.
+ *
+ * @param Task Pointer to task to modify.
+ * @param Quantum Time slice in milliseconds from the current time.
+ */
+void SetTaskTimeSliceDirect(LPTASK Task, UINT Quantum) {
+    UINT CurrentTime;
+    UINT TargetTime;
+
+    if (Task == NULL) return;
+
+    if (Quantum == INFINITY) {
+        Task->SchedulerState.TimeSlice = INFINITY;
+        return;
+    }
+
+#if PROFILING
+    TaskProfileSetQuantumGranted(&(Task->Profile), Quantum);
+#endif
+
+    CurrentTime = GetSystemTime();
+    TargetTime = CurrentTime + Quantum;
+
+    Task->SchedulerState.TimeSlice = (TargetTime < CurrentTime) ? INFINITY : TargetTime;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Rearms one task time-slice deadline in a thread-safe manner.
+ *
+ * @param Task Pointer to task to modify
+ * @param Quantum Time slice in milliseconds from the current time
+ */
+void SetTaskTimeSlice(LPTASK Task, UINT Quantum) {
+    if (Task == NULL) return;
+
+    LockMutex(&(Task->Mutex), INFINITY);
+    SetTaskTimeSliceDirect(Task, Quantum);
+
+    UnlockMutex(&(Task->Mutex));
+}
+
 /***************************************************************************/
 
 /**
  * @brief Calculates the time quantum for a task based on its priority.
  *
- * Higher priority tasks get longer time slices. Minimum quantum is 20ms.
+ * Higher priority tasks get longer time slices. The computed value is
+ * clamped to the configured minimum and maximum quantum bounds.
  *
  * @param Priority Task priority value
  * @return Time quantum in milliseconds
@@ -1062,6 +1148,8 @@ void DumpTask(LPTASK Task) {
     VERBOSE(TEXT("IST1StackSize   : %u"), Task->Arch.Ist1Stack.Size);
 #endif
     VERBOSE(TEXT("WakeUpTime      : %u"), (U32)Task->SchedulerState.WakeUpTime);
+    VERBOSE(TEXT("TimeSlice       : %u"), (U32)Task->SchedulerState.TimeSlice);
+    VERBOSE(TEXT("InitDone        : %s"), Task->SchedulerState.InitDone ? TEXT("yes") : TEXT("no"));
     UINT PendingMessages = MessageQueueBufferGetCount(&(Task->MessageQueue.MessageBuffer));
 
     VERBOSE(TEXT("Queued messages : %u"), PendingMessages);
@@ -1083,7 +1171,12 @@ void DumpTask(LPTASK Task) {
  * @return Updated number of captured stacks.
  */
 static UINT TaskSnapshotAppendStack(
-    LPMEMORY_CARVING_STACK Stacks, UINT StackCount, UINT MaxStacks, UINT TaskIndex, LPTASK Task, LPSTACK Stack,
+    LPMEMORY_CARVING_STACK Stacks,
+    UINT StackCount,
+    UINT MaxStacks,
+    UINT TaskIndex,
+    LPTASK Task,
+    LPSTACK Stack,
     U32 Kind) {
     LPMEMORY_CARVING_STACK Target;
 
@@ -1129,14 +1222,29 @@ UINT TaskSnapshotStacksForProcess(LPPROCESS Process, LPMEMORY_CARVING_STACK Stac
             SAFE_USE_VALID_ID(Task, KOID_TASK) {
                 if (Task->OwnerProcess == Process) {
                     StackCount = TaskSnapshotAppendStack(
-                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.Stack),
+                        Stacks,
+                        StackCount,
+                        MaxStacks,
+                        TaskIndex,
+                        Task,
+                        &(Task->Arch.Stack),
                         MEMORY_CARVING_STACK_KIND_TASK);
                     StackCount = TaskSnapshotAppendStack(
-                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.SystemStack),
+                        Stacks,
+                        StackCount,
+                        MaxStacks,
+                        TaskIndex,
+                        Task,
+                        &(Task->Arch.SystemStack),
                         MEMORY_CARVING_STACK_KIND_SYSTEM);
 #if defined(__EXOS_ARCH_X86_64__)
                     StackCount = TaskSnapshotAppendStack(
-                        Stacks, StackCount, MaxStacks, TaskIndex, Task, &(Task->Arch.Ist1Stack),
+                        Stacks,
+                        StackCount,
+                        MaxStacks,
+                        TaskIndex,
+                        Task,
+                        &(Task->Arch.Ist1Stack),
                         MEMORY_CARVING_STACK_KIND_IST1);
 #endif
                 }

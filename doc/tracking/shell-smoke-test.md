@@ -6,6 +6,7 @@ Conventions:
 - Each item starts unchecked and will be updated as blocks are implemented and validated.
 - Command entries use `primary / alias` naming when the shell exposes both names in the command table.
 - For scripting exposure, the objective is at least one representative field per exposed object shape, including nested arrays or sub-objects when they have their own descriptor.
+- Automated coverage runs through `scripts/linux/test/smoke-test-shell.sh` (command list: `scripts/common/smoke-test-shell-commands.txt`).
 
 ## Block 1 - Core Commands
 
@@ -19,15 +20,20 @@ Conventions:
 - [x] `pause / pause` without argument.
 - [x] `pause / pause on`.
 - [x] `pause / pause off`.
-- [x] `changeFolder / cf` with relative path.
-- [x] `changeFolder / cf` with absolute path.
-- [x] `makeFolder / mf <name>`.
-- [x] `listFolder / lf` on current folder.
-- [x] `listFolder / lf <path>`.
-- [x] `listFolder / lf -p`.
-- [x] `listFolder / lf -r`.
-- [x] `listFolder / lf -s`.
-- [x] `listFolder / lf --stress`.
+- [x] `changeFolder / cf / cd` with relative path.
+- [x] `changeFolder / cf / cd` with absolute path.
+- [x] `makeFolder / mf / md / mkdir <name>`.
+- [x] `listFolder / lf / dir / ls` on current folder.
+- [x] `listFolder / lf / dir / ls <path>`.
+- [x] `listFolder / lf / dir / ls -p`.
+- [x] `listFolder / lf / dir / ls -r`.
+- [x] `listFolder / lf / dir / ls --stress`.
+- [x] `listFolder / lf / dir / ls --sort=name`.
+- [x] `listFolder / lf / dir / ls --sort=extension`.
+- [x] `listFolder / lf / dir / ls --sort=modified`.
+- [x] `listFolder / lf / dir / ls --limit=<n>`.
+- [x] `listFolder / lf / dir / ls -sn / -se / -sm`.
+- [x] `listFolder / lf / dir / ls -l<n>`.
 
 ## Block 2 - Storage and File Commands
 

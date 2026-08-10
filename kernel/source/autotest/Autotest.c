@@ -54,6 +54,8 @@ static TESTENTRY TestRegistry[] = {
     {TEXT("TestMacros"), TestMacros, TRUE},
     {TEXT("TestPackageManifest"), TestPackageManifest, TRUE},
     {TEXT("TestTCP"), TestTCP, TRUE},
+    {TEXT("TestUDP"), TestUDP, TRUE},
+    {TEXT("TestDNS"), TestDNS, TRUE},
     {TEXT("TestScript"), TestScript, TRUE},
     // Add new tests here following the same pattern
     // { TEXT("TestName"), TestFunctionName },

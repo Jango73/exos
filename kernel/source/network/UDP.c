@@ -54,7 +54,8 @@ LPUDP_CONTEXT UDP_GetContext(LPDEVICE Device) {
  * @return Calculated checksum in network byte order.
  */
 
-U16 UDP_CalculateChecksum(U32 SourceIP, U32 DestinationIP, const UDP_HEADER* Header, const U8* Payload, U32 PayloadLength) {
+U16 UDP_CalculateChecksum(
+    U32 SourceIP, U32 DestinationIP, const UDP_HEADER* Header, const U8* Payload, U32 PayloadLength) {
     U32 Accumulator = 0;
     U8 PseudoHeader[12];
 
@@ -125,7 +126,6 @@ void UDP_Initialize(LPDEVICE Device) {
 
     // Register UDP as IPv4 protocol handler
     IPv4_RegisterProtocolHandler(Device, IPV4_PROTOCOL_UDP, UDP_OnIPv4Packet);
-
 }
 
 /************************************************************************/
@@ -231,7 +231,8 @@ void UDP_UnregisterPortHandler(LPDEVICE Device, U16 Port) {
  * @return 1 on success, 0 on failure.
  */
 
-int UDP_Send(LPDEVICE Device, U32 DestinationIP, U16 SourcePort, U16 DestinationPort, const U8* Payload, U32 PayloadLength) {
+int UDP_Send(
+    LPDEVICE Device, U32 DestinationIP, U16 SourcePort, U16 DestinationPort, const U8* Payload, U32 PayloadLength) {
     LPUDP_CONTEXT Context;
     LPIPV4_CONTEXT IPv4Context;
     U8 Packet[1500];
@@ -259,7 +260,7 @@ int UDP_Send(LPDEVICE Device, U32 DestinationIP, U16 SourcePort, U16 Destination
             UDPHeader->SourcePort = Htons(SourcePort);
             UDPHeader->DestinationPort = Htons(DestinationPort);
             UDPHeader->Length = Htons(UDPLength);
-            UDPHeader->Checksum = 0; // Will be calculated below
+            UDPHeader->Checksum = 0;  // Will be calculated below
 
             // Copy payload
             if (PayloadLength > 0) {
@@ -294,18 +295,26 @@ int UDP_Send(LPDEVICE Device, U32 DestinationIP, U16 SourcePort, U16 Destination
 void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 DestinationIP) {
     LPUDP_CONTEXT Context;
     LPUDP_HEADER UDPHeader;
+    LPIPV4_CONTEXT IPv4Context;
     U16 SourcePort, DestinationPort, Length, Checksum;
     const U8* UDPPayload;
     U32 UDPPayloadLength;
     U32 Index;
-    U32 SrcIP, DstIP;
-
-    UNUSED(DestinationIP);
 
     if (g_UDPDevice == NULL) return;
 
     Context = UDP_GetContext(g_UDPDevice);
     SAFE_USE_2(Context, Payload) {
+        // Validate destination before socket dispatch: only the local address
+        // or the broadcast address are eligible for local delivery.
+        IPv4Context = IPv4_GetContext(g_UDPDevice);
+        SAFE_USE(IPv4Context) {
+            if (DestinationIP != IPv4Context->LocalIPv4_Be && DestinationIP != Htonl(0xFFFFFFFF)) {
+                DEBUG(TEXT("Dropping UDP packet for foreign destination %x"), DestinationIP);
+                return;
+            }
+        }
+
         if (PayloadLength < sizeof(UDP_HEADER)) {
             ERROR(TEXT("Packet too small: %u bytes"), PayloadLength);
             return;
@@ -317,12 +326,6 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
         Length = Ntohs(UDPHeader->Length);
         Checksum = Ntohs(UDPHeader->Checksum);
 
-        SrcIP = Ntohl(SourceIP);
-        DstIP = Ntohl(DestinationIP);
-        UNUSED(SrcIP);
-        UNUSED(DstIP);
-
-
         // Validate length
         if (Length < sizeof(UDP_HEADER) || Length > PayloadLength) {
             ERROR(TEXT("Invalid UDP length: %u (packet length: %u)"), Length, PayloadLength);
@@ -331,13 +334,11 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
 
         // Checksum validation (skip if checksum is 0 - checksum disabled)
         if (Checksum != 0) {
-            U16 CalculatedChecksum = UDP_CalculateChecksum(SourceIP, DestinationIP, UDPHeader,
-                                                            Payload + sizeof(UDP_HEADER),
-                                                            Length - sizeof(UDP_HEADER));
+            U16 CalculatedChecksum = UDP_CalculateChecksum(
+                SourceIP, DestinationIP, UDPHeader, Payload + sizeof(UDP_HEADER), Length - sizeof(UDP_HEADER));
             CalculatedChecksum = Ntohs(CalculatedChecksum);
             if (CalculatedChecksum != Checksum) {
-                ERROR(TEXT("Invalid UDP checksum: expected %x, got %x"),
-                      CalculatedChecksum, Checksum);
+                ERROR(TEXT("Invalid UDP checksum: expected %x, got %x"), CalculatedChecksum, Checksum);
                 return;
             }
         }
@@ -348,14 +349,12 @@ void UDP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
 
         // Find handler for destination port
         for (Index = 0; Index < UDP_MAX_PORTS; Index++) {
-            if (Context->PortBindings[Index].IsValid &&
-                Context->PortBindings[Index].Port == DestinationPort) {
-                Context->PortBindings[Index].Handler(SourceIP, SourcePort, DestinationPort,
-                                                     UDPPayload, UDPPayloadLength);
+            if (Context->PortBindings[Index].IsValid && Context->PortBindings[Index].Port == DestinationPort) {
+                Context->PortBindings[Index].Handler(
+                    SourceIP, SourcePort, DestinationPort, DestinationIP, UDPPayload, UDPPayloadLength);
                 return;
             }
         }
-
     }
 }
 

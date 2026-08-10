@@ -61,13 +61,16 @@ typedef struct tag_DISKGEOMETRY {
     U32 Heads;
     U32 SectorsPerTrack;
     U32 BytesPerSector;
-} DISKGEOMETRY, *LPDISKGEOMETRY;
+} DISK_GEOMETRY, *LPDISKGEOMETRY;
 
 /***************************************************************************/
+
+typedef struct tag_DISK_TRANSFER_UNIT DISK_TRANSFER_UNIT, *LPDISK_TRANSFER_UNIT;
 
 typedef struct tag_STORAGE_UNIT {
     LISTNODE_FIELDS
     LPDRIVER Driver;
+    LPDISK_TRANSFER_UNIT DiskTransfer;  // Disk transfer layer state, owned by DiskTransferLayer
 } STORAGE_UNIT, *LPSTORAGE_UNIT;
 
 /***************************************************************************/
@@ -92,7 +95,7 @@ typedef struct tag_DISKINFO {
     U32 BytesPerSector;
     U64 NumSectors;
     U32 Access;
-} DISKINFO, *LPDISKINFO;
+} DISK_INFO, *LPDISKINFO;
 
 /***************************************************************************/
 
@@ -100,7 +103,7 @@ typedef struct tag_DISKACCESS {
     LISTNODE_FIELDS
     LPSTORAGE_UNIT Disk;
     U32 Access;
-} DISKACCESS, *LPDISKACCESS;
+} DISK_ACCESS, *LPDISKACCESS;
 
 /***************************************************************************/
 
@@ -124,7 +127,7 @@ typedef struct tag_SECTORBUFFER {
     U32 SectorHigh;
     U32 Dirty;
     U8 Data[SECTOR_SIZE];
-} SECTORBUFFER, *LPSECTORBUFFER;
+} SECTOR_BUFFER, *LPSECTORBUFFER;
 
 /***************************************************************************/
 

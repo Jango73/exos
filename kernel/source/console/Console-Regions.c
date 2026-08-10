@@ -688,7 +688,7 @@ static void ConsolePagerWaitLockedRegion(U32 RegionIndex) {
     CONSOLE_REGION_STATE State;
     LPPROCESS CurrentProcess;
     LPTASK CurrentTask;
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
     U32 WaitLoops;
     U32 ReleasedConsoleLocks;
     BOOL ExitByInterrupt;

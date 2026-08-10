@@ -34,7 +34,7 @@
 
 /***************************************************************************/
 
-static IOAPIC_CONFIG DATA_SECTION g_IOAPICConfig = {0};
+static IO_APIC_CONFIG DATA_SECTION g_IOAPICConfig = {0};
 
 /***************************************************************************/
 
@@ -418,7 +418,7 @@ BOOL ConfigureIOAPICInterrupt(U8 IRQ, U8 Vector, U32 DeliveryMode, U8 TriggerMod
 {
     U32 ControllerIndex;
     U8 Entry;
-    IOAPIC_REDIRECTION_ENTRY RedirEntry = {0};
+    IO_APIC_REDIRECTION_ENTRY RedirEntry = {0};
     LPINTERRUPT_OVERRIDE_INFO pOverride;
     U32 i;
     U32 MappedIRQ = IRQ;
@@ -469,7 +469,7 @@ BOOL EnableIOAPICInterrupt(U8 IRQ)
 {
     U32 ControllerIndex;
     U8 Entry;
-    IOAPIC_REDIRECTION_ENTRY RedirEntry;
+    IO_APIC_REDIRECTION_ENTRY RedirEntry;
     U32 MappedIRQ = MapInterrupt(IRQ);
 
 
@@ -501,7 +501,7 @@ BOOL DisableIOAPICInterrupt(U8 IRQ)
 {
     U32 ControllerIndex;
     U8 Entry;
-    IOAPIC_REDIRECTION_ENTRY RedirEntry;
+    IO_APIC_REDIRECTION_ENTRY RedirEntry;
     U32 MappedIRQ = MapInterrupt(IRQ);
 
     if (!MapIRQToIOAPIC(MappedIRQ, &ControllerIndex, &Entry)) {
@@ -529,7 +529,7 @@ BOOL DisableIOAPICInterrupt(U8 IRQ)
 void MaskAllIOAPICInterrupts(U32 ControllerIndex)
 {
     U8 Entry;
-    IOAPIC_REDIRECTION_ENTRY RedirEntry;
+    IO_APIC_REDIRECTION_ENTRY RedirEntry;
 
     if (ControllerIndex >= g_IOAPICConfig.ControllerCount) {
         return;

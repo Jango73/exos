@@ -34,31 +34,58 @@
 #include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
+#include "utils/Helpers.h"
 
 /***************************************************************************/
 
-KEYBOARDSTRUCT Keyboard = {
-    .Mutex = EMPTY_MUTEX,
-    .Initialized = FALSE,
-    .Shift = 1,
-    .Control = 0,
-    .Alt = 0,
-    .CapsLock = 0,
-    .NumLock = 0,
-    .ScrollLock = 0,
-    .Pause = 0,
-    .Buffer = {{0}},
-    .LayoutHid = NULL,
-    .PendingDeadKey = 0,
-    .PendingComposeKey = 0,
-    .UsageStatus = {0},
-    .UsageVirtualKey = {0},
-    .VirtualKeyStatus = {0},
-    .SoftwareRepeat = FALSE,
-    .RepeatUsage = 0,
-    .RepeatStartTick = 0,
-    .RepeatLastTick = 0,
-    .RepeatToken = {.QueueID = DEFERRED_WORK_QUEUE_INVALID, .SlotID = DEFERRED_WORK_INVALID_SLOT}};
+#define KEYBOARD_REPEAT_DELAY_MS_DEFAULT 400
+#define KEYBOARD_REPEAT_INTERVAL_MS_DEFAULT 50
+
+/***************************************************************************/
+
+KEYBOARD_STRUCT Keyboard = { .Mutex = EMPTY_MUTEX,
+                             .Initialized = FALSE,
+                             .Shift = 1,
+                             .Control = 0,
+                             .Alt = 0,
+                             .CapsLock = 0,
+                             .NumLock = 0,
+                             .ScrollLock = 0,
+                             .Pause = 0,
+                             .Buffer = { { 0 } },
+                             .LayoutHid = NULL,
+                             .PendingDeadKey = 0,
+                             .PendingComposeKey = 0,
+                             .UsageStatus = { 0 },
+                             .UsageVirtualKey = { 0 },
+                             .VirtualKeyStatus = { 0 },
+                             .SoftwareRepeat = FALSE,
+                             .RepeatUsage = 0,
+                             .RepeatStartTick = 0,
+                             .RepeatLastTick = 0,
+                             .RepeatDelayMS = KEYBOARD_REPEAT_DELAY_MS_DEFAULT,
+                             .RepeatIntervalMS = KEYBOARD_REPEAT_INTERVAL_MS_DEFAULT,
+                             .RepeatConfigInitialized = FALSE,
+                             .RepeatToken = { .QueueID = DEFERRED_WORK_QUEUE_INVALID,
+                                              .SlotID = DEFERRED_WORK_INVALID_SLOT } };
+
+/***************************************************************************/
+
+static void KeyboardRefreshRepeatConfig(void) {
+    if (Keyboard.RepeatConfigInitialized != FALSE) {
+        return;
+    }
+
+    if (GetConfiguration() == NULL) {
+        return;
+    }
+
+    Keyboard.RepeatDelayMS =
+        GetConfigurationUInt(TEXT(CONFIG_KEYBOARD_REPEAT_DELAY_MS), KEYBOARD_REPEAT_DELAY_MS_DEFAULT, 1, 5000);
+    Keyboard.RepeatIntervalMS =
+        GetConfigurationUInt(TEXT(CONFIG_KEYBOARD_REPEAT_INTERVAL_MS), KEYBOARD_REPEAT_INTERVAL_MS_DEFAULT, 1, 1000);
+    Keyboard.RepeatConfigInitialized = TRUE;
+}
 
 /***************************************************************************/
 
@@ -66,6 +93,8 @@ static void KeyboardRepeatPoll(LPVOID Context) {
     UINT Now;
 
     UNUSED(Context);
+
+    KeyboardRefreshRepeatConfig();
 
     if (Keyboard.SoftwareRepeat == FALSE) {
         return;
@@ -83,11 +112,11 @@ static void KeyboardRepeatPoll(LPVOID Context) {
     }
 
     Now = GetSystemTime();
-    if (Now - Keyboard.RepeatStartTick < 400U) {
+    if (Now - Keyboard.RepeatStartTick < Keyboard.RepeatDelayMS) {
         return;
     }
 
-    if (Now - Keyboard.RepeatLastTick < 50U) {
+    if (Now - Keyboard.RepeatLastTick < Keyboard.RepeatIntervalMS) {
         return;
     }
 
@@ -168,7 +197,9 @@ void RouteKeyCode(LPKEYCODE KeyCode, BOOL Repeat) {
 
 /***************************************************************************/
 
-void RouteKeyUp(U8 VirtualKey) { (void)DispatchKeyUpMessage(VirtualKey); }
+void RouteKeyUp(U8 VirtualKey) {
+    (void)DispatchKeyUpMessage(VirtualKey);
+}
 
 /***************************************************************************/
 
@@ -176,7 +207,9 @@ static LPPROCESS LockCurrentProcessMessageQueue(void) {
     LPTASK Task = GetCurrentTask();
     LPPROCESS Process = NULL;
 
-    SAFE_USE_VALID_ID(Task, KOID_TASK) { Process = Task->OwnerProcess; }
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        Process = Task->OwnerProcess;
+    }
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
         if (Process->MessageQueue.MessageBuffer.Entries == NULL || Process->MessageQueue.MessageBuffer.Capacity == 0) {
             return NULL;
@@ -276,7 +309,7 @@ static BOOL PeekKeyInMessageQueue(LPKEYCODE KeyCode) {
 
 BOOL PeekChar(void) {
     U32 Result = FALSE;
-    KEYCODE KeyCode = {0};
+    KEY_CODE KeyCode = { 0 };
 
     FINE_DEBUG(TEXT("Enter"));
 
@@ -301,7 +334,7 @@ BOOL PeekChar(void) {
 STR GetChar(void) {
     U32 Index;
     STR Char;
-    KEYCODE KeyCode = {0};
+    KEY_CODE KeyCode = { 0 };
 
     if (FetchKeyFromMessageQueue(TRUE, TRUE, &KeyCode) == TRUE) {
         return KeyCode.ASCIICode;

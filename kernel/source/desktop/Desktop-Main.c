@@ -255,7 +255,7 @@ static BOOL DesktopEnsureGraphicsShadowBuffer(LPDESKTOP Desktop, LPGRAPHICSCONTE
     }
 
     if (Desktop->GraphicsContext == NULL) {
-        Desktop->GraphicsContext = (LPGRAPHICSCONTEXT)KernelHeapAlloc(sizeof(GRAPHICSCONTEXT));
+        Desktop->GraphicsContext = (LPGRAPHICSCONTEXT)KernelHeapAlloc(sizeof(GRAPHICS_CONTEXT));
         if (Desktop->GraphicsContext == NULL) {
             DesktopReleaseGraphicsShadowBuffer(Desktop);
             return FALSE;

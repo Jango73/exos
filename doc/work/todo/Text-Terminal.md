@@ -3,7 +3,7 @@
 ## Current Kernel Hooks (Observed)
 
 - Console output is a VGA text driver in `kernel/source/Console-Main.c` writing to 0xB8000 and exported through `ConsolePrint`, `ConsolePrintLine`, `SetConsoleCursorPosition`, and syscalls (`SYSCALL_Console*` in `kernel/source/SYSCall.c`).
-- Keyboard input is handled by `kernel/source/drivers/Keyboard-PS2.c` which translates scancodes to `KEYCODE` and routes to:
+- Keyboard input is handled by `kernel/source/drivers/Keyboard-PS2.c` which translates scancodes to `KEY_CODE` and routes to:
   - `EnqueueInputMessage` (focused window/process message queue in `kernel/source/process/TaskMessaging.c`), or
   - the legacy keyboard buffer (`Keyboard.Buffer`) when no message queue is available.
 - Userland uses `runtime/include/exos.h` `Console*` functions that map to the console syscalls.

@@ -93,7 +93,7 @@ typedef struct tag_VESAINFOBLOCK {
     U8 Caps[4];       // Capabilities of the video environment
     U32 ModePointer;  // Pointer to supported Super VGA modes
     U16 Memory;       // Number of 64kb memory blocks on board
-} VESAINFOBLOCK, *LPVESAINFOBLOCK;
+} VESA_INFO_BLOCK, *LPVESAINFOBLOCK;
 
 /************************************************************************/
 
@@ -133,7 +133,7 @@ typedef struct tag_MODEINFOBLOCK {
     U32 OffScreenMemOffset;
     U16 OffScreenMemSize;
     U8 Reserved2[206];
-} MODEINFOBLOCK, *LPMODEINFOBLOCK;
+} MODE_INFO_BLOCK, *LPMODEINFOBLOCK;
 
 /************************************************************************/
 
@@ -146,15 +146,15 @@ typedef struct tag_VIDEOMODESPECS {
     COLOR (*GetPixel)(LPVESA_CONTEXT, I32, I32);
     U32 (*Line)(LPVESA_CONTEXT, I32, I32, I32, I32);
     U32 (*Rect)(LPVESA_CONTEXT, I32, I32, I32, I32);
-} VIDEOMODESPECS, *LPVIDEOMODESPECS;
+} VIDEO_MODE_SPECS, *LPVIDEOMODESPECS;
 
 /************************************************************************/
 
 struct tag_VESA_CONTEXT {
-    GRAPHICSCONTEXT Header;
-    VESAINFOBLOCK VESAInfo;
-    MODEINFOBLOCK ModeInfo;
-    VIDEOMODESPECS ModeSpecs;
+    GRAPHICS_CONTEXT Header;
+    VESA_INFO_BLOCK VESAInfo;
+    MODE_INFO_BLOCK ModeInfo;
+    VIDEO_MODE_SPECS ModeSpecs;
     U32 PixelSize;
     PHYSICAL FrameBufferPhysical;
     LINEAR FrameBufferLinear;
@@ -164,7 +164,7 @@ struct tag_VESA_CONTEXT {
 
 /***************************************************************************/
 
-VIDEOMODESPECS VESAModeSpecs[] = {
+VIDEO_MODE_SPECS VESAModeSpecs[] = {
     {0x0100, 640, 400, 8, SetPixel8, GetPixel8, Line8, Rect8},
     {0x0101, 640, 480, 8, SetPixel8, GetPixel8, Line8, Rect8},
     {0x0103, 800, 600, 8, SetPixel8, GetPixel8, Line8, Rect8},
@@ -274,7 +274,7 @@ static BOOL InitializeVESA(void) {
     DEBUG(TEXT("Real mode call done"));
 
     if (Regs.X.AX == 0x004F) {
-        MemoryCopy(&(VESAContext.VESAInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(VESAINFOBLOCK));
+        MemoryCopy(&(VESAContext.VESAInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(VESA_INFO_BLOCK));
 
         DEBUG(TEXT("VESAInfo.Signature: %x %x %x %x"),
             VESAContext.VESAInfo.Signature[0], VESAContext.VESAInfo.Signature[1],
@@ -516,7 +516,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
                 }
             }
 
-            MemoryCopy(&(VESAContext.ModeSpecs), VESAModeSpecs + Index, sizeof(VIDEOMODESPECS));
+            MemoryCopy(&(VESAContext.ModeSpecs), VESAModeSpecs + Index, sizeof(VIDEO_MODE_SPECS));
             Found = 1;
 
             if (ModeListed == FALSE) {
@@ -550,7 +550,7 @@ static U32 SetVideoMode(LPGRAPHICS_MODE_INFO Info) {
         return DF_RETURN_GENERIC;
     }
 
-    MemoryCopy(&(VESAContext.ModeInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(MODEINFOBLOCK));
+    MemoryCopy(&(VESAContext.ModeInfo), (LPVOID)(LOW_MEMORY_PAGE_6), sizeof(MODE_INFO_BLOCK));
 
     if ((VESAContext.ModeInfo.Attributes & 0x80) == 0) {
         ERROR(TEXT("Mode %x does not support linear frame buffers"), VESAContext.ModeSpecs.Mode);

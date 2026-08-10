@@ -141,7 +141,7 @@ void CommandLineEditorInit(LPCOMMANDLINEEDITOR Editor, U32 HistoryCapacity) {
 /***************************************************************************/
 
 void CommandLineEditorInitA(LPCOMMANDLINEEDITOR Editor, U32 HistoryCapacity, LPCALLOCATOR Allocator) {
-    MemorySet(Editor, 0, sizeof(COMMANDLINEEDITOR));
+    MemorySet(Editor, 0, sizeof(COMMAND_LINE_EDITOR));
 
     Editor->HistoryCapacity = HistoryCapacity;
     StringArrayInitA(&Editor->History, HistoryCapacity, Allocator);
@@ -187,7 +187,7 @@ BOOL CommandLineEditorReadLine(
     LPSTR Buffer,
     U32 BufferSize,
     BOOL MaskCharacters) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
     U32 CursorPos = 0;
     U32 Length = 0;
     U32 DisplayedLength = 0;

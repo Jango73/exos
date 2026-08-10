@@ -60,7 +60,7 @@ typedef struct tag_FAT16MBR {
     U8 FATName[8];
     U8 Code[448];
     U16 BIOSMark;  // 0xAA55
-} FAT16MBR, *LPFAT16MBR;
+} FAT16_MBR, *LPFAT16MBR;
 
 /***************************************************************************/
 
@@ -97,7 +97,7 @@ typedef struct tag_FAT32MBR {
     U8 FATName[8];      // "FAT32"
     U8 Code[420];
     U16 BIOSMark;  // 0xAA55
-} FAT32MBR, *LPFAT32MBR;
+} FAT32_MBR, *LPFAT32MBR;
 
 /***************************************************************************/
 
@@ -110,7 +110,7 @@ typedef struct tag_FATDIRENTRY {
     U16 Date;
     U16 Cluster;
     U32 Size;
-} FATDIRENTRY, *LPFATDIRENTRY;
+} FAT_DIR_ENTRY, *LPFATDIRENTRY;
 
 typedef struct tag_FATDIRENTRY_EXT {
     STR Name[8];
@@ -126,7 +126,7 @@ typedef struct tag_FATDIRENTRY_EXT {
     U16 Date;
     U16 ClusterLow;
     U32 Size;
-} FATDIRENTRY_EXT, *LPFATDIRENTRY_EXT;
+} FAT_DIR_ENTRY_EXT, *LPFATDIRENTRY_EXT;
 
 typedef struct tag_FATDIRENTRY_LFN {
     U8 Ordinal;
@@ -147,7 +147,7 @@ typedef struct tag_FATDIRENTRY_LFN {
     U16 Cluster;
     USTR Char12;
     USTR Char13;
-} FATDIRENTRY_LFN, *LPFATDIRENTRY_LFN;
+} FAT_DIR_ENTRY_LFN, *LPFATDIRENTRY_LFN;
 
 #define FAT_ATTR_READONLY 0x01
 #define FAT_ATTR_HIDDEN 0x02
@@ -198,7 +198,7 @@ typedef struct tag_FATFILELOC {
     U32 FileCluster;
     U32 DataCluster;
     U32 Offset;
-} FATFILELOC, *LPFATFILELOC;
+} FAT_FILE_LOCATION, *LPFATFILELOC;
 
 /***************************************************************************/
 

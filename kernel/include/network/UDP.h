@@ -36,26 +36,28 @@
 /************************************************************************/
 
 typedef struct tag_UDP_HEADER {
-    U16 SourcePort;      // Big-endian
-    U16 DestinationPort; // Big-endian
-    U16 Length;          // Big-endian (header + data)
-    U16 Checksum;        // Big-endian (0 = disabled)
+    U16 SourcePort;       // Big-endian
+    U16 DestinationPort;  // Big-endian
+    U16 Length;           // Big-endian (header + data)
+    U16 Checksum;         // Big-endian (0 = disabled)
 } UDP_HEADER, *LPUDP_HEADER;
 
 /************************************************************************/
 // UDP Callback type for port handlers
 
-typedef void (*UDP_PortHandler)(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U8* Payload, U32 PayloadLength);
+typedef void (*UDP_PortHandler)(
+    U32 SourceIP, U16 SourcePort, U16 DestinationPort, U32 DestinationIP, const U8* Payload, U32 PayloadLength);
 
 /************************************************************************/
 // Per-device UDP API
 #include "network/UDPContext.h"
 
 // Utility functions
-U16 UDP_CalculateChecksum(U32 SourceIP, U32 DestinationIP, const UDP_HEADER* Header, const U8* Payload, U32 PayloadLength);
+U16 UDP_CalculateChecksum(
+    U32 SourceIP, U32 DestinationIP, const UDP_HEADER* Header, const U8* Payload, U32 PayloadLength);
 
 /************************************************************************/
 
 #pragma pack(pop)
 
-#endif // UDP_H_INCLUDED
+#endif  // UDP_H_INCLUDED

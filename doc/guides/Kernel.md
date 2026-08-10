@@ -517,7 +517,7 @@ The unwind path discards that slot instead of restoring `RSP` from it, so a relo
 
 On x86-64, task setup allocates IST1 with an explicit guard gap above the system stack, so emergency fault stack placement does not sit immediately adjacent to the regular system stack.
 
-The stack autotest module (`TestCopyStack`) is registered for on-demand execution only. It is excluded from the boot-time `RunAllTests` path and can be triggered manually from the shell with `autotest stack`.
+The stack autotest module (`TestCopyStack`) is registered for on-demand execution only. It is excluded from the boot-time `RunAllTests` path and can be triggered manually from the shell with `autotest stack`. The `autotest` shell command accepts a test name (`autotest udp`, `autotest tcp`, or the full registry name) and logs `ERROR` to the kernel log when the selected test fails, so smoke tests can gate on the result.
 
 #### IRQ scheduling
 
@@ -539,7 +539,7 @@ The first `ClockHandler` invocation folds that pre-interrupt value into `SystemU
 Before this point, `Sleep` uses a calibrated busy-wait loop (derived from CPU base frequency) so early-boot delays do not depend on `GetSystemTime` progression.
 
 Fields that are read or written by the scheduler from ISR context are isolated in dedicated structures instead of sharing the general task/process state:
-- `TASK.SchedulerState` stores scheduler-owned task fields such as `Status` and `WakeUpTime`.
+- `TASK.SchedulerState` stores scheduler-owned task fields. `WakeUpTime` is the absolute sleep deadline, `TimeSlice` is the absolute time-slice expiry deadline, and `InitDone` records whether the task has already been started (so a wake-up to READY cannot be mistaken for a first run).
 - `PROCESS.SchedulerState` stores scheduler-owned process fields such as the paused state.
 - `GetTaskSchedulerStateSnapshot()`, `SetTaskSchedulerStatus()`, and `GetProcessSchedulerStateSnapshot()` expose this data to the scheduling code without taking task-local or process-local mutexes.
 
@@ -584,6 +584,10 @@ Task Status (Task.Status):
 
 Sleep durations are specified in `UINT`. A value of `INFINITY` is treated as a sentinel meaning "sleep indefinitely". `SetTaskWakeUpTime()` stores `INFINITY` without adding the current time and the scheduler ignores such tasks until another subsystem explicitly changes their status.
 
+At most one task is `TASK_STATUS_RUNNING` at any time. A task that yields the CPU (sleep, message wait, or preemption) is demoted to `TASK_STATUS_READY`, `TASK_STATUS_SLEEPING`, or `TASK_STATUS_WAITMESSAGE`; tasks woken by the message subsystem or by sleep expiry are only made `TASK_STATUS_READY`. The scheduler promotes the selected task to `TASK_STATUS_RUNNING` when it actually dispatches it, and re-arms its time-slice deadline on every dispatch/preemption boundary. `TASK_SCHEDULER_STATE.InitDone` distinguishes a never-started task (the scheduler must bootstrap its stack through `JumpToReadyTask`) from a task merely resumed after a wake-up.
+
+The quantum bounds are configured through `InitializeQuantumTime()`: the default minimum is `SCHEDULING_QUANTUM_DEFAULT_MINIMUM` (1 ms) and the default maximum is `SCHEDULING_QUANTUM_DEFAULT_MAXIMUM` (64 ms), which keeps every standard priority distinct under `ComputeTaskQuantumTime()`. When `General.QuantumMS` overrides the minimum quantum, the maximum quantum is scaled by `SCHEDULING_QUANTUM_CONFIG_RATIO` to preserve the policy ratio.
+
 Task suspension is tracked separately from `Task.Status` in scheduler-owned task state. `SuspendTaskExecution()` and `ResumeTaskExecution()` toggle a dedicated suspension flag, allowing the scheduler to stop selecting a task without destroying whether it was running, sleeping, or waiting for messages.
 
 Process Status (Process.Status):
@@ -594,6 +598,10 @@ Process Status (Process.Status):
 
 Process Creation Flags (Process.Flags):
 - `PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH` (0x00000001): When the process terminates, all child processes are also killed. If this flag is not set, child processes are orphaned (their Parent field is set to NULL).
+
+#### Executable Image Layout
+
+`CreateProcess()` installs the main executable image in a single committed user region starting at `VMA_USER`. Code is placed at the code base and data at the data base carried by the executable metadata (`Layout.CodeBase` / `Layout.DataBase`), so every `PT_LOAD` segment lands at the exact virtual address the linker assigned (identity mapping). This works regardless of gaps between code and data or of a separate read-only data segment produced by some linkers (for example TinyCC emits `.rodata` in its own read-only segment). When the executable carries no data segment, the data base simply follows the code base. The entry point is fixed to `CodeBase + (EntryPoint - CodeBase)`, and BSS is zero-filled by the loader.
 
 #### Session Inheritance
 
@@ -750,7 +758,7 @@ Syscalls that use user-provided `*_INFO` payloads follow one return contract:
 
 ### Task and window message delivery
 
-Tasks and processes own fixed-size message queues (`MESSAGEQUEUE` in `kernel/source/process/Task-Messaging.c`) backed by dedicated virtual memory regions and operated through `utils/MessageQueue`.
+Tasks and processes own fixed-size message queues (`MESSAGE_QUEUE` in `kernel/source/process/Task-Messaging.c`) backed by dedicated virtual memory regions and operated through `utils/MessageQueue`.
 
 Task queues are allocated at task creation (`TaskInitializeMessageBuffer` in `kernel/source/process/Task.c`), while process queues are allocated on demand (`EnsureProcessMessageQueue`).
 
@@ -994,6 +1002,8 @@ Mouse input is centralized in `kernel/source/MouseCommon.c`, which buffers delta
 
 Keyboard selection is handled by the keyboard selector driver, keeping one active keyboard path at a time while sharing the same higher-level input/message routing model.
 
+Auto-repeat timing is configurable in the `[Keyboard]` section: `RepeatDelayMS` (initial delay before a held key starts repeating, default 400 ms) and `RepeatIntervalMS` (period between repeated key-down events, default 50 ms). The USB and PS/2 HID keyboard paths enable software repeat (`SoftwareRepeat`); `KeyboardRefreshRepeatConfig` in `Keyboard-Common.c` caches these once on first use, and `KeyboardRepeatPoll` re-fires a key-down every `RepeatIntervalMS` only while the usage stays pressed. Because repeat stops exactly when the key-up clears `UsageStatus`, a key-up that is never delivered — for example one dropped by the QEMU `usb-kbd` HID event queue on rapid scripted input, a known emulator limitation rather than a kernel defect — leaves that key repeating until another key is pressed and reassigns `Keyboard.RepeatUsage`.
+
 ### USB host and class stack
 
 #### Overview
@@ -1078,7 +1088,7 @@ Console text output uses backend-dispatched text commands implemented in `kernel
 
 When `setGraphicsDriver(driverAlias, width, height, bpp)` applies a graphics mode while the shell is in the console frontend, display session routing uses the selected backend for console rendering and recomputes console cell geometry from the active pixel mode. Shell output stays visible across backend and mode transitions.
 
-The console text dispatch path caches the active `GRAPHICSCONTEXT` while the console frontend is bound to the same graphics driver. That cache is invalidated when console mode or framebuffer mapping changes so boot log rendering does not repeatedly call `DF_GFX_GETCONTEXT`.
+The console text dispatch path caches the active `GRAPHICS_CONTEXT` while the console frontend is bound to the same graphics driver. That cache is invalidated when console mode or framebuffer mapping changes so boot log rendering does not repeatedly call `DF_GFX_GETCONTEXT`.
 
 The dispatch path also exposes `ConsoleIsFramebufferMappingInProgress()`. Split-debug log mirroring uses that state to suppress recursive console writes during framebuffer context acquisition.
 
@@ -1165,7 +1175,7 @@ The Intel native backend is split by responsibility:
 
 Capability discovery is centralized in an internal `INTEL_GFX_CAPS` object built from a PCI device-id family table and refined with bounded MMIO register probes such as display version, pipe presence, and port mask. Public `GFX_CAPABILITIES` values returned by `DF_GFX_GETCAPABILITIES` are projected from that single capability object.
 
-The takeover path reads active pipe and plane state from display registers, maps the active scanout buffer through the aperture BAR, builds a `GRAPHICSCONTEXT` from the discovered mode, and then serves window-manager drawing either directly to scanout or through a desktop-owned shadow context followed by `DF_GFX_PRESENT`.
+The takeover path reads active pipe and plane state from display registers, maps the active scanout buffer through the aperture BAR, builds a `GRAPHICS_CONTEXT` from the discovered mode, and then serves window-manager drawing either directly to scanout or through a desktop-owned shadow context followed by `DF_GFX_PRESENT`.
 
 The native `DF_GFX_SETMODE` path in `kernel/source/drivers/graphics/igpu/iGPU-Mode.c` follows an ordered sequence: disable, route, clock, link, enable, verify. It applies explicit pipe, output, and transcoder routing policy, uses conservative generation-aware clock handling, includes eDP panel and backlight stabilization hooks, and rolls back to a captured hardware snapshot when a partial modeset stage fails.
 
@@ -1251,7 +1261,7 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 ```
 
 **AHCI interrupt policy**: the SATA driver registers the controller with the shared `DeviceInterruptRegister` infrastructure and installs dedicated top and bottom halves so IRQ 11 traffic can be routed through a private slot when the hardware gets its own vector (MSI/MSI-X or a non-shared INTx line). Commands complete synchronously, therefore all AHCI per-port interrupt masks (`PORT.ie`) and the global `GHC.IE` bit are cleared in shipping builds so the shared IRQ 11 line stays quiet for the `E1000` NIC.
-Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISKINFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
 
 ## Storage and Filesystems
 
@@ -1263,7 +1273,7 @@ File system state is split between:
 - `Kernel.FileSystem`: mounted `FILESYSTEM` objects,
 - `Kernel.UnusedFileSystem`: discovered but non-mounted `FILESYSTEM` objects,
 - `Kernel.FileSystemInfo`: global metadata (`ActivePartitionName`),
-- `Kernel.SystemFS`: virtual filesystem wrapper (`SYSTEMFSFILESYSTEM`) used as the global path entry point.
+- `Kernel.SystemFS`: virtual filesystem wrapper (`SYSTEMFS_FILE_SYSTEM`) used as the global path entry point.
 
 Each `FILESYSTEM` object carries runtime fields (`Driver`, `StorageUnit`, `Mounted`, `Mutex`, `Name`) plus partition metadata in `PARTITION` (`Scheme`, `Type`, `Format`, `Index`, `Flags`, `StartSector`, `NumSectors`, `TypeGuid`).
 
@@ -1292,6 +1302,37 @@ Logical kernel path keys are consumed through `utils/KernelPath`:
 When SystemFS is ready (`FileSystemReady()`), newly mounted filesystems are attached into SystemFS under `/fs/<volume>` through `SystemFSMountFileSystem()`.
 
 The RAM disk driver initializes a small in-memory disk and formats it with EXT2 through the filesystem `DF_FS_CREATEPARTITION` command. EXT2 formatting populates a minimal superblock, group descriptor, bitmaps, inode table, and root directory.
+
+#### Generic disk transfer layer
+
+All sector data transfers between filesystems and disk drivers pass through one
+generic layer (`kernel/source/fs/DiskTransferLayer.c`,
+`kernel/include/fs/DiskTransferLayer.h`), the block-layer equivalent of the
+kernel. The layer owns the sector cache, the request merge and the chunking
+policy for every disk driver (SATA, USB mass storage, NVMe, RAM disk), following
+the Linux block-layer model.
+
+Per-storage-unit state (`DISK_TRANSFER_UNIT`) is attached by the driver at
+attach time through `DiskTransferLayerInit(Disk, MaxSectorsPerTransfer,
+ConfigMaxSectorsPath)`. The driver declares its per-command transfer limit:
+- SATA/AHCI: bounded by the AHCI bounce buffer (`SATA_MAX_DMA_SECTORS`).
+- USB mass storage: `PAGE_SIZE / BlockSize`.
+- NVMe: the queue/PRP bounded transfer size.
+- RAM disk: a large default, overridable through the `RAMDisk.MaxSectorsPerTransfer`
+  configuration key (read lazily on first use, the configuration file is loaded
+  after the drivers).
+
+`DiskTransferLayerRead()` and `DiskTransferLayerWrite()` validate the request,
+run cache cleanup, split it into chunks bounded by `MaxSectorsPerTransfer`,
+copy cache hits and serve the uncached run with a single raw driver command, then
+populate the cache from the transferred data. Writes are write-through with a
+synchronous cache update. When a disk has no layer attached the call falls back
+to the raw driver `DF_DISK_READ`/`DF_DISK_WRITE` command.
+
+Filesystems and partition probing paths call the layer instead of
+`Disk->Driver->Command(DF_DISK_READ/DF_DISK_WRITE)` directly
+(`FileSystem-Common.c`, `File-System.c`, EXT2, FAT16/FAT32, EXFS, NTFS, EXOS MBR).
+Drivers keep only the raw transfer and their geometry/information query.
 
 #### Mounted volume naming
 
@@ -1831,7 +1872,7 @@ Low-level file-record loading is implemented by `NtfsLoadFileRecordBuffer` (`NTF
 
 Record attribute parsing is table-driven in `NtfsParseFileRecordAttributes` (`NTFS-Record.c`). Dedicated handlers process `FILE_NAME`, default `DATA`, `OBJECT_IDENTIFIER`, and `SECURITY_DESCRIPTOR` attributes. Stream reads are provided by `NtfsReadFileDataByIndex` and `NtfsReadFileDataRangeByIndex`; non-resident runlist reads are handled by `NtfsReadNonResidentDataAttributeRange`.
 
-Folder traversal is implemented by `NtfsEnumerateFolderByIndex` (`NTFS-Index.c`) using `INDEX_ROOT`, `INDEX_ALLOCATION`, and `BITMAP` metadata to walk NTFS index entries. Path resolution is implemented by `NtfsResolvePathToIndex` (`NTFS-Path.c`) with case-insensitive matching and a lookup cache (`NTFSFILESYSTEM.PathLookupCache`) to reduce repeated lookups.
+Folder traversal is implemented by `NtfsEnumerateFolderByIndex` (`NTFS-Index.c`) using `INDEX_ROOT`, `INDEX_ALLOCATION`, and `BITMAP` metadata to walk NTFS index entries. Path resolution is implemented by `NtfsResolvePathToIndex` (`NTFS-Path.c`) with case-insensitive matching and a lookup cache (`NTFS_FILE_SYSTEM.PathLookupCache`) to reduce repeated lookups.
 
 VFS integration is implemented in `NTFS-VFS.c` and dispatched from `NTFS-Base.c` through `DF_FS_OPENFILE`, `DF_FS_OPENNEXT`, `DF_FS_CLOSEFILE`, `DF_FS_READ`, and `DF_FS_WRITE`. NTFS metadata is translated into generic `FILE` fields and attributes (folder flag, sizes, timestamps). The current mode is read-only: write and mutating operations are routed to explicit placeholders in `NTFS-Write.c` and return `DF_RETURN_NO_PERMISSION`.
 
@@ -2055,9 +2096,10 @@ void InitializeNetworkManager(void) {
     //    a. Reset device hardware
     //    b. Initialize ARP context
     //    c. Initialize IPv4 context
-    //    d. Install device-specific RX callback
-    //    e. Initialize UDP for the device
-    //    f. Initialize TCP (once globally)
+    //    d. Initialize ICMP for the device
+    //    e. Install device-specific RX callback
+    //    f. Initialize UDP for the device
+    //    g. Initialize TCP (once globally)
 }
 ```
 
@@ -2190,6 +2232,25 @@ typedef struct IPv4HeaderTag {
 - `IPv4_Send(Device, DestinationIP, Protocol, Payload, Length)`: Send IPv4 packet
 - `IPv4_OnEthernetFrame(Device, Frame, Length)`: Process incoming IPv4 packets
 
+#### ICMP (Internet Control Message Protocol)
+
+**Location:** `kernel/source/network/ICMP.c`, `kernel/include/network/ICMP.h`
+
+ICMP provides Echo Request/Reply handling used by the `ping` command and validates the IPv4 send/receive path.
+
+**Key Features:**
+- Echo Request handling: validates checksum and answers with an Echo Reply
+- Echo Reply processing: matches pending echo requests with round-trip time measurement
+- Per-device state (`g_ICMPDevice`, single primary device assumption shared with UDP)
+- Registration through `IPv4_RegisterProtocolHandler(Device, IPV4_PROTOCOL_ICMP, ICMP_OnIPv4Packet)`
+
+**API Functions:**
+- `ICMP_Initialize(Device)`: Initialize ICMP context and register the IPv4 protocol handler
+- `ICMP_OnIPv4Packet(Device, SourceIP, DestinationIP, Payload, Length)`: Process incoming ICMP packets
+- `ICMP_StartEcho(Device, DestinationIP, Identifier, Sequence)`: Send an Echo Request and track the pending entry
+- `ICMP_CheckEcho(Identifier)`: Poll for a completed Echo Reply round trip
+- `ICMP_CancelEcho(Identifier)`: Abort a pending Echo Request without waiting for a reply
+
 #### UDP (User Datagram Protocol)
 
 **Location:** `kernel/source/network/UDP.c`, `kernel/include/network/UDP.h`
@@ -2201,17 +2262,56 @@ UDP provides connectionless datagram delivery with IPv4 integration and per-port
 - Pseudo-header checksum generation and validation
 - Per-device port handler registration (`UDP_RegisterPortHandler`)
 - Socket datagram operations through `SocketSendTo` and `SocketReceiveFrom`
+- Receive path validates the destination against the local IPv4 address or broadcast before socket dispatch
+- Datagram dispatch fans out to every socket bound on the destination port; a socket with a remote endpoint only accepts datagrams from that peer
+- `SO_REUSEADDR` allows several sockets on the same local port when all binders opt in; the port handler is registered once per port
 
 **API Functions:**
 - `UDP_Initialize(Device)`: Initialize UDP context for a device
 - `UDP_Destroy(Device)`: Cleanup UDP context
 - `UDP_Send(Device, DestinationIP, SourcePort, DestinationPort, Payload, Length)`: Send UDP datagram
-- `UDP_OnIPv4Packet()`: Process incoming UDP datagrams from IPv4
+- `UDP_OnIPv4Packet(Payload, PayloadLength, SourceIP, DestinationIP)`: Process incoming UDP datagrams from IPv4
+- `UDP_CalculateChecksum(SourceIP, DestinationIP, Header, Payload, PayloadLength)`: Compute the pseudo-header checksum in network byte order
+- Port handlers registered through `UDP_RegisterPortHandler` receive `(SourceIP, SourcePort, DestinationPort, DestinationIP, Payload, PayloadLength)`.
 
 **Known Limits:**
-- Socket receive dispatch is local-port based and does not yet enforce additional per-socket remote endpoint filtering.
-- Datagram truncation reports payload truncation through logs, but no dedicated API-level truncation flag is exposed yet.
-- Shared-local-port behavior for multiple UDP sockets is not fully policy-driven (`SO_REUSEADDR` style fan-out is pending).
+- UDP receive dispatch trusts the destination/broadcast check performed before the port handler; a packet whose destination matches neither the local IPv4 address nor the broadcast address is dropped.
+- A truncated datagram is fully consumed and reported through the `SOCKET_ERROR_MSGSIZE` return code.
+- Receive-buffer overflow is reported through the `SOCKET_ERROR_OVERFLOW` return code after high-rate datagram loss.
+- The UDP autotest module (`autotest udp`) exercises checksum, `SO_REUSEADDR`, connected-peer filtering, truncation, broadcast, and overflow paths on a booted system.
+
+#### DNS (Domain Name System)
+
+**Location:** `kernel/source/network/DNS.c`, `kernel/include/network/DNS.h`
+
+DNS provides asynchronous host name resolution to IPv4 addresses over UDP. The resolver uses the DNS server address from the active network configuration (set by DHCP or by the `Network.DNSServer` static configuration key), encodes an A-record query, and tracks a single pending resolution with bounded retry/backoff.
+
+**Key Features:**
+- Per-device context (`g_DNSDevice`, single primary device assumption shared with UDP and DHCP)
+- DNS server address resolution from the active configuration with static fallback (`NetworkManager_GetDNSServer`)
+- DNS wire format name encoding (length-prefixed labels)
+- DNS query encoding (header with recursion desired flag + single A question)
+- Asynchronous pending resolution with bounded exponential backoff retries (`DNS_Tick`)
+- Synchronous blocking resolution (`DNS_Resolve`) that polls the pending resolution and cancels it on timeout, exposed to userland through the `SYSCALL_DNSResolve` syscall and the `InternetAddressFromHostName` runtime wrapper
+- UDP port 53 handler that validates source address, transaction ID, and response flags
+- Per-context answer cache with TTL-based expiration (capped at one week), case-insensitive lookup, and round-robin eviction (`DNS_CacheStore`, `DNS_CacheLookup`)
+
+**API Functions:**
+- `DNS_Initialize(Device)`: Initialize DNS context and register the UDP port 53 handler
+- `DNS_Destroy(Device)`: Cleanup DNS context
+- `DNS_GetServerAddress(Device)`: Get the configured DNS server address
+- `DNS_StartResolution(Device, Name)`: Serve a cached name or encode and send a DNS query for a host name
+- `DNS_CheckResolution(Device, OutResolvedIP_Be)`: Poll for a completed resolution
+- `DNS_Resolve(Device, Name, TimeoutMillis, OutResolvedIP_Be)`: Resolve a host name synchronously, blocking the caller until completion or timeout
+- `DNS_CancelResolution(Device)`: Abort a pending resolution without waiting for a reply
+- `DNS_Tick(Device)`: Handle retry and timeout for pending resolutions
+- `DNS_EncodeName(Name, Buffer, BufferLength)`: Encode a host name into DNS wire format
+- `DNS_EncodeQuery(TransactionID, Name, Buffer, BufferLength)`: Build a full DNS query
+- `DNS_CacheStore(Cache, Name, IP_Be, TTLSeconds, CurrentMillis)`: Store a resolution in the cache
+- `DNS_CacheLookup(Cache, Name, CurrentMillis, OutIP_Be)`: Look up a cached resolution
+
+**Known Limits:**
+- One pending resolution at a time.
 
 #### TCP (Transmission Control Protocol)
 
@@ -2367,6 +2467,8 @@ Per-window timers are asynchronous. `SetWindowTimer`, `KillWindowTimer`, and `EW
 ### Theme architecture
 
 The theme system has one built-in default runtime and one optional loaded runtime. Theme files are strict TOML documents parsed directly by the kernel.
+
+`TomlParse()` (`kernel/source/utils/TOML.c`) allocates the parsed document as one contiguous block: the `TOML` structure, then the `TOML_ITEM` array, then a single string area holding every key and value. A two-pass parse first counts items and string bytes, then fills one block, and `TomlFree()` releases everything with one free. This avoids hundreds of small heap blocks per config parse and the resulting kernel heap fragmentation.
 
 The top-level theme sections are:
 
@@ -2532,6 +2634,12 @@ Mutex diagnostics are assigned at initialization time through `InitMutexWithDebu
 `utils/StringBuilder` provides bounded kernel-side string construction for large or incrementally assembled text buffers. It tracks the current text length, the required length when an append does not fit, and an overflow state so callers can reject unsafe paths without relying on raw `StringConcat()` sequences.
 
 Use it for repeated append workflows such as path assembly, command line construction, diagnostic text generation, and any logic that grows a fixed buffer across multiple steps.
+
+### Sort utility
+
+`utils/Sort` provides `SortArray()`, a generic in-place sort over an array of fixed-size elements. Callers supply the element count, the element size, and a comparator returning a negative value when the first element precedes the second. The implementation is a stable insertion sort, so equivalent elements keep their relative order and multi-level sorts can be built by sorting once per key in reverse priority order.
+
+It is used by the shell `listFolder` command (`--sort=name|extension|modified`) to order directory entries after snapshotting them.
 
 ### System Data View
 
@@ -2706,7 +2814,7 @@ Console paging (`-- Press a key --`) integrates with cooperative interruption:
 - When paging wait detects `Control+C` (virtual combination or ASCII `0x03`), it requests interruption for the current process instead of consuming the key as paging continuation.
 - Fault dump paths (`LogCPUState` in x86-32/x86-64 fault handlers) force paging inactive while diagnostics are emitted, then restore the previous state.
 
-Long command loops can place interruption checkpoints; `listFolder` and `listFolder --stress` integrate this behavior and abort listing when an interruption request is pending.
+Long command loops can place interruption checkpoints; `listFolder` and `listFolder --stress` integrate this behavior and abort listing when an interruption request is pending. When sorting is requested (`--sort=name|extension|modified`, short forms `-sn`, `-se`, `-sm`), `listFolder` snapshots each folder's entries into a temporary buffer, orders them with `utils/Sort`, and prints the limited subset when `--limit=n` (short form `-l<n>`) is present; interruption is checked both while collecting and while printing.
 
 Configuration example:
 ```toml

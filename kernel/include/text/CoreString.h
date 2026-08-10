@@ -58,13 +58,13 @@ STR CharToLower(STR);
 STR CharToUpper(STR);
 BOOL StringEmpty(LPCSTR);
 UINT StringLength(LPCSTR);
-void StringClear(LPSTR Str);                                        // Clears Str
-void StringCopy(LPSTR Dst, LPCSTR Src);                             // Copies Src to Dst
-void StringCopyLimit(LPSTR Dst, LPCSTR Src, UINT MaxLength);        // Copies Src to Dst, limiting length to Length
-void StringCopyNum(LPSTR Dst, LPCSTR Src, UINT Length);             // Copies Src to Dst using Length
-void StringConcat(LPSTR Dst, LPCSTR Src);                           // Concatenates Src to Dst
-INT StringCompare(LPCSTR, LPCSTR);                                  // Compares two strings WITH case sensitivity
-INT StringCompareNC(LPCSTR, LPCSTR);                                // Compares with strings NO case sensitivity
+void StringClear(LPSTR Str);                                  // Clears Str
+void StringCopy(LPSTR Dst, LPCSTR Src);                       // Copies Src to Dst
+void StringCopyLimit(LPSTR Dst, LPCSTR Src, UINT MaxLength);  // Copies Src to Dst, limiting length to Length
+void StringCopyNum(LPSTR Dst, LPCSTR Src, UINT Length);       // Copies Src to Dst using Length
+void StringConcat(LPSTR Dst, LPCSTR Src);                     // Concatenates Src to Dst
+INT StringCompare(LPCSTR, LPCSTR);                            // Compares two strings WITH case sensitivity
+INT StringCompareNC(LPCSTR, LPCSTR);                          // Compares with strings NO case sensitivity
 BOOL StringContains(LPCSTR Text, LPCSTR Search);
 LPSTR StringToLower(LPSTR);
 LPSTR StringToUpper(LPSTR);
@@ -80,6 +80,7 @@ LPSTR NumberToString(LPSTR Text, UINT Number, I32 Base, I32 Size, I32 Precision,
 void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args);
 void StringPrintFormat(LPSTR Destination, LPCSTR Format, ...);
 U32 ParseIPAddress(LPCSTR ipStr);
+void FormatIPv4(U32 IPv4_Be, LPSTR Buffer);
 
 /************************************************************************/
 

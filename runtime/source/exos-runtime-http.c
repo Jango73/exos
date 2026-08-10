@@ -20,7 +20,8 @@
 static unsigned int HTTPDefaultReceiveTimeoutMs = 10000;  // 10 seconds by default
 static char HTTP_LastErrorMessage[128] = "Success";
 
-/***************************************************************************/
+#define HTTP_DNS_RESOLVE_TIMEOUT_MILLISECONDS 20000
+
 #define HTTP_RECEIVE_BUFFER_DEFAULT_SIZE 16384
 #define HTTP_DOWNLOAD_BUFFER_MAXIMUM_SIZE 65536
 
@@ -36,6 +37,59 @@ static unsigned int HTTP_SelectDownloadBufferSize(unsigned int ContentLength) {
 
     return Size;
 }
+
+#if PROFILING
+
+    #define HTTP_PROFILE_LOG_GAP_MILLISECONDS 200
+    #define HTTP_PROFILE_LOG_INTERVAL_MILLISECONDS 500
+
+typedef struct tag_HTTP_DOWNLOAD_PROFILE {
+    unsigned int StartTimeMs;
+    unsigned int HeadersDoneTimeMs;
+    unsigned int LastDataTimeMs;
+    unsigned int LastLogTimeMs;
+    unsigned int TotalIdlePolls;
+    unsigned int IdlePollsSinceLastData;
+    unsigned int DataIterations;
+    unsigned int SuppressedIterations;
+    unsigned int TotalReceivedBytes;
+    unsigned int MaxChunkBytes;
+} HTTP_DOWNLOAD_PROFILE, *LPHTTP_DOWNLOAD_PROFILE;
+
+static void HTTP_ProfilePrintSummary(LPHTTP_DOWNLOAD_PROFILE Profile, unsigned int PollIntervalMs) {
+    unsigned int EndTimeMs = GetSystemTime();
+    unsigned int ElapsedMs = EndTimeMs - Profile->StartTimeMs;
+    unsigned int HeadersMilliseconds = 0;
+    unsigned int BodyMilliseconds = 0;
+    unsigned int IdleMilliseconds = Profile->TotalIdlePolls * PollIntervalMs;
+    unsigned int ThroughputBytesPerSecond = 0;
+
+    if (Profile->HeadersDoneTimeMs != 0) {
+        HeadersMilliseconds = Profile->HeadersDoneTimeMs - Profile->StartTimeMs;
+    }
+    if (ElapsedMs > HeadersMilliseconds) {
+        BodyMilliseconds = ElapsedMs - HeadersMilliseconds;
+    }
+    if (ElapsedMs > 0) {
+        ThroughputBytesPerSecond = (Profile->TotalReceivedBytes * 1000U) / ElapsedMs;
+    }
+
+    debug(
+        "[HTTP_DownloadToFile] profile summary bytes=%u iterations=%u suppressed=%u idlePolls=%u idleMs=%u "
+        "elapsedMs=%u headersMs=%u bodyMs=%u throughput=%u bytesPerSecond maxChunk=%u",
+        Profile->TotalReceivedBytes,
+        Profile->DataIterations,
+        Profile->SuppressedIterations,
+        Profile->TotalIdlePolls,
+        IdleMilliseconds,
+        ElapsedMs,
+        HeadersMilliseconds,
+        BodyMilliseconds,
+        ThroughputBytesPerSecond,
+        Profile->MaxChunkBytes);
+}
+
+#endif
 
 /***************************************************************************/
 static void HTTP_SetLastErrorMessage(const char* Message) {
@@ -55,7 +109,9 @@ static void HTTP_SetLastErrorMessage(const char* Message) {
 }
 
 /***************************************************************************/
-const char* HTTP_GetLastErrorMessage(void) { return HTTP_LastErrorMessage; }
+const char* HTTP_GetLastErrorMessage(void) {
+    return HTTP_LastErrorMessage;
+}
 
 /***************************************************************************/
 typedef enum {
@@ -331,11 +387,15 @@ static int HTTP_HeaderValueContainsToken(const char* Value, const char* Token) {
 
 /***************************************************************************/
 
-void HTTP_SetDefaultReceiveTimeout(unsigned int TimeoutMs) { HTTPDefaultReceiveTimeoutMs = TimeoutMs; }
+void HTTP_SetDefaultReceiveTimeout(unsigned int TimeoutMs) {
+    HTTPDefaultReceiveTimeoutMs = TimeoutMs;
+}
 
 /***************************************************************************/
 
-unsigned int HTTP_GetDefaultReceiveTimeout(void) { return HTTPDefaultReceiveTimeoutMs; }
+unsigned int HTTP_GetDefaultReceiveTimeout(void) {
+    return HTTPDefaultReceiveTimeoutMs;
+}
 
 /***************************************************************************/
 
@@ -491,6 +551,8 @@ HTTP_CONNECTION* HTTP_CreateConnection(const char* Host, unsigned short Port) {
     HTTP_CONNECTION* connection;
     struct sockaddr_in serverAddr;
     int result;
+    unsigned int dnsAttempted = 0;
+    unsigned int dnsStatus = 0;
 
     HTTP_SetLastErrorMessage("Success");
 
@@ -520,27 +582,23 @@ HTTP_CONNECTION* HTTP_CreateConnection(const char* Host, unsigned short Port) {
         return NULL;
     }
 
-    // Parse IP address if it's in dotted decimal notation
+    // Resolve the remote host, first as a dotted-decimal IP, then through DNS
+    // when the host is a name.
     connection->RemoteIP = InternetAddressFromString((LPCSTR)Host);
-
-    // Simple hardcoded test for "52.204.95.73"
-    /*
-    if (strcmp(Host, "52.204.95.73") == 0) {
-        connection->RemoteIP = (52 << 24) | (204 << 16) | (95 << 8) | 73;
-    } else if (strcmp(Host, "192.168.56.1") == 0) {
-        connection->RemoteIP = (192 << 24) | (168 << 16) | (56 << 8) | 1;
-    } else if (strcmp(Host, "10.0.2.2") == 0) {
-        connection->RemoteIP = (10 << 24) | (0 << 16) | (2 << 8) | 2;
-    } else {
-        // For now, only support these specific IPs
-        connection->RemoteIP = 0;
+    if (connection->RemoteIP == 0) {
+        dnsAttempted = 1;
+        connection->RemoteIP =
+            InternetAddressFromHostName((LPCSTR)Host, HTTP_DNS_RESOLVE_TIMEOUT_MILLISECONDS, &dnsStatus);
     }
-    */
 
     if (connection->RemoteIP == 0) {
-        // For now, we don't support hostname resolution
         free(connection);
-        HTTP_SetLastErrorMessage("Failed to parse remote IP address");
+        HTTP_SetLastErrorMessage("Failed to resolve remote host address");
+        if (dnsAttempted) {
+            debug("[HTTP_CreateConnection] Failed to resolve remote host '%s' (DNS status %u)", Host, dnsStatus);
+        } else {
+            debug("[HTTP_CreateConnection] Invalid remote host address '%s'", Host);
+        }
         return NULL;
     }
 
@@ -635,7 +693,10 @@ void HTTP_DestroyConnection(HTTP_CONNECTION* Connection) {
 /***************************************************************************/
 
 int HTTP_SendRequest(
-    HTTP_CONNECTION* Connection, const char* Method, const char* Path, const unsigned char* Body,
+    HTTP_CONNECTION* Connection,
+    const char* Method,
+    const char* Path,
+    const unsigned char* Body,
     unsigned int BodyLength) {
     char request[2048];
     int requestLen;
@@ -658,8 +719,14 @@ int HTTP_SendRequest(
             "Connection: close\r\n"
             "Content-Length: %u\r\n"
             "\r\n",
-            Method, Path, (Connection->RemoteIP >> 24) & 0xFF, (Connection->RemoteIP >> 16) & 0xFF,
-            (Connection->RemoteIP >> 8) & 0xFF, Connection->RemoteIP & 0xFF, Connection->RemotePort, BodyLength);
+            Method,
+            Path,
+            (Connection->RemoteIP >> 24) & 0xFF,
+            (Connection->RemoteIP >> 16) & 0xFF,
+            (Connection->RemoteIP >> 8) & 0xFF,
+            Connection->RemoteIP & 0xFF,
+            Connection->RemotePort,
+            BodyLength);
     } else {
         requestLen = sprintf(
             request,
@@ -668,8 +735,13 @@ int HTTP_SendRequest(
             "User-Agent: EXOS/1.0\r\n"
             "Connection: close\r\n"
             "\r\n",
-            Method, Path, (Connection->RemoteIP >> 24) & 0xFF, (Connection->RemoteIP >> 16) & 0xFF,
-            (Connection->RemoteIP >> 8) & 0xFF, Connection->RemoteIP & 0xFF, Connection->RemotePort);
+            Method,
+            Path,
+            (Connection->RemoteIP >> 24) & 0xFF,
+            (Connection->RemoteIP >> 16) & 0xFF,
+            (Connection->RemoteIP >> 8) & 0xFF,
+            Connection->RemoteIP & 0xFF,
+            Connection->RemotePort);
     }
 
     // Send request headers
@@ -971,7 +1043,10 @@ int HTTP_Get(HTTP_CONNECTION* Connection, const char* Path, HTTP_RESPONSE* Respo
  * @return HTTP_SUCCESS on success, error code otherwise
  */
 int HTTP_Post(
-    HTTP_CONNECTION* Connection, const char* Path, const unsigned char* Body, unsigned int BodyLength,
+    HTTP_CONNECTION* Connection,
+    const char* Path,
+    const unsigned char* Body,
+    unsigned int BodyLength,
     HTTP_RESPONSE* Response) {
     int result;
 
@@ -986,7 +1061,10 @@ int HTTP_Post(
 /***************************************************************************/
 
 int HTTP_DownloadToFile(
-    HTTP_CONNECTION* Connection, const char* Filename, HTTP_RESPONSE* ResponseMetadata, unsigned int* BytesWritten,
+    HTTP_CONNECTION* Connection,
+    const char* Filename,
+    HTTP_RESPONSE* ResponseMetadata,
+    unsigned int* BytesWritten,
     const HTTP_PROGRESS_CALLBACKS* ProgressCallbacks) {
     unsigned char* receiveBuffer = NULL;
     unsigned int receiveBufferSize = 0;
@@ -997,7 +1075,7 @@ int HTTP_DownloadToFile(
     int headersParsed = 0;
     unsigned int contentLength = 0;
     unsigned short statusCode = 0;
-    char version[16] = {0};
+    char version[16] = { 0 };
     unsigned int bodyBytesReceived = 0;
     unsigned int headerLength = 0;
     int isChunked = 0;
@@ -1014,6 +1092,9 @@ int HTTP_DownloadToFile(
     HTTP_RESPONSE* metadataOut;
     int statusCallbackInvoked = 0;
     int responseStarted = 0;
+#if PROFILING
+    HTTP_DOWNLOAD_PROFILE Profile;
+#endif
 
     if (BytesWritten) {
         *BytesWritten = 0;
@@ -1050,6 +1131,11 @@ int HTTP_DownloadToFile(
 
     Connection->ReceiveBufferUsed = 0;
 
+#if PROFILING
+    memset(&Profile, 0, sizeof(Profile));
+    Profile.StartTimeMs = GetSystemTime();
+#endif
+
     while (!responseComplete) {
         unsigned int receiveLength = receiveBufferSize;
 
@@ -1076,6 +1162,11 @@ int HTTP_DownloadToFile(
             }
 
             if (received == SOCKET_ERROR_WOULDBLOCK) {
+#if PROFILING
+                Profile.TotalIdlePolls++;
+                Profile.IdlePollsSinceLastData++;
+#endif
+
                 Sleep(pollIntervalMs);
 
                 if (responseStarted) {
@@ -1114,6 +1205,38 @@ int HTTP_DownloadToFile(
         idleTimeMs = 0;
         responseStarted = 1;
 
+#if PROFILING
+        {
+            unsigned int CurrentTimeMs = GetSystemTime();
+            unsigned int GapMilliseconds = 0;
+
+            Profile.DataIterations++;
+            Profile.TotalReceivedBytes += (unsigned int)received;
+            if ((unsigned int)received > Profile.MaxChunkBytes) {
+                Profile.MaxChunkBytes = (unsigned int)received;
+            }
+
+            if (Profile.LastDataTimeMs != 0) {
+                GapMilliseconds = CurrentTimeMs - Profile.LastDataTimeMs;
+            }
+            Profile.LastDataTimeMs = CurrentTimeMs;
+
+            if (Profile.LastLogTimeMs == 0 || GapMilliseconds >= HTTP_PROFILE_LOG_GAP_MILLISECONDS ||
+                (CurrentTimeMs - Profile.LastLogTimeMs) >= HTTP_PROFILE_LOG_INTERVAL_MILLISECONDS) {
+                debug(
+                    "[HTTP_DownloadToFile] recv chunk=%u gapMs=%u idleSince=%u total=%u",
+                    (unsigned int)received,
+                    GapMilliseconds,
+                    Profile.IdlePollsSinceLastData,
+                    Profile.TotalReceivedBytes);
+                Profile.LastLogTimeMs = CurrentTimeMs;
+            } else {
+                Profile.SuppressedIterations++;
+            }
+            Profile.IdlePollsSinceLastData = 0;
+        }
+#endif
+
         if (!headersParsed) {
             unsigned int receivedUnsigned = (unsigned int)received;
 
@@ -1133,6 +1256,9 @@ int HTTP_DownloadToFile(
             }
 
             headersParsed = 1;
+#if PROFILING
+            Profile.HeadersDoneTimeMs = GetSystemTime();
+#endif
             headerLength = (unsigned int)((headerEnd + 4) - headerBuffer);
             statusLine = headerBuffer;
 
@@ -1358,6 +1484,12 @@ int HTTP_DownloadToFile(
             responseComplete = 1;
         }
     }
+
+#if PROFILING
+    if (Profile.DataIterations > 0U || Profile.TotalIdlePolls > 0U) {
+        HTTP_ProfilePrintSummary(&Profile, pollIntervalMs);
+    }
+#endif
 
 cleanup:
     if (file) {

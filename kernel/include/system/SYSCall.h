@@ -57,6 +57,7 @@ UINT SysCall_KillProcess(UINT Parameter);
 UINT SysCall_GetProcessInfo(UINT Parameter);
 UINT SysCall_GetProcessMemoryInfo(UINT Parameter);
 UINT SysCall_GetProfileInfo(UINT Parameter);
+UINT SysCall_GetTaskProfileInfo(UINT Parameter);
 UINT SysCall_LoadModule(UINT Parameter);
 UINT SysCall_GetModuleSymbol(UINT Parameter);
 UINT SysCall_ReleaseModule(UINT Parameter);
@@ -200,6 +201,8 @@ UINT SysCall_SocketGetOption(UINT Parameter);
 UINT SysCall_SocketSetOption(UINT Parameter);
 UINT SysCall_SocketGetPeerName(UINT Parameter);
 UINT SysCall_SocketGetSocketName(UINT Parameter);
+
+UINT SysCall_DNSResolve(UINT Parameter);
 
 /************************************************************************/
 

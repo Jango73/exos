@@ -38,7 +38,7 @@
 
 typedef struct tag_VGAMODEREGS {
     U8 Regs[64];
-} VGAMODEREGS, *LPVGAMODEREGS;
+} VGA_MODE_REGS, *LPVGAMODEREGS;
 
 /***************************************************************************/
 
@@ -46,11 +46,11 @@ typedef struct tag_VGAMODEINFO {
     U32 Columns;
     U32 Rows;
     U32 CharHeight;
-} VGAMODEINFO, *LPVGAMODEINFO;
+} VGA_MODE_INFO, *LPVGAMODEINFO;
 
 /***************************************************************************/
 
-extern VGAMODEREGS VGAModeRegs[];
+extern VGA_MODE_REGS VGAModeRegs[];
 extern const U32 VGAModeRegsCount;
 
 /***************************************************************************/

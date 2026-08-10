@@ -26,6 +26,7 @@
 #include "core/Kernel.h"
 #include "drivers/filesystems/FileSystem-Common.h"
 #include "fs/File-System.h"
+#include "fs/DiskTransferLayer.h"
 #include "log/Log.h"
 #include "utils/Path.h"
 
@@ -36,19 +37,18 @@
 
 UINT EXFSCommands(UINT, UINT);
 
-DRIVER DATA_SECTION EXFSDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_FILESYSTEM,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Jango73",
-    .Product = "EXOS File System",
-    .Alias = "exfs",
-    .Command = EXFSCommands};
+DRIVER DATA_SECTION EXFSDriver = { .TypeID = KOID_DRIVER,
+                                   .References = 1,
+                                   .Next = NULL,
+                                   .Prev = NULL,
+                                   .Type = DRIVER_TYPE_FILESYSTEM,
+                                   .VersionMajor = VER_MAJOR,
+                                   .VersionMinor = VER_MINOR,
+                                   .Designer = "Jango73",
+                                   .Manufacturer = "Jango73",
+                                   .Product = "EXOS File System",
+                                   .Alias = "exfs",
+                                   .Command = EXFSCommands };
 
 /************************************************************************/
 
@@ -56,9 +56,11 @@ DRIVER DATA_SECTION EXFSDriver = {
  * @brief Retrieves the EXFS driver descriptor.
  * @return Pointer to the EXFS driver.
  */
-LPDRIVER EXFSGetDriver(void) { return &EXFSDriver; }
+LPDRIVER EXFSGetDriver(void) {
+    return &EXFSDriver;
+}
 
-U8 Dummy[128] = {1, 1};
+U8 Dummy[128] = { 1, 1 };
 
 /************************************************************************/
 // The file system object allocated when mounting
@@ -66,22 +68,22 @@ U8 Dummy[128] = {1, 1};
 typedef struct tag_EXFSFILESYSTEM {
     FILESYSTEM Header;
     LPSTORAGE_UNIT Disk;
-    EXFSMBR Master;
-    EXFSSUPER Super;
+    EXFS_MBR Master;
+    EXFS_SUPER Super;
     SECTOR PartitionStart;
     U32 PartitionSize;
     U32 BytesPerCluster;
     SECTOR DataStart;
     U8* PageBuffer;
     U8* IOBuffer;
-} EXFSFILESYSTEM, *LPEXFSFILESYSTEM;
+} EXFS_FILE_SYSTEM, *LPEXFSFILESYSTEM;
 
 /************************************************************************/
 
 typedef struct tag_EXFSFILE {
     FILE Header;
     EXFSFILELOC Location;
-} EXFSFILE, *LPEXFSFILE;
+} EXFS_FILE, *LPEXFSFILE;
 
 /************************************************************************/
 
@@ -93,10 +95,10 @@ typedef struct tag_EXFSFILE {
 static LPEXFSFILESYSTEM NewEXFSFileSystem(LPSTORAGE_UNIT Disk) {
     LPEXFSFILESYSTEM This;
 
-    This = (LPEXFSFILESYSTEM)KernelHeapAlloc(sizeof(EXFSFILESYSTEM));
+    This = (LPEXFSFILESYSTEM)KernelHeapAlloc(sizeof(EXFS_FILE_SYSTEM));
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(EXFSFILESYSTEM));
+    MemorySet(This, 0, sizeof(EXFS_FILE_SYSTEM));
 
     This->Header.TypeID = KOID_FILESYSTEM;
     This->Header.References = 1;
@@ -124,10 +126,10 @@ static LPEXFSFILESYSTEM NewEXFSFileSystem(LPSTORAGE_UNIT Disk) {
 static LPEXFSFILE NewEXFSFile(LPEXFSFILESYSTEM FileSystem, LPEXFSFILELOC FileLoc) {
     LPEXFSFILE This;
 
-    This = (LPEXFSFILE)KernelHeapAlloc(sizeof(EXFSFILE));
+    This = (LPEXFSFILE)KernelHeapAlloc(sizeof(EXFS_FILE));
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(EXFSFILE));
+    MemorySet(This, 0, sizeof(EXFS_FILE));
 
     This->Header.TypeID = KOID_FILE;
     This->Header.References = 1;
@@ -176,7 +178,7 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     Control.Buffer = (LPVOID)Buffer1;
     Control.BufferSize = SECTOR_SIZE * 2;
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -191,7 +193,7 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     Control.Buffer = (LPVOID)Buffer2;
     Control.BufferSize = SECTOR_SIZE * 2;
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -230,8 +232,8 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     //-------------------------------------
     // Copy the Master Boot Sector and the Superblock
 
-    MemoryCopy(&(FileSystem->Master), Master, sizeof(EXFSMBR));
-    MemoryCopy(&(FileSystem->Super), Super, sizeof(EXFSSUPER));
+    MemoryCopy(&(FileSystem->Master), Master, sizeof(EXFS_MBR));
+    MemoryCopy(&(FileSystem->Super), Super, sizeof(EXFS_SUPER));
 
     FileSystem->PartitionStart = Base + Partition->LBA;
     FileSystem->PartitionSize = Partition->Size;
@@ -269,8 +271,14 @@ static BOOL ReadCluster(LPEXFSFILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Buf
     Sector = FileSystem->DataStart + (Cluster * FileSystem->Master.SectorsPerCluster);
 
     return PartitionTransferSectors(
-        FileSystem->Disk, FileSystem->PartitionStart, FileSystem->PartitionSize, Sector,
-        FileSystem->Master.SectorsPerCluster, Buffer, FileSystem->Master.SectorsPerCluster * SECTOR_SIZE, DF_DISK_READ);
+        FileSystem->Disk,
+        FileSystem->PartitionStart,
+        FileSystem->PartitionSize,
+        Sector,
+        FileSystem->Master.SectorsPerCluster,
+        Buffer,
+        FileSystem->Master.SectorsPerCluster * SECTOR_SIZE,
+        DF_DISK_READ);
 }
 
 /***************************************************************************/
@@ -397,7 +405,7 @@ static BOOL LocateFile(LPEXFSFILESYSTEM FileSystem, LPCSTR Path, LPEXFSFILELOC F
             //-------------------------------------
             // Advance to the next entry
 
-            FileLoc->FileOffset += sizeof(EXFSFILEREC);
+            FileLoc->FileOffset += sizeof(EXFS_FILE_RECORD);
 
             if (FileLoc->FileOffset >= FileSystem->BytesPerCluster) {
                 FileLoc->PageOffset += sizeof(U32);
@@ -463,7 +471,7 @@ static BOOL WriteSectors(LPSTORAGE_UNIT Disk, SECTOR Sector, U32 NumSectors, LPV
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+    Result = DiskTransferLayerWrite(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -586,7 +594,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     //-------------------------------------
     // Write the first file record
 
-    MemorySet(FileRec, 0, sizeof(EXFSFILEREC));
+    MemorySet(FileRec, 0, sizeof(EXFS_FILE_RECORD));
 
     FileRec->ClusterTable = EXFS_CLUSTER_END;
 
@@ -656,7 +664,9 @@ static void TranslateFileInfo(LPEXFSFILEREC FileRec, LPEXFSFILE File) {
  * @brief Initialize the EXFS driver.
  * @return Driver-specific result code.
  */
-static U32 Initialize(void) { return DF_RETURN_SUCCESS; }
+static U32 Initialize(void) {
+    return DF_RETURN_SUCCESS;
+}
 
 /***************************************************************************/
 
@@ -733,7 +743,7 @@ static U32 OpenNext(LPEXFSFILE File) {
     if (ReadCluster(FileSystem, File->Location.FileCluster, FileSystem->IOBuffer) == FALSE) return FALSE;
 
     FOREVER {
-        File->Location.FileOffset += sizeof(EXFSFILEREC);
+        File->Location.FileOffset += sizeof(EXFS_FILE_RECORD);
 
         if (File->Location.FileOffset >= FileSystem->BytesPerCluster) {
             File->Location.PageOffset += sizeof(U32);

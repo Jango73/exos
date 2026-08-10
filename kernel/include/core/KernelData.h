@@ -161,8 +161,8 @@ typedef struct tag_KERNEL_DATA {
     LPPROCESS FocusedProcess;        // Process with input focus
     DESKTOP_THEME Theme;             // Global desktop theme runtime state
     CACHE ObjectTerminationCache;    // Cache for terminated object states with TTL
-    FILESYSTEM_GLOBAL_INFO FileSystemInfo;
-    SYSTEMFSFILESYSTEM SystemFS;
+    FILE_SYSTEM_GLOBAL_INFO FileSystemInfo;
+    SYSTEMFS_FILE_SYSTEM SystemFS;
     HANDLE_MAP HandleMap;  // Global handle to pointer mapping
     CPU_INFORMATION CPU;
     LPTOML Configuration;
@@ -214,7 +214,7 @@ LPLIST GetWindowClassList(void);
 LPLIST GetEventList(void);
 LPLIST GetFileList(void);
 LPLIST GetExecutableModuleImageList(void);
-FILESYSTEM_GLOBAL_INFO* GetFileSystemGlobalInfo(void);
+FILE_SYSTEM_GLOBAL_INFO* GetFileSystemGlobalInfo(void);
 LPLIST GetFileSystemList(void);
 LPLIST GetUnusedFileSystemList(void);
 LPDESKTOP GetActiveDesktop(void);

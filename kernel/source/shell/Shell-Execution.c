@@ -29,10 +29,7 @@
 
 /************************************************************************/
 
-typedef INT (*SHELL_SCRIPT_FUNCTION_HANDLER)(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments);
+typedef INT (*SHELL_SCRIPT_FUNCTION_HANDLER)(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments);
 
 typedef struct tag_SHELL_SCRIPT_FUNCTION_ENTRY {
     LPCSTR Name;
@@ -103,8 +100,7 @@ static BOOL ShellCommandLineHasRedirectionOrPipe(LPCSTR CommandLine) {
     while (CommandLine[Index] != STR_NULL) {
         if (CommandLine[Index] == STR_QUOTE) {
             InQuotes = !InQuotes;
-        } else if (!InQuotes &&
-                (CommandLine[Index] == '|' || CommandLine[Index] == '<' || CommandLine[Index] == '>')) {
+        } else if (!InQuotes && (CommandLine[Index] == '|' || CommandLine[Index] == '<' || CommandLine[Index] == '>')) {
             return TRUE;
         }
 
@@ -117,8 +113,7 @@ static BOOL ShellCommandLineHasRedirectionOrPipe(LPCSTR CommandLine) {
 /************************************************************************/
 
 static BOOL ShellIsTokenBoundary(STR Character) {
-    return Character == STR_NULL || Character <= STR_SPACE || Character == '|' || Character == '<' ||
-           Character == '>';
+    return Character == STR_NULL || Character <= STR_SPACE || Character == '|' || Character == '<' || Character == '>';
 }
 
 /************************************************************************/
@@ -218,7 +213,8 @@ static BOOL ShellReadPipelineToken(LPCSTR Text, UINT* InOutIndex, STR Token[MAX_
         return TRUE;
     }
 
-    if (Text[ReadIndex] == '2' && Text[ReadIndex + 1] == '>' && Text[ReadIndex + 2] == '&' && Text[ReadIndex + 3] == '1') {
+    if (Text[ReadIndex] == '2' && Text[ReadIndex + 1] == '>' && Text[ReadIndex + 2] == '&' &&
+        Text[ReadIndex + 3] == '1') {
         Token[0] = '2';
         Token[1] = '>';
         Token[2] = '&';
@@ -663,7 +659,7 @@ void ExecuteStartupCommands(void) {
     U32 ConfigIndex = 0;
     STR Key[MAX_USER_NAME];
     LPCSTR CommandLine;
-    SHELLCONTEXT Context;
+    SHELL_CONTEXT Context;
 
 
     // Wait 2 seconds for network stack to stabilize (ARP, etc.)
@@ -687,7 +683,6 @@ void ExecuteStartupCommands(void) {
     }
 
     DeinitShellContext(&Context);
-
 }
 
 /************************************************************************/
@@ -702,13 +697,13 @@ void ExecuteStartupCommands(void) {
  */
 void ExecuteCommandLine(LPSHELLCONTEXT Context, LPCSTR CommandLine) {
     SAFE_USE_3(Context, Context->ScriptContext, CommandLine) {
-
         SCRIPT_ERROR Error = ScriptExecute(Context->ScriptContext, CommandLine);
 
         if (Error != SCRIPT_OK) {
             ConsolePrint(TEXT("Error: %s\n"), ScriptGetErrorMessage(Context->ScriptContext));
         }
-    } else {
+    }
+    else {
         ERROR(TEXT("Null pointer\n"));
     }
 }
@@ -722,14 +717,14 @@ void ExecuteCommandLine(LPSHELLCONTEXT Context, LPCSTR CommandLine) {
  * @return TRUE to continue the shell loop, FALSE otherwise.
  */
 BOOL ParseCommand(LPSHELLCONTEXT Context) {
-
     ShowPrompt(Context);
 
     Context->Component = 0;
     Context->CommandChar = 0;
     MemorySet(Context->Input.CommandLine, 0, sizeof Context->Input.CommandLine);
 
-    CommandLineEditorReadLine(&Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, FALSE);
+    CommandLineEditorReadLine(
+        &Context->Input.Editor, Context->Input.CommandLine, sizeof Context->Input.CommandLine, FALSE);
 
     if (Context->Input.CommandLine[0] != STR_NULL) {
         LPUSER_SESSION Session = NULL;
@@ -738,11 +733,68 @@ BOOL ParseCommand(LPSHELLCONTEXT Context) {
         ConsoleResetPaging();
         ExecuteCommandLine(Context, Context->Input.CommandLine);
         Session = GetCurrentSession();
-        SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) { UpdateSessionActivity(Session); }
+        SAFE_USE_VALID_ID(Session, KOID_USER_SESSION) {
+            UpdateSessionActivity(Session);
+        }
     }
 
 
     return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Determine whether a command name matches a table entry.
+ *
+ * An entry matches when the command name equals its primary name or any of
+ * its space-separated alternative names.
+ *
+ * @param Entry Command table entry to inspect
+ * @param CommandName Command name to match
+ * @return TRUE when the name matches, FALSE otherwise
+ */
+static BOOL ShellCommandEntryMatches(SHELL_COMMAND_ENTRY* Entry, LPCSTR CommandName) {
+    UINT NameLength;
+    UINT AltNameLength;
+    UINT Index;
+    LPCSTR AltName;
+
+    if (StringCompareNC(CommandName, Entry->Name) == 0) {
+        return TRUE;
+    }
+
+    NameLength = StringLength(CommandName);
+    AltName = Entry->AltName;
+
+    FOREVER {
+        while (*AltName == STR_SPACE) {
+            AltName++;
+        }
+        if (*AltName == STR_NULL) {
+            break;
+        }
+
+        AltNameLength = 0;
+        while (AltName[AltNameLength] != STR_NULL && AltName[AltNameLength] != STR_SPACE) {
+            AltNameLength++;
+        }
+
+        if (NameLength == AltNameLength) {
+            for (Index = 0; Index < AltNameLength; Index++) {
+                if (CharToLower(CommandName[Index]) != CharToLower(AltName[Index])) {
+                    break;
+                }
+            }
+            if (Index == AltNameLength) {
+                return TRUE;
+            }
+        }
+
+        AltName += AltNameLength;
+    }
+
+    return FALSE;
 }
 
 /************************************************************************/
@@ -815,8 +867,7 @@ UINT ShellScriptExecuteCommand(LPCSTR Command, LPVOID UserData) {
         StringCopy(CommandName, Context->Command);
 
         for (Index = 0; COMMANDS[Index].Command != NULL; Index++) {
-            if (StringCompareNC(CommandName, COMMANDS[Index].Name) == 0 ||
-                StringCompareNC(CommandName, COMMANDS[Index].AltName) == 0) {
+            if (ShellCommandEntryMatches(&COMMANDS[Index], CommandName)) {
                 Result = COMMANDS[Index].Command(Context);
                 return Result;
             }
@@ -829,10 +880,7 @@ UINT ShellScriptExecuteCommand(LPCSTR Command, LPVOID UserData) {
 
         if (Context->ScriptContext) {
             Context->ScriptContext->ErrorCode = SCRIPT_ERROR_SYNTAX;
-            StringPrintFormat(
-                Context->ScriptContext->ErrorMessage,
-                TEXT("Unknown command: %s"),
-                CommandName);
+            StringPrintFormat(Context->ScriptContext->ErrorMessage, TEXT("Unknown command: %s"), CommandName);
         }
     }
 
@@ -862,10 +910,7 @@ LPCSTR ShellScriptResolveVariable(LPCSTR VarName, LPVOID UserData) {
  * @param Arguments Argument vector.
  * @return Pointer to an internal shell buffer, or NULL on failure.
  */
-static LPCSTR ShellScriptJoinArguments(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static LPCSTR ShellScriptJoinArguments(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     UINT BufferIndex = 0;
     UINT Index;
 
@@ -907,10 +952,7 @@ static LPCSTR ShellScriptJoinArguments(
  * @param Message Human-readable error message.
  * @return SCRIPT_FUNCTION_STATUS_ERROR.
  */
-static INT ShellScriptFailFunction(
-    LPSHELLCONTEXT Context,
-    SCRIPT_ERROR ErrorCode,
-    LPCSTR Message) {
+static INT ShellScriptFailFunction(LPSHELLCONTEXT Context, SCRIPT_ERROR ErrorCode, LPCSTR Message) {
     if (Context != NULL && Context->ScriptContext != NULL) {
         Context->ScriptContext->ErrorCode = ErrorCode;
         if (Message != NULL) {
@@ -941,12 +983,14 @@ static INT ShellScriptKillHandle(LPSHELLCONTEXT Context, LPCSTR HandleValue) {
 
     Handle = StringToU32(HandleValue);
     if (Handle < HANDLE_MINIMUM) {
-        return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("kill(handle) expects a valid handle"));
+        return ShellScriptFailFunction(
+            Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("kill(handle) expects a valid handle"));
     }
 
     ObjectPointer = HandleToPointer((HANDLE)Handle);
     if (ObjectPointer == 0) {
-        return ShellScriptFailFunction(Context, SCRIPT_ERROR_UNDEFINED_VAR, TEXT("kill(handle) received an unknown handle"));
+        return ShellScriptFailFunction(
+            Context, SCRIPT_ERROR_UNDEFINED_VAR, TEXT("kill(handle) received an unknown handle"));
     }
 
     Object = (LPOBJECT)ObjectPointer;
@@ -954,7 +998,8 @@ static INT ShellScriptKillHandle(LPSHELLCONTEXT Context, LPCSTR HandleValue) {
         if (Object->TypeID == KOID_PROCESS) {
             Status = SysCall_KillProcess(Handle);
             if (Status == 0) {
-                return ShellScriptFailFunction(Context, SCRIPT_ERROR_UNAUTHORIZED, TEXT("kill(handle) failed to terminate the process"));
+                return ShellScriptFailFunction(
+                    Context, SCRIPT_ERROR_UNAUTHORIZED, TEXT("kill(handle) failed to terminate the process"));
             }
             return (INT)Status;
         }
@@ -962,13 +1007,15 @@ static INT ShellScriptKillHandle(LPSHELLCONTEXT Context, LPCSTR HandleValue) {
         if (Object->TypeID == KOID_TASK) {
             Status = SysCall_KillTask(Handle);
             if (Status == 0) {
-                return ShellScriptFailFunction(Context, SCRIPT_ERROR_UNAUTHORIZED, TEXT("kill(handle) failed to terminate the task"));
+                return ShellScriptFailFunction(
+                    Context, SCRIPT_ERROR_UNAUTHORIZED, TEXT("kill(handle) failed to terminate the task"));
             }
             return (INT)Status;
         }
     }
 
-    return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("kill(handle) only supports process or task handles"));
+    return ShellScriptFailFunction(
+        Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("kill(handle) only supports process or task handles"));
 }
 
 /************************************************************************/
@@ -983,11 +1030,7 @@ static INT ShellScriptKillHandle(LPSHELLCONTEXT Context, LPCSTR HandleValue) {
  * @return TRUE on success.
  */
 static BOOL ShellScriptParsePositiveInteger(
-    LPSHELLCONTEXT Context,
-    LPCSTR FunctionName,
-    LPCSTR ParameterName,
-    LPCSTR ValueText,
-    U32* OutValue) {
+    LPSHELLCONTEXT Context, LPCSTR FunctionName, LPCSTR ParameterName, LPCSTR ValueText, U32* OutValue) {
     U32 Index = 0;
     U32 Value = 0;
 
@@ -998,11 +1041,7 @@ static BOOL ShellScriptParsePositiveInteger(
     if (ValueText == NULL || StringLength(ValueText) == 0) {
         STR Message[MAX_ERROR_MESSAGE];
 
-        StringPrintFormat(
-            Message,
-            TEXT("%s() expects %s to be a positive integer"),
-            FunctionName,
-            ParameterName);
+        StringPrintFormat(Message, TEXT("%s() expects %s to be a positive integer"), FunctionName, ParameterName);
         ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, Message);
         return FALSE;
     }
@@ -1011,11 +1050,7 @@ static BOOL ShellScriptParsePositiveInteger(
         if (!IsNumeric(ValueText[Index])) {
             STR Message[MAX_ERROR_MESSAGE];
 
-            StringPrintFormat(
-                Message,
-                TEXT("%s() expects %s to be a positive integer"),
-                FunctionName,
-                ParameterName);
+            StringPrintFormat(Message, TEXT("%s() expects %s to be a positive integer"), FunctionName, ParameterName);
             ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, Message);
             return FALSE;
         }
@@ -1025,11 +1060,7 @@ static BOOL ShellScriptParsePositiveInteger(
     if (Value == 0) {
         STR Message[MAX_ERROR_MESSAGE];
 
-        StringPrintFormat(
-            Message,
-            TEXT("%s() expects %s to be a positive integer"),
-            FunctionName,
-            ParameterName);
+        StringPrintFormat(Message, TEXT("%s() expects %s to be a positive integer"), FunctionName, ParameterName);
         ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, Message);
         return FALSE;
     }
@@ -1047,25 +1078,16 @@ static BOOL ShellScriptParsePositiveInteger(
  * @param Arguments Serialized arguments.
  * @return One deterministic magic value on success.
  */
-static INT ShellScriptSmokeTestMultiArgs(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptSmokeTestMultiArgs(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     if (ArgumentCount != 4 || Arguments == NULL) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_SYNTAX,
-            TEXT("smokeTestMultiArgs(a, b, c, d) expects exactly four arguments"));
+            Context, SCRIPT_ERROR_SYNTAX, TEXT("smokeTestMultiArgs(a, b, c, d) expects exactly four arguments"));
     }
 
-    if (StringCompare(Arguments[0], TEXT("alpha")) != 0 ||
-        StringCompare(Arguments[1], TEXT("17")) != 0 ||
-        StringCompare(Arguments[2], TEXT("23")) != 0 ||
-        StringCompare(Arguments[3], TEXT("1")) != 0) {
+    if (StringCompare(Arguments[0], TEXT("alpha")) != 0 || StringCompare(Arguments[1], TEXT("17")) != 0 ||
+        StringCompare(Arguments[2], TEXT("23")) != 0 || StringCompare(Arguments[3], TEXT("1")) != 0) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("smokeTestMultiArgs() received unexpected serialized arguments"));
+            Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("smokeTestMultiArgs() received unexpected serialized arguments"));
     }
 
     return 42023171;
@@ -1080,10 +1102,7 @@ static INT ShellScriptSmokeTestMultiArgs(
  * @param Arguments Serialized arguments.
  * @return Shell command status or one script function error sentinel.
  */
-static INT ShellScriptExecFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptExecFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     LPCSTR JoinedArguments;
 
     if (Context == NULL || ArgumentCount == 0 || Arguments == NULL) {
@@ -1108,10 +1127,7 @@ static INT ShellScriptExecFunction(
  * @param Arguments Serialized arguments.
  * @return Zero on success or an error code on failure.
  */
-static INT ShellScriptPrintFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptPrintFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     LPCSTR JoinedArguments;
 
     if (ArgumentCount == 0 || Arguments == NULL) {
@@ -1140,15 +1156,10 @@ static INT ShellScriptPrintFunction(
  * @param Arguments Serialized arguments.
  * @return Handle termination status or one script function error sentinel.
  */
-static INT ShellScriptKillFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptKillFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     if (ArgumentCount != 1 || Arguments == NULL) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_SYNTAX,
-            TEXT("kill(handle) expects exactly one handle argument"));
+            Context, SCRIPT_ERROR_SYNTAX, TEXT("kill(handle) expects exactly one handle argument"));
     }
 
     return ShellScriptKillHandle(Context, Arguments[0]);
@@ -1163,10 +1174,7 @@ static INT ShellScriptKillFunction(
  * @param Arguments Serialized arguments.
  * @return System call status or one script function error sentinel.
  */
-static INT ShellScriptSetGraphicsDriverFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptSetGraphicsDriverFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     GRAPHICS_DRIVER_SELECTION_INFO SelectionInfo;
     U32 Width = 0;
     U32 Height = 0;
@@ -1182,21 +1190,18 @@ static INT ShellScriptSetGraphicsDriverFunction(
 
     if (Arguments[0] == NULL || StringLength(Arguments[0]) == 0) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("setGraphicsDriver() expects a non-empty driver alias"));
+            Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("setGraphicsDriver() expects a non-empty driver alias"));
     }
 
     if (StringLength(Arguments[0]) >= MAX_NAME) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("setGraphicsDriver() driverAlias exceeds MAX_NAME"));
+            Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("setGraphicsDriver() driverAlias exceeds MAX_NAME"));
     }
 
     if (!ShellScriptParsePositiveInteger(Context, TEXT("setGraphicsDriver"), TEXT("width"), Arguments[1], &Width) ||
         !ShellScriptParsePositiveInteger(Context, TEXT("setGraphicsDriver"), TEXT("height"), Arguments[2], &Height) ||
-        !ShellScriptParsePositiveInteger(Context, TEXT("setGraphicsDriver"), TEXT("bpp"), Arguments[3], &BitsPerPixel)) {
+        !ShellScriptParsePositiveInteger(
+            Context, TEXT("setGraphicsDriver"), TEXT("bpp"), Arguments[3], &BitsPerPixel)) {
         return SCRIPT_FUNCTION_STATUS_ERROR;
     }
 
@@ -1215,9 +1220,7 @@ static INT ShellScriptSetGraphicsDriverFunction(
 
         if (Status == DF_RETURN_BAD_PARAMETER) {
             StringPrintFormat(
-                ErrorMessage,
-                TEXT("setGraphicsDriver() could not select '%s'"),
-                SelectionInfo.DriverAlias);
+                ErrorMessage, TEXT("setGraphicsDriver() could not select '%s'"), SelectionInfo.DriverAlias);
         } else if (Status == DF_RETURN_UNEXPECTED) {
             StringCopy(ErrorMessage, TEXT("setGraphicsDriver() failed to update the display session"));
         } else {
@@ -1231,10 +1234,7 @@ static INT ShellScriptSetGraphicsDriverFunction(
                 Status);
         }
 
-        return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            ErrorMessage);
+        return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, ErrorMessage);
     }
 
     return (INT)Status;
@@ -1249,10 +1249,7 @@ static INT ShellScriptSetGraphicsDriverFunction(
  * @param Arguments Serialized arguments.
  * @return DF_RETURN_SUCCESS on success or one script function error sentinel.
  */
-static INT ShellScriptCreateAccountFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptCreateAccountFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     U32 Privilege;
     UINT Status;
 
@@ -1269,10 +1266,7 @@ static INT ShellScriptCreateAccountFunction(
 
     Status = ShellCreateAccount(Arguments[0], Arguments[1], Privilege);
     if (Status != TRUE) {
-        return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("createAccount() failed"));
+        return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("createAccount() failed"));
     }
 
     return DF_RETURN_SUCCESS;
@@ -1287,25 +1281,17 @@ static INT ShellScriptCreateAccountFunction(
  * @param Arguments Serialized arguments.
  * @return DF_RETURN_SUCCESS on success or one script function error sentinel.
  */
-static INT ShellScriptDeleteAccountFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptDeleteAccountFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     UINT Status;
 
     if (ArgumentCount != 1 || Arguments == NULL) {
         return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_SYNTAX,
-            TEXT("deleteAccount(userName) expects exactly one argument"));
+            Context, SCRIPT_ERROR_SYNTAX, TEXT("deleteAccount(userName) expects exactly one argument"));
     }
 
     Status = ShellDeleteAccount(Arguments[0]);
     if (Status != TRUE) {
-        return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("deleteAccount() failed"));
+        return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("deleteAccount() failed"));
     }
 
     return DF_RETURN_SUCCESS;
@@ -1320,10 +1306,7 @@ static INT ShellScriptDeleteAccountFunction(
  * @param Arguments Serialized arguments.
  * @return DF_RETURN_SUCCESS on success or one script function error sentinel.
  */
-static INT ShellScriptChangePasswordFunction(
-    LPSHELLCONTEXT Context,
-    UINT ArgumentCount,
-    LPCSTR* Arguments) {
+static INT ShellScriptChangePasswordFunction(LPSHELLCONTEXT Context, UINT ArgumentCount, LPCSTR* Arguments) {
     UINT Status;
 
     if (ArgumentCount != 2 || Arguments == NULL) {
@@ -1335,10 +1318,7 @@ static INT ShellScriptChangePasswordFunction(
 
     Status = ShellChangePassword(Arguments[0], Arguments[1]);
     if (Status != TRUE) {
-        return ShellScriptFailFunction(
-            Context,
-            SCRIPT_ERROR_TYPE_MISMATCH,
-            TEXT("changePassword() failed"));
+        return ShellScriptFailFunction(Context, SCRIPT_ERROR_TYPE_MISMATCH, TEXT("changePassword() failed"));
     }
 
     return DF_RETURN_SUCCESS;
@@ -1347,15 +1327,15 @@ static INT ShellScriptChangePasswordFunction(
 /************************************************************************/
 
 static const SHELL_SCRIPT_FUNCTION_ENTRY ShellScriptFunctionTable[] = {
-    {TEXT("exec"), ShellScriptExecFunction},
-    {TEXT("print"), ShellScriptPrintFunction},
-    {TEXT("kill"), ShellScriptKillFunction},
-    {TEXT("smokeTestMultiArgs"), ShellScriptSmokeTestMultiArgs},
-    {TEXT("setGraphicsDriver"), ShellScriptSetGraphicsDriverFunction},
-    {TEXT("createAccount"), ShellScriptCreateAccountFunction},
-    {TEXT("deleteAccount"), ShellScriptDeleteAccountFunction},
-    {TEXT("changePassword"), ShellScriptChangePasswordFunction},
-    {NULL, NULL}
+    { TEXT("exec"), ShellScriptExecFunction },
+    { TEXT("print"), ShellScriptPrintFunction },
+    { TEXT("kill"), ShellScriptKillFunction },
+    { TEXT("smokeTestMultiArgs"), ShellScriptSmokeTestMultiArgs },
+    { TEXT("setGraphicsDriver"), ShellScriptSetGraphicsDriverFunction },
+    { TEXT("createAccount"), ShellScriptCreateAccountFunction },
+    { TEXT("deleteAccount"), ShellScriptDeleteAccountFunction },
+    { TEXT("changePassword"), ShellScriptChangePasswordFunction },
+    { NULL, NULL }
 };
 
 /************************************************************************/

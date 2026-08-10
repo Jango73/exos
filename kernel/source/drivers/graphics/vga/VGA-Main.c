@@ -104,7 +104,7 @@ static DRIVER DATA_SECTION VGADriver = {
 };
 
 typedef struct tag_VGA_STATE {
-    GRAPHICSCONTEXT Context;
+    GRAPHICS_CONTEXT Context;
     U16* TextBuffer;
     U32 CursorStart;
     U32 CursorEnd;
@@ -315,7 +315,7 @@ static BOOL VGAReadCurrentTextModeInfo(LPVGAMODEINFO Info) {
  * @return TRUE when context is valid.
  */
 static BOOL VGARefreshTextContext(void) {
-    VGAMODEINFO ModeInfo;
+    VGA_MODE_INFO ModeInfo;
     U8 CursorStart;
     U8 CursorEnd;
 
@@ -532,7 +532,7 @@ static UINT VGASetModeFromRequest(LPGRAPHICS_MODE_INFO Info) {
     U32 RequestedColumns = 0;
     U32 RequestedRows = 0;
     U32 ModeIndex = 0;
-    VGAMODEINFO ModeInfo;
+    VGA_MODE_INFO ModeInfo;
 
     SAFE_USE(Info) {
         RequestedColumns = (Info->Width != 0) ? Info->Width : 80;
@@ -594,7 +594,7 @@ static UINT VGACommands(UINT Function, UINT Parameter) {
 
         case DF_GFX_GETMODEINFO: {
             LPGRAPHICS_MODE_INFO Info = (LPGRAPHICS_MODE_INFO)Parameter;
-            VGAMODEINFO ModeInfo;
+            VGA_MODE_INFO ModeInfo;
 
             SAFE_USE(Info) {
                 if (Info->ModeIndex == INFINITY) {
@@ -696,7 +696,7 @@ BOOL VGAGetModeInfo(U32 ModeIndex, LPVGAMODEINFO Info) {
  */
 BOOL VGAFindTextMode(U32 Columns, U32 Rows, U32* ModeIndex) {
     U32 Index;
-    VGAMODEINFO Info;
+    VGA_MODE_INFO Info;
 
     if (ModeIndex == NULL) return FALSE;
 

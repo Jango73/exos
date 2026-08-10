@@ -6,8 +6,11 @@
 # IMPLEMENTED 5: TCP larger transfer (segmentation/reassembly/retransmission path)
 # IMPLEMENTED 6: HTTP error code handling (404 path)
 # TODO 7: TCP connection failure path (closed port/timeout)
-# TODO 8: UDP send/receive minimal smoke
+# IMPLEMENTED 8: UDP send/receive smoke (on-demand autotest after network is up)
+# IMPLEMENTED 9: ICMP echo request/reply (ping toward SLIRP gateway)
 
+command: "ping 10.0.2.2 2" | log: "TEST > [CMD_ping] ping 10.0.2.2 sent=2 received=2"
+command: "autotest udp" | log: "TEST > [TestUDP] UDP tests passed"
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/smoke-large.txt /temp/smoke-large.txt" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/smoke-large.txt" "/exos/temp/smoke-large.txt"
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/smoke-very-large.txt /temp/smoke-very-large.txt" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/smoke-very-large.txt" "/exos/temp/smoke-very-large.txt" | timeout: 120
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/missing /temp/missing" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 1"

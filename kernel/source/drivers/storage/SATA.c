@@ -29,11 +29,12 @@
 #include "core/Kernel.h"
 #include "drivers/bus/PCI.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
+#include "fs/DiskTransferLayer.h"
 #include "log/Log.h"
+#include "log/Profile.h"
 #include "memory/Memory.h"
 #include "system/Clock.h"
 #include "utils/BufferPool.h"
-#include "utils/Cache.h"
 
 /***************************************************************************/
 // Version
@@ -61,20 +62,22 @@
 // Buffer pool configuration
 
 #define SATA_POOL_ALLOC_FLAGS (ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE)
-#define SATA_SECTOR_BUFFER_OBJECTS_PER_SLAB NUM_BUFFERS
-#define SATA_SECTOR_BUFFER_INITIAL_SLABS 1
-#define SATA_SECTOR_BUFFER_MIN_FREE NUM_BUFFERS
 #define SATA_BOUNCE_BUFFER_BYTES (N_4KB + N_4KB)
 #define SATA_BOUNCE_BUFFER_OBJECTS_PER_SLAB 8
 #define SATA_BOUNCE_BUFFER_INITIAL_SLABS 1
 #define SATA_BOUNCE_BUFFER_MIN_FREE 8
+
+// One AHCI command may transfer up to this many sectors. Bounded by the single
+// bounce buffer AHCICommand uses (SATA_BOUNCE_BUFFER_BYTES) minus the alignment
+// padding it reserves, divided by the sector size.
+#define SATA_MAX_DMA_SECTORS ((SATA_BOUNCE_BUFFER_BYTES - N_4KB) / SECTOR_SIZE)
 
 /***************************************************************************/
 // AHCI Port Structure
 
 typedef struct tag_AHCI_PORT {
     STORAGE_UNIT Header;
-    DISKGEOMETRY Geometry;
+    DISK_GEOMETRY Geometry;
     U32 Access;  // Access parameters
     U32 PortNumber;
     LPAHCI_HBA_PORT HBAPort;  // Pointer to HBA port registers
@@ -86,8 +89,6 @@ typedef struct tag_AHCI_PORT {
     LPAHCI_CMD_TBL CommandTable;    // Command table
 
     // Buffer management
-    CACHE SectorCache;
-    BUFFER_POOL SectorBufferPool;
     BUFFER_POOL BounceBufferPool;
 
     volatile U32 PendingInterrupts;
@@ -107,22 +108,14 @@ typedef struct tag_AHCI_STATE {
     BOOL InterruptEnabled;
 } AHCI_STATE, *LPAHCI_STATE;
 
-static AHCI_STATE AHCIState = {
-    .Base = NULL,
-    .PortsImplemented = 0,
-    .Device = NULL,
-    .Ports = {0},
-    .PendingPortsMask = 0,
-    .InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT,
-    .InterruptRegistered = FALSE,
-    .InterruptEnabled = FALSE};
-
-/***************************************************************************/
-
-typedef struct tag_SATA_CACHE_CONTEXT {
-    U32 SectorLow;
-    U32 SectorHigh;
-} SATA_CACHE_CONTEXT, *LPSATA_CACHE_CONTEXT;
+static AHCI_STATE AHCIState = { .Base = NULL,
+                                .PortsImplemented = 0,
+                                .Device = NULL,
+                                .Ports = { 0 },
+                                .PendingPortsMask = 0,
+                                .InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT,
+                                .InterruptRegistered = FALSE,
+                                .InterruptEnabled = FALSE };
 
 /***************************************************************************/
 // AHCI PCI Driver
@@ -139,47 +132,46 @@ static U32 SATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty);
 
 static const DRIVER_MATCH AHCIMatches[] = {
     // Match any AHCI controller (Class 01h, Subclass 06h, Programming Interface 01h)
-    {PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE, 0x06, 0x01}};
+    { PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE, 0x06, 0x01 }
+};
 
 /***************************************************************************/
 
 UINT SATADiskCommands(UINT, UINT);
 
-DRIVER DATA_SECTION SATADiskDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_SATA_STORAGE,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "SATA-IO",
-    .Product = "AHCI SATA Controller",
-    .Alias = "sata",
-    .Flags = 0,
-    .Command = SATADiskCommands,
-    .EnumDomainCount = 1,
-    .EnumDomains = {ENUM_DOMAIN_AHCI_PORT}};
+DRIVER DATA_SECTION SATADiskDriver = { .TypeID = KOID_DRIVER,
+                                       .References = 1,
+                                       .Next = NULL,
+                                       .Prev = NULL,
+                                       .Type = DRIVER_TYPE_SATA_STORAGE,
+                                       .VersionMajor = VER_MAJOR,
+                                       .VersionMinor = VER_MINOR,
+                                       .Designer = "Jango73",
+                                       .Manufacturer = "SATA-IO",
+                                       .Product = "AHCI SATA Controller",
+                                       .Alias = "sata",
+                                       .Flags = 0,
+                                       .Command = SATADiskCommands,
+                                       .EnumDomainCount = 1,
+                                       .EnumDomains = { ENUM_DOMAIN_AHCI_PORT } };
 
 /***************************************************************************/
 
-PCI_DRIVER DATA_SECTION AHCIPCIDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_SATA_STORAGE,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "",
-    .Product = "AHCI SATA Controller",
-    .Alias = "sata",
-    .Command = AHCIProbe,
-    .Matches = AHCIMatches,
-    .MatchCount = 1,
-    .Attach = AHCIAttach};
+PCI_DRIVER DATA_SECTION AHCIPCIDriver = { .TypeID = KOID_DRIVER,
+                                          .References = 1,
+                                          .Next = NULL,
+                                          .Prev = NULL,
+                                          .Type = DRIVER_TYPE_SATA_STORAGE,
+                                          .VersionMajor = VER_MAJOR,
+                                          .VersionMinor = VER_MINOR,
+                                          .Designer = "Jango73",
+                                          .Manufacturer = "",
+                                          .Product = "AHCI SATA Controller",
+                                          .Alias = "sata",
+                                          .Command = AHCIProbe,
+                                          .Matches = AHCIMatches,
+                                          .MatchCount = 1,
+                                          .Attach = AHCIAttach };
 
 /***************************************************************************/
 
@@ -187,7 +179,9 @@ PCI_DRIVER DATA_SECTION AHCIPCIDriver = {
  * @brief Retrieves the AHCI PCI driver descriptor.
  * @return Pointer to the AHCI PCI driver.
  */
-LPDRIVER AHCIPCIGetDriver(void) { return (LPDRIVER)&AHCIPCIDriver; }
+LPDRIVER AHCIPCIGetDriver(void) {
+    return (LPDRIVER)&AHCIPCIDriver;
+}
 
 /***************************************************************************/
 
@@ -195,52 +189,8 @@ LPDRIVER AHCIPCIGetDriver(void) { return (LPDRIVER)&AHCIPCIDriver; }
  * @brief Retrieves the SATA disk driver descriptor.
  * @return Pointer to the SATA disk driver.
  */
-LPDRIVER SATADiskGetDriver(void) { return &SATADiskDriver; }
-
-/***************************************************************************/
-
-/**
- * @brief Matcher callback for SATA sector cache entries.
- *
- * @param Data Cache entry (LPSECTORBUFFER).
- * @param Context Matching context with sector range.
- * @return TRUE if entry matches requested sector range.
- */
-static BOOL SATACacheMatcher(LPVOID Data, LPVOID Context) {
-    LPSECTORBUFFER Buffer = (LPSECTORBUFFER)Data;
-    LPSATA_CACHE_CONTEXT Match = (LPSATA_CACHE_CONTEXT)Context;
-
-    if (Buffer == NULL || Match == NULL) {
-        return FALSE;
-    }
-
-    return Buffer->SectorLow == Match->SectorLow && Buffer->SectorHigh == Match->SectorHigh;
-}
-
-/***************************************************************************/
-
-/**
- * @brief Release callback for SATA sector cache entries.
- *
- * @param Data Cache entry payload (LPSECTORBUFFER).
- * @param Dirty Dirty flag from cache entry.
- * @param Context Buffer pool context pointer.
- */
-static void SATACacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
-    LPBUFFER_POOL Pool = (LPBUFFER_POOL)Context;
-
-    UNUSED(Dirty);
-
-    if (Data == NULL) {
-        return;
-    }
-
-    if (Pool == NULL) {
-        KernelHeapFree(Data);
-        return;
-    }
-
-    BufferPoolRelease(Pool, Data);
+LPDRIVER SATADiskGetDriver(void) {
+    return &SATADiskDriver;
 }
 
 /***************************************************************************/
@@ -439,19 +389,12 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
     MemorySet(AHCIPort->CommandTable, 0, AHCI_CMD_TBL_SIZE);
 
     if (!BufferPoolInit(
-            &AHCIPort->SectorBufferPool, (UINT)sizeof(SECTORBUFFER), SATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
-            SATA_SECTOR_BUFFER_INITIAL_SLABS, SATA_POOL_ALLOC_FLAGS, TEXT("SataSectorBuffer"))) {
-        return FALSE;
-    }
-
-    if (!BufferPoolReserve(&AHCIPort->SectorBufferPool, SATA_SECTOR_BUFFER_MIN_FREE)) {
-        BufferPoolDeinit(&AHCIPort->SectorBufferPool);
-        return FALSE;
-    }
-
-    if (!BufferPoolInit(
-            &AHCIPort->BounceBufferPool, SATA_BOUNCE_BUFFER_BYTES, SATA_BOUNCE_BUFFER_OBJECTS_PER_SLAB,
-            SATA_BOUNCE_BUFFER_INITIAL_SLABS, SATA_POOL_ALLOC_FLAGS, TEXT("SataBounceBuffer"))) {
+            &AHCIPort->BounceBufferPool,
+            SATA_BOUNCE_BUFFER_BYTES,
+            SATA_BOUNCE_BUFFER_OBJECTS_PER_SLAB,
+            SATA_BOUNCE_BUFFER_INITIAL_SLABS,
+            SATA_POOL_ALLOC_FLAGS,
+            TEXT("SataBounceBuffer"))) {
         return FALSE;
     }
 
@@ -459,14 +402,6 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
         BufferPoolDeinit(&AHCIPort->BounceBufferPool);
         return FALSE;
     }
-
-    CacheInit(&AHCIPort->SectorCache, NUM_BUFFERS);
-    if (AHCIPort->SectorCache.Entries == NULL) {
-        return FALSE;
-    }
-
-    CacheSetWritePolicy(
-        &AHCIPort->SectorCache, CACHE_WRITE_POLICY_READ_ONLY, NULL, SATACacheRelease, &AHCIPort->SectorBufferPool);
 
     // Set up port registers with physical addresses for DMA
     PHYSICAL CommandListPhys = MapLinearToPhysical((LINEAR)AHCIPort->CommandList);
@@ -518,6 +453,12 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
     AHCIPort->Geometry.Heads = 16;
     AHCIPort->Geometry.SectorsPerTrack = 63;
     AHCIPort->Geometry.BytesPerSector = SECTOR_SIZE;
+
+    // Attach the generic transfer layer (sector cache + chunking). The
+    // transfer limit is bounded by the bounce buffer AHCICommand uses.
+    if (!DiskTransferLayerInit((LPSTORAGE_UNIT)AHCIPort, SATA_MAX_DMA_SECTORS, NULL)) {
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -691,6 +632,8 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
     LINEAR BounceBase;
     U32 BounceSize;
 
+    ProfileCountCall(TEXT("AHCICommand"));
+
     if (AHCIPort == NULL || Buffer == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
@@ -824,6 +767,10 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
 /**
  * @brief Read sectors from a SATA disk using AHCI.
  *
+ * Sectors are grouped into chunks of up to SATA_MAX_DMA_SECTORS and each
+ * chunk is served by a single AHCI command. Caching and request merging are
+ * handled by the generic transfer layer.
+ *
  * @param Control IO control structure describing request.
  * @return DF_RETURN_SUCCESS or error code.
  */
@@ -842,35 +789,25 @@ static U32 Read(LPIOCONTROL Control) {
     // Check validity of parameters
     if (AHCIPort->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
 
-    CacheCleanup(&AHCIPort->SectorCache, GetSystemTime());
-
-    for (Current = 0; Current < Control->NumSectors; Current++) {
-        SATA_CACHE_CONTEXT Context = {Control->SectorLow + Current, 0};
-        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&AHCIPort->SectorCache, SATACacheMatcher, &Context);
-
-        if (Buffer == NULL) {
-            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&AHCIPort->SectorBufferPool);
-
-            if (Buffer == NULL) return DF_RETURN_UNEXPECTED;
-
-            Buffer->SectorLow = Context.SectorLow;
-            Buffer->SectorHigh = Context.SectorHigh;
-            Buffer->Dirty = 0;
-
-            Result = AHCICommand(AHCIPort, ATA_CMD_READ_DMA_EXT, Context.SectorLow, 1, Buffer->Data, FALSE);
-
-            if (Result != DF_RETURN_SUCCESS) {
-                BufferPoolRelease(&AHCIPort->SectorBufferPool, Buffer);
-                return Result;
-            }
-
-            if (!CacheAdd(&AHCIPort->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
-                BufferPoolRelease(&AHCIPort->SectorBufferPool, Buffer);
-                return DF_RETURN_UNEXPECTED;
-            }
+    Current = 0;
+    while (Current < Control->NumSectors) {
+        U32 ChunkSectors = SATA_MAX_DMA_SECTORS;
+        if (ChunkSectors > Control->NumSectors - Current) {
+            ChunkSectors = Control->NumSectors - Current;
         }
 
-        MemoryCopy(((U8*)Control->Buffer) + (Current * SECTOR_SIZE), Buffer->Data, SECTOR_SIZE);
+        Result = AHCICommand(
+            AHCIPort,
+            ATA_CMD_READ_DMA_EXT,
+            Control->SectorLow + Current,
+            (U16)ChunkSectors,
+            (LPVOID)((U8*)Control->Buffer + Current * SECTOR_SIZE),
+            FALSE);
+        if (Result != DF_RETURN_SUCCESS) {
+            return Result;
+        }
+
+        Current += ChunkSectors;
     }
 
     return DF_RETURN_SUCCESS;
@@ -880,6 +817,10 @@ static U32 Read(LPIOCONTROL Control) {
 
 /**
  * @brief Write sectors to a SATA disk using AHCI.
+ *
+ * Sectors are grouped into chunks of up to SATA_MAX_DMA_SECTORS and each
+ * chunk is written with a single AHCI command. Caching and request merging
+ * are handled by the generic transfer layer.
  *
  * @param Control IO control structure describing request.
  * @return DF_RETURN_SUCCESS or error code.
@@ -902,44 +843,25 @@ static U32 Write(LPIOCONTROL Control) {
     // Check access permissions
     if (AHCIPort->Access & DISK_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
 
-    CacheCleanup(&AHCIPort->SectorCache, GetSystemTime());
-
-    for (Current = 0; Current < Control->NumSectors; Current++) {
-        SATA_CACHE_CONTEXT Context = {Control->SectorLow + Current, 0};
-        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&AHCIPort->SectorCache, SATACacheMatcher, &Context);
-        BOOL AddedToCache = FALSE;
-
-        if (Buffer == NULL) {
-            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&AHCIPort->SectorBufferPool);
-
-            if (Buffer == NULL) return DF_RETURN_UNEXPECTED;
-
-            Buffer->SectorLow = Context.SectorLow;
-            Buffer->SectorHigh = Context.SectorHigh;
-            Buffer->Dirty = 0;
-            AddedToCache = TRUE;
+    Current = 0;
+    while (Current < Control->NumSectors) {
+        U32 ChunkSectors = SATA_MAX_DMA_SECTORS;
+        if (ChunkSectors > Control->NumSectors - Current) {
+            ChunkSectors = Control->NumSectors - Current;
         }
 
-        MemoryCopy(Buffer->Data, ((U8*)Control->Buffer) + (Current * SECTOR_SIZE), SECTOR_SIZE);
-        Buffer->Dirty = 1;
-
-        Result = AHCICommand(AHCIPort, ATA_CMD_WRITE_DMA_EXT, Context.SectorLow, 1, Buffer->Data, TRUE);
-
+        Result = AHCICommand(
+            AHCIPort,
+            ATA_CMD_WRITE_DMA_EXT,
+            Control->SectorLow + Current,
+            (U16)ChunkSectors,
+            (LPVOID)((U8*)Control->Buffer + Current * SECTOR_SIZE),
+            TRUE);
         if (Result != DF_RETURN_SUCCESS) {
-            if (AddedToCache) {
-                BufferPoolRelease(&AHCIPort->SectorBufferPool, Buffer);
-            }
             return Result;
         }
 
-        Buffer->Dirty = 0;
-
-        if (AddedToCache) {
-            if (!CacheAdd(&AHCIPort->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
-                BufferPoolRelease(&AHCIPort->SectorBufferPool, Buffer);
-                return DF_RETURN_UNEXPECTED;
-            }
-        }
+        Current += ChunkSectors;
     }
 
     return DF_RETURN_SUCCESS;
@@ -1198,7 +1120,9 @@ static void AHCIInterruptPoll(LPDEVICE Device, LPVOID Context) {
 
 /***************************************************************************/
 
-BOOL AHCIIsInitialized(void) { return (AHCIState.Base != NULL); }
+BOOL AHCIIsInitialized(void) {
+    return (AHCIState.Base != NULL);
+}
 
 /***************************************************************************/
 
@@ -1344,7 +1268,11 @@ static U32 SATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
     UINT Det = Data->Ssts & AHCI_PORT_SSTS_DET_MASK;
 
     StringPrintFormat(
-        Pretty->Buffer, TEXT("AHCI Port %u: DET=%s SSTS=%x SIG=%x"), Data->PortNumber, SataDetToString(Det), Data->Ssts,
+        Pretty->Buffer,
+        TEXT("AHCI Port %u: DET=%s SSTS=%x SIG=%x"),
+        Data->PortNumber,
+        SataDetToString(Det),
+        Data->Ssts,
         Data->Sig);
 
     return DF_RETURN_SUCCESS;

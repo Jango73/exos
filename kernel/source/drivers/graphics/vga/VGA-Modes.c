@@ -26,7 +26,7 @@
 
 /****************************************************************************/
 
-VGAMODEREGS VGAModeRegs [] =
+VGA_MODE_REGS VGAModeRegs [] =
 {
   // Mode 0x04
   { {

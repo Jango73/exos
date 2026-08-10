@@ -64,7 +64,7 @@
 typedef struct tag_EXT2FILESYSTEM {
     FILESYSTEM Header;
     LPSTORAGE_UNIT Disk;
-    EXT2SUPER Super;
+    EXT2_SUPER Super;
     LPEXT2BLOCKGROUP Groups;
     U32 GroupCount;
     SECTOR PartitionStart;
@@ -76,13 +76,13 @@ typedef struct tag_EXT2FILESYSTEM {
     MUTEX FilesMutex;
     BUFFER_POOL BlockBufferPool;
     U8* IOBuffer;
-} EXT2FILESYSTEM, *LPEXT2FILESYSTEM;
+} EXT2_FILE_SYSTEM, *LPEXT2FILESYSTEM;
 
 /************************************************************************/
 
 typedef struct tag_EXT2FILE {
     FILE Header;
-    EXT2INODE Inode;
+    EXT2_INODE Inode;
     U32 InodeIndex;
     BOOL IsDirectory;
     BOOL Enumerate;
@@ -91,7 +91,7 @@ typedef struct tag_EXT2FILE {
     U8* DirectoryBlock;
     BOOL DirectoryBlockValid;
     STR Pattern[MAX_FILE_NAME];
-} EXT2FILE, *LPEXT2FILE;
+} EXT2_FILE, *LPEXT2FILE;
 
 /************************************************************************/
 

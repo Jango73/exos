@@ -67,7 +67,7 @@ typedef struct tag_NTFS_MBR {
 typedef struct tag_NTFS_FILEREF {
     U32 Low;
     U32 High;
-} NTFS_FILEREF, *LPNTFS_FILEREF;
+} NTFS_FILE_REF, *LPNTFS_FILEREF;
 
 /***************************************************************************/
 
@@ -91,7 +91,7 @@ typedef struct tag_NTFS_FILERECORD {
     U16 MaximumAttibuteID;  // +1
     U16 UpdateSequence;
     U16 UpdateSequenceArray[1];  // (UpdateSequenceSize - 1) elements
-} NTFS_FILERECORD, *LPNTFS_FILERECORD;
+} NTFS_FILE_RECORD, *LPNTFS_FILERECORD;
 
 /***************************************************************************/
 // $VOLUME_NAME
@@ -132,7 +132,7 @@ typedef struct tag_NTFS_STDINFO {
     U64 LastAccessTime;
     U32 DOSFilePermissions;
     U8 Unknown[12];
-} NTFS_STDINFO, *LPNTFS_STDINFO;
+} NTFS_STANDARD_INFO, *LPNTFS_STDINFO;
 
 /***************************************************************************/
 

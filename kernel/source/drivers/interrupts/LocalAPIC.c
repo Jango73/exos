@@ -71,7 +71,7 @@ typedef struct tag_CPUIDREGISTERS {
     U32 reg_EBX;
     U32 reg_ECX;
     U32 reg_EDX;
-} CPUIDREGISTERS, *LPCPUIDREGISTERS;
+} CPU_ID_REGISTERS, *LPCPUIDREGISTERS;
 
 /***************************************************************************/
 
@@ -162,7 +162,7 @@ BOOL InitializeLocalAPIC(void) {
  * @return TRUE if Local APIC is present, FALSE otherwise
  */
 BOOL IsLocalAPICPresent(void) {
-    CPUIDREGISTERS Regs[4];
+    CPU_ID_REGISTERS Regs[4];
 
     // Call CPUID with EAX=1 to get feature information
     GetCPUID(Regs);

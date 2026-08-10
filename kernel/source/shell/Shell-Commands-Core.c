@@ -26,6 +26,7 @@
 #include "shell/Shell-Commands-Private.h"
 #include "utils/KernelPath.h"
 #include "utils/SizeFormat.h"
+#include "utils/Sort.h"
 #include "utils/StringBuilder.h"
 
 #define DIR_RECURSIVE_STRESS_ENTRY_COUNT 1200
@@ -37,7 +38,6 @@ static BOOL ShellCommandLineCompletion(
 static BOOL ShellFileExists(LPCSTR FileName);
 static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
 static BOOL ShellResolveBinarySearchPath(LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]);
-static void ListFile(LPFILE File, U32 Indent);
 
 /************************************************************************/
 
@@ -46,6 +46,108 @@ typedef struct tag_LIST_DIRECTORY_WORK_ITEM {
     U32 Indent;
     STR Path[MAX_PATH_NAME];
 } LIST_DIRECTORY_WORK_ITEM, *LPLIST_DIRECTORY_WORK_ITEM;
+
+/************************************************************************/
+
+typedef struct tag_LIST_ENTRY {
+    STR Name[MAX_FILE_NAME];
+    U32 SizeLow;
+    U32 SizeHigh;
+    U32 Attributes;
+    DATETIME Creation;
+    DATETIME Modified;
+} LIST_ENTRY, *LPLIST_ENTRY;
+
+/************************************************************************/
+
+static BOOL ListEntryNameSkipped(LPCSTR Name) {
+    return Name != NULL && (StringCompare(Name, TEXT(".")) == 0 || StringCompare(Name, TEXT("..")) == 0);
+}
+
+/************************************************************************/
+
+static void ListEntryInitFromFile(LPLIST_ENTRY Entry, LPFILE File) {
+    if (Entry == NULL || File == NULL) {
+        return;
+    }
+
+    StringCopyLimit(Entry->Name, File->Name, MAX_FILE_NAME);
+    Entry->SizeLow = File->SizeLow;
+    Entry->SizeHigh = File->SizeHigh;
+    Entry->Attributes = File->Attributes;
+    Entry->Creation = File->Creation;
+    Entry->Modified = File->Modified;
+}
+
+/************************************************************************/
+
+static void ListFileEntry(LPLIST_ENTRY Entry, U32 Indent) {
+    STR Name[MAX_FILE_NAME];
+    U32 MaxWidth = Console.Width;
+    U32 Length;
+    U32 Index;
+
+    if (Entry == NULL || ListEntryNameSkipped(Entry->Name)) {
+        return;
+    }
+
+    StringCopy(Name, Entry->Name);
+
+    if (StringLength(Name) > ((MaxWidth - Indent) / 2)) {
+        Index = ((MaxWidth - Indent) / 2) - 4;
+        Name[Index++] = STR_DOT;
+        Name[Index++] = STR_DOT;
+        Name[Index++] = STR_DOT;
+        Name[Index++] = STR_NULL;
+    }
+
+    Length = ((MaxWidth - Indent) / 2) - StringLength(Name);
+
+    // Print name
+
+    for (Index = 0; Index < Indent; Index++) ConsolePrint(TEXT(" "));
+    ConsolePrint(Name);
+    for (Index = 0; Index < Length; Index++) ConsolePrint(TEXT(" "));
+
+    // Print size
+
+    if (Entry->Attributes & FS_ATTR_FOLDER) {
+        ConsolePrint(TEXT("%12s"), TEXT("<Folder>"));
+    } else {
+        STR SizeText[32];
+        SizeFormatBytesText(U64_Make(Entry->SizeHigh, Entry->SizeLow), SizeText);
+        ConsolePrint(TEXT("%12s"), SizeText);
+    }
+
+    ConsolePrint(
+        TEXT(" %d-%d-%d %d:%d "),
+        (I32)Entry->Creation.Day,
+        (I32)Entry->Creation.Month,
+        (I32)Entry->Creation.Year,
+        (I32)Entry->Creation.Hour,
+        (I32)Entry->Creation.Minute);
+
+    // Print attributes
+
+    if (Entry->Attributes & FS_ATTR_READONLY)
+        ConsolePrint(TEXT("R"));
+    else
+        ConsolePrint(TEXT("-"));
+    if (Entry->Attributes & FS_ATTR_HIDDEN)
+        ConsolePrint(TEXT("H"));
+    else
+        ConsolePrint(TEXT("-"));
+    if (Entry->Attributes & FS_ATTR_SYSTEM)
+        ConsolePrint(TEXT("S"));
+    else
+        ConsolePrint(TEXT("-"));
+    if (Entry->Attributes & FS_ATTR_EXECUTABLE)
+        ConsolePrint(TEXT("X"));
+    else
+        ConsolePrint(TEXT("-"));
+
+    ConsolePrint(Text_NewLine);
+}
 
 /************************************************************************/
 
@@ -78,7 +180,8 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
     }
 
     ConsolePrint(
-        TEXT("Stress listing (temporary): %u synthetic entries under %s\n"), DIR_RECURSIVE_STRESS_ENTRY_COUNT,
+        TEXT("Stress listing (temporary): %u synthetic entries under %s\n"),
+        DIR_RECURSIVE_STRESS_ENTRY_COUNT,
         BasePath != NULL ? BasePath : TEXT("/"));
 
     for (Index = 0; Index < DIR_RECURSIVE_STRESS_ENTRY_COUNT; Index++) {
@@ -89,8 +192,12 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
         BOOL IsFolder = (RandomB & 0x7) == 0;
 
         StringPrintFormat(
-            Name, TEXT("%s%sentry_%04u_%08x"), BasePath != NULL ? BasePath : TEXT("/"),
-            ((Index % 6) == 0) ? TEXT("sub/") : TEXT(""), Index, RandomA);
+            Name,
+            TEXT("%s%sentry_%04u_%08x"),
+            BasePath != NULL ? BasePath : TEXT("/"),
+            ((Index % 6) == 0) ? TEXT("sub/") : TEXT(""),
+            Index,
+            RandomA);
 
         SizeFormatBytesText(U64_FromUINT(EntrySize), SizeText);
 
@@ -102,11 +209,20 @@ static void DirStressListRecursive(LPSHELLCONTEXT Context, LPCSTR BasePath) {
         AttrMask = (RandomC >> 24) & 0xF;
 
         ConsolePrint(
-            TEXT("%s %-12s %u-%u-%u %u:%u "), Name, IsFolder ? TEXT("<Folder>") : SizeText, Day, Month, Year, Hour,
+            TEXT("%s %-12s %u-%u-%u %u:%u "),
+            Name,
+            IsFolder ? TEXT("<Folder>") : SizeText,
+            Day,
+            Month,
+            Year,
+            Hour,
             Minute);
         ConsolePrint(
-            TEXT("%s%s%s%s\n"), (AttrMask & 1) ? TEXT("R") : TEXT("-"), (AttrMask & 2) ? TEXT("H") : TEXT("-"),
-            (AttrMask & 4) ? TEXT("S") : TEXT("-"), (AttrMask & 8) ? TEXT("X") : TEXT("-"));
+            TEXT("%s%s%s%s\n"),
+            (AttrMask & 1) ? TEXT("R") : TEXT("-"),
+            (AttrMask & 2) ? TEXT("H") : TEXT("-"),
+            (AttrMask & 4) ? TEXT("S") : TEXT("-"),
+            (AttrMask & 8) ? TEXT("X") : TEXT("-"));
 
         if (ProcessControlIsInterruptRequested(CurrentProcess)) {
             break;
@@ -204,12 +320,13 @@ static void FreeListDirectoryWorkItems(LPCALLOCATOR Allocator, LPLIST_DIRECTORY_
  * @return TRUE on success.
  */
 static BOOL BuildListDirectoryPattern(LPCSTR Base, STR Pattern[MAX_PATH_NAME]) {
-    STRINGBUILDER PatternBuilder;
+    STRING_BUILDER PatternBuilder;
 
     if (StringBuilderInit(&PatternBuilder, Pattern, MAX_PATH_NAME) == FALSE ||
         StringBuilderSet(&PatternBuilder, Base) == FALSE ||
         StringBuilderAppendPathSegment(&PatternBuilder, TEXT("*"), PATH_SEP) == FALSE) {
-        WARNING(TEXT("List path too long path=%s required=%u limit=%u"),
+        WARNING(
+            TEXT("List path too long path=%s required=%u limit=%u"),
             Base,
             StringBuilderGetRequiredLength(&PatternBuilder),
             MAX_PATH_NAME - 1);
@@ -231,7 +348,7 @@ static BOOL BuildListDirectoryPattern(LPCSTR Base, STR Pattern[MAX_PATH_NAME]) {
  */
 static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_INFO* Find, U32 Indent) {
     LPFILE File;
-    FILESYSTEM_PATHCHECK PathCheck;
+    FILE_SYSTEM_PATH_CHECK PathCheck;
     STR DiskName[MAX_FILE_NAME];
     STR Pattern[MAX_PATH_NAME];
     LPCSTR Reason = TEXT("unknown");
@@ -253,7 +370,9 @@ static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_I
     StringCopy(Find->Name, Base);
     File = (LPFILE)FileSystem->Driver->Command(DF_FS_OPENFILE, (UINT)Find);
     if (File != NULL) {
-        ListFile(File, Indent);
+        LIST_ENTRY Entry;
+        ListEntryInitFromFile(&Entry, File);
+        ListFileEntry(&Entry, Indent);
         FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
         return NULL;
     }
@@ -278,8 +397,12 @@ static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_I
 
     ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
     WARNING(
-        TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"), DiskName, Reason, Base,
-        FileSystem->Name, FileSystem->Driver->Product);
+        TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"),
+        DiskName,
+        Reason,
+        Base,
+        FileSystem->Name,
+        FileSystem->Driver->Product);
     return NULL;
 }
 
@@ -288,11 +411,15 @@ static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_I
 void InitShellContext(LPSHELLCONTEXT This) {
     U32 Index;
 
-    MemorySet(This, 0, sizeof(SHELLCONTEXT));
+    MemorySet(This, 0, sizeof(SHELL_CONTEXT));
 
     if (!ReservedHeapInit(
-            &This->ReservedHeap, GetCurrentProcess(), SHELL_RESERVED_HEAP_INITIAL_SIZE,
-            SHELL_RESERVED_HEAP_MAXIMUM_SIZE, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("ShellHeap"))) {
+            &This->ReservedHeap,
+            GetCurrentProcess(),
+            SHELL_RESERVED_HEAP_INITIAL_SIZE,
+            SHELL_RESERVED_HEAP_MAXIMUM_SIZE,
+            ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE,
+            TEXT("ShellHeap"))) {
         WARNING(TEXT("Reserved shell heap unavailable, using process heap"));
         AllocatorInitProcess(&This->Allocator, GetCurrentProcess());
     } else {
@@ -312,13 +439,14 @@ void InitShellContext(LPSHELLCONTEXT This) {
     }
 
     {
-        STR Root[2] = {PATH_SEP, STR_NULL};
+        STR Root[2] = { PATH_SEP, STR_NULL };
         StringCopy(This->CurrentFolder, Root);
     }
 
     // Initialize persistent script context
     SCRIPT_CALLBACKS Callbacks = {
-        ShellScriptOutput, ShellScriptExecuteCommand, ShellScriptResolveVariable, ShellScriptCallFunction, This};
+        ShellScriptOutput, ShellScriptExecuteCommand, ShellScriptResolveVariable, ShellScriptCallFunction, This
+    };
     This->ScriptContext = ScriptCreateContextA(&Callbacks, &This->Allocator);
 
     if (!ExposeRegisterDefaultScriptHostObjects(This->ScriptContext)) {
@@ -455,6 +583,76 @@ BOOL HasOption(LPSHELLCONTEXT Context, LPCSTR ShortName, LPCSTR LongName) {
 /************************************************************************/
 
 /**
+ * @brief Return the value of a value-taking option such as --sort=name.
+ *
+ * The option value is embedded in the option token itself after an equal sign.
+ *
+ * @param Context Shell command context.
+ * @param OptionName Option name to look for.
+ * @return Value after the equal sign, or NULL when the option is absent.
+ */
+static LPCSTR GetListOptionValue(LPSHELLCONTEXT Context, LPCSTR OptionName) {
+    U32 Index;
+    U32 NameLength;
+    STR Name[MAX_COMMAND_NAME];
+
+    if (Context == NULL || OptionName == NULL) {
+        return NULL;
+    }
+
+    NameLength = StringLength(OptionName);
+    if (NameLength == 0 || NameLength >= MAX_COMMAND_NAME) {
+        return NULL;
+    }
+
+    for (Index = 0; Index < Context->Options.Count; Index++) {
+        LPCSTR Option = StringArrayGet(&Context->Options, Index);
+        if (Option == NULL || StringLength(Option) <= NameLength) {
+            continue;
+        }
+        StringCopyNum(Name, Option, NameLength);
+        Name[NameLength] = STR_NULL;
+        if (Option[NameLength] == (STR)'=' && StringCompareNC(Name, OptionName) == 0) {
+            return Option + NameLength + 1;
+        }
+    }
+    return NULL;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Return the value suffixed to a short option such as -sn or -l5.
+ *
+ * Short option tokens are stored with the leading dash stripped, so -sn
+ * becomes "sn" and the value is the suffix after the first character. Long
+ * option tokens such as --sort=name (stored as "sort=name") are ignored.
+ *
+ * @param Context Shell command context.
+ * @param ShortChar Short option character used as prefix.
+ * @return Value after the short option character, or NULL when absent.
+ */
+static LPCSTR GetListOptionShortValue(LPSHELLCONTEXT Context, STR ShortChar) {
+    U32 Index;
+
+    if (Context == NULL) {
+        return NULL;
+    }
+
+    for (Index = 0; Index < Context->Options.Count; Index++) {
+        LPCSTR Option = StringArrayGet(&Context->Options, Index);
+        if (Option == NULL || Option[0] != ShortChar || Option[1] == STR_NULL ||
+            StringFindChar(Option, (STR)'=') != NULL) {
+            continue;
+        }
+        return Option + 1;
+    }
+    return NULL;
+}
+
+/************************************************************************/
+
+/**
  * @brief Provide path-based completion for the command line editor.
  * @param CompletionContext Details about the token to complete.
  * @param Output Buffer receiving the replacement token.
@@ -519,7 +717,7 @@ static BOOL ShellCommandLineCompletion(
 /************************************************************************/
 
 BOOL QualifyFileName(LPSHELLCONTEXT Context, LPCSTR RawName, LPSTR FileName) {
-    STR Sep[2] = {PATH_SEP, STR_NULL};
+    STR Sep[2] = { PATH_SEP, STR_NULL };
     STR Temp[MAX_PATH_NAME];
     LPSTR Ptr;
     LPSTR Token;
@@ -608,7 +806,7 @@ static BOOL ShellFileExists(LPCSTR FileName) {
  * @return TRUE on success.
  */
 static BOOL ShellBuildBinarySearchPath(LPCSTR FolderPath, LPCSTR LeafName, STR OutPath[MAX_PATH_NAME]) {
-    STRINGBUILDER Builder;
+    STRING_BUILDER Builder;
 
     if (STRING_EMPTY(FolderPath) || STRING_EMPTY(LeafName) || OutPath == NULL) {
         return FALSE;
@@ -731,7 +929,7 @@ BOOL QualifyCommandLine(LPSHELLCONTEXT Context, LPCSTR RawCommandLine, LPSTR Qua
 /************************************************************************/
 
 static void ChangeFolder(LPSHELLCONTEXT Context) {
-    FILESYSTEM_PATHCHECK Control;
+    FILE_SYSTEM_PATH_CHECK Control;
     STR NewPath[MAX_PATH_NAME];
 
     ParseNextCommandLineComponent(Context);
@@ -791,81 +989,114 @@ static BOOL MakeFolder(LPSHELLCONTEXT Context, LPSTR QualifiedName) {
 
 /************************************************************************/
 
-static void ListFile(LPFILE File, U32 Indent) {
-    STR Name[MAX_FILE_NAME];
-    U32 MaxWidth = Console.Width;
-    U32 Length;
-    U32 Index;
-
-    //-------------------------------------
-    // Eliminate the . and .. files
-
-    if (StringCompare(File->Name, TEXT(".")) == 0) return;
-    if (StringCompare(File->Name, TEXT("..")) == 0) return;
-
-    StringCopy(Name, File->Name);
-
-    if (StringLength(Name) > ((MaxWidth - Indent) / 2)) {
-        Index = ((MaxWidth - Indent) / 2) - 4;
-        Name[Index++] = STR_DOT;
-        Name[Index++] = STR_DOT;
-        Name[Index++] = STR_DOT;
-        Name[Index++] = STR_NULL;
+static INT ListEntryCompareName(LPCVOID First, LPCVOID Second) {
+    LPLIST_ENTRY A = (LPLIST_ENTRY)First;
+    LPLIST_ENTRY B = (LPLIST_ENTRY)Second;
+    INT Result = StringCompareNC(A->Name, B->Name);
+    if (Result != 0) {
+        return Result;
     }
-
-    Length = ((MaxWidth - Indent) / 2) - StringLength(Name);
-
-    // Print name
-
-    for (Index = 0; Index < Indent; Index++) ConsolePrint(TEXT(" "));
-    ConsolePrint(Name);
-    for (Index = 0; Index < Length; Index++) ConsolePrint(TEXT(" "));
-
-    // Print size
-
-    if (File->Attributes & FS_ATTR_FOLDER) {
-        ConsolePrint(TEXT("%12s"), TEXT("<Folder>"));
-    } else {
-        STR SizeText[32];
-        SizeFormatBytesText(U64_Make(File->SizeHigh, File->SizeLow), SizeText);
-        ConsolePrint(TEXT("%12s"), SizeText);
-    }
-
-    ConsolePrint(
-        TEXT(" %d-%d-%d %d:%d "), (I32)File->Creation.Day, (I32)File->Creation.Month, (I32)File->Creation.Year,
-        (I32)File->Creation.Hour, (I32)File->Creation.Minute);
-
-    // Print attributes
-
-    if (File->Attributes & FS_ATTR_READONLY)
-        ConsolePrint(TEXT("R"));
-    else
-        ConsolePrint(TEXT("-"));
-    if (File->Attributes & FS_ATTR_HIDDEN)
-        ConsolePrint(TEXT("H"));
-    else
-        ConsolePrint(TEXT("-"));
-    if (File->Attributes & FS_ATTR_SYSTEM)
-        ConsolePrint(TEXT("S"));
-    else
-        ConsolePrint(TEXT("-"));
-    if (File->Attributes & FS_ATTR_EXECUTABLE)
-        ConsolePrint(TEXT("X"));
-    else
-        ConsolePrint(TEXT("-"));
-
-    ConsolePrint(Text_NewLine);
+    return StringCompare(A->Name, B->Name);
 }
 
 /************************************************************************/
 
-void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, BOOL Recurse, U32* NumListed) {
+static LPCSTR ListEntryExtension(LPCSTR Name) {
+    LPCSTR Dot = StringFindCharR(Name, STR_DOT);
+    if (Dot == NULL) {
+        return Name + StringLength(Name);
+    }
+    return Dot + 1;
+}
+
+/************************************************************************/
+
+static INT ListEntryCompareExtension(LPCVOID First, LPCVOID Second) {
+    LPLIST_ENTRY A = (LPLIST_ENTRY)First;
+    LPLIST_ENTRY B = (LPLIST_ENTRY)Second;
+    INT Result = StringCompareNC(ListEntryExtension(A->Name), ListEntryExtension(B->Name));
+    if (Result != 0) {
+        return Result;
+    }
+    return ListEntryCompareName(First, Second);
+}
+
+/************************************************************************/
+
+static INT ListEntryCompareModified(LPCVOID First, LPCVOID Second) {
+    LPLIST_ENTRY A = (LPLIST_ENTRY)First;
+    LPLIST_ENTRY B = (LPLIST_ENTRY)Second;
+    LPDATETIME ModifiedA = &A->Modified;
+    LPDATETIME ModifiedB = &B->Modified;
+
+    if (ModifiedA->Year != ModifiedB->Year) return ModifiedA->Year < ModifiedB->Year ? -1 : 1;
+    if (ModifiedA->Month != ModifiedB->Month) return ModifiedA->Month < ModifiedB->Month ? -1 : 1;
+    if (ModifiedA->Day != ModifiedB->Day) return ModifiedA->Day < ModifiedB->Day ? -1 : 1;
+    if (ModifiedA->Hour != ModifiedB->Hour) return ModifiedA->Hour < ModifiedB->Hour ? -1 : 1;
+    if (ModifiedA->Minute != ModifiedB->Minute) return ModifiedA->Minute < ModifiedB->Minute ? -1 : 1;
+    if (ModifiedA->Second != ModifiedB->Second) return ModifiedA->Second < ModifiedB->Second ? -1 : 1;
+    if (ModifiedA->Milli != ModifiedB->Milli) return ModifiedA->Milli < ModifiedB->Milli ? -1 : 1;
+    return ListEntryCompareName(First, Second);
+}
+
+/************************************************************************/
+
+static SORT_COMPARATOR ListDirectoryComparator(LIST_SORT_MODE SortMode) {
+    switch (SortMode) {
+        case LIST_SORT_NAME:
+            return ListEntryCompareName;
+        case LIST_SORT_EXTENSION:
+            return ListEntryCompareExtension;
+        case LIST_SORT_MODIFIED:
+            return ListEntryCompareModified;
+        default:
+            return NULL;
+    }
+}
+
+/************************************************************************/
+
+static BOOL ListEntryCollect(LPCALLOCATOR Allocator, LPLIST_ENTRY* Entries, U32* Count, U32* Capacity, LPFILE File) {
+    LPLIST_ENTRY NewBuffer;
+    U32 NewCapacity;
+
+    if (Allocator == NULL || Entries == NULL || Count == NULL || Capacity == NULL || File == NULL) {
+        return FALSE;
+    }
+
+    if (*Count == *Capacity) {
+        NewCapacity = (*Capacity == 0) ? 16 : (*Capacity * 2);
+        NewBuffer = (LPLIST_ENTRY)AllocatorRealloc(Allocator, *Entries, NewCapacity * sizeof(LIST_ENTRY));
+        if (NewBuffer == NULL) {
+            return FALSE;
+        }
+        *Entries = NewBuffer;
+        *Capacity = NewCapacity;
+    }
+
+    ListEntryInitFromFile(&(*Entries)[*Count], File);
+    (*Count)++;
+    return TRUE;
+}
+
+/************************************************************************/
+
+void ListDirectory(
+    LPSHELLCONTEXT Context,
+    LPCSTR Base,
+    U32 Indent,
+    BOOL Pause,
+    BOOL Recurse,
+    LIST_SORT_MODE SortMode,
+    U32 Limit,
+    U32* NumListed) {
     FILE_INFO Find;
     LPFILESYSTEM FileSystem;
     LPPROCESS CurrentProcess = GetCurrentProcess();
     ALLOCATOR Allocator;
     LPLIST_DIRECTORY_WORK_ITEM Stack = NULL;
     LPLIST_DIRECTORY_WORK_ITEM WorkItem;
+    SORT_COMPARATOR Comparator;
 
     if (ProcessControlIsInterruptRequested(CurrentProcess)) {
         return;
@@ -880,6 +1111,8 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
 
     ShellGetListingAllocator(Context, &Allocator);
 
+    Comparator = ListDirectoryComparator(SortMode);
+
     if (PushListDirectoryWorkItem(&Allocator, &Stack, Base, Indent) == FALSE) {
         WARNING(TEXT("Unable to queue initial folder listing path=%s"), Base);
         return;
@@ -887,6 +1120,11 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
 
     while ((WorkItem = PopListDirectoryWorkItem(&Stack)) != NULL) {
         LPFILE File = NULL;
+        LPLIST_ENTRY Entries = NULL;
+        U32 EntryCount = 0;
+        U32 EntryCapacity = 0;
+        U32 EntryIndex;
+        U32 Listed = 0;
 
         if (ProcessControlIsInterruptRequested(CurrentProcess)) {
             AllocatorFree(&Allocator, WorkItem);
@@ -903,25 +1141,47 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
             if (ProcessControlIsInterruptRequested(CurrentProcess)) {
                 break;
             }
+            if (ListEntryNameSkipped(File->Name)) {
+                continue;
+            }
+            if (ListEntryCollect(&Allocator, &Entries, &EntryCount, &EntryCapacity, File) == FALSE) {
+                WARNING(TEXT("Unable to allocate listing snapshot path=%s name=%s"), WorkItem->Path, File->Name);
+                break;
+            }
+        } while (FileSystem->Driver->Command(DF_FS_OPENNEXT, (UINT)File) == DF_RETURN_SUCCESS);
 
-            ListFile(File, WorkItem->Indent);
-            if (Recurse && (File->Attributes & FS_ATTR_FOLDER)) {
-                if (StringCompare(File->Name, TEXT(".")) != 0 && StringCompare(File->Name, TEXT("..")) != 0) {
-                    STR NewBase[MAX_PATH_NAME];
-                    STRINGBUILDER NewBaseBuilder;
+        FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
 
-                    if (StringBuilderInit(&NewBaseBuilder, NewBase, MAX_PATH_NAME) == FALSE ||
-                        StringBuilderSet(&NewBaseBuilder, WorkItem->Path) == FALSE ||
-                        StringBuilderAppendPathSegment(&NewBaseBuilder, File->Name, PATH_SEP) == FALSE) {
-                        WARNING(TEXT("Recursive list path too long base=%s name=%s required=%u limit=%u"),
-                            WorkItem->Path,
-                            File->Name,
-                            StringBuilderGetRequiredLength(&NewBaseBuilder),
-                            MAX_PATH_NAME - 1);
-                    } else if (PushListDirectoryWorkItem(
-                                   &Allocator, &Stack, NewBase, WorkItem->Indent + 2) == FALSE) {
-                        WARNING(TEXT("Unable to queue recursive folder path=%s"), NewBase);
-                    }
+        if (Comparator != NULL && EntryCount > 1) {
+            SortArray(Entries, EntryCount, sizeof(LIST_ENTRY), Comparator);
+        }
+
+        for (EntryIndex = 0; EntryIndex < EntryCount; EntryIndex++) {
+            if (ProcessControlIsInterruptRequested(CurrentProcess)) {
+                break;
+            }
+            if (Limit != 0 && Listed >= Limit) {
+                break;
+            }
+
+            ListFileEntry(&Entries[EntryIndex], WorkItem->Indent);
+            Listed++;
+
+            if (Recurse && (Entries[EntryIndex].Attributes & FS_ATTR_FOLDER)) {
+                STR NewBase[MAX_PATH_NAME];
+                STRING_BUILDER NewBaseBuilder;
+
+                if (StringBuilderInit(&NewBaseBuilder, NewBase, MAX_PATH_NAME) == FALSE ||
+                    StringBuilderSet(&NewBaseBuilder, WorkItem->Path) == FALSE ||
+                    StringBuilderAppendPathSegment(&NewBaseBuilder, Entries[EntryIndex].Name, PATH_SEP) == FALSE) {
+                    WARNING(
+                        TEXT("Recursive list path too long base=%s name=%s required=%u limit=%u"),
+                        WorkItem->Path,
+                        Entries[EntryIndex].Name,
+                        StringBuilderGetRequiredLength(&NewBaseBuilder),
+                        MAX_PATH_NAME - 1);
+                } else if (PushListDirectoryWorkItem(&Allocator, &Stack, NewBase, WorkItem->Indent + 2) == FALSE) {
+                    WARNING(TEXT("Unable to queue recursive folder path=%s"), NewBase);
                 }
             }
             if (Pause) {
@@ -931,9 +1191,11 @@ void ListDirectory(LPSHELLCONTEXT Context, LPCSTR Base, U32 Indent, BOOL Pause, 
                     WaitKey();
                 }
             }
-        } while (FileSystem->Driver->Command(DF_FS_OPENNEXT, (UINT)File) == DF_RETURN_SUCCESS);
+        }
 
-        FileSystem->Driver->Command(DF_FS_CLOSEFILE, (UINT)File);
+        if (Entries != NULL) {
+            AllocatorFree(&Allocator, Entries);
+        }
         AllocatorFree(&Allocator, WorkItem);
     }
 
@@ -947,7 +1209,10 @@ U32 CMD_commands(LPSHELLCONTEXT Context) {
     U32 Index;
     for (Index = 0; COMMANDS[Index].Command != NULL; Index++) {
         ConsolePrint(
-            TEXT("%s (%s) %s - %s\n"), COMMANDS[Index].Name, COMMANDS[Index].AltName, COMMANDS[Index].Usage,
+            TEXT("%s (%s) %s - %s\n"),
+            COMMANDS[Index].Name,
+            COMMANDS[Index].AltName,
+            COMMANDS[Index].Usage,
             COMMANDS[Index].Description);
     }
     TEST(TEXT("commands : OK"));
@@ -1089,7 +1354,11 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
     BOOL Pause;
     BOOL Recurse;
     BOOL Stress;
+    LIST_SORT_MODE SortMode = LIST_SORT_NONE;
+    U32 Limit = 0;
     U32 NumListed = 0;
+    LPCSTR SortValue;
+    LPCSTR LimitValue;
     Target[0] = STR_NULL;
     ParseNextCommandLineComponent(Context);
     if (StringLength(Context->Command)) {
@@ -1100,7 +1369,30 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
     }
     Pause = HasOption(Context, TEXT("p"), TEXT("pause"));
     Recurse = HasOption(Context, TEXT("r"), TEXT("recursive"));
-    Stress = HasOption(Context, TEXT("s"), TEXT("stress"));
+    Stress = HasOption(Context, NULL, TEXT("stress"));
+    SortValue = GetListOptionValue(Context, TEXT("sort"));
+    if (SortValue == NULL) {
+        SortValue = GetListOptionShortValue(Context, (STR)'s');
+    }
+    if (SortValue != NULL) {
+        if (StringCompareNC(SortValue, TEXT("name")) == 0) {
+            SortMode = LIST_SORT_NAME;
+        } else if (StringCompareNC(SortValue, TEXT("extension")) == 0) {
+            SortMode = LIST_SORT_EXTENSION;
+        } else if (StringCompareNC(SortValue, TEXT("modified")) == 0) {
+            SortMode = LIST_SORT_MODIFIED;
+        } else {
+            ConsolePrint(TEXT("Invalid sort value %s, expected name, extension or modified\n"), SortValue);
+            WARNING(TEXT("[CMD_listFolder] Invalid sort value %s, expected name, extension or modified"), SortValue);
+        }
+    }
+    LimitValue = GetListOptionValue(Context, TEXT("limit"));
+    if (LimitValue == NULL) {
+        LimitValue = GetListOptionShortValue(Context, (STR)'l');
+    }
+    if (LimitValue != NULL) {
+        Limit = StringToU32(LimitValue);
+    }
     if (Stress) {
         if (StringLength(Target) == 0) {
             StringCopy(Base, Context->CurrentFolder);
@@ -1112,7 +1404,8 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
         if (ProcessControlCheckpoint(CurrentProcess)) {
             ConsolePrint(TEXT("Command interrupted\n"));
         }
-        TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+        TEST(
+            TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
             Base,
             Pause ? 1 : 0,
             Recurse ? 1 : 0,
@@ -1131,12 +1424,13 @@ U32 CMD_listFolder(LPSHELLCONTEXT Context) {
         StringCopy(Base, Target);
     }
     ProcessControlConsumeInterrupt(CurrentProcess);
-    ListDirectory(Context, Base, 0, Pause, Recurse, &NumListed);
+    ListDirectory(Context, Base, 0, Pause, Recurse, SortMode, Limit, &NumListed);
     if (ProcessControlCheckpoint(CurrentProcess)) {
         ConsolePrint(TEXT("Command interrupted\n"));
     }
 
-    TEST(TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
+    TEST(
+        TEXT("listFolder base=%s pause=%u recursive=%u stress=%u : OK"),
         Base,
         Pause ? 1 : 0,
         Recurse ? 1 : 0,

@@ -37,7 +37,7 @@
 
 /************************************************************************/
 
-typedef struct tag_PACKAGEFS_NODE PACKAGEFS_NODE, *LPPACKAGEFS_NODE;
+typedef struct tag_PACKAGEFS_NODE PACKAGE_FS_NODE, *LPPACKAGEFS_NODE;
 
 typedef struct tag_PACKAGEFSFILESYSTEM {
     FILESYSTEM Header;
@@ -47,7 +47,7 @@ typedef struct tag_PACKAGEFSFILESYSTEM {
     U32 PackageSize;
     EPK_VALIDATED_PACKAGE Package;
     LPPACKAGEFS_NODE Root;
-} PACKAGEFSFILESYSTEM, *LPPACKAGEFSFILESYSTEM;
+} PACKAGE_FS_FILESYSTEM, *LPPACKAGEFSFILESYSTEM;
 
 typedef struct tag_PACKAGEFS_NODE {
     LPPACKAGEFS_NODE ParentNode;
@@ -60,7 +60,7 @@ typedef struct tag_PACKAGEFS_NODE {
     DATETIME Modified;
     STR Name[MAX_FILE_NAME];
     STR AliasTarget[MAX_PATH_NAME];
-} PACKAGEFS_NODE;
+} PACKAGE_FS_NODE;
 
 typedef struct tag_PACKAGEFSFILE {
     FILE Header;
@@ -68,7 +68,7 @@ typedef struct tag_PACKAGEFSFILE {
     LPPACKAGEFS_NODE EnumerationCursor;
     BOOL Enumerate;
     STR Pattern[MAX_FILE_NAME];
-} PACKAGEFSFILE, *LPPACKAGEFSFILE;
+} PACKAGE_FS_FILE, *LPPACKAGEFSFILE;
 
 /************************************************************************/
 

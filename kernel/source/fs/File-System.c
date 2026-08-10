@@ -28,6 +28,7 @@
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "drivers/filesystems/NTFS.h"
+#include "fs/DiskTransferLayer.h"
 #include "fs/File.h"
 #include "fs/SystemFS.h"
 #include "log/Log.h"
@@ -80,20 +81,19 @@ typedef struct PACKED tag_GPT_ENTRY {
 
 static UINT FileSystemDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION FileSystemDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INIT,
-    .VersionMajor = FILESYSTEM_VER_MAJOR,
-    .VersionMinor = FILESYSTEM_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "N/A",
-    .Product = "FileSystems",
-    .Alias = "filesystems",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = FileSystemDriverCommands};
+DRIVER DATA_SECTION FileSystemDriver = { .TypeID = KOID_DRIVER,
+                                         .References = 1,
+                                         .Next = NULL,
+                                         .Prev = NULL,
+                                         .Type = DRIVER_TYPE_INIT,
+                                         .VersionMajor = FILESYSTEM_VER_MAJOR,
+                                         .VersionMinor = FILESYSTEM_VER_MINOR,
+                                         .Designer = "Jango73",
+                                         .Manufacturer = "N/A",
+                                         .Product = "FileSystems",
+                                         .Alias = "filesystems",
+                                         .Flags = DRIVER_FLAG_CRITICAL,
+                                         .Command = FileSystemDriverCommands };
 
 /***************************************************************************/
 
@@ -101,7 +101,9 @@ DRIVER DATA_SECTION FileSystemDriver = {
  * @brief Retrieves the file system driver descriptor.
  * @return Pointer to the file system driver.
  */
-LPDRIVER FileSystemGetDriver(void) { return &FileSystemDriver; }
+LPDRIVER FileSystemGetDriver(void) {
+    return &FileSystemDriver;
+}
 
 /***************************************************************************/
 
@@ -111,11 +113,11 @@ LPDRIVER FileSystemGetDriver(void) { return &FileSystemDriver; }
  * @return Sector size in bytes (512 by default).
  */
 static U32 FileSystemGetDiskBytesPerSector(LPSTORAGE_UNIT Disk) {
-    DISKINFO DiskInfo;
+    DISK_INFO DiskInfo;
 
     if (Disk == NULL || Disk->Driver == NULL) return SECTOR_SIZE;
 
-    MemorySet(&DiskInfo, 0, sizeof(DISKINFO));
+    MemorySet(&DiskInfo, 0, sizeof(DISK_INFO));
     DiskInfo.Disk = Disk;
     if (Disk->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo) != DF_RETURN_SUCCESS) {
         return SECTOR_SIZE;
@@ -155,7 +157,7 @@ static BOOL FileSystemReadDiskSector(LPSTORAGE_UNIT Disk, U32 Sector, LPVOID Buf
     Control.Buffer = Buffer;
     Control.BufferSize = BytesPerSector;
 
-    return (Disk->Driver->Command(DF_DISK_READ, (UINT)&Control) == DF_RETURN_SUCCESS);
+    return (DiskTransferLayerRead(&Control) == DF_RETURN_SUCCESS);
 }
 
 /***************************************************************************/
@@ -192,9 +194,9 @@ static BOOL FileSystemSectorHasSignature(const U8* Buffer, U32 Offset, const U8*
  */
 static U32 FileSystemDetectPartitionFormat(LPSTORAGE_UNIT Disk, SECTOR StartSector) {
     U8 SectorBuffer[FILESYSTEM_MAX_SECTOR_SIZE];
-    const U8 SignatureNtfs[8] = {'N', 'T', 'F', 'S', ' ', ' ', ' ', ' '};
-    const U8 SignatureFat32[8] = {'F', 'A', 'T', '3', '2', ' ', ' ', ' '};
-    const U8 SignatureFat16[8] = {'F', 'A', 'T', '1', '6', ' ', ' ', ' '};
+    const U8 SignatureNtfs[8] = { 'N', 'T', 'F', 'S', ' ', ' ', ' ', ' ' };
+    const U8 SignatureFat32[8] = { 'F', 'A', 'T', '3', '2', ' ', ' ', ' ' };
+    const U8 SignatureFat16[8] = { 'F', 'A', 'T', '1', '6', ' ', ' ', ' ' };
     U32 BytesPerSector = 0;
     U32 ExtMagicOffset = 1024 + 56;
     U32 ExtMagicSectorOffset = 0;
@@ -297,8 +299,16 @@ static LPFILESYSTEM ResolveMountedFileSystem(LPFILESYSTEM PreviousLast) {
  * @param Mounted TRUE when the filesystem is mounted, FALSE otherwise.
  */
 static void SetFileSystemPartitionInfo(
-    LPFILESYSTEM FileSystem, U32 Scheme, U32 Type, const U8* TypeGuid, U32 Index, U32 Flags, SECTOR StartSector,
-    U32 NumSectors, U32 Format, BOOL Mounted) {
+    LPFILESYSTEM FileSystem,
+    U32 Scheme,
+    U32 Type,
+    const U8* TypeGuid,
+    U32 Index,
+    U32 Flags,
+    SECTOR StartSector,
+    U32 NumSectors,
+    U32 Format,
+    BOOL Mounted) {
     if (FileSystem == NULL) return;
 
     FileSystem->Mounted = Mounted;
@@ -331,8 +341,15 @@ static void SetFileSystemPartitionInfo(
  * @param Format Detected partition format.
  */
 static void RegisterUnusedFileSystem(
-    LPSTORAGE_UNIT Disk, U32 Scheme, U32 Type, const U8* TypeGuid, U32 Index, U32 Flags, SECTOR StartSector,
-    U32 NumSectors, U32 Format) {
+    LPSTORAGE_UNIT Disk,
+    U32 Scheme,
+    U32 Type,
+    const U8* TypeGuid,
+    U32 Index,
+    U32 Flags,
+    SECTOR StartSector,
+    U32 NumSectors,
+    U32 Format) {
     LPLIST UnusedFileSystemList = GetUnusedFileSystemList();
     LPFILESYSTEM FileSystem = NULL;
 
@@ -492,13 +509,28 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
             if (!MountPartition_EXT2(Disk, &Partition, 0u, EntryIndex)) {
                 WARNING(TEXT("EXT2 mount failed for entry %u"), EntryIndex);
                 RegisterUnusedFileSystem(
-                    Disk, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA, Partition.Size,
+                    Disk,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
                     PARTITION_FORMAT_EXT2);
             } else {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(
-                    MountedFileSystem, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA,
-                    Partition.Size, PARTITION_FORMAT_EXT2, TRUE);
+                    MountedFileSystem,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
+                    PARTITION_FORMAT_EXT2,
+                    TRUE);
             }
             continue;
         }
@@ -509,11 +541,26 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
             if (MountGptFatPartition(Disk, &Partition, EntryIndex, &MountedFormat)) {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(
-                    MountedFileSystem, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA,
-                    Partition.Size, MountedFormat, TRUE);
+                    MountedFileSystem,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
+                    MountedFormat,
+                    TRUE);
             } else {
                 RegisterUnusedFileSystem(
-                    Disk, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA, Partition.Size,
+                    Disk,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
                     PARTITION_FORMAT_UNKNOWN);
             }
             continue;
@@ -525,23 +572,53 @@ static BOOL MountDiskPartitionsGpt(LPSTORAGE_UNIT Disk) {
             if (MountGptFatPartition(Disk, &Partition, EntryIndex, &MountedFormat)) {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(
-                    MountedFileSystem, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA,
-                    Partition.Size, MountedFormat, TRUE);
+                    MountedFileSystem,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
+                    MountedFormat,
+                    TRUE);
             } else if (MountPartition_NTFS(Disk, &Partition, 0u, EntryIndex)) {
                 LPFILESYSTEM MountedFileSystem = ResolveMountedFileSystem(PreviousLast);
                 SetFileSystemPartitionInfo(
-                    MountedFileSystem, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA,
-                    Partition.Size, PARTITION_FORMAT_NTFS, TRUE);
+                    MountedFileSystem,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
+                    PARTITION_FORMAT_NTFS,
+                    TRUE);
             } else {
                 RegisterUnusedFileSystem(
-                    Disk, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA, Partition.Size,
+                    Disk,
+                    PARTITION_SCHEME_GPT,
+                    FSID_NONE,
+                    Entry.TypeGuid,
+                    EntryIndex,
+                    0,
+                    Partition.LBA,
+                    Partition.Size,
                     PARTITION_FORMAT_NTFS);
             }
             continue;
         }
 
         RegisterUnusedFileSystem(
-            Disk, PARTITION_SCHEME_GPT, FSID_NONE, Entry.TypeGuid, EntryIndex, 0, Partition.LBA, Partition.Size,
+            Disk,
+            PARTITION_SCHEME_GPT,
+            FSID_NONE,
+            Entry.TypeGuid,
+            EntryIndex,
+            0,
+            Partition.LBA,
+            Partition.Size,
             PARTITION_FORMAT_UNKNOWN);
     }
 
@@ -565,7 +642,9 @@ static void ReadKernelConfiguration(void) {
     if (Buffer == NULL) {
         Buffer = FileReadAll(TEXT(KERNEL_CONFIG_NAME_UPPER), &Size);
 
-        SAFE_USE(Buffer) { DEBUG(TEXT("Config read from %s"), TEXT(KERNEL_CONFIG_NAME_UPPER)); }
+        SAFE_USE(Buffer) {
+            DEBUG(TEXT("Config read from %s"), TEXT(KERNEL_CONFIG_NAME_UPPER));
+        }
     } else {
         DEBUG(TEXT("Config read from %s"), TEXT(KERNEL_CONFIG_NAME));
     }
@@ -615,7 +694,7 @@ static BOOL FileSystemHasConfigFile(LPFILESYSTEM FileSystem, LPCSTR Name) {
  * @brief Select the active filesystem by locating the kernel config file.
  */
 static void FileSystemSelectActivePartitionFromConfig(void) {
-    FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
+    FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
     LPLIST FileSystemList = GetFileSystemList();
     LPLISTNODE Node;
     LPFILESYSTEM FileSystem;
@@ -659,7 +738,9 @@ U32 GetNumFileSystems(void) {
  * @return Associated storage unit pointer, or NULL for virtual filesystems.
  */
 LPSTORAGE_UNIT FileSystemGetStorageUnit(LPFILESYSTEM FileSystem) {
-    SAFE_USE_VALID_ID(FileSystem, KOID_FILESYSTEM) { return FileSystem->StorageUnit; }
+    SAFE_USE_VALID_ID(FileSystem, KOID_FILESYSTEM) {
+        return FileSystem->StorageUnit;
+    }
     return NULL;
 }
 
@@ -671,7 +752,9 @@ LPSTORAGE_UNIT FileSystemGetStorageUnit(LPFILESYSTEM FileSystem) {
  * @param FileSystem Mounted filesystem instance.
  * @return TRUE when the filesystem has a backing disk, FALSE otherwise.
  */
-BOOL FileSystemHasStorageUnit(LPFILESYSTEM FileSystem) { return FileSystemGetStorageUnit(FileSystem) != NULL; }
+BOOL FileSystemHasStorageUnit(LPFILESYSTEM FileSystem) {
+    return FileSystemGetStorageUnit(FileSystem) != NULL;
+}
 
 /***************************************************************************/
 
@@ -878,7 +961,7 @@ BOOL GetDefaultFileSystemName(LPSTR Name, LPSTORAGE_UNIT Disk, U32 PartIndex) {
  */
 void FileSystemSetActivePartition(LPFILESYSTEM FileSystem) {
     SAFE_USE(FileSystem) {
-        FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
+        FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
         StringCopy(GlobalInfo->ActivePartitionName, FileSystem->Name);
         DEBUG(TEXT("Active partition name set to %s"), FileSystem->Name);
     }
@@ -914,7 +997,7 @@ BOOL MountPartition_Extended(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U3
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = BytesPerSector;
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -963,7 +1046,7 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
         Control.Buffer = (LPVOID)Buffer;
         Control.BufferSize = BytesPerSector;
 
-        Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+        Result = DiskTransferLayerRead(&Control);
         if (Result != DF_RETURN_SUCCESS) {
             WARNING(TEXT("MBR read failed result=%x"), Result);
             return FALSE;
@@ -1056,9 +1139,16 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
                 if (MountedFileSystem != NULL && MountedFileSystem != PreviousLast) {
                     SetFileSystemPartitionInfo(
-                        MountedFileSystem, PARTITION_SCHEME_MBR, Partition[Index].Type, NULL, Index,
-                        PartitionIsActive ? PARTITION_FLAG_ACTIVE : 0, Base + Partition[Index].LBA,
-                        Partition[Index].Size, PartitionFormat, TRUE);
+                        MountedFileSystem,
+                        PARTITION_SCHEME_MBR,
+                        Partition[Index].Type,
+                        NULL,
+                        Index,
+                        PartitionIsActive ? PARTITION_FLAG_ACTIVE : 0,
+                        Base + Partition[Index].LBA,
+                        Partition[Index].Size,
+                        PartitionFormat,
+                        TRUE);
 
                     if (GetSystemFSData()->Root != NULL) {
                         if (!SystemFSMountFileSystem(MountedFileSystem)) {
@@ -1075,8 +1165,14 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
                 Partition[Index].Type != FSID_NONE && Partition[Index].Type != FSID_EXTENDED &&
                 Partition[Index].Type != FSID_LINUX_EXTENDED) {
                 RegisterUnusedFileSystem(
-                    Disk, PARTITION_SCHEME_MBR, Partition[Index].Type, NULL, Index,
-                    PartitionIsActive ? PARTITION_FLAG_ACTIVE : 0, Base + Partition[Index].LBA, Partition[Index].Size,
+                    Disk,
+                    PARTITION_SCHEME_MBR,
+                    Partition[Index].Type,
+                    NULL,
+                    Index,
+                    PartitionIsActive ? PARTITION_FLAG_ACTIVE : 0,
+                    Base + Partition[Index].LBA,
+                    Partition[Index].Size,
                     PartitionFormat);
             }
         }
@@ -1093,7 +1189,7 @@ BOOL MountDiskPartitions(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 void InitializeFileSystems(void) {
     LPLISTNODE Node;
 
-    FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
+    FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
     LPLIST UnusedFileSystemList = GetUnusedFileSystemList();
     StringClear(GlobalInfo->ActivePartitionName);
 

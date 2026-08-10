@@ -42,9 +42,24 @@
  */
 void LogMemoryLine16B(U32 LogType, LPCSTR Prefix, const U8* Memory) {
     KernelLogText(
-        LogType, TEXT("%s %x %x %x %x %x %x %x %x : %x %x %x %x %x %x %x %x"), Prefix, (U32)Memory[0], (U32)Memory[1],
-        (U32)Memory[2], (U32)Memory[3], (U32)Memory[4], (U32)Memory[5], (U32)Memory[6], (U32)Memory[7], (U32)Memory[8],
-        (U32)Memory[9], (U32)Memory[10], (U32)Memory[11], (U32)Memory[12], (U32)Memory[13], (U32)Memory[14],
+        LogType,
+        TEXT("%s %x %x %x %x %x %x %x %x : %x %x %x %x %x %x %x %x"),
+        Prefix,
+        (U32)Memory[0],
+        (U32)Memory[1],
+        (U32)Memory[2],
+        (U32)Memory[3],
+        (U32)Memory[4],
+        (U32)Memory[5],
+        (U32)Memory[6],
+        (U32)Memory[7],
+        (U32)Memory[8],
+        (U32)Memory[9],
+        (U32)Memory[10],
+        (U32)Memory[11],
+        (U32)Memory[12],
+        (U32)Memory[13],
+        (U32)Memory[14],
         (U32)Memory[15]);
 }
 
@@ -74,7 +89,6 @@ void LogFrameBuffer(U32 LogType, LPCSTR Prefix, const U8* Buffer, U32 Length) {
     LineBuffer[0] = 0;
 
     FOREVER {
-
         StringPrintFormat(TempBuffer, TEXT("%02x%s"), (U32)(*Pointer++), Space ? " " : "");
         StringConcat(LineBuffer, TempBuffer);
 
@@ -113,13 +127,26 @@ void LogRegisters32(LPINTEL_32_REGISTERS Regs) {
     KernelLogText(
         LOG_VERBOSE, TEXT("DR0 : %x DR1 : %x DR2 : %x DR3 : %x "), Regs->DR0, Regs->DR1, Regs->DR2, Regs->DR3);
     KernelLogText(
-        LOG_VERBOSE, TEXT("DR6 : B0 : %x B1 : %x B2 : %x B3 : %x BD : %x BS : %x BT : %x"), BIT_0_VALUE(Regs->DR6),
-        BIT_1_VALUE(Regs->DR6), BIT_2_VALUE(Regs->DR6), BIT_3_VALUE(Regs->DR6), BIT_13_VALUE(Regs->DR6),
-        BIT_14_VALUE(Regs->DR6), BIT_15_VALUE(Regs->DR6));
+        LOG_VERBOSE,
+        TEXT("DR6 : B0 : %x B1 : %x B2 : %x B3 : %x BD : %x BS : %x BT : %x"),
+        BIT_0_VALUE(Regs->DR6),
+        BIT_1_VALUE(Regs->DR6),
+        BIT_2_VALUE(Regs->DR6),
+        BIT_3_VALUE(Regs->DR6),
+        BIT_13_VALUE(Regs->DR6),
+        BIT_14_VALUE(Regs->DR6),
+        BIT_15_VALUE(Regs->DR6));
     KernelLogText(
-        LOG_VERBOSE, TEXT("DR7 : L0 : %x G1 : %x L1 : %x G1 : %x L2 : %x G2 : %x L3 : %x G3 : %x GD : %x"),
-        BIT_0_VALUE(Regs->DR7), BIT_1_VALUE(Regs->DR7), BIT_2_VALUE(Regs->DR7), BIT_3_VALUE(Regs->DR7),
-        BIT_4_VALUE(Regs->DR7), BIT_5_VALUE(Regs->DR7), BIT_6_VALUE(Regs->DR7), BIT_7_VALUE(Regs->DR7),
+        LOG_VERBOSE,
+        TEXT("DR7 : L0 : %x G1 : %x L1 : %x G1 : %x L2 : %x G2 : %x L3 : %x G3 : %x GD : %x"),
+        BIT_0_VALUE(Regs->DR7),
+        BIT_1_VALUE(Regs->DR7),
+        BIT_2_VALUE(Regs->DR7),
+        BIT_3_VALUE(Regs->DR7),
+        BIT_4_VALUE(Regs->DR7),
+        BIT_5_VALUE(Regs->DR7),
+        BIT_6_VALUE(Regs->DR7),
+        BIT_7_VALUE(Regs->DR7),
         BIT_13_VALUE(Regs->DR7));
 }
 
@@ -138,8 +165,12 @@ void LogFrame(LPINTERRUPT_FRAME Frame) {
     LPTASK Task = GetCurrentTask();
     LPPROCESS Process = GetCurrentProcess();
 
-    KernelLogText(LOG_VERBOSE, TEXT("Task : %p (%s @ %s)"), Task, Task ? Task->Name : TEXT("?"),
-                  Process ? Process->FileName : TEXT("?"));
+    KernelLogText(
+        LOG_VERBOSE,
+        TEXT("Task : %p (%s @ %s)"),
+        Task,
+        Task ? Task->Name : TEXT("?"),
+        Process ? Process->FileName : TEXT("?"));
     KernelLogText(LOG_VERBOSE, TEXT("Registers :"));
     LogRegisters32(&(Frame->Registers));
 }
@@ -183,10 +214,7 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         UNUSED(RawHigh);
 
         if (U64_EQUAL(Raw, NullDescriptor)) {
-            DEBUG(TEXT("Entry %u: raw[63:32]=%x raw[31:0]=%x (null)"),
-                Index,
-                RawHigh,
-                RawLow);
+            DEBUG(TEXT("Entry %u: raw[63:32]=%x raw[31:0]=%x (null)"), Index, RawHigh, RawLow);
             Index++;
             continue;
         }
@@ -194,10 +222,9 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         const SEGMENT_DESCRIPTOR* Descriptor = &Table[Index];
 
         DEBUG(TEXT("Entry %u: raw[63:32]=%x raw[31:0]=%x"), Index, RawHigh, RawLow);
-        DEBUG(TEXT("Limit_00_15=%x Limit_16_19=%x"),
-            (U32)Descriptor->Limit_00_15,
-            (U32)Descriptor->Limit_16_19);
-        DEBUG(TEXT("Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
+        DEBUG(TEXT("Limit_00_15=%x Limit_16_19=%x"), (U32)Descriptor->Limit_00_15, (U32)Descriptor->Limit_16_19);
+        DEBUG(
+            TEXT("Base_00_15=%x Base_16_23=%x Base_24_31=%x"),
             (U32)Descriptor->Base_00_15,
             (U32)Descriptor->Base_16_23,
             (U32)Descriptor->Base_24_31);
@@ -205,17 +232,18 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         if (Descriptor->Segment == 0) {
             const TSS_DESCRIPTOR* SystemDescriptor = (const TSS_DESCRIPTOR*)Descriptor;
             U32 Limit = ((U32)SystemDescriptor->Limit_00_15) | ((U32)SystemDescriptor->Limit_16_19 << 16);
-            U32 Base = (U32)SystemDescriptor->Base_00_15
-                | ((U32)SystemDescriptor->Base_16_23 << 16)
-                | ((U32)SystemDescriptor->Base_24_31 << 24);
+            U32 Base = (U32)SystemDescriptor->Base_00_15 | ((U32)SystemDescriptor->Base_16_23 << 16) |
+                       ((U32)SystemDescriptor->Base_24_31 << 24);
             UNUSED(Limit);
             UNUSED(Base);
 
-            DEBUG(TEXT("Type=%u Privilege=%u Present=%u"),
+            DEBUG(
+                TEXT("Type=%u Privilege=%u Present=%u"),
                 (U32)SystemDescriptor->Type,
                 (U32)SystemDescriptor->Privilege,
                 (U32)SystemDescriptor->Present);
-            DEBUG(TEXT("Available=%u Unused=%u Granularity=%u"),
+            DEBUG(
+                TEXT("Available=%u Unused=%u Granularity=%u"),
                 (U32)SystemDescriptor->Available,
                 (U32)SystemDescriptor->Unused,
                 (U32)SystemDescriptor->Granularity);
@@ -226,24 +254,23 @@ void LogGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table, U32 Size) {
         }
 
         U32 Limit = ((U32)Descriptor->Limit_00_15) | ((U32)Descriptor->Limit_16_19 << 16);
-        U32 Base = (U32)Descriptor->Base_00_15
-            | ((U32)Descriptor->Base_16_23 << 16)
-            | ((U32)Descriptor->Base_24_31 << 24);
-        U32 TypeBits = (U32)Descriptor->Accessed
-            | ((U32)Descriptor->CanWrite << 1u)
-            | ((U32)Descriptor->ConformExpand << 2u)
-            | ((U32)Descriptor->Type << 3u);
+        U32 Base =
+            (U32)Descriptor->Base_00_15 | ((U32)Descriptor->Base_16_23 << 16) | ((U32)Descriptor->Base_24_31 << 24);
+        U32 TypeBits = (U32)Descriptor->Accessed | ((U32)Descriptor->CanWrite << 1u) |
+                       ((U32)Descriptor->ConformExpand << 2u) | ((U32)Descriptor->Type << 3u);
         UNUSED(Limit);
         UNUSED(Base);
         UNUSED(TypeBits);
 
-        DEBUG(TEXT("Accessed=%u CanWrite=%u ConformExpand=%u Type=%u Segment=%u"),
+        DEBUG(
+            TEXT("Accessed=%u CanWrite=%u ConformExpand=%u Type=%u Segment=%u"),
             (U32)Descriptor->Accessed,
             (U32)Descriptor->CanWrite,
             (U32)Descriptor->ConformExpand,
             (U32)Descriptor->Type,
             (U32)Descriptor->Segment);
-        DEBUG(TEXT("Privilege=%u Present=%u Available=%u Unused=%u OperandSize=%u Granularity=%u"),
+        DEBUG(
+            TEXT("Privilege=%u Present=%u Available=%u Unused=%u OperandSize=%u Granularity=%u"),
             (U32)Descriptor->Privilege,
             (U32)Descriptor->Present,
             (U32)Descriptor->Available,
@@ -283,10 +310,18 @@ void LogPageDirectoryEntry(U32 LogType, const PAGE_DIRECTORY* PageDirectory) {
              "  User          = %u\n"
              "  Fixed         = %u\n"
              "  Address       = %X\n"),
-        (U32)PageDirectory->Present, (U32)PageDirectory->ReadWrite, (U32)PageDirectory->Privilege,
-        (U32)PageDirectory->WriteThrough, (U32)PageDirectory->CacheDisabled, (U32)PageDirectory->Accessed,
-        (U32)PageDirectory->Reserved, (U32)PageDirectory->PageSize, (U32)PageDirectory->Global,
-        (U32)PageDirectory->User, (U32)PageDirectory->Fixed, (U32)PageDirectory->Address);
+        (U32)PageDirectory->Present,
+        (U32)PageDirectory->ReadWrite,
+        (U32)PageDirectory->Privilege,
+        (U32)PageDirectory->WriteThrough,
+        (U32)PageDirectory->CacheDisabled,
+        (U32)PageDirectory->Accessed,
+        (U32)PageDirectory->Reserved,
+        (U32)PageDirectory->PageSize,
+        (U32)PageDirectory->Global,
+        (U32)PageDirectory->User,
+        (U32)PageDirectory->Fixed,
+        (U32)PageDirectory->Address);
 }
 
 /***************************************************************************/
@@ -312,9 +347,15 @@ void LogPageDirectory(PHYSICAL DirectoryPhysical) {
             UNUSED(VirtualAddress);
             UNUSED(PhysicalAddress);
 
-            DEBUG(TEXT("PDE[%03u]: VA=%x-%x -> PT_PA=%x Present=%u RW=%u Priv=%u"), DirEntry,
-                VirtualAddress, VirtualAddress + 0x3FFFFF, PhysicalAddress, Directory[DirEntry].Present,
-                Directory[DirEntry].ReadWrite, Directory[DirEntry].Privilege);
+            DEBUG(
+                TEXT("PDE[%03u]: VA=%x-%x -> PT_PA=%x Present=%u RW=%u Priv=%u"),
+                DirEntry,
+                VirtualAddress,
+                VirtualAddress + 0x3FFFFF,
+                PhysicalAddress,
+                Directory[DirEntry].Present,
+                Directory[DirEntry].ReadWrite,
+                Directory[DirEntry].Privilege);
 
             PHYSICAL PageTablePhysical = Directory[DirEntry].Address << 12;
             LPPAGE_TABLE Table = (LPPAGE_TABLE)MapTemporaryPhysicalPage2(PageTablePhysical);
@@ -331,9 +372,16 @@ void LogPageDirectory(PHYSICAL DirectoryPhysical) {
                         PhysicalAddress = Table[TabEntry].Address << 12;
                         UNUSED(PhysicalAddress);
 
-                        DEBUG(TEXT("PTE[%u]: VA=%x -> PA=%x Present=%u RW=%u Priv=%u Dirty=%u Fixed=%u"),
-                            TabEntry, VirtualAddress, PhysicalAddress, Table[TabEntry].Present, Table[TabEntry].ReadWrite,
-                            Table[TabEntry].Privilege, Table[TabEntry].Dirty, Table[TabEntry].Fixed);
+                        DEBUG(
+                            TEXT("PTE[%u]: VA=%x -> PA=%x Present=%u RW=%u Priv=%u Dirty=%u Fixed=%u"),
+                            TabEntry,
+                            VirtualAddress,
+                            PhysicalAddress,
+                            Table[TabEntry].Present,
+                            Table[TabEntry].ReadWrite,
+                            Table[TabEntry].Privilege,
+                            Table[TabEntry].Dirty,
+                            Table[TabEntry].Fixed);
 
 #if DEBUG_OUTPUT == 1
                         U8* Memory = (U8*)MapTemporaryPhysicalPage3(PhysicalAddress);
@@ -381,9 +429,18 @@ void LogPageTableEntry(U32 LogType, const PAGE_TABLE* PageTable) {
              "  User          = %u\n"
              "  Fixed         = %u\n"
              "  Address       = %X\n"),
-        (U32)PageTable->Present, (U32)PageTable->ReadWrite, (U32)PageTable->Privilege, (U32)PageTable->WriteThrough,
-        (U32)PageTable->CacheDisabled, (U32)PageTable->Accessed, (U32)PageTable->Dirty, (U32)PageTable->Reserved,
-        (U32)PageTable->Global, (U32)PageTable->User, (U32)PageTable->Fixed, (U32)PageTable->Address);
+        (U32)PageTable->Present,
+        (U32)PageTable->ReadWrite,
+        (U32)PageTable->Privilege,
+        (U32)PageTable->WriteThrough,
+        (U32)PageTable->CacheDisabled,
+        (U32)PageTable->Accessed,
+        (U32)PageTable->Dirty,
+        (U32)PageTable->Reserved,
+        (U32)PageTable->Global,
+        (U32)PageTable->User,
+        (U32)PageTable->Fixed,
+        (U32)PageTable->Address);
 }
 
 /***************************************************************************/
@@ -417,11 +474,21 @@ void LogSegmentDescriptor(U32 LogType, const SEGMENT_DESCRIPTOR* SegmentDescript
              "  OperandSize   = %u\n"
              "  Granularity   = %u\n"
              "  Base_24_31    = %X\n"),
-        (U32)SegmentDescriptor->Limit_00_15, (U32)SegmentDescriptor->Base_00_15, (U8)SegmentDescriptor->Base_16_23,
-        (U32)SegmentDescriptor->Accessed, (U32)SegmentDescriptor->CanWrite, (U32)SegmentDescriptor->ConformExpand,
-        (U32)SegmentDescriptor->Type, (U32)SegmentDescriptor->Segment, (U32)SegmentDescriptor->Privilege,
-        (U32)SegmentDescriptor->Present, (U8)SegmentDescriptor->Limit_16_19, (U32)SegmentDescriptor->Available,
-        (U32)SegmentDescriptor->Unused, (U32)SegmentDescriptor->OperandSize, (U32)SegmentDescriptor->Granularity,
+        (U32)SegmentDescriptor->Limit_00_15,
+        (U32)SegmentDescriptor->Base_00_15,
+        (U8)SegmentDescriptor->Base_16_23,
+        (U32)SegmentDescriptor->Accessed,
+        (U32)SegmentDescriptor->CanWrite,
+        (U32)SegmentDescriptor->ConformExpand,
+        (U32)SegmentDescriptor->Type,
+        (U32)SegmentDescriptor->Segment,
+        (U32)SegmentDescriptor->Privilege,
+        (U32)SegmentDescriptor->Present,
+        (U8)SegmentDescriptor->Limit_16_19,
+        (U32)SegmentDescriptor->Available,
+        (U32)SegmentDescriptor->Unused,
+        (U32)SegmentDescriptor->OperandSize,
+        (U32)SegmentDescriptor->Granularity,
         (U8)SegmentDescriptor->Base_24_31);
 }
 
@@ -511,9 +578,15 @@ void LogTSSDescriptor(U32 LogType, const TSS_DESCRIPTOR* TssDescriptor) {
              "  Available     = %u\n"
              "  Granularity   = %u\n"
              "  Base_24_31    = %X"),
-        (U32)TssDescriptor->Limit_00_15, (U32)TssDescriptor->Base_00_15, (U32)TssDescriptor->Base_16_23,
-        (U32)TssDescriptor->Type, (U32)TssDescriptor->Privilege, (U32)TssDescriptor->Present,
-        (U32)TssDescriptor->Limit_16_19, (U32)TssDescriptor->Available, (U32)TssDescriptor->Granularity,
+        (U32)TssDescriptor->Limit_00_15,
+        (U32)TssDescriptor->Base_00_15,
+        (U32)TssDescriptor->Base_16_23,
+        (U32)TssDescriptor->Type,
+        (U32)TssDescriptor->Privilege,
+        (U32)TssDescriptor->Present,
+        (U32)TssDescriptor->Limit_16_19,
+        (U32)TssDescriptor->Available,
+        (U32)TssDescriptor->Granularity,
         (U32)TssDescriptor->Base_24_31);
 
     /* Decoded view */
@@ -523,7 +596,10 @@ void LogTSSDescriptor(U32 LogType, const TSS_DESCRIPTOR* TssDescriptor) {
              "  Base          = %X\n"
              "  RawLimit      = %X\n"
              "  EffLimit      = %X (%u bytes)"),
-        (U32)Base, (U32)RawLimit, (U32)EffectiveLimit, (U32)SizeBytes);
+        (U32)Base,
+        (U32)RawLimit,
+        (U32)EffectiveLimit,
+        (U32)SizeBytes);
 }
 
 /***************************************************************************/
@@ -558,11 +634,36 @@ void LogTaskStateSegment(U32 LogType, const TASK_STATE_SEGMENT* Tss) {
              "  LDT       = %X\n"
              "  Trap      = %u\n"
              "  IOMap     = %X (linear @ %p)"),
-        (void*)Tss, (U32)sizeof(TASK_STATE_SEGMENT), (U32)Tss->BackLink, (U32)Tss->ESP0, (U32)Tss->SS0, (U32)Tss->ESP1,
-        (U32)Tss->SS1, (U32)Tss->ESP2, (U32)Tss->SS2, (U32)Tss->CR3, (U32)Tss->EIP, (U32)Tss->EFlags, (U32)Tss->EAX,
-        (U32)Tss->ECX, (U32)Tss->EDX, (U32)Tss->EBX, (U32)Tss->ESP, (U32)Tss->EBP, (U32)Tss->ESI, (U32)Tss->EDI,
-        (U32)Tss->ES, (U32)Tss->CS, (U32)Tss->SS, (U32)Tss->DS, (U32)Tss->FS, (U32)Tss->GS, (U32)Tss->LDT,
-        (U32)((Tss->Trap & 1) ? 1u : 0u), (U32)Tss->IOMap, (const void*)((const U8*)Tss + (U32)Tss->IOMap));
+        (void*)Tss,
+        (U32)sizeof(TASK_STATE_SEGMENT),
+        (U32)Tss->BackLink,
+        (U32)Tss->ESP0,
+        (U32)Tss->SS0,
+        (U32)Tss->ESP1,
+        (U32)Tss->SS1,
+        (U32)Tss->ESP2,
+        (U32)Tss->SS2,
+        (U32)Tss->CR3,
+        (U32)Tss->EIP,
+        (U32)Tss->EFlags,
+        (U32)Tss->EAX,
+        (U32)Tss->ECX,
+        (U32)Tss->EDX,
+        (U32)Tss->EBX,
+        (U32)Tss->ESP,
+        (U32)Tss->EBP,
+        (U32)Tss->ESI,
+        (U32)Tss->EDI,
+        (U32)Tss->ES,
+        (U32)Tss->CS,
+        (U32)Tss->SS,
+        (U32)Tss->DS,
+        (U32)Tss->FS,
+        (U32)Tss->GS,
+        (U32)Tss->LDT,
+        (U32)((Tss->Trap & 1) ? 1u : 0u),
+        (U32)Tss->IOMap,
+        (const void*)((const U8*)Tss + (U32)Tss->IOMap));
 
     /* Optional – dump first 16 bytes of I/O bitmap for quick sanity */
     /*
@@ -605,12 +706,26 @@ void LogTask(U32 LogType, const LPTASK Task) {
              "  StackSize : %x\n"
              "  SysStackBase : %x\n"
              "  SysStackSize : %x\n"
-             "  WakeUpTime : %x"),
-        (LINEAR)Task, Task->Name, (U32)Task->OwnerProcess, (Task->OwnerProcess == &KernelProcess ? "K" : "U"), (U32)Task->Type,
-        (U32)Task->SchedulerState.Status, (U32)Task->Priority, (U32)Task->Function, (U32)Task->Parameter, (U32)Task->ExitCode,
-        (U32)Task->Arch.Stack.Base, (U32)Task->Arch.Stack.Size, (U32)Task->Arch.SystemStack.Base,
+             "  WakeUpTime : %x\n"
+             "  TimeSlice : %x\n"
+             "  InitDone : %x"),
+        (LINEAR)Task,
+        Task->Name,
+        (U32)Task->OwnerProcess,
+        (Task->OwnerProcess == &KernelProcess ? "K" : "U"),
+        (U32)Task->Type,
+        (U32)Task->SchedulerState.Status,
+        (U32)Task->Priority,
+        (U32)Task->Function,
+        (U32)Task->Parameter,
+        (U32)Task->ExitCode,
+        (U32)Task->Arch.Stack.Base,
+        (U32)Task->Arch.Stack.Size,
+        (U32)Task->Arch.SystemStack.Base,
         (U32)Task->Arch.SystemStack.Size,
-        (U32)Task->SchedulerState.WakeUpTime);
+        (U32)Task->SchedulerState.WakeUpTime,
+        (U32)Task->SchedulerState.TimeSlice,
+        (U32)Task->SchedulerState.InitDone);
 }
 
 /************************************************************************/
@@ -701,11 +816,7 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
         return;
     }
 
-    KernelLogText(
-        Type,
-        TEXT("Base=%p, dumping first %u entries"),
-        (const void*)Table,
-        EntriesToLog);
+    KernelLogText(Type, TEXT("Base=%p, dumping first %u entries"), (const void*)Table, EntriesToLog);
 
     UINT Index;
     for (Index = 0; Index < EntriesToLog; ++Index) {
@@ -715,12 +826,7 @@ void LogInterruptDescriptorTable(U32 Type, const LPGATE_DESCRIPTOR Table, UINT E
         const U32 RawHigh = Raw[1];
         const U32 Offset = ((U32)Entry->Offset_16_31 << 16) | (U32)Entry->Offset_00_15;
 
-        KernelLogText(
-            Type,
-            TEXT("Entry %u: raw[31:0]=%x raw[63:32]=%x"),
-            Index,
-            RawLow,
-            RawHigh);
+        KernelLogText(Type, TEXT("Entry %u: raw[31:0]=%x raw[63:32]=%x"), Index, RawLow, RawHigh);
         KernelLogText(
             Type,
             TEXT("Selector=%x Type=%u DPL=%u Present=%u Offset=%x"),

@@ -33,8 +33,8 @@
 
 // Test results structure
 typedef struct tag_TEST_RESULTS {
-    U32 TestsRun;         // Number of tests/assertions executed
-    U32 TestsPassed;      // Number of successful tests/assertions
+    U32 TestsRun;     // Number of tests/assertions executed
+    U32 TestsPassed;  // Number of successful tests/assertions
 } TEST_RESULTS, *LPTEST_RESULTS;
 
 // Main testing functions
@@ -58,6 +58,8 @@ void TestMacros(TEST_RESULTS* Results);
 void TestPackageManifest(TEST_RESULTS* Results);
 void TestFileWriteAllOrFail(TEST_RESULTS* Results);
 void TestTCP(TEST_RESULTS* Results);
+void TestUDP(TEST_RESULTS* Results);
+void TestDNS(TEST_RESULTS* Results);
 void TestScript(TEST_RESULTS* Results);
 
 /************************************************************************/

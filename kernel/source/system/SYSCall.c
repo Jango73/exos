@@ -42,6 +42,8 @@
 #include "memory/Heap.h"
 #include "memory/Memory.h"
 #include "network/Socket.h"
+#include "network/DNS.h"
+#include "network/NetworkManager.h"
 #include "process/Process.h"
 #include "process/Schedule.h"
 #include "system/Clock.h"
@@ -50,6 +52,7 @@
 #include "utils/Helpers.h"
 #include "utils/Pipe.h"
 #include "utils/ProcessAccess.h"
+#include "utils/TaskProfile.h"
 
 extern BOOL ReleaseWindowGC(HANDLE Handle);
 
@@ -64,7 +67,9 @@ static LPWINDOW_CLASS SysCallResolveAccessibleWindowClass(HANDLE WindowClassHand
         WindowClass = WindowClassFindByName(WindowClassName);
     }
 
-    SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(WindowClass, KOID_WINDOW_CLASS, TRUE) { return WindowClass; }
+    SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(WindowClass, KOID_WINDOW_CLASS, TRUE) {
+        return WindowClass;
+    }
 
     return NULL;
 }
@@ -79,7 +84,9 @@ static LPWINDOW_CLASS SysCallResolveAccessibleWindowClass(HANDLE WindowClassHand
  * @return UINT Always returns 0.
  */
 UINT SysCall_Debug(UINT Parameter) {
-    SAFE_USE_VALID((LPCSTR)Parameter) { DEBUG((LPCSTR)Parameter); }
+    SAFE_USE_VALID((LPCSTR)Parameter) {
+        DEBUG((LPCSTR)Parameter);
+    }
     return 0;
 }
 
@@ -192,7 +199,9 @@ UINT SysCall_GetSystemTime(UINT Parameter) {
  */
 UINT SysCall_GetLocalTime(UINT Parameter) {
     LPDATETIME Time = (LPDATETIME)Parameter;
-    SAFE_USE_VALID(Time) { return GetLocalTime(Time); }
+    SAFE_USE_VALID(Time) {
+        return GetLocalTime(Time);
+    }
     return FALSE;
 }
 
@@ -206,7 +215,9 @@ UINT SysCall_GetLocalTime(UINT Parameter) {
  */
 UINT SysCall_SetLocalTime(UINT Parameter) {
     LPDATETIME Time = (LPDATETIME)Parameter;
-    SAFE_USE_VALID(Time) { return SetLocalTime(Time); }
+    SAFE_USE_VALID(Time) {
+        return SetLocalTime(Time);
+    }
     return FALSE;
 }
 
@@ -457,6 +468,32 @@ UINT SysCall_GetProfileInfo(UINT Parameter) {
 
         SAFE_USE_VALID(Info->Entries) {
             ProfileGetStats(Info);
+            return DF_RETURN_SUCCESS;
+        }
+    }
+
+    return DF_RETURN_GENERIC;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Copy a bounded per-task profiling snapshot into a user buffer.
+ *
+ * @param Parameter Pointer to TASK_PROFILE_QUERY_INFO provided by userland.
+ * @return UINT DF_RETURN_SUCCESS on success, DF_RETURN_GENERIC on error.
+ */
+UINT SysCall_GetTaskProfileInfo(UINT Parameter) {
+    LPTASK_PROFILE_QUERY_INFO Info = (LPTASK_PROFILE_QUERY_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, TASK_PROFILE_QUERY_INFO) {
+        if (Info->Capacity == 0) {
+            TaskProfileGetStats(Info);
+            return DF_RETURN_SUCCESS;
+        }
+
+        SAFE_USE_VALID(Info->Entries) {
+            TaskProfileGetStats(Info);
             return DF_RETURN_SUCCESS;
         }
     }
@@ -894,7 +931,9 @@ UINT SysCall_LockMutex(UINT Parameter) {
         LINEAR MutexPointer = HandleToPointer(Info->Mutex);
         LPMUTEX Mutex = (LPMUTEX)MutexPointer;
 
-        SAFE_USE_VALID_ID(Mutex, KOID_MUTEX) { return LockMutex(Mutex, Info->MilliSeconds); }
+        SAFE_USE_VALID_ID(Mutex, KOID_MUTEX) {
+            return LockMutex(Mutex, Info->MilliSeconds);
+        }
     }
 
     return (UINT)MAX_U32;
@@ -915,7 +954,9 @@ UINT SysCall_UnlockMutex(UINT Parameter) {
         LINEAR MutexPointer = HandleToPointer(Info->Mutex);
         LPMUTEX Mutex = (LPMUTEX)MutexPointer;
 
-        SAFE_USE_VALID_ID(Mutex, KOID_MUTEX) { return UnlockMutex(Mutex); }
+        SAFE_USE_VALID_ID(Mutex, KOID_MUTEX) {
+            return UnlockMutex(Mutex);
+        }
     }
 
     return (UINT)MAX_U32;
@@ -950,7 +991,9 @@ UINT SysCall_AllocRegion(UINT Parameter) {
 UINT SysCall_FreeRegion(UINT Parameter) {
     LPALLOC_REGION_INFO Info = (LPALLOC_REGION_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, ALLOC_REGION_INFO) { return FreeRegion(Info->Base, Info->Size); }
+    SAFE_USE_INPUT_POINTER(Info, ALLOC_REGION_INFO) {
+        return FreeRegion(Info->Base, Info->Size);
+    }
 
     return 0;
 }
@@ -969,7 +1012,9 @@ UINT SysCall_FreeRegion(UINT Parameter) {
  * @param Parameter Linear address to validate.
  * @return UINT TRUE if the address is valid, FALSE otherwise.
  */
-UINT SysCall_IsMemoryValid(UINT Parameter) { return (UINT)IsValidMemory((LINEAR)Parameter); }
+UINT SysCall_IsMemoryValid(UINT Parameter) {
+    return (UINT)IsValidMemory((LINEAR)Parameter);
+}
 
 /************************************************************************/
 
@@ -1007,7 +1052,9 @@ UINT SysCall_GetProcessHeap(UINT Parameter) {
  * @param Parameter Size in bytes to allocate.
  * @return UINT Linear address of the allocated block, or 0 on failure.
  */
-UINT SysCall_HeapAlloc(UINT Parameter) { return (UINT)HeapAlloc(Parameter); }
+UINT SysCall_HeapAlloc(UINT Parameter) {
+    return (UINT)HeapAlloc(Parameter);
+}
 
 /************************************************************************/
 
@@ -1033,7 +1080,9 @@ UINT SysCall_HeapFree(UINT Parameter) {
 UINT SysCall_HeapRealloc(UINT Parameter) {
     LPHEAP_REALLOC_INFO Info = (LPHEAP_REALLOC_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, HEAP_REALLOC_INFO) { return (UINT)HeapRealloc(Info->Pointer, Info->Size); }
+    SAFE_USE_INPUT_POINTER(Info, HEAP_REALLOC_INFO) {
+        return (UINT)HeapRealloc(Info->Pointer, Info->Size);
+    }
 
     return 0;
 }
@@ -1230,7 +1279,9 @@ UINT SysCall_WriteFile(UINT Parameter) {
 UINT SysCall_GetFileSize(UINT Parameter) {
     LPFILE File = (LPFILE)HandleToPointer(Parameter);
 
-    SAFE_USE_VALID_ID(File, KOID_FILE) { return GetFileSize(File); }
+    SAFE_USE_VALID_ID(File, KOID_FILE) {
+        return GetFileSize(File);
+    }
 
     return 0;
 }
@@ -1246,7 +1297,9 @@ UINT SysCall_GetFileSize(UINT Parameter) {
 UINT SysCall_GetFilePosition(UINT Parameter) {
     LPFILE File = (LPFILE)HandleToPointer(Parameter);
 
-    SAFE_USE_VALID_ID(File, KOID_FILE) { return GetFilePosition(File); }
+    SAFE_USE_VALID_ID(File, KOID_FILE) {
+        return GetFilePosition(File);
+    }
 
     return 0;
 }
@@ -1446,12 +1499,14 @@ UINT SysCall_ConsolePeekKey(UINT Parameter) {
 /**
  * @brief Retrieve the next key event details.
  *
- * @param Parameter Linear address of a KEYCODE structure to fill.
+ * @param Parameter Linear address of a KEY_CODE structure to fill.
  * @return UINT TRUE on success, FALSE on error.
  */
 UINT SysCall_ConsoleGetKey(UINT Parameter) {
     LPKEYCODE KeyCode = (LPKEYCODE)Parameter;
-    SAFE_USE_VALID(KeyCode) { return (UINT)GetKeyCode(KeyCode); }
+    SAFE_USE_VALID(KeyCode) {
+        return (UINT)GetKeyCode(KeyCode);
+    }
     return 0;
 }
 
@@ -1496,7 +1551,9 @@ UINT SysCall_ConsoleGetChar(UINT Parameter) {
  * @return UINT Always returns 0.
  */
 UINT SysCall_ConsolePrint(UINT Parameter) {
-    SAFE_USE_VALID((LPCSTR)Parameter) { ConsolePrint((LPCSTR)Parameter); }
+    SAFE_USE_VALID((LPCSTR)Parameter) {
+        ConsolePrint((LPCSTR)Parameter);
+    }
     return 0;
 }
 
@@ -1538,7 +1595,9 @@ UINT SysCall_ConsoleGetString(UINT Parameter) {
  */
 UINT SysCall_ConsoleGotoXY(UINT Parameter) {
     LPPOINT Point = (LPPOINT)Parameter;
-    SAFE_USE_VALID(Point) { SetConsoleCursorPosition(Point->X, Point->Y); }
+    SAFE_USE_VALID(Point) {
+        SetConsoleCursorPosition(Point->X, Point->Y);
+    }
     return 0;
 }
 
@@ -1567,7 +1626,9 @@ UINT SysCall_ConsoleClear(UINT Parameter) {
 UINT SysCall_ConsoleSetMode(UINT Parameter) {
     LPGRAPHICS_MODE_INFO Info = (LPGRAPHICS_MODE_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, GRAPHICS_MODE_INFO) { return ConsoleSetMode(Info); }
+    SAFE_USE_INPUT_POINTER(Info, GRAPHICS_MODE_INFO) {
+        return ConsoleSetMode(Info);
+    }
 
     return DF_RETURN_GENERIC;
 }
@@ -1596,7 +1657,9 @@ UINT SysCall_ConsoleGetModeCount(UINT Parameter) {
 UINT SysCall_ConsoleGetModeInfo(UINT Parameter) {
     LPCONSOLE_MODE_INFO Info = (LPCONSOLE_MODE_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, CONSOLE_MODE_INFO) { return ConsoleGetModeInfo(Info); }
+    SAFE_USE_INPUT_POINTER(Info, CONSOLE_MODE_INFO) {
+        return ConsoleGetModeInfo(Info);
+    }
 
     return DF_RETURN_GENERIC;
 }
@@ -1637,7 +1700,8 @@ UINT SysCall_CreateDesktop(UINT Parameter) {
     if (Parameter != 0) {
         RootWindow = (LPWINDOW)HandleToPointer(Parameter);
 
-        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(RootWindow, KOID_WINDOW, TRUE) {}
+        SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(RootWindow, KOID_WINDOW, TRUE) {
+        }
         else {
             return 0;
         }
@@ -1768,7 +1832,9 @@ UINT SysCall_ApplyDesktopTheme(UINT Parameter) {
     LPDESKTOP_THEME_INFO ApplyInfo = (LPDESKTOP_THEME_INFO)Parameter;
 
     SAFE_USE_INPUT_POINTER(ApplyInfo, DESKTOP_THEME_INFO) {
-        SAFE_USE_VALID(ApplyInfo->Target) { return (UINT)ApplyDesktopTheme(ApplyInfo->Target); }
+        SAFE_USE_VALID(ApplyInfo->Target) {
+            return (UINT)ApplyDesktopTheme(ApplyInfo->Target);
+        }
     }
 
     return FALSE;
@@ -1787,7 +1853,8 @@ UINT SysCall_CreateWindow(UINT Parameter) {
         if (WindowInfo->Parent != 0) {
             LPWINDOW ParentWindow = (LPWINDOW)HandleToPointer(WindowInfo->Parent);
 
-            SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(ParentWindow, KOID_WINDOW, TRUE) {}
+            SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(ParentWindow, KOID_WINDOW, TRUE) {
+            }
             else {
                 WindowInfo->Window = 0;
                 return 0;
@@ -2310,8 +2377,12 @@ UINT SysCall_RegisterWindowClass(UINT Parameter) {
         if (Process == NULL || Process->TypeID != KOID_PROCESS) return 0;
 
         WindowClass = WindowClassRegisterUserClass(
-            ClassInfo->ClassName, (U32)ClassInfo->BaseClass, ClassInfo->BaseClassName, ClassInfo->Function,
-            ClassInfo->ClassDataSize, Process);
+            ClassInfo->ClassName,
+            (U32)ClassInfo->BaseClass,
+            ClassInfo->BaseClassName,
+            ClassInfo->Function,
+            ClassInfo->ClassDataSize,
+            Process);
 
         if (WindowClass == NULL || WindowClass->TypeID != KOID_WINDOW_CLASS) return 0;
 
@@ -2636,13 +2707,13 @@ UINT SysCall_CreatePen(UINT Parameter) {
 /**
  * @brief Select a brush into a graphics context.
  *
- * @param Parameter Pointer to GCSELECT containing GC and brush handles.
+ * @param Parameter Pointer to GC_SELECT containing GC and brush handles.
  * @return UINT Previous brush handle, or 0.
  */
 UINT SysCall_SelectBrush(UINT Parameter) {
     LPGCSELECT Sel = (LPGCSELECT)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Sel, GCSELECT) {
+    SAFE_USE_INPUT_POINTER(Sel, GC_SELECT) {
         LPGRAPHICSCONTEXT Context = (LPGRAPHICSCONTEXT)HandleToPointer(Sel->GC);
         SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Context, KOID_GRAPHICSCONTEXT, TRUE) {
             if (Sel->Object != 0) {
@@ -2675,13 +2746,13 @@ UINT SysCall_SelectBrush(UINT Parameter) {
 /**
  * @brief Select a pen into a graphics context.
  *
- * @param Parameter Pointer to GCSELECT containing GC and pen handles.
+ * @param Parameter Pointer to GC_SELECT containing GC and pen handles.
  * @return UINT Previous pen handle, or 0.
  */
 UINT SysCall_SelectPen(UINT Parameter) {
     LPGCSELECT Sel = (LPGCSELECT)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Sel, GCSELECT) {
+    SAFE_USE_INPUT_POINTER(Sel, GC_SELECT) {
         LPGRAPHICSCONTEXT Context = (LPGRAPHICSCONTEXT)HandleToPointer(Sel->GC);
         SAFE_USE_VALID_ID_CURRENT_PROCESS_ACCESSIBLE(Context, KOID_GRAPHICSCONTEXT, TRUE) {
             if (Sel->Object != 0) {
@@ -2929,13 +3000,12 @@ UINT SysCall_DrawText(UINT Parameter) {
             }
 
             SAFE_USE_VALID(TextInfo->Text) {
-                DrawInfo = (GFX_TEXT_DRAW_INFO){
-                    .Header = TextInfo->Header,
-                    .GC = (HANDLE)Context,
-                    .X = TextInfo->X,
-                    .Y = TextInfo->Y,
-                    .Text = TextInfo->Text,
-                    .Font = NULL};
+                DrawInfo = (GFX_TEXT_DRAW_INFO){ .Header = TextInfo->Header,
+                                                 .GC = (HANDLE)Context,
+                                                 .X = TextInfo->X,
+                                                 .Y = TextInfo->Y,
+                                                 .Text = TextInfo->Text,
+                                                 .Font = NULL };
                 return (UINT)DesktopDrawText(&DrawInfo);
             }
         }
@@ -2964,7 +3034,8 @@ UINT SysCall_MeasureText(UINT Parameter) {
 
         SAFE_USE_VALID(TextInfo->Text) {
             MeasureInfo = (GFX_TEXT_MEASURE_INFO){
-                .Header = TextInfo->Header, .Text = TextInfo->Text, .Font = NULL, .Width = 0, .Height = 0};
+                .Header = TextInfo->Header, .Text = TextInfo->Text, .Font = NULL, .Width = 0, .Height = 0
+            };
 
             if (DesktopMeasureText(&MeasureInfo) == FALSE) {
                 return 0;
@@ -3397,7 +3468,9 @@ UINT SysCall_SocketBind(UINT Parameter) {
 UINT SysCall_SocketListen(UINT Parameter) {
     LPSOCKET_LISTEN_INFO Info = (LPSOCKET_LISTEN_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, SOCKET_LISTEN_INFO) { return SocketListen(Info->SocketHandle, Info->Backlog); }
+    SAFE_USE_INPUT_POINTER(Info, SOCKET_LISTEN_INFO) {
+        return SocketListen(Info->SocketHandle, Info->Backlog);
+    }
 
     return DF_RETURN_BAD_PARAMETER;
 }
@@ -3487,7 +3560,11 @@ UINT SysCall_SocketSendTo(UINT Parameter) {
 
     SAFE_USE_INPUT_POINTER(Info, SOCKET_DATA_INFO) {
         return SocketSendTo(
-            Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData,
+            Info->SocketHandle,
+            Info->Buffer,
+            Info->Length,
+            Info->Flags,
+            (LPSOCKET_ADDRESS)Info->AddressData,
             Info->AddressLength);
     }
 
@@ -3508,7 +3585,11 @@ UINT SysCall_SocketReceiveFrom(UINT Parameter) {
     SAFE_USE_INPUT_POINTER(Info, SOCKET_DATA_INFO) {
         U32 AddressLength = Info->AddressLength;
         UINT Result = SocketReceiveFrom(
-            Info->SocketHandle, Info->Buffer, Info->Length, Info->Flags, (LPSOCKET_ADDRESS)Info->AddressData,
+            Info->SocketHandle,
+            Info->Buffer,
+            Info->Length,
+            Info->Flags,
+            (LPSOCKET_ADDRESS)Info->AddressData,
             &AddressLength);
         Info->AddressLength = AddressLength;
         return Result;
@@ -3541,7 +3622,9 @@ UINT SysCall_SocketClose(UINT Parameter) {
 UINT SysCall_SocketShutdown(UINT Parameter) {
     LPSOCKET_SHUTDOWN_INFO Info = (LPSOCKET_SHUTDOWN_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, SOCKET_SHUTDOWN_INFO) { return SocketShutdown(Info->SocketHandle, Info->How); }
+    SAFE_USE_INPUT_POINTER(Info, SOCKET_SHUTDOWN_INFO) {
+        return SocketShutdown(Info->SocketHandle, Info->How);
+    }
 
     return DF_RETURN_BAD_PARAMETER;
 }
@@ -3621,6 +3704,75 @@ UINT SysCall_SocketGetSocketName(UINT Parameter) {
     }
 
     return DF_RETURN_BAD_PARAMETER;
+}
+
+/************************************************************************/
+// DNS syscalls
+
+/**
+ * @brief Maps a kernel DNS status to its ABI counterpart.
+ *
+ * @param Status Kernel DNS_STATUS value.
+ * @return DNS_RESOLVE_STATUS_xxx value.
+ */
+
+static U32 DNSResolveStatusToABI(DNS_STATUS Status) {
+    switch (Status) {
+        case DNS_STATUS_SUCCESS:
+            return DNS_RESOLVE_STATUS_SUCCESS;
+        case DNS_STATUS_TIMEOUT:
+            return DNS_RESOLVE_STATUS_TIMEOUT;
+        case DNS_STATUS_NAME_ERROR:
+            return DNS_RESOLVE_STATUS_NAME_ERROR;
+        case DNS_STATUS_NO_ANSWER:
+            return DNS_RESOLVE_STATUS_NO_ANSWER;
+        case DNS_STATUS_TRUNCATED:
+            return DNS_RESOLVE_STATUS_TRUNCATED;
+        default:
+            return DNS_RESOLVE_STATUS_ERROR;
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Resolve a host name to an IPv4 address through DNS.
+ *
+ * @param Parameter Pointer to DNS_RESOLVE_INFO buffer.
+ * @return UINT TRUE on completion.
+ */
+
+UINT SysCall_DNSResolve(UINT Parameter) {
+    LPDNS_RESOLVE_INFO Info = (LPDNS_RESOLVE_INFO)Parameter;
+
+    SAFE_USE_INPUT_POINTER(Info, DNS_RESOLVE_INFO) {
+        LPDEVICE Device;
+        DNS_STATUS Status;
+        U32 ResolvedIP_Be = 0;
+        STR Name[DNS_RESOLVE_MAX_HOST_NAME_LENGTH + 1];
+
+        if (Info->Name[0] == STR_NULL || Info->TimeoutMillis == 0) {
+            Info->Status = DNS_RESOLVE_STATUS_ERROR;
+            Info->IP_Be = 0;
+            return FALSE;
+        }
+
+        StringCopyLimit(Name, (LPCSTR)Info->Name, DNS_RESOLVE_MAX_HOST_NAME_LENGTH);
+
+        Device = (LPDEVICE)NetworkManager_GetPrimaryDevice();
+        if (Device == NULL) {
+            Info->Status = DNS_RESOLVE_STATUS_ERROR;
+            Info->IP_Be = 0;
+            return FALSE;
+        }
+
+        Status = DNS_Resolve(Device, Name, Info->TimeoutMillis, &ResolvedIP_Be);
+        Info->Status = DNSResolveStatusToABI(Status);
+        Info->IP_Be = ResolvedIP_Be;
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 /************************************************************************/
@@ -3707,7 +3859,9 @@ UINT SysCall_GetKernelLogRecent(UINT Parameter) {
 UINT SysCall_GetGraphicsDebugInfo(UINT Parameter) {
     LPDRIVER_DEBUG_INFO Info = (LPDRIVER_DEBUG_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) { return (UINT)GetGraphicsDebugInfo(Info); }
+    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) {
+        return (UINT)GetGraphicsDebugInfo(Info);
+    }
 
     return FALSE;
 }
@@ -3723,7 +3877,9 @@ UINT SysCall_GetGraphicsDebugInfo(UINT Parameter) {
 UINT SysCall_GetMouseDebugInfo(UINT Parameter) {
     LPDRIVER_DEBUG_INFO Info = (LPDRIVER_DEBUG_INFO)Parameter;
 
-    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) { return (UINT)GetMouseDebugInfo(Info); }
+    SAFE_USE_INPUT_POINTER(Info, DRIVER_DEBUG_INFO) {
+        return (UINT)GetMouseDebugInfo(Info);
+    }
 
     return FALSE;
 }
@@ -3736,7 +3892,9 @@ UINT SysCall_GetMouseDebugInfo(UINT Parameter) {
  * @param Parameter Non-zero enables the mode, zero disables it.
  * @return UINT TRUE on success.
  */
-UINT SysCall_SetMouseSerpentineMode(UINT Parameter) { return (UINT)SetMouseSerpentineMode((BOOL)(Parameter != 0)); }
+UINT SysCall_SetMouseSerpentineMode(UINT Parameter) {
+    return (UINT)SetMouseSerpentineMode((BOOL)(Parameter != 0));
+}
 
 /************************************************************************/
 

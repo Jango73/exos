@@ -35,7 +35,7 @@
 #include "text/CoreString.h"
 #include "utils/List.h"
 #if defined(__EXOS_ARCH_X86_32__)
-#include "arch/x86-32/x86-32-Log.h"
+    #include "arch/x86-32/x86-32-Log.h"
 #endif
 
 /***************************************************************************/
@@ -87,7 +87,9 @@ DRIVER DATA_SECTION KernelProcessDriver = {
  * @brief Retrieves the kernel process driver descriptor.
  * @return Pointer to the kernel process driver.
  */
-LPDRIVER KernelProcessGetDriver(void) { return &KernelProcessDriver; }
+LPDRIVER KernelProcessGetDriver(void) {
+    return &KernelProcessDriver;
+}
 
 /***************************************************************************/
 
@@ -117,8 +119,11 @@ void InitializeKernelProcess(void) {
 
     LINEAR HeapPreferredBase = GetKernelHeapPreferredBase(KernelProcess.HeapSize);
     LINEAR HeapBase = AllocRegion(
-        HeapPreferredBase, 0, KernelProcess.HeapSize,
-        ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER, TEXT("KernelHeap"));
+        HeapPreferredBase,
+        0,
+        KernelProcess.HeapSize,
+        ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_AT_OR_OVER,
+        TEXT("KernelHeap"));
 
     DEBUG(TEXT("HeapPreferredBase : %p"), (LINEAR)HeapPreferredBase);
     DEBUG(TEXT("HeapBase : %p"), (LINEAR)HeapBase);
@@ -140,7 +145,7 @@ void InitializeKernelProcess(void) {
         DO_THE_SLEEPING_BEAUTY;
     }
 
-    MemorySet(&(KernelProcess.MessageQueue), 0, sizeof(MESSAGEQUEUE));
+    MemorySet(&(KernelProcess.MessageQueue), 0, sizeof(MESSAGE_QUEUE));
     InitMessageQueue(&(KernelProcess.MessageQueue));
     if (EnsureProcessMessageQueue(&KernelProcess, TRUE) == FALSE) {
         ERROR(TEXT("Could not initialize kernel process message queue"));
@@ -631,7 +636,9 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     if (!StringEmpty(Info->WorkFolder)) {
         StringCopy(Process->WorkFolder, Info->WorkFolder);
     } else {
-        SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) { StringCopy(Process->WorkFolder, ParentProcess->WorkFolder); }
+        SAFE_USE_VALID_ID(ParentProcess, KOID_PROCESS) {
+            StringCopy(Process->WorkFolder, ParentProcess->WorkFolder);
+        }
         else {
             StringCopy(Process->WorkFolder, TEXT(ROOT));
         }
@@ -699,13 +706,19 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     // Compute addresses
 
     CodeBase = VMA_USER;
-    DataBase = CodeBase + CodeSize;
 
-    while (DataBase & N_4KB_M1) DataBase++;  // Align 4K
+    if (ExecutableMetadata.Layout.DataSize > 0) {
+        // Install data at its linked virtual base (identity mapping) so the
+        // code finds data and read-only strings at the addresses the linker
+        // assigned. Linkers may leave a gap between code and data (TinyCC) or
+        // place read-only data in its own segment, so the destination cannot
+        // be derived from the code size alone.
+        DataBase = ExecutableMetadata.Layout.DataBase;
+    } else {
+        DataBase = ALIGN_UP(CodeBase + CodeSize, N_4KB);
+    }
 
-    HeapBase = DataBase + DataSize;
-
-    while (HeapBase & N_4KB_M1) HeapBase++;  // Align 4K
+    HeapBase = ALIGN_UP(DataBase + DataSize, N_4KB);
 
     //-------------------------------------
     // Compute total size
@@ -1013,7 +1026,9 @@ LINEAR GetProcessHeap(LPPROCESS Process) {
  * @return Memory region list pointer or NULL when unavailable.
  */
 LPMEMORY_REGION_LIST GetProcessMemoryRegionList(LPPROCESS Process) {
-    SAFE_USE_VALID_ID(Process, KOID_PROCESS) { return &Process->MemoryRegionList; }
+    SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+        return &Process->MemoryRegionList;
+    }
 
     return NULL;
 }
@@ -1119,7 +1134,9 @@ void MemoryRegionDescriptorAssignOwner(LPMEMORY_REGION_DESCRIPTOR Descriptor, LP
         Process = &KernelProcess;
     }
 
-    SAFE_USE(Descriptor) { Descriptor->OwnerProcess = Process; }
+    SAFE_USE(Descriptor) {
+        Descriptor->OwnerProcess = Process;
+    }
 }
 
 /***************************************************************************/

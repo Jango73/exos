@@ -25,6 +25,7 @@
 #include "network/TCP.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "log/Profile.h"
 #include "system/System.h"
 #include "network/IPv4.h"
 #include "system/Clock.h"
@@ -64,15 +65,13 @@ static UINT TCP_GetConfiguredBufferSize(LPCSTR configKey, U32 fallback, U32 maxL
         U32 parsedValue = StringToU32(configValue);
         if (parsedValue > 0) {
             if (parsedValue > maxLimit) {
-                WARNING(TEXT("%s=%u exceeds maximum %u, clamping"),
-                        configKey, parsedValue, maxLimit);
+                WARNING(TEXT("%s=%u exceeds maximum %u, clamping"), configKey, parsedValue, maxLimit);
                 return (UINT)maxLimit;
             }
             return (UINT)parsedValue;
         }
 
-        WARNING(TEXT("%s has invalid value '%s', using fallback"),
-                configKey, configValue);
+        WARNING(TEXT("%s has invalid value '%s', using fallback"), configKey, configValue);
     }
 
     return (UINT)fallback;
@@ -92,11 +91,11 @@ TCP_GLOBAL_STATE DATA_SECTION GlobalTCP;
 /************************************************************************/
 // Retransmission/cwnd configuration
 
-#define TCP_CONGESTION_INITIAL_WINDOW       TCP_MAX_RETRANSMIT_PAYLOAD
-#define TCP_CONGESTION_INITIAL_SSTHRESH     (TCP_MAX_RETRANSMIT_PAYLOAD * 8)
-#define TCP_RETRANSMIT_TIMEOUT_MIN          500
-#define TCP_RETRANSMIT_TIMEOUT_MAX          60000
-#define TCP_DUPLICATE_ACK_THRESHOLD         3
+#define TCP_CONGESTION_INITIAL_WINDOW TCP_MAX_RETRANSMIT_PAYLOAD
+#define TCP_CONGESTION_INITIAL_SSTHRESH (TCP_MAX_RETRANSMIT_PAYLOAD * 8)
+#define TCP_RETRANSMIT_TIMEOUT_MIN 500
+#define TCP_RETRANSMIT_TIMEOUT_MAX 60000
+#define TCP_DUPLICATE_ACK_THRESHOLD 3
 
 /************************************************************************/
 // State machine definitions
@@ -136,25 +135,24 @@ static void TCP_ClearRetransmissionState(LPTCP_CONNECTION Conn);
 static void TCP_OnCongestionNewAck(LPTCP_CONNECTION Conn);
 static void TCP_OnCongestionTimeoutLoss(LPTCP_CONNECTION Conn);
 static void TCP_OnCongestionFastLoss(LPTCP_CONNECTION Conn);
-static void TCP_StartTrackedRetransmission(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U32 PayloadLength, U32 SequenceStart);
+static void TCP_StartTrackedRetransmission(
+    LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U32 PayloadLength, U32 SequenceStart);
 static BOOL TCP_RetransmitTrackedSegment(LPTCP_CONNECTION Conn, BOOL FastRetransmit);
 static void TCP_HandleAcknowledgement(LPTCP_CONNECTION Conn, LPTCP_PACKET_EVENT Event);
 static U32 TCP_GetAllowedSendBytes(LPTCP_CONNECTION Conn);
 
 // State definitions
-static SM_STATE_DEFINITION TCP_States[] = {
-    { TCP_STATE_CLOSED,       TCP_OnEnterClosed,       NULL, NULL },
-    { TCP_STATE_LISTEN,       TCP_OnEnterListen,       NULL, NULL },
-    { TCP_STATE_SYN_SENT,     TCP_OnEnterSynSent,      NULL, NULL },
-    { TCP_STATE_SYN_RECEIVED, TCP_OnEnterSynReceived,  NULL, NULL },
-    { TCP_STATE_ESTABLISHED,  TCP_OnEnterEstablished,  NULL, NULL },
-    { TCP_STATE_FIN_WAIT_1,   TCP_OnEnterFinWait1,     NULL, NULL },
-    { TCP_STATE_FIN_WAIT_2,   TCP_OnEnterFinWait2,     NULL, NULL },
-    { TCP_STATE_CLOSE_WAIT,   TCP_OnEnterCloseWait,    NULL, NULL },
-    { TCP_STATE_CLOSING,      TCP_OnEnterClosing,      NULL, NULL },
-    { TCP_STATE_LAST_ACK,     TCP_OnEnterLastAck,      NULL, NULL },
-    { TCP_STATE_TIME_WAIT,    TCP_OnEnterTimeWait,     NULL, NULL }
-};
+static SM_STATE_DEFINITION TCP_States[] = { { TCP_STATE_CLOSED, TCP_OnEnterClosed, NULL, NULL },
+                                            { TCP_STATE_LISTEN, TCP_OnEnterListen, NULL, NULL },
+                                            { TCP_STATE_SYN_SENT, TCP_OnEnterSynSent, NULL, NULL },
+                                            { TCP_STATE_SYN_RECEIVED, TCP_OnEnterSynReceived, NULL, NULL },
+                                            { TCP_STATE_ESTABLISHED, TCP_OnEnterEstablished, NULL, NULL },
+                                            { TCP_STATE_FIN_WAIT_1, TCP_OnEnterFinWait1, NULL, NULL },
+                                            { TCP_STATE_FIN_WAIT_2, TCP_OnEnterFinWait2, NULL, NULL },
+                                            { TCP_STATE_CLOSE_WAIT, TCP_OnEnterCloseWait, NULL, NULL },
+                                            { TCP_STATE_CLOSING, TCP_OnEnterClosing, NULL, NULL },
+                                            { TCP_STATE_LAST_ACK, TCP_OnEnterLastAck, NULL, NULL },
+                                            { TCP_STATE_TIME_WAIT, TCP_OnEnterTimeWait, NULL, NULL } };
 
 // Transition definitions
 static SM_TRANSITION TCP_Transitions[] = {
@@ -258,7 +256,7 @@ static U16 TCP_GetNextEphemeralPort(U32 localIP) {
     }
 
     // If we get here, all ports are in use (very unlikely)
-    return startPort; // Return start port as fallback
+    return startPort;  // Return start port as fallback
 }
 
 /************************************************************************/
@@ -409,7 +407,8 @@ static void TCP_OnCongestionFastLoss(LPTCP_CONNECTION Conn) {
  * @param PayloadLength Segment payload length.
  * @param SequenceStart Segment sequence start number.
  */
-static void TCP_StartTrackedRetransmission(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U32 PayloadLength, U32 SequenceStart) {
+static void TCP_StartTrackedRetransmission(
+    LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U32 PayloadLength, U32 SequenceStart) {
     SAFE_USE_VALID_ID(Conn, KOID_TCP) {
         U32 TrackedLength = PayloadLength;
         U32 SequenceLength = TCP_GetSegmentSequenceLength(Flags, PayloadLength);
@@ -521,8 +520,7 @@ static void TCP_HandleAcknowledgement(LPTCP_CONNECTION Conn, LPTCP_PACKET_EVENT 
 
         if (IsDuplicateAck) {
             Conn->DuplicateAckCount++;
-            if (Conn->DuplicateAckCount >= TCP_DUPLICATE_ACK_THRESHOLD &&
-                Conn->RetransmitPending &&
+            if (Conn->DuplicateAckCount >= TCP_DUPLICATE_ACK_THRESHOLD && Conn->RetransmitPending &&
                 AckNum == Conn->RetransmitSequenceStart) {
                 TCP_OnCongestionFastLoss(Conn);
                 if (TCP_RetransmitTrackedSegment(Conn, TRUE) == TRUE) {
@@ -540,7 +538,8 @@ static void TCP_HandleAcknowledgement(LPTCP_CONNECTION Conn, LPTCP_PACKET_EVENT 
         }
 
         if (Conn->RetransmitPending && AckNum >= Conn->RetransmitSequenceEnd) {
-            if (Conn->RetransmitWasRetried == FALSE && Conn->RetransmitTimestamp > 0 && Now >= Conn->RetransmitTimestamp) {
+            if (Conn->RetransmitWasRetried == FALSE && Conn->RetransmitTimestamp > 0 &&
+                Now >= Conn->RetransmitTimestamp) {
                 U32 SampleRTT = Now - Conn->RetransmitTimestamp;
                 U32 Smoothed = ((Conn->RetransmitBaseTimeout * 7) + SampleRTT) / 8;
 
@@ -589,14 +588,14 @@ static U32 TCP_GetAllowedSendBytes(LPTCP_CONNECTION Conn) {
 
 static int TCP_SendPacket(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U32 PayloadLength) {
     TCP_HEADER Header;
-    U8 Options[4] = {0}; // MSS option: 4 bytes
+    U8 Options[4] = { 0 };  // MSS option: 4 bytes
     U32 OptionsLength = 0;
 
     // Add MSS option for SYN packets
     if (Flags & TCP_FLAG_SYN) {
-        Options[0] = 2;    // MSS option type
-        Options[1] = 4;    // MSS option length
-        Options[2] = 0x05; // MSS = 1460 (0x05B4) in network byte order
+        Options[0] = 2;     // MSS option type
+        Options[1] = 4;     // MSS option length
+        Options[2] = 0x05;  // MSS = 1460 (0x05B4) in network byte order
         Options[3] = 0xB4;
         OptionsLength = 4;
     }
@@ -610,12 +609,11 @@ static int TCP_SendPacket(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U3
     Header.DestinationPort = Conn->RemotePort;
     Header.SequenceNumber = Htonl(Conn->SendNext);
     Header.AckNumber = Htonl(Conn->RecvNext);
-    Header.DataOffset = ((HeaderLength / 4) << 4); // Data offset in 4-byte words, shifted to upper nibble
+    Header.DataOffset = ((HeaderLength / 4) << 4);  // Data offset in 4-byte words, shifted to upper nibble
     Header.Flags = Flags;
     // Always calculate window based on actual TCP buffer space, not cached value
-    UINT AvailableSpace = (Conn->RecvBufferCapacity > Conn->RecvBufferUsed)
-                          ? (Conn->RecvBufferCapacity - Conn->RecvBufferUsed)
-                          : 0;
+    UINT AvailableSpace =
+        (Conn->RecvBufferCapacity > Conn->RecvBufferUsed) ? (Conn->RecvBufferCapacity - Conn->RecvBufferUsed) : 0;
     U16 ActualWindow = (AvailableSpace > 0xFFFFU) ? 0xFFFFU : (U16)AvailableSpace;
     Header.WindowSize = Htons(ActualWindow);
     Conn->LastAdvertisedWindow = ActualWindow;
@@ -632,8 +630,8 @@ static int TCP_SendPacket(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U3
     }
 
     // Calculate checksum
-    ((LPTCP_HEADER)Packet)->Checksum = TCP_CalculateChecksum((LPTCP_HEADER)Packet,
-        Payload, PayloadLength, Conn->LocalIP, Conn->RemoteIP);
+    ((LPTCP_HEADER)Packet)->Checksum =
+        TCP_CalculateChecksum((LPTCP_HEADER)Packet, Payload, PayloadLength, Conn->LocalIP, Conn->RemoteIP);
 
     // Debug: Show the actual TCP header being sent (convert from network to host order for display)
     LPTCP_HEADER TcpHdr = (LPTCP_HEADER)Packet;
@@ -745,7 +743,7 @@ static void TCP_ActionSendSyn(STATE_MACHINE* SM, LPVOID EventData) {
     LPTCP_CONNECTION Conn = (LPTCP_CONNECTION)SM_GetContext(SM);
 
 
-    Conn->SendNext = 1000; // Initial sequence number
+    Conn->SendNext = 1000;  // Initial sequence number
     Conn->SendUnacked = Conn->SendNext;
     Conn->LastAckNumber = Conn->SendUnacked;
     Conn->RetransmitCount = 0;
@@ -763,7 +761,7 @@ static void TCP_ActionSendSynAck(STATE_MACHINE* SM, LPVOID EventData) {
     LPTCP_CONNECTION Conn = (LPTCP_CONNECTION)SM_GetContext(SM);
     LPTCP_PACKET_EVENT Event = (LPTCP_PACKET_EVENT)EventData;
 
-    Conn->SendNext = 2000; // Initial sequence number
+    Conn->SendNext = 2000;  // Initial sequence number
     Conn->RecvNext = Ntohl(Event->Header->SequenceNumber) + 1;
 
     int SendResult = TCP_SendPacket(Conn, TCP_FLAG_SYN | TCP_FLAG_ACK, NULL, 0);
@@ -841,7 +839,6 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
         if (SeqNum < Conn->RecvNext) {
             U32 AlreadyAcked = Conn->RecvNext - SeqNum;
             if (AlreadyAcked >= PayloadLength) {
-
                 int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
                 if (SendResult < 0) {
                     ERROR(TEXT("Failed to send ACK for duplicate segment"));
@@ -856,7 +853,6 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
         }
 
         if (SeqNum > Conn->RecvNext) {
-
             int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
             if (SendResult < 0) {
                 ERROR(TEXT("Failed to send ACK for out-of-order segment"));
@@ -877,9 +873,8 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
             return;
         }
 
-        UINT SpaceAvailable = (Conn->RecvBufferCapacity > Conn->RecvBufferUsed)
-                              ? (Conn->RecvBufferCapacity - Conn->RecvBufferUsed)
-                              : 0;
+        UINT SpaceAvailable =
+            (Conn->RecvBufferCapacity > Conn->RecvBufferUsed) ? (Conn->RecvBufferCapacity - Conn->RecvBufferUsed) : 0;
         U32 CopyLength = (PayloadLength > (U32)SpaceAvailable) ? (U32)SpaceAvailable : PayloadLength;
 
         if (CopyLength > 0) {
@@ -1087,31 +1082,27 @@ static void TCP_ParseOptions(const U8* OptionsData, U32 OptionsLength, LPTCP_OPT
         }
 
         switch (OptionType) {
-            case 2: // Maximum Segment Size
+            case 2:  // Maximum Segment Size
                 if (OptionLength == 4 && Offset + 4 <= OptionsLength) {
                     ParsedOptions->HasMSS = TRUE;
                     ParsedOptions->MSS = (OptionsData[Offset + 2] << 8) | OptionsData[Offset + 3];
                 }
                 break;
 
-            case 3: // Window Scale
+            case 3:  // Window Scale
                 if (OptionLength == 3 && Offset + 3 <= OptionsLength) {
                     ParsedOptions->HasWindowScale = TRUE;
                     ParsedOptions->WindowScale = OptionsData[Offset + 2];
                 }
                 break;
 
-            case 8: // Timestamp
+            case 8:  // Timestamp
                 if (OptionLength == 10 && Offset + 10 <= OptionsLength) {
                     ParsedOptions->HasTimestamp = TRUE;
-                    ParsedOptions->TSVal = (OptionsData[Offset + 2] << 24) |
-                                         (OptionsData[Offset + 3] << 16) |
-                                         (OptionsData[Offset + 4] << 8) |
-                                         OptionsData[Offset + 5];
-                    ParsedOptions->TSEcr = (OptionsData[Offset + 6] << 24) |
-                                         (OptionsData[Offset + 7] << 16) |
-                                         (OptionsData[Offset + 8] << 8) |
-                                         OptionsData[Offset + 9];
+                    ParsedOptions->TSVal = (OptionsData[Offset + 2] << 24) | (OptionsData[Offset + 3] << 16) |
+                                           (OptionsData[Offset + 4] << 8) | OptionsData[Offset + 5];
+                    ParsedOptions->TSEcr = (OptionsData[Offset + 6] << 24) | (OptionsData[Offset + 7] << 16) |
+                                           (OptionsData[Offset + 8] << 8) | OptionsData[Offset + 9];
                 }
                 break;
 
@@ -1132,11 +1123,11 @@ U16 TCP_CalculateChecksum(TCP_HEADER* Header, const U8* Payload, U32 PayloadLeng
 
     // Build IPv4 pseudo-header on stack (12 bytes)
     U8 PseudoHeader[12];
-    *((U32*)(PseudoHeader + 0)) = SourceIP;                    // Source IP (already in network order)
-    *((U32*)(PseudoHeader + 4)) = DestinationIP;              // Destination IP (already in network order)
-    PseudoHeader[8] = 0;                                       // Zero byte
-    PseudoHeader[9] = 6;                                       // TCP protocol
-    *((U16*)(PseudoHeader + 10)) = Htons((U16)TCPTotalLength); // TCP length
+    *((U32*)(PseudoHeader + 0)) = SourceIP;                     // Source IP (already in network order)
+    *((U32*)(PseudoHeader + 4)) = DestinationIP;                // Destination IP (already in network order)
+    PseudoHeader[8] = 0;                                        // Zero byte
+    PseudoHeader[9] = 6;                                        // TCP protocol
+    *((U16*)(PseudoHeader + 10)) = Htons((U16)TCPTotalLength);  // TCP length
 
     // Save and clear checksum field
     U16 SavedChecksum = Header->Checksum;
@@ -1182,9 +1173,8 @@ int TCP_ValidateChecksum(TCP_HEADER* Header, const U8* Payload, U32 PayloadLengt
 /************************************************************************/
 
 /*
-static void TCP_SendRstToUnknownConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPort, U32 RemoteIP, U16 RemotePort, U32 AckNumber) {
-    TCP_HEADER Header;
-    U8 Packet[sizeof(TCP_HEADER)];
+static void TCP_SendRstToUnknownConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPort, U32 RemoteIP, U16 RemotePort,
+U32 AckNumber) { TCP_HEADER Header; U8 Packet[sizeof(TCP_HEADER)];
 
 
     // Fill TCP header for RST response
@@ -1223,16 +1213,13 @@ static void TCP_SendRstToUnknownConnection(LPDEVICE Device, U32 LocalIP, U16 Loc
 void TCP_Initialize(void) {
     MemorySet(&GlobalTCP, 0, sizeof(TCP_GLOBAL_STATE));
     GlobalTCP.NextEphemeralPort = TCP_GetEphemeralPortStart();
-    GlobalTCP.SendBufferSize = TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_SEND_BUFFER_SIZE),
-                                                          TCP_SEND_BUFFER_SIZE,
-                                                          TCP_SEND_BUFFER_SIZE);
-    GlobalTCP.ReceiveBufferSize = TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_RECEIVE_BUFFER_SIZE),
-                                                             TCP_RECV_BUFFER_SIZE,
-                                                             TCP_RECV_BUFFER_SIZE);
+    GlobalTCP.SendBufferSize =
+        TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_SEND_BUFFER_SIZE), TCP_SEND_BUFFER_SIZE, TCP_SEND_BUFFER_SIZE);
+    GlobalTCP.ReceiveBufferSize =
+        TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_RECEIVE_BUFFER_SIZE), TCP_RECV_BUFFER_SIZE, TCP_RECV_BUFFER_SIZE);
 
 
     // TCP protocol handler will be registered later when devices are initialized
-
 }
 
 /************************************************************************/
@@ -1259,7 +1246,8 @@ LPTCP_CONNECTION TCP_CreateConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPor
 
         SAFE_USE(IPv4Context) {
             Conn->LocalIP = IPv4Context->LocalIPv4_Be;
-        } else {
+        }
+        else {
             Conn->LocalIP = 0;
         }
     } else {
@@ -1267,7 +1255,7 @@ LPTCP_CONNECTION TCP_CreateConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPor
     }
     Conn->LocalPort = (LocalPort == 0) ? Htons(TCP_GetNextEphemeralPort(Conn->LocalIP)) : LocalPort;
     Conn->RemoteIP = RemoteIP;
-    Conn->RemotePort = RemotePort; // RemotePort should already be in network byte order from socket layer
+    Conn->RemotePort = RemotePort;  // RemotePort should already be in network byte order from socket layer
     Conn->SendBufferCapacity = GlobalTCP.SendBufferSize;
     Conn->RecvBufferCapacity = GlobalTCP.ReceiveBufferSize;
     Conn->SendWindow = (Conn->SendBufferCapacity > 0xFFFFU) ? 0xFFFFU : (U16)Conn->SendBufferCapacity;
@@ -1299,15 +1287,18 @@ LPTCP_CONNECTION TCP_CreateConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPor
 
     // Register for IPv4 packet sent events on the connection's network device
     LockMutex(&(Conn->Device->Mutex), INFINITY);
-    IPv4_RegisterNotification(Conn->Device, NOTIF_EVENT_IPV4_PACKET_SENT,
-                             TCP_IPv4PacketSentCallback, Conn);
+    IPv4_RegisterNotification(Conn->Device, NOTIF_EVENT_IPV4_PACKET_SENT, TCP_IPv4PacketSentCallback, Conn);
     UnlockMutex(&(Conn->Device->Mutex));
 
     // Initialize state machine
-    SM_Initialize(&Conn->StateMachine, TCP_Transitions,
-                  sizeof(TCP_Transitions) / sizeof(SM_TRANSITION),
-                  TCP_States, sizeof(TCP_States) / sizeof(SM_STATE_DEFINITION),
-                  TCP_STATE_CLOSED, Conn);
+    SM_Initialize(
+        &Conn->StateMachine,
+        TCP_Transitions,
+        sizeof(TCP_Transitions) / sizeof(SM_TRANSITION),
+        TCP_States,
+        sizeof(TCP_States) / sizeof(SM_STATE_DEFINITION),
+        TCP_STATE_CLOSED,
+        Conn);
 
     // Add to connections list
     LPLIST ConnectionList = GetTCPConnectionList();
@@ -1331,7 +1322,7 @@ void TCP_DestroyConnection(LPTCP_CONNECTION Connection) {
         SM_Destroy(&Connection->StateMachine);
 
         // Destroy notification context
-        SAFE_USE (Connection->NotificationContext) {
+        SAFE_USE(Connection->NotificationContext) {
             Notification_DestroyContext(Connection->NotificationContext);
             Connection->NotificationContext = NULL;
         }
@@ -1345,7 +1336,6 @@ void TCP_DestroyConnection(LPTCP_CONNECTION Connection) {
 
         // Free the connection memory
         KernelHeapFree(Connection);
-
     }
 }
 
@@ -1466,7 +1456,7 @@ SM_STATE TCP_GetState(LPTCP_CONNECTION Connection) {
 
 /************************************************************************/
 
-void TCP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 DestinationIP) {
+static void TCP_OnIPv4PacketInternal(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 DestinationIP) {
     if (PayloadLength < sizeof(TCP_HEADER)) {
         return;
     }
@@ -1501,13 +1491,10 @@ void TCP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
     // Find matching connection
     LPTCP_CONNECTION Conn = NULL;
     LPLIST ConnectionList = GetTCPConnectionList();
-    LPTCP_CONNECTION Current =
-        (LPTCP_CONNECTION)(ConnectionList != NULL ? ConnectionList->First : NULL);
+    LPTCP_CONNECTION Current = (LPTCP_CONNECTION)(ConnectionList != NULL ? ConnectionList->First : NULL);
     while (Current != NULL) {
-        if (Current->LocalPort == Header->DestinationPort &&
-            Current->RemotePort == Header->SourcePort &&
-            Current->RemoteIP == SourceIP &&
-            Current->LocalIP == DestinationIP) {
+        if (Current->LocalPort == Header->DestinationPort && Current->RemotePort == Header->SourcePort &&
+            Current->RemoteIP == SourceIP && Current->LocalIP == DestinationIP) {
             Conn = Current;
             break;
         }
@@ -1515,7 +1502,6 @@ void TCP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
     }
 
     if (Conn == NULL) {
-
         // Send RST for packets received on unknown connections (except RST packets)
         if (!(Header->Flags & TCP_FLAG_RST)) {
             U32 AckNum = Ntohl(Header->SequenceNumber) + DataLength;
@@ -1563,7 +1549,16 @@ void TCP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 De
 
     ProcessResult = SM_ProcessEvent(&Conn->StateMachine, EventType, &Event);
     UNUSED(ProcessResult);
+}
 
+/************************************************************************/
+
+void TCP_OnIPv4Packet(const U8* Payload, U32 PayloadLength, U32 SourceIP, U32 DestinationIP) {
+    PROFILE_SCOPE Scope;
+
+    ProfileStart(&Scope, TEXT("TcpInput"));
+    TCP_OnIPv4PacketInternal(Payload, PayloadLength, SourceIP, DestinationIP);
+    ProfileStop(&Scope);
 }
 
 /************************************************************************/
@@ -1578,9 +1573,7 @@ void TCP_Update(void) {
         SM_STATE CurrentState = SM_GetCurrentState(&Conn->StateMachine);
 
         // Check TIME_WAIT timeout
-        if (CurrentState == TCP_STATE_TIME_WAIT &&
-            Conn->TimeWaitTimer > 0 &&
-            CurrentTime >= Conn->TimeWaitTimer) {
+        if (CurrentState == TCP_STATE_TIME_WAIT && Conn->TimeWaitTimer > 0 && CurrentTime >= Conn->TimeWaitTimer) {
             SM_ProcessEvent(&Conn->StateMachine, TCP_EVENT_TIMEOUT, NULL);
         }
 
@@ -1590,9 +1583,7 @@ void TCP_Update(void) {
             SM_ProcessEvent(&Conn->StateMachine, TCP_EVENT_TIMEOUT, NULL);
         }
 
-        if (Conn->RetransmitPending &&
-            Conn->RetransmitTimer > 0 &&
-            CurrentTime >= Conn->RetransmitTimer) {
+        if (Conn->RetransmitPending && Conn->RetransmitTimer > 0 && CurrentTime >= Conn->RetransmitTimer) {
             if (Conn->RetransmitCount < TCP_MAX_RETRANSMITS) {
                 TCP_OnCongestionTimeoutLoss(Conn);
                 if (TCP_RetransmitTrackedSegment(Conn, FALSE) == FALSE) {
@@ -1634,10 +1625,10 @@ U32 TCP_RegisterCallback(LPTCP_CONNECTION Connection, U32 Event, NOTIFICATION_CA
 
     U32 Result = Notification_Register(Connection->NotificationContext, Event, Callback, UserData);
     if (Result != 0) {
-        return 0; // Success
+        return 0;  // Success
     } else {
         ERROR(TEXT("Failed to register callback for event %u on connection %p"), Event, (LPVOID)Connection);
-        return 1; // Error
+        return 1;  // Error
     }
 }
 
@@ -1655,11 +1646,10 @@ void TCP_InitSlidingWindow(LPTCP_CONNECTION Connection) {
         if (MaxWindow == 0) {
             MaxWindow = TCP_RECV_BUFFER_SIZE;
         }
-        U32 LowThreshold = MaxWindow / 3;      // 1/3 threshold
-        U32 HighThreshold = (MaxWindow * 2) / 3; // 2/3 threshold
+        U32 LowThreshold = MaxWindow / 3;         // 1/3 threshold
+        U32 HighThreshold = (MaxWindow * 2) / 3;  // 2/3 threshold
 
         Hysteresis_Initialize(&Connection->WindowHysteresis, LowThreshold, HighThreshold, MaxWindow);
-
     }
 }
 
@@ -1675,8 +1665,8 @@ void TCP_ProcessDataConsumption(LPTCP_CONNECTION Connection, U32 DataConsumed) {
     SAFE_USE_VALID_ID(Connection, KOID_TCP) {
         // NOTE: RecvBufferUsed is already updated by caller, just calculate window
         UINT AvailableSpace = (Connection->RecvBufferCapacity > Connection->RecvBufferUsed)
-                              ? (Connection->RecvBufferCapacity - Connection->RecvBufferUsed)
-                              : 0;
+                                  ? (Connection->RecvBufferCapacity - Connection->RecvBufferUsed)
+                                  : 0;
         U16 NewWindow = (AvailableSpace > 0xFFFFU) ? 0xFFFFU : (U16)AvailableSpace;
 
         // Update hysteresis with new window size
@@ -1702,7 +1692,6 @@ BOOL TCP_ShouldSendWindowUpdate(LPTCP_CONNECTION Connection) {
         BOOL ShouldSend = Hysteresis_IsTransitionPending(&Connection->WindowHysteresis);
 
         if (ShouldSend) {
-
             // Clear the transition flag since we're about to send the update
             Hysteresis_ClearTransition(&Connection->WindowHysteresis);
         }
@@ -1736,8 +1725,8 @@ void TCP_HandleApplicationRead(LPTCP_CONNECTION Connection, U32 BytesConsumed) {
 
         BOOL ShouldSend = TCP_ShouldSendWindowUpdate(Connection);
         UINT AvailableSpace = (Connection->RecvBufferCapacity > Connection->RecvBufferUsed)
-                              ? (Connection->RecvBufferCapacity - Connection->RecvBufferUsed)
-                              : 0;
+                                  ? (Connection->RecvBufferCapacity - Connection->RecvBufferUsed)
+                                  : 0;
         U16 NewWindow = (AvailableSpace > 0xFFFFU) ? 0xFFFFU : (U16)AvailableSpace;
         if (!ShouldSend && NewWindow > Connection->LastAdvertisedWindow) {
             U16 Delta = (U16)(NewWindow - Connection->LastAdvertisedWindow);

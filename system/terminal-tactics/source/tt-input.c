@@ -38,7 +38,7 @@
 /************************************************************************/
 
 static BOOL TryGetKey(I32* keyOut) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
     U32 gotKey;
 
     gotKey = ConsoleGetKey(&KeyCode);

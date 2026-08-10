@@ -22,6 +22,7 @@
 \************************************************************************/
 
 #include "drivers/filesystems/FileSystem-Common.h"
+#include "fs/DiskTransferLayer.h"
 
 /************************************************************************/
 
@@ -38,8 +39,15 @@
  * @param Command Disk command to execute.
  * @return TRUE on success, FALSE on failure.
  */
-BOOL PartitionTransferSectors(LPSTORAGE_UNIT Disk, SECTOR PartitionStart, U32 PartitionSize, SECTOR Sector,
-                              U32 SectorCount, LPVOID Buffer, U32 BufferSize, UINT Command) {
+BOOL PartitionTransferSectors(
+    LPSTORAGE_UNIT Disk,
+    SECTOR PartitionStart,
+    U32 PartitionSize,
+    SECTOR Sector,
+    U32 SectorCount,
+    LPVOID Buffer,
+    U32 BufferSize,
+    UINT Command) {
     IOCONTROL Control;
 
     if (Disk == NULL || Buffer == NULL || SectorCount == 0 || BufferSize == 0) {
@@ -58,5 +66,13 @@ BOOL PartitionTransferSectors(LPSTORAGE_UNIT Disk, SECTOR PartitionStart, U32 Pa
     Control.Buffer = Buffer;
     Control.BufferSize = BufferSize;
 
-    return (Disk->Driver->Command(Command, (UINT)&Control) == DF_RETURN_SUCCESS);
+    if (Command == DF_DISK_READ) {
+        return (DiskTransferLayerRead(&Control) == DF_RETURN_SUCCESS);
+    }
+
+    if (Command == DF_DISK_WRITE) {
+        return (DiskTransferLayerWrite(&Control) == DF_RETURN_SUCCESS);
+    }
+
+    return FALSE;
 }

@@ -45,12 +45,7 @@ static BOOL InterceptProcessControlMessage(LPPROCESS Process, U32 Message, U32 P
 static BOOL FetchProcessMessage(LPPROCESS Process, LPMESSAGE_INFO Message, BOOL Remove);
 static BOOL FetchTaskMessage(LPTASK Task, LPMESSAGE_INFO Message, BOOL Remove);
 static BOOL FindTaskMessageOffset(
-    LPMESSAGEQUEUE Queue,
-    HANDLE Target,
-    U32 Message,
-    BOOL MatchParam1,
-    U32 Param1,
-    UINT* Offset);
+    LPMESSAGEQUEUE Queue, HANDLE Target, U32 Message, BOOL MatchParam1, U32 Param1, UINT* Offset);
 static LPWINDOW_CLASS ResolveWindowDispatchClass(LPWINDOW Window, WINDOWFUNC Function);
 static void PushWindowDispatchContext(
     LPTASK Task,
@@ -61,10 +56,7 @@ static void PushWindowDispatchContext(
     LPVOID* PreviousClass,
     WINDOWFUNC* PreviousFunction);
 static void PopWindowDispatchContext(
-    LPTASK Task,
-    LPVOID PreviousWindow,
-    LPVOID PreviousClass,
-    WINDOWFUNC PreviousFunction);
+    LPTASK Task, LPVOID PreviousWindow, LPVOID PreviousClass, WINDOWFUNC PreviousFunction);
 static BOOL ShouldSuppressDesktopDrawMessage(U32 Message);
 static void EnterTaskMessageWaitLocked(LPTASK Task);
 static void WakeTaskMessageWaitLocked(LPTASK Task);
@@ -178,10 +170,7 @@ static void PushWindowDispatchContext(
 /************************************************************************/
 
 static void PopWindowDispatchContext(
-    LPTASK Task,
-    LPVOID PreviousWindow,
-    LPVOID PreviousClass,
-    WINDOWFUNC PreviousFunction) {
+    LPTASK Task, LPVOID PreviousWindow, LPVOID PreviousClass, WINDOWFUNC PreviousFunction) {
     if (Task == NULL || Task->TypeID != KOID_TASK) return;
 
     Task->WindowDispatchWindow = PreviousWindow;
@@ -223,7 +212,7 @@ static void WakeTaskMessageWaitLocked(LPTASK Task) {
     }
 
     Task->MessageQueue.Waiting = FALSE;
-    SetTaskStatusDirect(Task, TASK_STATUS_RUNNING);
+    SetTaskStatusDirect(Task, TASK_STATUS_READY);
 }
 
 /**
@@ -281,8 +270,7 @@ BOOL EnsureTaskMessageQueue(LPTASK Task, BOOL CreateIfMissing) {
     UNUSED(CreateIfMissing);
 
     SAFE_USE_VALID_ID(Task, KOID_TASK) {
-        if (Task->MessageQueue.MessageBuffer.Entries == NULL ||
-            Task->MessageQueue.MessageBuffer.Capacity == 0) {
+        if (Task->MessageQueue.MessageBuffer.Entries == NULL || Task->MessageQueue.MessageBuffer.Capacity == 0) {
             ERROR(TEXT("Task %p has no message buffer"), Task);
             return FALSE;
         }
@@ -297,8 +285,7 @@ BOOL EnsureTaskMessageQueue(LPTASK Task, BOOL CreateIfMissing) {
 
 BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
     SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
-        if (Process->MessageQueue.MessageBuffer.Entries == NULL ||
-            Process->MessageQueue.MessageBuffer.Capacity == 0) {
+        if (Process->MessageQueue.MessageBuffer.Entries == NULL || Process->MessageQueue.MessageBuffer.Capacity == 0) {
             UINT MessageBufferSize;
             UINT MessageQueueCapacity;
             LINEAR MessageBufferBase;
@@ -307,10 +294,11 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
                 return FALSE;
             }
 
-            MessageQueueCapacity = GetConfigurationUInt(TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES),
-                                                       TASK_MESSAGE_QUEUE_MAX_MESSAGES,
-                                                       1,
-                                                       MAX_U32 / sizeof(MESSAGE));
+            MessageQueueCapacity = GetConfigurationUInt(
+                TEXT(CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES),
+                TASK_MESSAGE_QUEUE_MAX_MESSAGES,
+                1,
+                MAX_U32 / sizeof(MESSAGE));
             MessageBufferSize = MessageQueueCapacity * sizeof(MESSAGE);
             MessageBufferBase = (LINEAR)KernelHeapAlloc(MessageBufferSize);
             if (MessageBufferBase == 0) {
@@ -318,15 +306,15 @@ BOOL EnsureProcessMessageQueue(LPPROCESS Process, BOOL CreateIfMissing) {
                 return FALSE;
             }
 
-            InitMutexWithDebugInfo(&(Process->MessageQueue.Mutex), MUTEX_CLASS_PROCESS_MESSAGE_QUEUE, TEXT("ProcessMessageQueue"));
+            InitMutexWithDebugInfo(
+                &(Process->MessageQueue.Mutex), MUTEX_CLASS_PROCESS_MESSAGE_QUEUE, TEXT("ProcessMessageQueue"));
             Process->MessageQueue.MessageBufferBase = MessageBufferBase;
             Process->MessageQueue.MessageBufferSize = MessageBufferSize;
             Process->MessageQueue.Waiting = FALSE;
             Process->MessageQueue.Capacity = MessageQueueCapacity;
             Process->MessageQueue.Flags = 0;
-            MessageQueueBufferInitialize(&(Process->MessageQueue.MessageBuffer),
-                                         (LPMESSAGE)MessageBufferBase,
-                                         MessageQueueCapacity);
+            MessageQueueBufferInitialize(
+                &(Process->MessageQueue.MessageBuffer), (LPMESSAGE)MessageBufferBase, MessageQueueCapacity);
         }
 
         return TRUE;
@@ -387,7 +375,9 @@ BOOL PeekMessage(LPMESSAGE_INFO Message) {
     if (Message == NULL) return FALSE;
 
     Task = GetCurrentTask();
-    SAFE_USE_VALID_ID(Task, KOID_TASK) { TaskProcessPtr = Task->OwnerProcess; }
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        TaskProcessPtr = Task->OwnerProcess;
+    }
     DEBUG(TEXT("Task=%p Process=%p FocusedProcess=%p"), Task, TaskProcessPtr, GetFocusedProcess());
 
     Process = TaskProcessPtr;
@@ -469,12 +459,7 @@ static BOOL CopyMessageFromQueueLocked(LPMESSAGEQUEUE Queue, LPMESSAGE_INFO Mess
 /************************************************************************/
 
 static BOOL FindTaskMessageOffset(
-    LPMESSAGEQUEUE Queue,
-    HANDLE Target,
-    U32 Message,
-    BOOL MatchParam1,
-    U32 Param1,
-    UINT* Offset) {
+    LPMESSAGEQUEUE Queue, HANDLE Target, U32 Message, BOOL MatchParam1, U32 Param1, UINT* Offset) {
     UINT Index = 0;
     MESSAGE Current;
 
@@ -603,7 +588,7 @@ static BOOL AddProcessMessage(LPPROCESS Process, LPMESSAGE Message) {
 
         SAFE_USE_VALID_ID(Task, KOID_TASK) {
             if (Task->OwnerProcess == Process && GetTaskStatus(Task) == TASK_STATUS_WAITMESSAGE) {
-                SetTaskStatus(Task, TASK_STATUS_RUNNING);
+                SetTaskStatus(Task, TASK_STATUS_READY);
             }
         }
     }
@@ -826,7 +811,8 @@ BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
 
                 SAFE_USE_VALID_ID(Desktop, KOID_DESKTOP) {
                     (void)DesktopResolveWindowTarget(Desktop, Target, &Window);
-                } else {
+                }
+                else {
                     Window = NULL;
                 }
 
@@ -854,21 +840,11 @@ BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
             LockMutex(&(Task->MessageQueue.Mutex), INFINITY);
 
             if (Msg == EWM_DRAW) {
-                HasExisting = FindTaskMessageOffset(
-                    &(Task->MessageQueue),
-                    (HANDLE)Window,
-                    Msg,
-                    FALSE,
-                    0,
-                    &ExistingOffset);
+                HasExisting =
+                    FindTaskMessageOffset(&(Task->MessageQueue), (HANDLE)Window, Msg, FALSE, 0, &ExistingOffset);
             } else {
-                HasExisting = FindTaskMessageOffset(
-                    &(Task->MessageQueue),
-                    (HANDLE)Window,
-                    Msg,
-                    TRUE,
-                    Param1,
-                    &ExistingOffset);
+                HasExisting =
+                    FindTaskMessageOffset(&(Task->MessageQueue), (HANDLE)Window, Msg, TRUE, Param1, &ExistingOffset);
             }
 
             if (HasExisting != FALSE &&
@@ -882,7 +858,7 @@ BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
                 UnlockMutex(&(Task->Mutex));
 
                 if (GetTaskStatus(Task) == TASK_STATUS_WAITMESSAGE) {
-                    SetTaskStatus(Task, TASK_STATUS_RUNNING);
+                    SetTaskStatus(Task, TASK_STATUS_READY);
                 }
 
                 return TRUE;
@@ -904,7 +880,7 @@ BOOL PostMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
         }
 
         if (GetTaskStatus(Task) == TASK_STATUS_WAITMESSAGE) {
-            SetTaskStatus(Task, TASK_STATUS_RUNNING);
+            SetTaskStatus(Task, TASK_STATUS_READY);
         }
 
         return TRUE;
@@ -994,7 +970,7 @@ U32 SendMessage(HANDLE Target, U32 Msg, U32 Param1, U32 Param2) {
  * Sets the task status to TASK_STATUS_WAITMESSAGE and yields CPU cycles
  * until another thread posts a message to the task's queue. The task will
  * remain blocked until PostMessage() or another message-sending function
- * changes its status back to TASK_STATUS_RUNNING.
+ * makes it runnable again (TASK_STATUS_READY).
  *
  * @param Task Pointer to the task that should wait for messages
  *
@@ -1029,15 +1005,29 @@ void WaitForMessage(LPTASK Task) {
     while (Task != NULL && Task->TypeID == KOID_TASK && Task->SchedulerState.Status == TASK_STATUS_WAITMESSAGE) {
         SAFE_USE_VALID_ID(Task->OwnerProcess, KOID_PROCESS) {
             if (EnsureProcessMessageQueue(Task->OwnerProcess, TRUE) == TRUE) {
+                UINT Flags;
+
+                // This wait loop runs while the task keeps TASK_STATUS_WAITMESSAGE,
+                // so the scheduler never selects the task again until a producer
+                // posts a message. The queue mutex must therefore never be held
+                // across a preemption point: a switch in that window would leave a
+                // non-runnable task owning the mutex and no message could ever be
+                // enqueued to wake it. Keep interrupts disabled for the whole
+                // lock-check-release section.
+                SaveFlags(&Flags);
+                DisableInterrupts();
+
                 LockMutex(&(Task->OwnerProcess->MessageQueue.Mutex), INFINITY);
 
                 if (MessageQueueBufferGetCount(&(Task->OwnerProcess->MessageQueue.MessageBuffer)) > 0) {
                     UnlockMutex(&(Task->OwnerProcess->MessageQueue.Mutex));
+                    RestoreFlags(&Flags);
                     SetTaskStatus(Task, TASK_STATUS_RUNNING);
                     break;
                 }
 
                 UnlockMutex(&(Task->OwnerProcess->MessageQueue.Mutex));
+                RestoreFlags(&Flags);
             }
         }
 
@@ -1071,7 +1061,9 @@ BOOL GetMessage(LPMESSAGE_INFO Message) {
     if (Message == NULL) return FALSE;
 
     Task = GetCurrentTask();
-    SAFE_USE_VALID_ID(Task, KOID_TASK) { TaskProcessPtr = Task->OwnerProcess; }
+    SAFE_USE_VALID_ID(Task, KOID_TASK) {
+        TaskProcessPtr = Task->OwnerProcess;
+    }
 
     if (EnsureTaskMessageQueue(Task, TRUE) == FALSE) return FALSE;
     Process = TaskProcessPtr;
@@ -1127,7 +1119,8 @@ BOOL DispatchMessage(LPMESSAGE_INFO Message) {
 
     if (Process->Privilege == CPU_PRIVILEGE_KERNEL) {
         Window = (LPWINDOW)Message->Target;
-        SAFE_USE_VALID_ID(Window, KOID_WINDOW) {}
+        SAFE_USE_VALID_ID(Window, KOID_WINDOW) {
+        }
         else {
             Window = NULL;
         }

@@ -70,8 +70,7 @@ static BOOL HotkeyActionToggleWindowPipelineTrace(LPPROCESS Process) {
     UNUSED(Process);
 
     SetWindowPipelineTraceEnabled(!GetWindowPipelineTraceEnabled());
-    DEBUG(TEXT("Window pipeline trace %s"),
-        GetWindowPipelineTraceEnabled() ? TEXT("enabled") : TEXT("disabled"));
+    DEBUG(TEXT("Window pipeline trace %s"), GetWindowPipelineTraceEnabled() ? TEXT("enabled") : TEXT("disabled"));
     return TRUE;
 }
 
@@ -212,8 +211,7 @@ static HOTKEY_ACTION_HANDLER HotkeyResolveAction(LPCSTR ActionName) {
         {TEXT("switch_to_console"), HotkeyActionSwitchToConsole},
         {TEXT("toggle_window_pipeline_trace"), HotkeyActionToggleWindowPipelineTrace},
         {TEXT("toggle_slow_redraw"), HotkeyActionToggleWindowPipelineTrace},
-        {NULL, NULL}
-    };
+        {NULL, NULL}};
 
     if (ActionName == NULL || ActionName[0] == STR_NULL) {
         return NULL;
@@ -231,12 +229,7 @@ static HOTKEY_ACTION_HANDLER HotkeyResolveAction(LPCSTR ActionName) {
 /************************************************************************/
 
 static BOOL HotkeyHandleEntry(
-    U8 VirtualKey,
-    U32 Modifiers,
-    LPCSTR KeyExpression,
-    LPCSTR ActionName,
-    LPPROCESS Process,
-    BOOL LogErrors) {
+    U8 VirtualKey, U32 Modifiers, LPCSTR KeyExpression, LPCSTR ActionName, LPPROCESS Process, BOOL LogErrors) {
     HOTKEY_BINDING Binding;
     HOTKEY_ACTION_HANDLER Handler = NULL;
 
@@ -272,7 +265,7 @@ BOOL HotkeyHandleKeyDown(U8 VirtualKey, U32 Modifiers, BOOL Repeat) {
     LPTOML Configuration = NULL;
     LPPROCESS Process = NULL;
     U32 ConfigIndex = 0;
-    BOOL HasConfiguredHotkey = FALSE;
+    BOOL HasConfiguredCtrlCHotkey = FALSE;
 
     if (VirtualKey == VK_NONE) {
         return FALSE;
@@ -293,13 +286,15 @@ BOOL HotkeyHandleKeyDown(U8 VirtualKey, U32 Modifiers, BOOL Repeat) {
     }
 
     if (HotkeyHandleEntry(
-            VirtualKey, Modifiers, TEXT("control+shift+f12"), TEXT("toggle_window_pipeline_trace"), Process, FALSE) == TRUE) {
+            VirtualKey, Modifiers, TEXT("control+shift+f12"), TEXT("toggle_window_pipeline_trace"), Process, FALSE) ==
+        TRUE) {
         return TRUE;
     }
 
     FOREVER {
         STR KeyPath[MAX_FILE_NAME];
         STR ActionPath[MAX_FILE_NAME];
+        HOTKEY_BINDING ConfiguredBinding;
         LPCSTR KeyExpression = NULL;
         LPCSTR ActionName = NULL;
 
@@ -308,7 +303,11 @@ BOOL HotkeyHandleKeyDown(U8 VirtualKey, U32 Modifiers, BOOL Repeat) {
         if (KeyExpression == NULL) {
             break;
         }
-        HasConfiguredHotkey = TRUE;
+
+        if (HotkeyParseExpression(KeyExpression, &ConfiguredBinding) == TRUE && ConfiguredBinding.VirtualKey == VK_C &&
+            ConfiguredBinding.Modifiers == KEYMOD_CONTROL) {
+            HasConfiguredCtrlCHotkey = TRUE;
+        }
 
         StringPrintFormat(ActionPath, TEXT("Hotkey.%u.Action"), ConfigIndex);
         ActionName = TomlGet(Configuration, ActionPath);
@@ -324,7 +323,7 @@ BOOL HotkeyHandleKeyDown(U8 VirtualKey, U32 Modifiers, BOOL Repeat) {
         ConfigIndex++;
     }
 
-    if (HasConfiguredHotkey == FALSE) {
+    if (VirtualKey == VK_C && Modifiers == KEYMOD_CONTROL && HasConfiguredCtrlCHotkey == FALSE) {
         return HotkeyHandleEntry(VirtualKey, Modifiers, TEXT("control+c"), TEXT("kill_process"), Process, FALSE);
     }
 

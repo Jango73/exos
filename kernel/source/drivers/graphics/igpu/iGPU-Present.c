@@ -113,7 +113,7 @@ static BOOL IntelGfxEnsureShadowFrameBufferSize(UINT RequiredSize) {
 /************************************************************************/
 
 UINT IntelGfxScrollRegionViaShadow(LPGRAPHICSCONTEXT Context, LPGFX_TEXT_REGION_INFO Info) {
-    GRAPHICSCONTEXT ShadowContext;
+    GRAPHICS_CONTEXT ShadowContext;
     I32 PixelX = 0;
     I32 PixelY = 0;
     U32 PixelWidth = 0;

@@ -109,7 +109,7 @@ Deliverable:
 First milestone should avoid full native modesetting complexity.
 
 - [x] Read active scanout state from Intel display registers (pipe, plane, stride, base).
-- [x] Build a `GRAPHICSCONTEXT` from the active mode.
+- [x] Build a `GRAPHICS_CONTEXT` from the active mode.
 - [x] Map the active framebuffer memory and expose it as `MemoryBase`.
 - [x] Present through CPU blit to active scanout buffer.
 
@@ -153,7 +153,7 @@ Objective: remove single-format assumptions and make iGPU modeset path spec-comp
   - refresh and link constraints per output/family.
 - [ ] Replace implicit "32 bpp only" policy with explicit format validation and deterministic error reporting.
 - [ ] Extend mode programming path to map requested format -> hardware plane format bits per family.
-- [ ] Propagate real channel layout (bit position/mask) from programmed/readback format to `GRAPHICSCONTEXT` for all iGPU modes.
+- [ ] Propagate real channel layout (bit position/mask) from programmed/readback format to `GRAPHICS_CONTEXT` for all iGPU modes.
 - [ ] Ensure text and 2D primitives use context channel layout, never hardcoded color packing assumptions.
 - [ ] Add per-family format capability flags in `INTEL_GFX_CAPS` and keep selection capability-driven.
 - [ ] Add strict fallback rules when requested format is unsupported:

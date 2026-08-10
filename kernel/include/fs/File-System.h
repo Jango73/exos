@@ -165,7 +165,7 @@ typedef struct tag_FILESYSTEM {
 
 typedef struct tag_FILESYSTEM_GLOBAL_INFO {
     STR ActivePartitionName[MAX_FS_LOGICAL_NAME];
-} FILESYSTEM_GLOBAL_INFO, *LPFILESYSTEM_GLOBAL_INFO;
+} FILE_SYSTEM_GLOBAL_INFO, *LPFILESYSTEM_GLOBAL_INFO;
 
 /***************************************************************************/
 // The structure used by the folder commands and the file open command
@@ -229,16 +229,16 @@ typedef struct tag_FILESYSTEM_MOUNT_CONTROL {
     STR Path[MAX_PATH_NAME];
     LPLISTNODE Node;
     STR SourcePath[MAX_PATH_NAME];
-} FILESYSTEM_MOUNT_CONTROL, *LPFILESYSTEM_MOUNT_CONTROL;
+} FILE_SYSTEM_MOUNT_CONTROL, *LPFILESYSTEM_MOUNT_CONTROL;
 
-typedef FILESYSTEM_MOUNT_CONTROL FILESYSTEM_UNMOUNT_CONTROL, *LPFILESYSTEM_UNMOUNT_CONTROL;
+typedef FILE_SYSTEM_MOUNT_CONTROL FILESYSTEM_UNMOUNT_CONTROL, *LPFILESYSTEM_UNMOUNT_CONTROL;
 
 /***************************************************************************/
 
 typedef struct tag_FILESYSTEM_PATHCHECK {
     STR CurrentFolder[MAX_PATH_NAME];
     STR SubFolder[MAX_PATH_NAME];
-} FILESYSTEM_PATHCHECK, *LPFILESYSTEM_PATHCHECK;
+} FILE_SYSTEM_PATH_CHECK, *LPFILESYSTEM_PATHCHECK;
 
 /***************************************************************************/
 

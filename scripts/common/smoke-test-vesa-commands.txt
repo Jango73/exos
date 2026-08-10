@@ -1,0 +1,8 @@
+# VESA smoke-test command specification
+# Format:
+# command: "<command line>" | log: "<expected fixed log fragment>"
+
+command: "pause off" | log: "TEST > [CMD_pause] pause off : OK"
+command: "changeFolder system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
+command: "scripts/smoke-test-vesa.e0" | timeout: 30 | log: "TEST > [ShellPrintScriptReturnValue] 42"
+command: "shutdown"

@@ -103,9 +103,8 @@ typedef struct tag_SYSTEM_DATA_VIEW_PCI_INFO {
     U32 BAR[6];
 } SYSTEM_DATA_VIEW_PCI_INFO, *LPSYSTEM_DATA_VIEW_PCI_INFO;
 
-typedef BOOL (*SYSTEM_DATA_VIEW_PCI_VISITOR)(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData);
+typedef BOOL (*SYSTEM_DATA_VIEW_PCI_VISITOR)(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData);
 
 typedef struct tag_SYSTEM_DATA_VIEW_PCI_LIST_STATE {
     UINT Index;
@@ -225,11 +224,8 @@ static void SystemDataViewWritePadding(LPSYSTEM_DATA_VIEW_CONTEXT Context, UINT 
  * @param Label Label text.
  * @param ValueFormat Value format string.
  */
-static void SystemDataViewWriteFormat(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    UINT ValueColumn,
-    LPCSTR Label,
-    LPCSTR ValueFormat,
-    ...) {
+static void SystemDataViewWriteFormat(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, UINT ValueColumn, LPCSTR Label, LPCSTR ValueFormat, ...) {
     VarArgList Arguments;
     UINT LabelLength = StringLength(Label);
     UINT Padding = 1;
@@ -258,11 +254,8 @@ static void SystemDataViewWriteFormat(LPSYSTEM_DATA_VIEW_CONTEXT Context,
  */
 static void SystemDataViewDrawPageHeader(LPSYSTEM_DATA_VIEW_CONTEXT Context, LPCSTR Title, U8 PageIndex) {
     SystemDataViewWriteFormatRaw(Context, TEXT("System Data View\n"));
-    SystemDataViewWriteFormatRaw(Context,
-        TEXT("Page %u/%u: %s\n"),
-        (U32)(PageIndex + 1),
-        (U32)SYSTEM_DATA_VIEW_PAGE_COUNT,
-        Title);
+    SystemDataViewWriteFormatRaw(
+        Context, TEXT("Page %u/%u: %s\n"), (U32)(PageIndex + 1), (U32)SYSTEM_DATA_VIEW_PAGE_COUNT, Title);
     SystemDataViewWriteString(Context, TEXT("-------------------------------------------------------------\n"));
 }
 
@@ -325,10 +318,7 @@ static void SystemDataViewRender(LPSYSTEM_DATA_VIEW_CONTEXT Context, UINT Scroll
  * @param ProgrammingInterface Programming interface code.
  * @return TRUE when the device matches.
  */
-static BOOL SystemDataViewPciMatch(LPPCI_DEVICE Device,
-    U8 BaseClass,
-    U8 SubClass,
-    U8 ProgrammingInterface) {
+static BOOL SystemDataViewPciMatch(LPPCI_DEVICE Device, U8 BaseClass, U8 SubClass, U8 ProgrammingInterface) {
     if (Device == NULL) {
         return FALSE;
     }
@@ -360,11 +350,8 @@ static BOOL SystemDataViewPciMatch(LPPCI_DEVICE Device,
  * @param DeviceCountOut Output count of matching devices.
  * @return TRUE when at least one device is found.
  */
-static BOOL SystemDataViewFindPciController(U8 BaseClass,
-    U8 SubClass,
-    U8 ProgrammingInterface,
-    LPPCI_DEVICE* FirstDeviceOut,
-    UINT* DeviceCountOut) {
+static BOOL SystemDataViewFindPciController(
+    U8 BaseClass, U8 SubClass, U8 ProgrammingInterface, LPPCI_DEVICE* FirstDeviceOut, UINT* DeviceCountOut) {
     LPLIST DeviceList = GetPCIDeviceList();
     LPPCI_DEVICE FirstDevice = NULL;
     UINT DeviceCount = 0;
@@ -465,7 +452,7 @@ static BOOL SystemDataViewReadIoApicRedirection(U32 GlobalInterrupt, U32* Low, U
             continue;
         }
 
-        IOAPIC_REDIRECTION_ENTRY Redirection;
+        IO_APIC_REDIRECTION_ENTRY Redirection;
         if (ReadRedirectionEntry(Index, (U8)Entry, &Redirection)) {
             if (Low != NULL) {
                 *Low = Redirection.Low;
@@ -521,18 +508,34 @@ static void SystemDataViewDrawPageAcpi(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pa
         return;
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Use Local APIC"),
-        TEXT("%s\n"), Config->UseLocalApic ? TEXT("Yes") : TEXT("No"));
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Use IO APIC"),
-        TEXT("%s\n"), Config->UseIoApic ? TEXT("Yes") : TEXT("No"));
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Local APIC Address"),
-        TEXT("%p\n"), (LPVOID)(LINEAR)Config->LocalApicAddress);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Local APIC Count"),
-        TEXT("%u\n"), (U32)Config->LocalApicCount);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Count"),
-        TEXT("%u\n"), (U32)Config->IoApicCount);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Interrupt Overrides"),
-        TEXT("%u\n"), (U32)Config->InterruptOverrideCount);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Use Local APIC"),
+        TEXT("%s\n"),
+        Config->UseLocalApic ? TEXT("Yes") : TEXT("No"));
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Use IO APIC"),
+        TEXT("%s\n"),
+        Config->UseIoApic ? TEXT("Yes") : TEXT("No"));
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Local APIC Address"),
+        TEXT("%p\n"),
+        (LPVOID)(LINEAR)Config->LocalApicAddress);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Local APIC Count"), TEXT("%u\n"), (U32)Config->LocalApicCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Count"), TEXT("%u\n"), (U32)Config->IoApicCount);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Interrupt Overrides"),
+        TEXT("%u\n"),
+        (U32)Config->InterruptOverrideCount);
 
     for (UINT Index = 0; Index < Config->LocalApicCount; Index++) {
         LPLOCAL_APIC_INFO Info = GetLocalApicInfo(Index);
@@ -543,7 +546,10 @@ static void SystemDataViewDrawPageAcpi(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pa
         }
 
         StringPrintFormat(Label, TEXT("Local APIC %u"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Processor=%u Apic=%u Flags=%x\n"),
             (U32)Info->ProcessorId,
             (U32)Info->ApicId,
@@ -559,7 +565,10 @@ static void SystemDataViewDrawPageAcpi(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pa
         }
 
         StringPrintFormat(Label, TEXT("IO APIC %u"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Identifier=%u Address=%p Global Interrupt Base=%u\n"),
             (U32)Info->IoApicId,
             (LPVOID)(LINEAR)Info->IoApicAddress,
@@ -575,7 +584,10 @@ static void SystemDataViewDrawPageAcpi(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pa
         }
 
         StringPrintFormat(Label, TEXT("Override %u"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Bus=%u Source=%u Global Interrupt=%u Flags=%x\n"),
             (U32)Info->Bus,
             (U32)Info->Source,
@@ -612,12 +624,15 @@ static void SystemDataViewDrawPagePicPitIoApic(LPSYSTEM_DATA_VIEW_CONTEXT Contex
 
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC Mask1"), TEXT("%x\n"), Mask1);
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC Mask2"), TEXT("%x\n"), Mask2);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC IRR1"), TEXT("%x\n"), InterruptRequest1);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC IRR2"), TEXT("%x\n"), InterruptRequest2);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC IRR1"), TEXT("%x\n"), InterruptRequest1);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC IRR2"), TEXT("%x\n"), InterruptRequest2);
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC ISR1"), TEXT("%x\n"), InService1);
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIC ISR2"), TEXT("%x\n"), InService2);
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IMCR Value"), TEXT("%x\n"), ImcrValue);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIT Counter"), TEXT("%u\n"), (U32)PITCounter);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIT Counter"), TEXT("%u\n"), (U32)PITCounter);
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PIT Status"), TEXT("%x\n"), PITStatus);
 
     {
@@ -632,17 +647,29 @@ static void SystemDataViewDrawPagePicPitIoApic(LPSYSTEM_DATA_VIEW_CONTEXT Contex
             LPIOAPIC_CONTROLLER Controller = GetIOAPICController(0);
 
             if (Controller != NULL) {
-                SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Base"),
-                    TEXT("%p\n"), (LPVOID)(LINEAR)Controller->PhysicalAddress);
+                SystemDataViewWriteFormat(
+                    Context,
+                    SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                    TEXT("IO APIC Base"),
+                    TEXT("%p\n"),
+                    (LPVOID)(LINEAR)Controller->PhysicalAddress);
             }
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC ID"),
-                TEXT("%x\n"), IdentifierReg);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Version"),
-                TEXT("%x\n"), VersionReg);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Redirection[2].Low"),
-                TEXT("%x\n"), RedirectionLow);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Redirection[2].High"),
-                TEXT("%x\n"), RedirectionHigh);
+            SystemDataViewWriteFormat(
+                Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC ID"), TEXT("%x\n"), IdentifierReg);
+            SystemDataViewWriteFormat(
+                Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Version"), TEXT("%x\n"), VersionReg);
+            SystemDataViewWriteFormat(
+                Context,
+                SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                TEXT("IO APIC Redirection[2].Low"),
+                TEXT("%x\n"),
+                RedirectionLow);
+            SystemDataViewWriteFormat(
+                Context,
+                SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                TEXT("IO APIC Redirection[2].High"),
+                TEXT("%x\n"),
+                RedirectionHigh);
         }
     }
 
@@ -675,20 +702,21 @@ static void SystemDataViewDrawPageLocalApic(LPSYSTEM_DATA_VIEW_CONTEXT Context, 
     U32 LvtLint0Register = ReadLocalAPICRegister(LOCAL_APIC_LVT_LINT0);
     U32 LvtLint1Register = ReadLocalAPICRegister(LOCAL_APIC_LVT_LINT1);
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Base Address"),
-        TEXT("%p\n"), (LPVOID)(LINEAR)Config->BaseAddress);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("APIC ID"),
-        TEXT("%x\n"), IdentifierReg);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("APIC Version"),
-        TEXT("%x\n"), VersionReg);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Spurious Vector"),
-        TEXT("%x\n"), Spurious);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT Timer"),
-        TEXT("%x\n"), LvtTimerRegister);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT LINT0"),
-        TEXT("%x\n"), LvtLint0Register);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT LINT1"),
-        TEXT("%x\n"), LvtLint1Register);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Base Address"),
+        TEXT("%p\n"),
+        (LPVOID)(LINEAR)Config->BaseAddress);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("APIC ID"), TEXT("%x\n"), IdentifierReg);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("APIC Version"), TEXT("%x\n"), VersionReg);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Spurious Vector"), TEXT("%x\n"), Spurious);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT Timer"), TEXT("%x\n"), LvtTimerRegister);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT LINT0"), TEXT("%x\n"), LvtLint0Register);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("LVT LINT1"), TEXT("%x\n"), LvtLint1Register);
 
     SystemDataViewDrawFooter(Context);
 }
@@ -704,33 +732,31 @@ static void SystemDataViewDrawPageLocalApic(LPSYSTEM_DATA_VIEW_CONTEXT Context, 
  * @param SubClass PCI subclass.
  * @param ProgrammingInterface PCI programming interface.
  */
-static void SystemDataViewWriteControllerRouting(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    LPCSTR Name,
-    U8 BaseClass,
-    U8 SubClass,
-    U8 ProgrammingInterface) {
+static void SystemDataViewWriteControllerRouting(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, LPCSTR Name, U8 BaseClass, U8 SubClass, U8 ProgrammingInterface) {
     LPPCI_DEVICE Controller = NULL;
     UINT ControllerCount = 0;
     STR Label[32];
 
-    BOOL Found = SystemDataViewFindPciController(BaseClass, SubClass, ProgrammingInterface,
-        &Controller, &ControllerCount);
+    BOOL Found =
+        SystemDataViewFindPciController(BaseClass, SubClass, ProgrammingInterface, &Controller, &ControllerCount);
 
     StringPrintFormat(Label, TEXT("%s Controllers"), Name);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-        TEXT("%u\n"), (U32)ControllerCount);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("%u\n"), (U32)ControllerCount);
 
     if (Found == FALSE || Controller == NULL) {
         StringPrintFormat(Label, TEXT("%s Interrupt Route"), Name);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-            TEXT("Not Found\n"));
+        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("Not Found\n"));
         return;
     }
 
     StringPrintFormat(Label, TEXT("%s Interrupt Route"), Name);
 
     if (Controller->Info.IRQLine == 0xFF) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Line=Not Available Pin=%u\n"),
             (U32)Controller->Info.IRQLegacyPin);
         return;
@@ -738,18 +764,24 @@ static void SystemDataViewWriteControllerRouting(LPSYSTEM_DATA_VIEW_CONTEXT Cont
 
     U32 RedirectionLow = 0;
     U32 RedirectionHigh = 0;
-    BOOL HasRedirection = SystemDataViewReadIoApicRedirection((U32)Controller->Info.IRQLine,
-        &RedirectionLow, &RedirectionHigh);
+    BOOL HasRedirection =
+        SystemDataViewReadIoApicRedirection((U32)Controller->Info.IRQLine, &RedirectionLow, &RedirectionHigh);
 
     if (HasRedirection) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Line=%u Pin=%u Redirection=%x/%x\n"),
             (U32)Controller->Info.IRQLine,
             (U32)Controller->Info.IRQLegacyPin,
             RedirectionLow,
             RedirectionHigh);
     } else {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("Line=%u Pin=%u Redirection=Not Available\n"),
             (U32)Controller->Info.IRQLine,
             (U32)Controller->Info.IRQLegacyPin);
@@ -775,8 +807,12 @@ static void SystemDataViewDrawPageInterruptRouting(LPSYSTEM_DATA_VIEW_CONTEXT Co
         return;
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IO APIC Controllers"),
-        TEXT("%u\n"), (U32)Config->ControllerCount);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("IO APIC Controllers"),
+        TEXT("%u\n"),
+        (U32)Config->ControllerCount);
 
     for (UINT Index = 0; Index < Config->ControllerCount; Index++) {
         LPIOAPIC_CONTROLLER Controller = GetIOAPICController(Index);
@@ -787,31 +823,38 @@ static void SystemDataViewDrawPageInterruptRouting(LPSYSTEM_DATA_VIEW_CONTEXT Co
         }
 
         StringPrintFormat(Label, TEXT("IO APIC %u Base"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-            TEXT("%p\n"), (LPVOID)(LINEAR)Controller->PhysicalAddress);
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("%p\n"), (LPVOID)(LINEAR)Controller->PhysicalAddress);
 
         StringPrintFormat(Label, TEXT("IO APIC %u Global Base"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-            TEXT("%u\n"), (U32)Controller->GlobalInterruptBase);
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("%u\n"), (U32)Controller->GlobalInterruptBase);
 
         StringPrintFormat(Label, TEXT("IO APIC %u Entries"), (U32)Index);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-            TEXT("%u\n"), (U32)SystemDataViewGetIoApicRedirectionCount(Index));
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
+            TEXT("%u\n"),
+            (U32)SystemDataViewGetIoApicRedirectionCount(Index));
     }
 
-    SystemDataViewWriteControllerRouting(Context,
+    SystemDataViewWriteControllerRouting(
+        Context,
         TEXT("AHCI"),
         SYSTEM_DATA_VIEW_PCI_CLASS_MASS_STORAGE,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_SATA,
         SYSTEM_DATA_VIEW_PCI_PROGRAMMING_INTERFACE_AHCI);
 
-    SystemDataViewWriteControllerRouting(Context,
+    SystemDataViewWriteControllerRouting(
+        Context,
         TEXT("EHCI"),
         SYSTEM_DATA_VIEW_PCI_CLASS_SERIAL_BUS,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_USB,
         SYSTEM_DATA_VIEW_PCI_PROGRAMMING_INTERFACE_EHCI);
 
-    SystemDataViewWriteControllerRouting(Context,
+    SystemDataViewWriteControllerRouting(
+        Context,
         TEXT("xHCI"),
         SYSTEM_DATA_VIEW_PCI_CLASS_SERIAL_BUS,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_USB,
@@ -826,7 +869,7 @@ static void SystemDataViewDrawPageInterruptRouting(LPSYSTEM_DATA_VIEW_CONTEXT Co
         }
 
         for (UINT Entry = 0; Entry < EntryCount; Entry++) {
-            IOAPIC_REDIRECTION_ENTRY Redirection;
+            IO_APIC_REDIRECTION_ENTRY Redirection;
             STR Label[32];
 
             if (!ReadRedirectionEntry(ControllerIndex, (U8)Entry, &Redirection)) {
@@ -843,7 +886,10 @@ static void SystemDataViewDrawPageInterruptRouting(LPSYSTEM_DATA_VIEW_CONTEXT Co
             U32 GlobalLine = Controller->GlobalInterruptBase + Entry;
 
             StringPrintFormat(Label, TEXT("Redirection %u"), GlobalLine);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+            SystemDataViewWriteFormat(
+                Context,
+                SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                Label,
                 TEXT("Vector=%x Delivery=%x DestinationMode=%x Polarity=%x Trigger=%x Mask=%x Destination=%x\n"),
                 Vector,
                 Delivery,
@@ -870,7 +916,8 @@ static void SystemDataViewDrawPageInterruptRouting(LPSYSTEM_DATA_VIEW_CONTEXT Co
  * @param ProgrammingInterface PCI programming interface.
  * @param PageIndex Page index.
  */
-static void SystemDataViewDrawPciControllerPage(LPSYSTEM_DATA_VIEW_CONTEXT Context,
+static void SystemDataViewDrawPciControllerPage(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context,
     LPCSTR Title,
     U8 BaseClass,
     U8 SubClass,
@@ -878,41 +925,64 @@ static void SystemDataViewDrawPciControllerPage(LPSYSTEM_DATA_VIEW_CONTEXT Conte
     U8 PageIndex) {
     LPPCI_DEVICE Controller = NULL;
     UINT ControllerCount = 0;
-    BOOL Found = SystemDataViewFindPciController(BaseClass, SubClass, ProgrammingInterface,
-        &Controller, &ControllerCount);
+    BOOL Found =
+        SystemDataViewFindPciController(BaseClass, SubClass, ProgrammingInterface, &Controller, &ControllerCount);
 
     SystemDataViewDrawPageHeader(Context, Title, PageIndex);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"),
-        TEXT("%u\n"), (U32)ControllerCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"), TEXT("%u\n"), (U32)ControllerCount);
 
     if (Found == FALSE || Controller == NULL) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("First Controller"),
-            TEXT("Not Found\n"));
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("First Controller"), TEXT("Not Found\n"));
         SystemDataViewDrawFooter(Context);
         return;
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Bus/Device/Function"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Bus/Device/Function"),
         TEXT("%u/%u/%u\n"),
         (U32)Controller->Info.Bus,
         (U32)Controller->Info.Dev,
         (U32)Controller->Info.Func);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Vendor Identifier"),
-        TEXT("%x\n"), (U32)Controller->Info.VendorID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Identifier"),
-        TEXT("%x\n"), (U32)Controller->Info.DeviceID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Class Code"),
-        TEXT("%x\n"), (U32)Controller->Info.BaseClass);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Subclass"),
-        TEXT("%x\n"), (U32)Controller->Info.SubClass);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Programming Interface"),
-        TEXT("%x\n"), (U32)Controller->Info.ProgIF);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR5 Base"),
-        TEXT("%p\n"), (LPVOID)(LINEAR)Controller->BARPhys[5]);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Interrupt Line"),
-        TEXT("%u\n"), (U32)Controller->Info.IRQLine);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Interrupt Pin"),
-        TEXT("%u\n"), (U32)Controller->Info.IRQLegacyPin);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Vendor Identifier"),
+        TEXT("%x\n"),
+        (U32)Controller->Info.VendorID);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Device Identifier"),
+        TEXT("%x\n"),
+        (U32)Controller->Info.DeviceID);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Class Code"), TEXT("%x\n"), (U32)Controller->Info.BaseClass);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Subclass"), TEXT("%x\n"), (U32)Controller->Info.SubClass);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Programming Interface"),
+        TEXT("%x\n"),
+        (U32)Controller->Info.ProgIF);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("BAR5 Base"),
+        TEXT("%p\n"),
+        (LPVOID)(LINEAR)Controller->BARPhys[5]);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Interrupt Line"), TEXT("%u\n"), (U32)Controller->Info.IRQLine);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Interrupt Pin"),
+        TEXT("%u\n"),
+        (U32)Controller->Info.IRQLegacyPin);
 
     SystemDataViewDrawFooter(Context);
 }
@@ -926,7 +996,8 @@ static void SystemDataViewDrawPciControllerPage(LPSYSTEM_DATA_VIEW_CONTEXT Conte
  * @param PageIndex Page index.
  */
 static void SystemDataViewDrawPageAhci(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 PageIndex) {
-    SystemDataViewDrawPciControllerPage(Context,
+    SystemDataViewDrawPciControllerPage(
+        Context,
         TEXT("AHCI"),
         SYSTEM_DATA_VIEW_PCI_CLASS_MASS_STORAGE,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_SATA,
@@ -943,7 +1014,8 @@ static void SystemDataViewDrawPageAhci(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pa
  * @param PageIndex Page index.
  */
 static void SystemDataViewDrawPageEhci(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 PageIndex) {
-    SystemDataViewDrawPciControllerPage(Context,
+    SystemDataViewDrawPciControllerPage(
+        Context,
         TEXT("EHCI"),
         SYSTEM_DATA_VIEW_PCI_CLASS_SERIAL_BUS,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_USB,
@@ -1110,29 +1182,44 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
     }
 
     SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Driver Attached"), TEXT("Yes\n"));
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("MMIO Base/Size"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("MMIO Base/Size"),
         TEXT("%p / %u\n"),
         (LPVOID)Device->MmioBase,
         Device->MmioSize);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("OP/RT/DB Base"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("OP/RT/DB Base"),
         TEXT("%p / %p / %p\n"),
         (LPVOID)Device->OpBase,
         (LPVOID)Device->RuntimeBase,
         (LPVOID)Device->DoorbellBase);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("HCI Version"),
-        TEXT("%x\n"), (U32)Device->HciVersion);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Cap Length"),
-        TEXT("%u\n"), (U32)Device->CapLength);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Ports/Slots/Context"),
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("HCI Version"), TEXT("%x\n"), (U32)Device->HciVersion);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Cap Length"), TEXT("%u\n"), (U32)Device->CapLength);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Ports/Slots/Context"),
         TEXT("%u / %u / %u\n"),
         (U32)Device->MaxPorts,
         (U32)Device->MaxSlots,
         (U32)Device->ContextSize);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("HCSPARAMS2/Scratchpads"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("HCSPARAMS2/Scratchpads"),
         TEXT("%x / %u\n"),
         Device->HcsParams2,
         (U32)Device->MaxScratchpadBuffers);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Interrupt"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Interrupt"),
         TEXT("Reg=%u En=%u Count=%u Slot=%u\n"),
         Device->InterruptRegistered ? 1U : 0U,
         Device->InterruptEnabled ? 1U : 0U,
@@ -1140,11 +1227,17 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
         (U32)Device->InterruptSlot);
     PciCommand = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_COMMAND);
     PciStatus = PCI_Read16(Device->Info.Bus, Device->Info.Dev, Device->Info.Func, PCI_CFG_STATUS);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PCI Command/Status"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("PCI Command/Status"),
         TEXT("%x / %x\n"),
         (U32)PciCommand,
         (U32)PciStatus);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("PCI Status Decode"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("PCI Status Decode"),
         TEXT("DetPar=%u SERR#=%u MA=%u TARecv=%u TASent=%u MDP=%u DEVSEL=%u INT=%u\n"),
         (PciStatus & 0x8000) ? 1U : 0U,
         (PciStatus & 0x4000) ? 1U : 0U,
@@ -1154,19 +1247,28 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
         (PciStatus & 0x0100) ? 1U : 0U,
         (U32)((PciStatus >> 9) & 0x3),
         (PciStatus & 0x0008) ? 1U : 0U);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Ring Indexes"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Ring Indexes"),
         TEXT("Cmd=%u/%u Event=%u/%u\n"),
         Device->CommandRingEnqueueIndex,
         Device->CommandRingCycleState,
         Device->EventRingDequeueIndex,
         Device->EventRingCycleState);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Completion Queue"),
-        TEXT("%u\n"), Device->CompletionCount);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("USBStorage Driver"),
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Completion Queue"), TEXT("%u\n"), Device->CompletionCount);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("USBStorage Driver"),
         TEXT("Ready=%u\n"),
         (UsbMassStorageDriver != NULL && (UsbMassStorageDriver->Flags & DRIVER_FLAG_READY) != 0) ? 1U : 0U);
     SystemDataViewCountUsbStorage(&UsbStoragePresent, &UsbStorageTotal);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("USB Storage Entries"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("USB Storage Entries"),
         TEXT("%u/%u\n"),
         (U32)UsbStoragePresent,
         (U32)UsbStorageTotal);
@@ -1197,9 +1299,18 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
         ErstbaHigh = XHCI_Read32(InterrupterBase, (U32)(XHCI_ERSTBA + 4));
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("USBCMD/USBSTS/CONFIG"),
-        TEXT("%x / %x / %x\n"), Usbcmd, Usbsts, Config);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Status Decode"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("USBCMD/USBSTS/CONFIG"),
+        TEXT("%x / %x / %x\n"),
+        Usbcmd,
+        Usbsts,
+        Config);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Status Decode"),
         TEXT("Run=%u Halted=%u HSE=%u CNR=%u EINT=%u PCD=%u\n"),
         (Usbcmd & XHCI_USBCMD_RS) ? 1U : 0U,
         (Usbsts & XHCI_USBSTS_HCH) ? 1U : 0U,
@@ -1207,26 +1318,29 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
         (Usbsts & XHCI_USBSTS_CNR) ? 1U : 0U,
         (Usbsts & 0x00000008) ? 1U : 0U,
         (Usbsts & 0x00000010) ? 1U : 0U);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("CRCR"),
-        TEXT("%x:%x\n"), CrcrHigh, CrcrLow);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("DCBAAP"),
-        TEXT("%x:%x\n"), DcbaapHigh, DcbaapLow);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("DCBAA[0]"),
-        TEXT("%x:%x\n"), DcbaaEntry0High, DcbaaEntry0Low);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IMAN/IMOD/ERSTSZ"),
-        TEXT("%x / %x / %x\n"), Iman, Imod, Erstsz);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("ERSTBA"),
-        TEXT("%x:%x\n"), ErstbaHigh, ErstbaLow);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("ERDP"),
-        TEXT("%x:%x\n"), ErdpHigh, ErdpLow);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("CRCR"), TEXT("%x:%x\n"), CrcrHigh, CrcrLow);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("DCBAAP"), TEXT("%x:%x\n"), DcbaapHigh, DcbaapLow);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("DCBAA[0]"), TEXT("%x:%x\n"), DcbaaEntry0High, DcbaaEntry0Low);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IMAN/IMOD/ERSTSZ"), TEXT("%x / %x / %x\n"), Iman, Imod, Erstsz);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("ERSTBA"), TEXT("%x:%x\n"), ErstbaHigh, ErstbaLow);
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("ERDP"), TEXT("%x:%x\n"), ErdpHigh, ErdpLow);
 
     ActiveSlots = SystemDataViewCountActiveXhciSlots(Device);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Active Slots"),
-        TEXT("%u/%u\n"), ActiveSlots, (U32)Device->MaxSlots);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Active Slots"),
+        TEXT("%u/%u\n"),
+        ActiveSlots,
+        (U32)Device->MaxSlots);
 
     if (Device->UsbDevices == NULL) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Root Port Objects"),
-            TEXT("Unavailable\n"));
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Root Port Objects"), TEXT("Unavailable\n"));
         return;
     }
 
@@ -1265,7 +1379,10 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
         }
 
         StringPrintFormat(Label, TEXT("Port %u"), PortIndex + 1);
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
             TEXT("CCS=%u PED=%u PR=%u PP=%u Speed=%x PLS=%x Raw=%x Err=%s C=%x Present=%u Slot=%u MS=%s\n"),
             Connected ? 1U : 0U,
             Enabled ? 1U : 0U,
@@ -1281,7 +1398,10 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
             MassStorageHint);
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Port Summary"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Port Summary"),
         TEXT("Connected=%u Enabled=%u Error=%u\n"),
         ConnectedPorts,
         EnabledPorts,
@@ -1299,42 +1419,63 @@ static void SystemDataViewDrawXhciDetails(LPSYSTEM_DATA_VIEW_CONTEXT Context, LP
 static void SystemDataViewDrawPageXhci(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 PageIndex) {
     LPPCI_DEVICE Controller = NULL;
     UINT ControllerCount = 0;
-    BOOL Found = SystemDataViewFindPciController(SYSTEM_DATA_VIEW_PCI_CLASS_SERIAL_BUS,
+    BOOL Found = SystemDataViewFindPciController(
+        SYSTEM_DATA_VIEW_PCI_CLASS_SERIAL_BUS,
         SYSTEM_DATA_VIEW_PCI_SUBCLASS_USB,
         SYSTEM_DATA_VIEW_PCI_PROGRAMMING_INTERFACE_XHCI,
         &Controller,
         &ControllerCount);
 
     SystemDataViewDrawPageHeader(Context, TEXT("xHCI"), PageIndex);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"),
-        TEXT("%u\n"), (U32)ControllerCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"), TEXT("%u\n"), (U32)ControllerCount);
 
     if (Found == FALSE || Controller == NULL) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("First Controller"),
-            TEXT("Not Found\n"));
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("First Controller"), TEXT("Not Found\n"));
         SystemDataViewDrawFooter(Context);
         return;
     }
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Bus/Device/Function"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Bus/Device/Function"),
         TEXT("%u/%u/%u\n"),
         (U32)Controller->Info.Bus,
         (U32)Controller->Info.Dev,
         (U32)Controller->Info.Func);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Vendor Identifier"),
-        TEXT("%x\n"), (U32)Controller->Info.VendorID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Identifier"),
-        TEXT("%x\n"), (U32)Controller->Info.DeviceID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Revision"),
-        TEXT("%x\n"), (U32)Controller->Info.Revision);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IRQ Line/Pin"),
-        TEXT("%u / %u\n"), (U32)Controller->Info.IRQLine, (U32)Controller->Info.IRQLegacyPin);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR1 Raw"),
-        TEXT("%x / %x\n"), Controller->Info.BAR[0], Controller->Info.BAR[1]);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Vendor Identifier"),
+        TEXT("%x\n"),
+        (U32)Controller->Info.VendorID);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Device Identifier"),
+        TEXT("%x\n"),
+        (U32)Controller->Info.DeviceID);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Revision"), TEXT("%x\n"), (U32)Controller->Info.Revision);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("IRQ Line/Pin"),
+        TEXT("%u / %u\n"),
+        (U32)Controller->Info.IRQLine,
+        (U32)Controller->Info.IRQLegacyPin);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("BAR0/BAR1 Raw"),
+        TEXT("%x / %x\n"),
+        Controller->Info.BAR[0],
+        Controller->Info.BAR[1]);
 
     if (Controller->Driver != (LPDRIVER)&XHCIDriver) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Driver Attached"),
-            TEXT("No\n"));
+        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Driver Attached"), TEXT("No\n"));
         SystemDataViewDrawFooter(Context);
         return;
     }
@@ -1395,10 +1536,8 @@ static BOOL SystemDataViewPciReadInfo(U8 Bus, U8 Device, U8 Function, LPSYSTEM_D
  * @param UserData Visitor data.
  * @param DeviceCountOut Device count output.
  */
-static void SystemDataViewPciEnumerate(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    SYSTEM_DATA_VIEW_PCI_VISITOR Visitor,
-    LPVOID UserData,
-    UINT* DeviceCountOut) {
+static void SystemDataViewPciEnumerate(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, SYSTEM_DATA_VIEW_PCI_VISITOR Visitor, LPVOID UserData, UINT* DeviceCountOut) {
     U32 Bus = 0;
     U32 Device = 0;
     U32 Function = 0;
@@ -1423,8 +1562,7 @@ static void SystemDataViewPciEnumerate(LPSYSTEM_DATA_VIEW_CONTEXT Context,
 
                 DeviceCount++;
 
-                if (Context != NULL &&
-                    Context->BufferLength + 128 >= SYSTEM_DATA_VIEW_OUTPUT_BUFFER_SIZE) {
+                if (Context != NULL && Context->BufferLength + 128 >= SYSTEM_DATA_VIEW_OUTPUT_BUFFER_SIZE) {
                     SystemDataViewWriteString(Context, TEXT("Output truncated\n"));
                     Bus = PCI_MAX_BUS;
                     break;
@@ -1455,9 +1593,8 @@ static void SystemDataViewPciEnumerate(LPSYSTEM_DATA_VIEW_CONTEXT Context,
  * @param UserData User data pointer.
  * @return TRUE to continue.
  */
-static BOOL SystemDataViewPciListVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData) {
+static BOOL SystemDataViewPciListVisitor(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData) {
     STR Label[24];
     LPSYSTEM_DATA_VIEW_PCI_LIST_STATE State = (LPSYSTEM_DATA_VIEW_PCI_LIST_STATE)UserData;
 
@@ -1467,7 +1604,10 @@ static BOOL SystemDataViewPciListVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
 
     State->Index++;
     StringPrintFormat(Label, TEXT("PCI %u"), (U32)State->Index);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        Label,
         TEXT("Bus=%u Dev=%u Fn=%u Class=%x Sub=%x IF=%x VID=%x DID=%x\n"),
         (U32)Info->Bus,
         (U32)Info->Dev,
@@ -1491,9 +1631,8 @@ static BOOL SystemDataViewPciListVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
  * @param UserData User data pointer.
  * @return TRUE to continue.
  */
-static BOOL SystemDataViewPciStorageVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData) {
+static BOOL SystemDataViewPciStorageVisitor(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData) {
     STR Label[32];
     LPSYSTEM_DATA_VIEW_PCI_STORAGE_STATE State = (LPSYSTEM_DATA_VIEW_PCI_STORAGE_STATE)UserData;
 
@@ -1509,7 +1648,10 @@ static BOOL SystemDataViewPciStorageVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
     State->Index++;
 
     StringPrintFormat(Label, TEXT("Controller %u"), (U32)State->Index);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        Label,
         TEXT("Bus=%u Dev=%u Fn=%u Class=%x Sub=%x IF=%x\n"),
         (U32)Info->Bus,
         (U32)Info->Dev,
@@ -1517,15 +1659,16 @@ static BOOL SystemDataViewPciStorageVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
         (U32)Info->BaseClass,
         (U32)Info->SubClass,
         (U32)Info->ProgIF);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("VID/DID/IRQ"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("VID/DID/IRQ"),
         TEXT("%x / %x / %u\n"),
         (U32)Info->VendorID,
         (U32)Info->DeviceID,
         (U32)Info->IRQLine);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR5"),
-        TEXT("%x / %x\n"),
-        Info->BAR[0],
-        Info->BAR[5]);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR5"), TEXT("%x / %x\n"), Info->BAR[0], Info->BAR[5]);
 
     return TRUE;
 }
@@ -1540,9 +1683,8 @@ static BOOL SystemDataViewPciStorageVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
  * @param UserData User data pointer.
  * @return TRUE to continue.
  */
-static BOOL SystemDataViewPciVmdVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData) {
+static BOOL SystemDataViewPciVmdVisitor(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData) {
     STR Label[32];
     LPSYSTEM_DATA_VIEW_PCI_VMD_STATE State = (LPSYSTEM_DATA_VIEW_PCI_VMD_STATE)UserData;
 
@@ -1550,8 +1692,7 @@ static BOOL SystemDataViewPciVmdVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
         return FALSE;
     }
 
-    if (Info->VendorID != SYSTEM_DATA_VIEW_PCI_VENDOR_INTEL ||
-        Info->BaseClass != SYSTEM_DATA_VIEW_PCI_CLASS_BRIDGE) {
+    if (Info->VendorID != SYSTEM_DATA_VIEW_PCI_VENDOR_INTEL || Info->BaseClass != SYSTEM_DATA_VIEW_PCI_CLASS_BRIDGE) {
         return TRUE;
     }
 
@@ -1559,7 +1700,10 @@ static BOOL SystemDataViewPciVmdVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
     State->Index++;
 
     StringPrintFormat(Label, TEXT("Bridge %u"), (U32)State->Index);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        Label,
         TEXT("Bus=%u Dev=%u Fn=%u Class=%x Sub=%x IF=%x\n"),
         (U32)Info->Bus,
         (U32)Info->Dev,
@@ -1567,19 +1711,23 @@ static BOOL SystemDataViewPciVmdVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
         (U32)Info->BaseClass,
         (U32)Info->SubClass,
         (U32)Info->ProgIF);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("VID/DID/IRQ"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("VID/DID/IRQ"),
         TEXT("%x / %x / %u\n"),
         (U32)Info->VendorID,
         (U32)Info->DeviceID,
         (U32)Info->IRQLine);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Header Type/Pin"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Header Type/Pin"),
         TEXT("%x / %u\n"),
         (U32)Info->HeaderType,
         (U32)Info->IRQLegacyPin);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR1"),
-        TEXT("%x / %x\n"),
-        Info->BAR[0],
-        Info->BAR[1]);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR1"), TEXT("%x / %x\n"), Info->BAR[0], Info->BAR[1]);
 
     return TRUE;
 }
@@ -1638,18 +1786,11 @@ static LPCSTR SystemDataViewGraphicsSubclassName(U8 SubClass) {
  * @param IPv4_Be IPv4 address in big-endian format.
  */
 static void SystemDataViewFormatIPv4(LPSTR Buffer, UINT BufferLength, U32 IPv4_Be) {
-    U32 IPv4_Host = Ntohl(IPv4_Be);
-
     if (Buffer == NULL || BufferLength == 0) {
         return;
     }
 
-    StringPrintFormat(Buffer,
-        TEXT("%u.%u.%u.%u"),
-        (IPv4_Host >> 24) & 0xFF,
-        (IPv4_Host >> 16) & 0xFF,
-        (IPv4_Host >> 8) & 0xFF,
-        IPv4_Host & 0xFF);
+    FormatIPv4(IPv4_Be, Buffer);
 }
 
 /************************************************************************/
@@ -1691,9 +1832,7 @@ static BOOL SystemDataViewIsAttachedPciDevice(U8 Bus, U8 Device, U8 Function) {
     for (LPLISTNODE Node = DeviceList->First; Node != NULL; Node = Node->Next) {
         LPPCI_DEVICE PciDevice = (LPPCI_DEVICE)Node;
         SAFE_USE_VALID_ID(PciDevice, KOID_PCIDEVICE) {
-            if (PciDevice->Info.Bus == Bus &&
-                PciDevice->Info.Dev == Device &&
-                PciDevice->Info.Func == Function) {
+            if (PciDevice->Info.Bus == Bus && PciDevice->Info.Dev == Device && PciDevice->Info.Func == Function) {
                 return TRUE;
             }
         }
@@ -1726,9 +1865,7 @@ static LPNETWORK_DEVICE_CONTEXT SystemDataViewFindNetworkDeviceContext(U8 Bus, U
             LPPCI_DEVICE PciDevice = NetContext->Device;
 
             SAFE_USE_VALID_ID(PciDevice, KOID_PCIDEVICE) {
-                if (PciDevice->Info.Bus == Bus &&
-                    PciDevice->Info.Dev == Device &&
-                    PciDevice->Info.Func == Function) {
+                if (PciDevice->Info.Bus == Bus && PciDevice->Info.Dev == Device && PciDevice->Info.Func == Function) {
                     return NetContext;
                 }
             }
@@ -1748,9 +1885,8 @@ static LPNETWORK_DEVICE_CONTEXT SystemDataViewFindNetworkDeviceContext(U8 Bus, U
  * @param UserData User data pointer.
  * @return TRUE to continue.
  */
-static BOOL SystemDataViewPciGraphicsVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData) {
+static BOOL SystemDataViewPciGraphicsVisitor(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData) {
     STR Label[32];
     BOOL Attached = FALSE;
     LPSYSTEM_DATA_VIEW_PCI_GRAPHICS_STATE State = (LPSYSTEM_DATA_VIEW_PCI_GRAPHICS_STATE)UserData;
@@ -1771,33 +1907,49 @@ static BOOL SystemDataViewPciGraphicsVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
     }
 
     StringPrintFormat(Label, TEXT("Graphics %u"), (U32)State->Index);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        Label,
         TEXT("Bus=%u Dev=%u Fn=%u\n"),
         (U32)Info->Bus,
         (U32)Info->Dev,
         (U32)Info->Func);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Vendor"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Vendor"),
         TEXT("%s (%x)\n"),
         SystemDataViewGraphicsVendorName(Info->VendorID),
         (U32)Info->VendorID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Identifier"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Device Identifier"),
         TEXT("%x rev=%x\n"),
         (U32)Info->DeviceID,
         (U32)Info->Revision);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Display Type"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Display Type"),
         TEXT("%s (sub=%x if=%x)\n"),
         SystemDataViewGraphicsSubclassName(Info->SubClass),
         (U32)Info->SubClass,
         (U32)Info->ProgIF);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IRQ Line/Pin"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("IRQ Line/Pin"),
         TEXT("%u / %u\n"),
         (U32)Info->IRQLine,
         (U32)Info->IRQLegacyPin);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR2"),
-        TEXT("%x / %x\n"),
-        Info->BAR[0],
-        Info->BAR[2]);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel PCI Link"),
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR2"), TEXT("%x / %x\n"), Info->BAR[0], Info->BAR[2]);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Kernel PCI Link"),
         TEXT("%s\n"),
         Attached ? TEXT("Attached") : TEXT("Not attached"));
 
@@ -1818,13 +1970,13 @@ static void SystemDataViewDrawPageGraphicsDevices(LPSYSTEM_DATA_VIEW_CONTEXT Con
     SystemDataViewDrawPageHeader(Context, TEXT("Graphics Devices (PCI)"), PageIndex);
     MemorySet(&State, 0, sizeof(State));
     SystemDataViewPciEnumerate(Context, SystemDataViewPciGraphicsVisitor, &State, NULL);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Graphics Found"),
-        TEXT("%u\n"), (U32)State.Count);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel PCI Attached"),
-        TEXT("%u\n"), (U32)State.AttachedCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Graphics Found"), TEXT("%u\n"), (U32)State.Count);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel PCI Attached"), TEXT("%u\n"), (U32)State.AttachedCount);
     if (State.Count == 0) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Graphics"),
-            TEXT("No PCI display controller found\n"));
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Graphics"), TEXT("No PCI display controller found\n"));
     }
 
     SystemDataViewDrawFooter(Context);
@@ -1840,9 +1992,8 @@ static void SystemDataViewDrawPageGraphicsDevices(LPSYSTEM_DATA_VIEW_CONTEXT Con
  * @param UserData User data pointer.
  * @return TRUE to continue.
  */
-static BOOL SystemDataViewPciNetworkVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
-    const SYSTEM_DATA_VIEW_PCI_INFO* Info,
-    LPVOID UserData) {
+static BOOL SystemDataViewPciNetworkVisitor(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info, LPVOID UserData) {
     NETWORK_INFO NetworkInfo;
     NETWORK_GET_INFO GetInfo;
     STR Label[32];
@@ -1873,31 +2024,44 @@ static BOOL SystemDataViewPciNetworkVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
     }
 
     StringPrintFormat(Label, TEXT("Network %u"), (U32)State->Index);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        Label,
         TEXT("Bus=%u Dev=%u Fn=%u\n"),
         (U32)Info->Bus,
         (U32)Info->Dev,
         (U32)Info->Func);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Vendor"),
-        TEXT("%x\n"), (U32)Info->VendorID);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Identifier"),
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Vendor"), TEXT("%x\n"), (U32)Info->VendorID);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Device Identifier"),
         TEXT("%x rev=%x\n"),
         (U32)Info->DeviceID,
         (U32)Info->Revision);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controller Type"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Controller Type"),
         TEXT("%s (sub=%x if=%x)\n"),
         SystemDataViewNetworkSubclassName(Info->SubClass),
         (U32)Info->SubClass,
         (U32)Info->ProgIF);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IRQ Line/Pin"),
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("IRQ Line/Pin"),
         TEXT("%u / %u\n"),
         (U32)Info->IRQLine,
         (U32)Info->IRQLegacyPin);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR1"),
-        TEXT("%x / %x\n"),
-        Info->BAR[0],
-        Info->BAR[1]);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel Network Link"),
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("BAR0/BAR1"), TEXT("%x / %x\n"), Info->BAR[0], Info->BAR[1]);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Kernel Network Link"),
         TEXT("%s\n"),
         Attached ? TEXT("Attached") : TEXT("Not attached"));
 
@@ -1912,13 +2076,19 @@ static BOOL SystemDataViewPciNetworkVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
                     GetInfo.Info = &NetworkInfo;
                     Device->Driver->Command(DF_NT_GETINFO, (UINT)(LPVOID)&GetInfo);
 
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Name"),
-                        TEXT("%s\n"), Device->Name);
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Driver"),
+                    SystemDataViewWriteFormat(
+                        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Device Name"), TEXT("%s\n"), Device->Name);
+                    SystemDataViewWriteFormat(
+                        Context,
+                        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                        TEXT("Driver"),
                         TEXT("%s / %s\n"),
                         Device->Driver->Manufacturer,
                         Device->Driver->Product);
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("MAC"),
+                    SystemDataViewWriteFormat(
+                        Context,
+                        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                        TEXT("MAC"),
                         TEXT("%x:%x:%x:%x:%x:%x\n"),
                         NetworkInfo.MAC[0],
                         NetworkInfo.MAC[1],
@@ -1927,16 +2097,22 @@ static BOOL SystemDataViewPciNetworkVisitor(LPSYSTEM_DATA_VIEW_CONTEXT Context,
                         NetworkInfo.MAC[4],
                         NetworkInfo.MAC[5]);
                     SystemDataViewFormatIPv4(IPv4Address, sizeof(IPv4Address), NetContext->ActiveConfig.LocalIPv4_Be);
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IPv4"),
-                        TEXT("%s\n"), IPv4Address);
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Link"),
+                    SystemDataViewWriteFormat(
+                        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IPv4"), TEXT("%s\n"), IPv4Address);
+                    SystemDataViewWriteFormat(
+                        Context,
+                        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                        TEXT("Link"),
                         TEXT("%s %u Mbps %s duplex\n"),
                         NetworkInfo.LinkUp ? TEXT("Up") : TEXT("Down"),
                         NetworkInfo.SpeedMbps,
                         NetworkInfo.DuplexFull ? TEXT("Full") : TEXT("Half"));
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("MTU"),
-                        TEXT("%u\n"), NetworkInfo.MTU);
-                    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("State"),
+                    SystemDataViewWriteFormat(
+                        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("MTU"), TEXT("%u\n"), NetworkInfo.MTU);
+                    SystemDataViewWriteFormat(
+                        Context,
+                        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                        TEXT("State"),
                         TEXT("Initialized=%s Ready=%s Interrupts=%s\n"),
                         NetContext->IsInitialized ? TEXT("Yes") : TEXT("No"),
                         NetContext->IsReady ? TEXT("Yes") : TEXT("No"),
@@ -1964,15 +2140,15 @@ static void SystemDataViewDrawPageNetworkDevices(LPSYSTEM_DATA_VIEW_CONTEXT Cont
     MemorySet(&State, 0, sizeof(State));
     SystemDataViewPciEnumerate(Context, SystemDataViewPciNetworkVisitor, &State, NULL);
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Found"),
-        TEXT("%u\n"), (U32)State.Count);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel Attached"),
-        TEXT("%u\n"), (U32)State.AttachedCount);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Ready"),
-        TEXT("%u\n"), (U32)State.ReadyCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Found"), TEXT("%u\n"), (U32)State.Count);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Kernel Attached"), TEXT("%u\n"), (U32)State.AttachedCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Ready"), TEXT("%u\n"), (U32)State.ReadyCount);
     if (State.Count == 0) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Network"),
-            TEXT("No PCI network controller found\n"));
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Network"), TEXT("No PCI network controller found\n"));
     }
 
     SystemDataViewDrawFooter(Context);
@@ -1994,8 +2170,8 @@ static void SystemDataViewDrawPagePciList(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8
     MemorySet(&State, 0, sizeof(State));
     SystemDataViewPciEnumerate(Context, SystemDataViewPciListVisitor, &State, &DeviceCount);
 
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Found"),
-        TEXT("%u\n"), (U32)DeviceCount);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Devices Found"), TEXT("%u\n"), (U32)DeviceCount);
 
     SystemDataViewDrawFooter(Context);
 }
@@ -2014,11 +2190,10 @@ static void SystemDataViewDrawPageVmd(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pag
     SystemDataViewDrawPageHeader(Context, TEXT("VMD (Intel Bridge)"), PageIndex);
     MemorySet(&State, 0, sizeof(State));
     SystemDataViewPciEnumerate(Context, SystemDataViewPciVmdVisitor, &State, NULL);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Candidates Found"),
-        TEXT("%u\n"), (U32)State.Count);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Candidates Found"), TEXT("%u\n"), (U32)State.Count);
     if (State.Count == 0) {
-        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("VMD"),
-            TEXT("Not Detected\n"));
+        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("VMD"), TEXT("Not Detected\n"));
     }
 
     SystemDataViewDrawFooter(Context);
@@ -2044,8 +2219,8 @@ static void SystemDataViewDrawPageStorageControllers(LPSYSTEM_DATA_VIEW_CONTEXT 
     SystemDataViewDrawPageHeader(Context, TEXT("Storage Controllers"), PageIndex);
     MemorySet(&State, 0, sizeof(State));
     SystemDataViewPciEnumerate(Context, SystemDataViewPciStorageVisitor, &State, NULL);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"),
-        TEXT("%u\n"), (U32)State.Count);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("Controllers Found"), TEXT("%u\n"), (U32)State.Count);
 
     SystemDataViewDrawFooter(Context);
 }
@@ -2062,27 +2237,31 @@ static void SystemDataViewDrawPageIdt(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pag
     LPGATE_DESCRIPTOR Table = (LPGATE_DESCRIPTOR)Kernel_x86_32.IDT;
 
     SystemDataViewDrawPageHeader(Context, TEXT("IDT"), PageIndex);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IDT Base"),
-        TEXT("%p\n"), (LPVOID)Table);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IDT Limit"),
-        TEXT("%x\n"), (U32)(IDT_SIZE - 1u));
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IDT Base"), TEXT("%p\n"), (LPVOID)Table);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("IDT Limit"), TEXT("%x\n"), (U32)(IDT_SIZE - 1u));
 
     if (Table != NULL) {
         for (U32 Vector = 0x20; Vector < 0x24; Vector++) {
             STR Label[24];
 #if defined(__EXOS_ARCH_X86_64__)
-            U64 Offset = (U64)Table[Vector].Offset_00_15 |
-                ((U64)Table[Vector].Offset_16_31 << 16) |
-                ((U64)Table[Vector].Offset_32_63 << 32);
+            U64 Offset = (U64)Table[Vector].Offset_00_15 | ((U64)Table[Vector].Offset_16_31 << 16) |
+                         ((U64)Table[Vector].Offset_32_63 << 32);
             StringPrintFormat(Label, TEXT("Vector %x"), Vector);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+            SystemDataViewWriteFormat(
+                Context,
+                SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                Label,
                 TEXT("Offset=%p Selector=%x\n"),
                 (LPVOID)(LINEAR)Offset,
                 (U32)Table[Vector].Selector);
 #else
             U32 Offset = (U32)Table[Vector].Offset_00_15 | ((U32)Table[Vector].Offset_16_31 << 16);
             StringPrintFormat(Label, TEXT("Vector %x"), Vector);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
+            SystemDataViewWriteFormat(
+                Context,
+                SYSTEM_DATA_VIEW_VALUE_COLUMN,
+                Label,
                 TEXT("Offset=%p Selector=%x\n"),
                 (LPVOID)(LINEAR)Offset,
                 (U32)Table[Vector].Selector);
@@ -2105,24 +2284,20 @@ static void SystemDataViewDrawPageGdt(LPSYSTEM_DATA_VIEW_CONTEXT Context, U8 Pag
     LPSEGMENT_DESCRIPTOR Table = (LPSEGMENT_DESCRIPTOR)Kernel_x86_32.GDT;
 
     SystemDataViewDrawPageHeader(Context, TEXT("GDT"), PageIndex);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("GDT Base"),
-        TEXT("%p\n"), (LPVOID)Table);
-    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("GDT Limit"),
-        TEXT("%x\n"), (U32)(GDT_SIZE - 1u));
+    SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("GDT Base"), TEXT("%p\n"), (LPVOID)Table);
+    SystemDataViewWriteFormat(
+        Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, TEXT("GDT Limit"), TEXT("%x\n"), (U32)(GDT_SIZE - 1u));
 
     if (Table != NULL) {
         for (U32 Index = 0; Index < 4; Index++) {
             STR Label[24];
-            U32 Base = (U32)Table[Index].Base_00_15 |
-                ((U32)Table[Index].Base_16_23 << 16) |
-                ((U32)Table[Index].Base_24_31 << 24);
+            U32 Base = (U32)Table[Index].Base_00_15 | ((U32)Table[Index].Base_16_23 << 16) |
+                       ((U32)Table[Index].Base_24_31 << 24);
             U32 Limit = (U32)Table[Index].Limit_00_15 | ((U32)Table[Index].Limit_16_19 << 16);
 
             StringPrintFormat(Label, TEXT("Index %u"), Index);
-            SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label,
-                TEXT("Base=%p Limit=%x\n"),
-                (LPVOID)(LINEAR)Base,
-                Limit);
+            SystemDataViewWriteFormat(
+                Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("Base=%p Limit=%x\n"), (LPVOID)(LINEAR)Base, Limit);
         }
     }
 
@@ -2231,7 +2406,7 @@ void SystemDataViewMode(void) {
             continue;
         }
 
-        KEYCODE KeyCode;
+        KEY_CODE KeyCode;
         GetKeyCode(&KeyCode);
 
         switch (KeyCode.VirtualKey) {

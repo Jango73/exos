@@ -182,12 +182,7 @@ static LPTASK TaskRootGetVisibleByIndex(LPLIST TaskList, UINT Index) {
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR StackGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR StackGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     EXPOSE_PROPERTY_GUARD();
 
     EXPOSE_REQUIRE_ACCESS(EXPOSE_ACCESS_TASK_KERNEL, (LPPROCESS)Context);
@@ -214,11 +209,7 @@ SCRIPT_ERROR StackGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR ArchitectureTaskDataGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     EXPOSE_PROPERTY_GUARD();
 
     EXPOSE_REQUIRE_ACCESS(EXPOSE_ACCESS_TASK_KERNEL, (LPPROCESS)Context);
@@ -245,12 +236,7 @@ SCRIPT_ERROR ArchitectureTaskDataGetProperty(
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR TaskGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR TaskGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -328,15 +314,15 @@ SCRIPT_ERROR TaskGetProperty(
             return SCRIPT_OK;
         }
 
-        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("wakeUpTime")) ||
-            STRINGS_EQUAL_NO_CASE(Property, TEXT("messageQueue")) ||
-            STRINGS_EQUAL_NO_CASE(Property, TEXT("mutex"))) {
+        if (STRINGS_EQUAL_NO_CASE(Property, TEXT("wakeUpTime")) || STRINGS_EQUAL_NO_CASE(Property, TEXT("timeSlice")) ||
+            STRINGS_EQUAL_NO_CASE(Property, TEXT("messageQueue")) || STRINGS_EQUAL_NO_CASE(Property, TEXT("mutex"))) {
             if (IsKernelOrAdmin == FALSE) {
                 return SCRIPT_ERROR_UNAUTHORIZED;
             }
         }
 
         EXPOSE_BIND_INTEGER("wakeUpTime", Task->SchedulerState.WakeUpTime);
+        EXPOSE_BIND_INTEGER("timeSlice", Task->SchedulerState.TimeSlice);
         EXPOSE_BIND_INTEGER("messageQueue", (UINT)(LPVOID)&Task->MessageQueue);
         EXPOSE_BIND_INTEGER("mutex", (UINT)(LPVOID)&Task->Mutex);
 
@@ -356,12 +342,7 @@ SCRIPT_ERROR TaskGetProperty(
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR TaskArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR TaskArrayGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -386,12 +367,7 @@ SCRIPT_ERROR TaskArrayGetProperty(
  * @param OutValue Output holder for the resulting task handle
  * @return SCRIPT_OK when the task exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR TaskArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR TaskArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -422,11 +398,7 @@ SCRIPT_ERROR TaskArrayGetElement(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR TaskRootArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -451,12 +423,7 @@ SCRIPT_ERROR TaskRootArrayGetProperty(
  * @param OutValue Output holder for the resulting task handle
  * @return SCRIPT_OK when the task exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR TaskRootArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR TaskRootArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -477,39 +444,16 @@ SCRIPT_ERROR TaskRootArrayGetElement(
 
 /************************************************************************/
 
-const SCRIPT_HOST_DESCRIPTOR TaskDescriptor = {
-    TaskGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR TaskDescriptor = { TaskGetProperty, NULL, NULL, NULL };
 
-const SCRIPT_HOST_DESCRIPTOR TaskArrayDescriptor = {
-    TaskArrayGetProperty,
-    TaskArrayGetElement,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR TaskArrayDescriptor = { TaskArrayGetProperty, TaskArrayGetElement, NULL, NULL };
 
 const SCRIPT_HOST_DESCRIPTOR TaskRootArrayDescriptor = {
-    TaskRootArrayGetProperty,
-    TaskRootArrayGetElement,
-    NULL,
-    NULL
+    TaskRootArrayGetProperty, TaskRootArrayGetElement, NULL, NULL
 };
 
-const SCRIPT_HOST_DESCRIPTOR ArchitectureTaskDataDescriptor = {
-    ArchitectureTaskDataGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR ArchitectureTaskDataDescriptor = { ArchitectureTaskDataGetProperty, NULL, NULL, NULL };
 
-const SCRIPT_HOST_DESCRIPTOR StackDescriptor = {
-    StackGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR StackDescriptor = { StackGetProperty, NULL, NULL, NULL };
 
 /************************************************************************/

@@ -72,6 +72,9 @@ extern "C" {
 #define N_1GB_M1 (N_1GB - 1)
 #define N_2GB_M1 (N_2GB - 1)
 
+#define ALIGN_UP(Value, Alignment) (((Value) + (UINT)((Alignment)-1)) & ~(UINT)((Alignment)-1))
+#define ALIGN_DOWN(Value, Alignment) ((Value) & ~(UINT)((Alignment)-1))
+
 #ifdef __EXOS_32__
     #define N_HalfMemory (MAX_U32 / 2)
     #define N_FullMemory (MAX_U32)
@@ -160,11 +163,6 @@ extern "C" {
 
 /************************************************************************/
 
-#ifdef __KERNEL__
-extern void ConsolePrint(LPCSTR Format, ...);
-#define CONSOLE_DEBUG(a, ...) { STR __Buf[128]; StringPrintFormat(__Buf, a, ##__VA_ARGS__); ConsolePrint(__Buf); }
-#endif
-
 /************************************************************************/
 // Common ASCII character values
 
@@ -240,8 +238,9 @@ extern void ConsolePrint(LPCSTR Format, ...);
 #define SAFE_USE_VALID(a) if ((a) != NULL && IsValidMemory((LINEAR)a))
 #define SAFE_USE_VALID_2(a, b) if ((a) != NULL && IsValidMemory((LINEAR)a) && (b) != NULL && IsValidMemory((LINEAR)b))
 #define SAFE_USE_VALID_ID(a, i) if ((a) != NULL && IsValidMemory((LINEAR)a) && ((a)->TypeID == i))
-#define SAFE_USE_VALID_ID_2(a, b, i) if ((a) != NULL && IsValidMemory((LINEAR)a) && ((a)->TypeID == i) \
-        && ((b) != NULL && IsValidMemory((LINEAR)b) && ((b)->TypeID == i)))
+#define SAFE_USE_VALID_ID_2(a, b, i)                                     \
+    if ((a) != NULL && IsValidMemory((LINEAR)a) && ((a)->TypeID == i) && \
+        ((b) != NULL && IsValidMemory((LINEAR)b) && ((b)->TypeID == i)))
 
 // This is called before dereferencing a user-provided pointer to a parameter structure
 #define SAFE_USE_INPUT_POINTER(p, s) if ((p) != NULL && IsValidMemory((LINEAR)p) && (p)->Header.Size >= sizeof(s))
@@ -253,7 +252,7 @@ extern void ConsolePrint(LPCSTR Format, ...);
 #endif
 
 // Do an infinite loop
-#define FOREVER while(1)
+#define FOREVER while (1)
 
 // Put CPU to sleep forever: disable IRQs, halt, and loop.
 #define DO_THE_SLEEPING_BEAUTY \
@@ -268,8 +267,8 @@ extern void ConsolePrint(LPCSTR Format, ...);
             : "memory");       \
     } while (0)
 
-#define STRINGS_EQUAL(a,b) (StringCompare(a,b)==0)
-#define STRINGS_EQUAL_NO_CASE(a,b) (StringCompareNC(a,b)==0)
+#define STRINGS_EQUAL(a, b) (StringCompare(a, b) == 0)
+#define STRINGS_EQUAL_NO_CASE(a, b) (StringCompareNC(a, b) == 0)
 
 /************************************************************************/
 // Forward declaration to avoid circular dependencies
@@ -285,7 +284,7 @@ typedef void (*OBJECTDESTRUCTOR)(LPVOID);
     UINT References;        \
     U64 InstanceID;         \
     LPPROCESS OwnerProcess; \
-    OBJECTDESTRUCTOR Destructor; \
+    OBJECTDESTRUCTOR Destructor;
 
 typedef struct tag_OBJECT {
     OBJECT_FIELDS
@@ -418,7 +417,9 @@ static inline U64 U64_Xor(U64 A, U64 B) {
     return Result;
 }
 
-static inline BOOL U64_IsOdd(U64 Value) { return (Value.LO & 1) != 0; }
+static inline BOOL U64_IsOdd(U64 Value) {
+    return (Value.LO & 1) != 0;
+}
 
 static inline U64 U64_FromU32(U32 Value) {
     U64 Result;
@@ -514,7 +515,9 @@ static inline U64 U64_Xor(U64 A, U64 B) {
     return A ^ B;
 }
 
-static inline BOOL U64_IsOdd(U64 Value) { return (Value & 1) != 0; }
+static inline BOOL U64_IsOdd(U64 Value) {
+    return (Value & 1) != 0;
+}
 
 static inline U64 U64_FromU32(U32 Value) {
     return (U64)Value;
@@ -550,43 +553,43 @@ static inline U32 U64_Low32(U64 Value) {
 
 #ifdef __KERNEL__
 
-#if DEBUG_OUTPUT == 1
-    #define DEBUG(a, ...) KernelLogTextFromFunction(LOG_DEBUG, TEXT(__func__), (a), ##__VA_ARGS__)
-    #define TEST(a, ...) KernelLogTextFromFunction(LOG_TEST, TEXT(__func__), (a), ##__VA_ARGS__)
-#else
-    #define DEBUG(a, ...)
-    #define TEST(a, ...)
-#endif
+    #if DEBUG_OUTPUT == 1
+        #define DEBUG(a, ...) KernelLogTextFromFunction(LOG_DEBUG, TEXT(__func__), (a), ##__VA_ARGS__)
+        #define TEST(a, ...) KernelLogTextFromFunction(LOG_TEST, TEXT(__func__), (a), ##__VA_ARGS__)
+    #else
+        #define DEBUG(a, ...)
+        #define TEST(a, ...)
+    #endif
 
-#if SCHEDULING_DEBUG_OUTPUT == 1
-    #define FINE_DEBUG(a, ...) DEBUG(a, ##__VA_ARGS__)
-#else
-    #define FINE_DEBUG(a, ...)
-#endif
+    #if SCHEDULING_DEBUG_OUTPUT == 1
+        #define FINE_DEBUG(a, ...) DEBUG(a, ##__VA_ARGS__)
+    #else
+        #define FINE_DEBUG(a, ...)
+    #endif
 
-#define VERBOSE(a, ...) KernelLogTextFromFunction(LOG_VERBOSE, TEXT(__func__), (a), ##__VA_ARGS__)
-#define WARNING(a, ...) KernelLogTextFromFunction(LOG_WARNING, TEXT(__func__), (a), ##__VA_ARGS__)
-#define ERROR(a, ...) KernelLogTextFromFunction(LOG_ERROR, TEXT(__func__), (a), ##__VA_ARGS__)
+    #define VERBOSE(a, ...) KernelLogTextFromFunction(LOG_VERBOSE, TEXT(__func__), (a), ##__VA_ARGS__)
+    #define WARNING(a, ...) KernelLogTextFromFunction(LOG_WARNING, TEXT(__func__), (a), ##__VA_ARGS__)
+    #define ERROR(a, ...) KernelLogTextFromFunction(LOG_ERROR, TEXT(__func__), (a), ##__VA_ARGS__)
 
-#else   // __KERNEL__
+#else  // __KERNEL__
 
-#if DEBUG_OUTPUT == 1
-    #define DEBUG(a, ...) debug((a), ##__VA_ARGS__)
-    #define TEST(a, ...)
-#else
-    #define DEBUG(a, ...)
-    #define TEST(a, ...)
-#endif
+    #if DEBUG_OUTPUT == 1
+        #define DEBUG(a, ...) debug((a), ##__VA_ARGS__)
+        #define TEST(a, ...)
+    #else
+        #define DEBUG(a, ...)
+        #define TEST(a, ...)
+    #endif
 
-#if SCHEDULING_DEBUG_OUTPUT == 1
-    #define FINE_DEBUG(a, ...) DEBUG(a, ##__VA_ARGS__)
-#else
-    #define FINE_DEBUG(a, ...)
-#endif
+    #if SCHEDULING_DEBUG_OUTPUT == 1
+        #define FINE_DEBUG(a, ...) DEBUG(a, ##__VA_ARGS__)
+    #else
+        #define FINE_DEBUG(a, ...)
+    #endif
 
-#define VERBOSE(a, ...)
-#define WARNING(a, ...)
-#define ERROR(a, ...)
+    #define VERBOSE(a, ...)
+    #define WARNING(a, ...)
+    #define ERROR(a, ...)
 
 #endif  // __KERNEL__
 
@@ -594,26 +597,40 @@ static inline U32 U64_Low32(U64 Value) {
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 
-static inline U16 Htons(U16 Value) { return Value; }
+static inline U16 Htons(U16 Value) {
+    return Value;
+}
 
-static inline U16 Ntohs(U16 Value) { return Value; }
+static inline U16 Ntohs(U16 Value) {
+    return Value;
+}
 
-static inline U32 Htonl(U32 Value) { return Value; }
+static inline U32 Htonl(U32 Value) {
+    return Value;
+}
 
-static inline U32 Ntohl(U32 Value) { return Value; }
+static inline U32 Ntohl(U32 Value) {
+    return Value;
+}
 
 #elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
-static inline U16 Htons(U16 Value) { return (U16)((Value << 8) | (Value >> 8)); }
+static inline U16 Htons(U16 Value) {
+    return (U16)((Value << 8) | (Value >> 8));
+}
 
-static inline U16 Ntohs(U16 Value) { return Htons(Value); }
+static inline U16 Ntohs(U16 Value) {
+    return Htons(Value);
+}
 
 static inline U32 Htonl(U32 Value) {
     return ((Value & 0x000000FFU) << 24) | ((Value & 0x0000FF00U) << 8) | ((Value & 0x00FF0000U) >> 8) |
            ((Value & 0xFF000000U) >> 24);
 }
 
-static inline U32 Ntohl(U32 Value) { return Htonl(Value); }
+static inline U32 Ntohl(U32 Value) {
+    return Htonl(Value);
+}
 
 #else
     #error "Endianness not defined"

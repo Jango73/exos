@@ -36,63 +36,64 @@
 /************************************************************************/
 // Socket Address Family
 
-#define SOCKET_AF_UNSPEC    0
-#define SOCKET_AF_INET      2
-#define SOCKET_AF_INET6     10
+#define SOCKET_AF_UNSPEC 0
+#define SOCKET_AF_INET 2
+#define SOCKET_AF_INET6 10
 
 /************************************************************************/
 // Socket Type
 
-#define SOCKET_TYPE_STREAM     1  // TCP
-#define SOCKET_TYPE_DGRAM      2  // UDP
-#define SOCKET_TYPE_RAW        3  // Raw socket
+#define SOCKET_TYPE_STREAM 1  // TCP
+#define SOCKET_TYPE_DGRAM 2   // UDP
+#define SOCKET_TYPE_RAW 3     // Raw socket
 
 /************************************************************************/
 // Socket Protocol
 
-#define SOCKET_PROTOCOL_IP     0
-#define SOCKET_PROTOCOL_TCP    6
-#define SOCKET_PROTOCOL_UDP    17
+#define SOCKET_PROTOCOL_IP 0
+#define SOCKET_PROTOCOL_TCP 6
+#define SOCKET_PROTOCOL_UDP 17
 
 /************************************************************************/
 // Socket States
 
-#define SOCKET_STATE_CLOSED       0
-#define SOCKET_STATE_CREATED      1
-#define SOCKET_STATE_BOUND        2
-#define SOCKET_STATE_LISTENING    3
-#define SOCKET_STATE_CONNECTING   4
-#define SOCKET_STATE_CONNECTED    5
-#define SOCKET_STATE_CLOSING      6
+#define SOCKET_STATE_CLOSED 0
+#define SOCKET_STATE_CREATED 1
+#define SOCKET_STATE_BOUND 2
+#define SOCKET_STATE_LISTENING 3
+#define SOCKET_STATE_CONNECTING 4
+#define SOCKET_STATE_CONNECTED 5
+#define SOCKET_STATE_CLOSING 6
 
 /************************************************************************/
 // Socket Error Codes
 
-#define SOCKET_ERROR_NONE         0
-#define SOCKET_ERROR_INVALID      -1
-#define SOCKET_ERROR_NOMEM        -2
-#define SOCKET_ERROR_INUSE        -3
-#define SOCKET_ERROR_NOTBOUND     -4
+#define SOCKET_ERROR_NONE 0
+#define SOCKET_ERROR_INVALID -1
+#define SOCKET_ERROR_NOMEM -2
+#define SOCKET_ERROR_INUSE -3
+#define SOCKET_ERROR_NOTBOUND -4
 #define SOCKET_ERROR_NOTLISTENING -5
 #define SOCKET_ERROR_NOTCONNECTED -6
-#define SOCKET_ERROR_WOULDBLOCK   -7
-#define SOCKET_ERROR_CONNREFUSED  -8
-#define SOCKET_ERROR_TIMEOUT      -9
-#define SOCKET_ERROR_MSGSIZE      -10
-#define SOCKET_ERROR_OVERFLOW     -11
+#define SOCKET_ERROR_WOULDBLOCK -7
+#define SOCKET_ERROR_CONNREFUSED -8
+#define SOCKET_ERROR_TIMEOUT -9
+#define SOCKET_ERROR_MSGSIZE -10
+#define SOCKET_ERROR_OVERFLOW -11
 
 /************************************************************************/
 // Socket Options
 
-#define SOL_SOCKET                1
-#define SO_RCVTIMEO               20
+#define SOL_SOCKET 1
+#define SO_REUSEADDR 2
+#define SO_RCVTIMEO 20
 
 /************************************************************************/
 // Socket Shutdown Types
 
-#define SOCKET_SHUTDOWN_READ      0
-#define SOCKET_SHUTDOWN_WRITE     1
-#define SOCKET_SHUTDOWN_BOTH      2
+#define SOCKET_SHUTDOWN_READ 0
+#define SOCKET_SHUTDOWN_WRITE 1
+#define SOCKET_SHUTDOWN_BOTH 2
 
 /************************************************************************/
 // Socket Buffer Structure
@@ -117,9 +118,9 @@ typedef struct tag_SOCKET {
     SOCKET_ADDRESS_INET RemoteAddress;
 
     // Connection management
-    LPTCP_CONNECTION TCPConnection;    // Pointer to TCP connection (if TCP)
-    U32 ListenBacklog;      // Maximum pending connections
-    LPLIST PendingConnections; // Queue of pending connections
+    LPTCP_CONNECTION TCPConnection;  // Pointer to TCP connection (if TCP)
+    U32 ListenBacklog;               // Maximum pending connections
+    LPLIST PendingConnections;       // Queue of pending connections
 
     // Data buffers
     CIRCULAR_BUFFER ReceiveBuffer;
@@ -134,9 +135,9 @@ typedef struct tag_SOCKET {
     BOOL ReuseAddress;
     BOOL KeepAlive;
     BOOL NoDelay;
-    U32  ReceiveTimeout;
-    U32  SendTimeout;
-    U32  ReceiveTimeoutStartTime;  // When timeout started
+    U32 ReceiveTimeout;
+    U32 SendTimeout;
+    U32 ReceiveTimeoutStartTime;  // When timeout started
 
     // Statistics
     U32 BytesSent;
@@ -162,8 +163,20 @@ U32 SocketConnect(SOCKET_HANDLE SocketHandle, LPSOCKET_ADDRESS Address, U32 Addr
 // Data transmission
 I32 SocketSend(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags);
 I32 SocketReceive(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags);
-I32 SocketSendTo(SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestinationAddress, U32 AddressLength);
-I32 SocketReceiveFrom(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress, U32* AddressLength);
+I32 SocketSendTo(
+    SOCKET_HANDLE SocketHandle,
+    LPCVOID Buffer,
+    U32 Length,
+    U32 Flags,
+    LPSOCKET_ADDRESS DestinationAddress,
+    U32 AddressLength);
+I32 SocketReceiveFrom(
+    SOCKET_HANDLE SocketHandle,
+    LPVOID Buffer,
+    U32 Length,
+    U32 Flags,
+    LPSOCKET_ADDRESS SourceAddress,
+    U32* AddressLength);
 
 // Socket options and information
 U32 SocketGetOption(SOCKET_HANDLE SocketHandle, U32 Level, U32 OptionName, LPVOID OptionValue, U32* OptionLength);
@@ -186,4 +199,4 @@ void SocketDestructor(LPVOID Item);
 
 /************************************************************************/
 
-#endif // SOCKET_H_INCLUDED
+#endif  // SOCKET_H_INCLUDED

@@ -38,17 +38,17 @@
 #define EDIT_EOF_CHAR ((STR)0x1A)
 #define EDIT_CLIPBOARD_NEWLINE ((STR)0x0A)
 
-typedef struct tag_EDITLINE EDITLINE, *LPEDITLINE;
-typedef struct tag_EDITFILE EDITFILE, *LPEDITFILE;
-typedef struct tag_EDITCONTEXT EDITCONTEXT, *LPEDITCONTEXT;
+typedef struct tag_EDITLINE EDIT_LINE, *LPEDITLINE;
+typedef struct tag_EDITFILE EDIT_FILE, *LPEDITFILE;
+typedef struct tag_EDITCONTEXT EDIT_CONTEXT, *LPEDITCONTEXT;
 typedef BOOL (*EDITMENUPROC)(LPEDITCONTEXT);
 
 typedef struct tag_EDITMENUITEM {
-    KEYCODE Modifier;
-    KEYCODE Key;
+    KEY_CODE Modifier;
+    KEY_CODE Key;
     LPCSTR Name;
     EDITMENUPROC Function;
-} EDITMENUITEM, *LPEDITMENUITEM;
+} EDIT_MENU_ITEM, *LPEDITMENUITEM;
 
 struct tag_EDITLINE {
     LISTNODE_FIELDS
@@ -79,16 +79,19 @@ struct tag_EDITCONTEXT {
     BOOL ShowLineNumbers;
 };
 
-extern EDITMENUITEM Menu[];
+extern EDIT_MENU_ITEM Menu[];
 extern const U32 MenuItems;
-extern const KEYCODE ControlKey;
-extern const KEYCODE ShiftKey;
+extern const KEY_CODE ControlKey;
+extern const KEY_CODE ShiftKey;
 
 LPEDITLINE NewEditLine(I32 Size);
 void DeleteEditLine(LPEDITLINE This);
 LPEDITFILE NewEditFile(void);
 POINT GetAbsoluteCursor(const LPEDITFILE File);
 void Render(LPEDITCONTEXT Context);
+void RenderContent(LPEDITCONTEXT Context, U32 DefaultForeColor, U32 DefaultBackColor);
+void RenderContentRow(LPEDITCONTEXT Context, U32 RowIndex, U32 DefaultForeColor, U32 DefaultBackColor);
+void UpdateCursor(LPEDITCONTEXT Context);
 
 void CheckPositions(LPEDITFILE File);
 BOOL SelectionHasRange(const LPEDITFILE File);

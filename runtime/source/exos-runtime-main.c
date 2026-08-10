@@ -257,7 +257,7 @@ int peekch(void) { return exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0)); }
 
 #ifndef __KERNEL__
 int getch(void) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
 
     while (exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0)) == 0) {
         sleep(10);
@@ -273,7 +273,7 @@ int getch(void) {
 
 #ifndef __KERNEL__
 int getkey(void) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
 
     while (exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0)) == 0) {
         sleep(10);

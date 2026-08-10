@@ -64,10 +64,10 @@ DRIVER SystemFSDriver = {
  * @return Pointer to the initialized node, or NULL on allocation failure.
  */
 static LPSYSTEMFSFILE NewSystemFile(LPCSTR Name, LPSYSTEMFSFILE Parent) {
-    LPSYSTEMFSFILE Node = (LPSYSTEMFSFILE)KernelHeapAlloc(sizeof(SYSTEMFSFILE));
+    LPSYSTEMFSFILE Node = (LPSYSTEMFSFILE)KernelHeapAlloc(sizeof(SYSTEMFS_FILE));
     if (Node == NULL) return NULL;
 
-    *Node = (SYSTEMFSFILE){
+    *Node = (SYSTEMFS_FILE){
         .TypeID = KOID_FILE,
         .References = 1,
         .Next = NULL,
@@ -526,7 +526,7 @@ static U32 DeleteFolder(LPFILE_INFO Info) {
 static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR SourcePath) {
     LPLISTNODE Node;
     LPFILESYSTEM FS;
-    FILESYSTEM_MOUNT_CONTROL Control;
+    FILE_SYSTEM_MOUNT_CONTROL Control;
     FILE_INFO Info;
     LPFILE TestFile;
     BOOL FileSystemFound = FALSE;
@@ -538,7 +538,7 @@ static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR Sou
     if (FileSystem == NULL || Path == NULL) return;
 
     if (STRINGS_EQUAL_NO_CASE(FileSystem, ActiveLabel)) {
-        FILESYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
+        FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
         if (GlobalInfo == NULL || StringEmpty(GlobalInfo->ActivePartitionName)) {
             ERROR(TEXT("Active filesystem not set"));
             return;
@@ -593,8 +593,8 @@ static void MountConfiguredFileSystem(LPCSTR FileSystem, LPCSTR Path, LPCSTR Sou
  * @return TRUE on success or when already mounted, FALSE otherwise.
  */
 BOOL SystemFSMountFileSystem(LPFILESYSTEM FileSystem) {
-    FILESYSTEM_MOUNT_CONTROL Control;
-    FILESYSTEM_PATHCHECK Check;
+    FILE_SYSTEM_MOUNT_CONTROL Control;
+    FILE_SYSTEM_PATH_CHECK Check;
     VOLUME_INFO Volume;
     STR Path[MAX_PATH_NAME];
     const STR FsRoot[] = {PATH_SEP, 'f', 's', STR_NULL};
@@ -647,7 +647,7 @@ BOOL SystemFSMountFileSystem(LPFILESYSTEM FileSystem) {
  */
 BOOL SystemFSUnmountFileSystem(LPFILESYSTEM FileSystem) {
     FILESYSTEM_UNMOUNT_CONTROL Control;
-    FILESYSTEM_PATHCHECK Check;
+    FILE_SYSTEM_PATH_CHECK Check;
     VOLUME_INFO Volume;
     STR Path[MAX_PATH_NAME];
     const STR FsRoot[] = {PATH_SEP, 'f', 's', STR_NULL};

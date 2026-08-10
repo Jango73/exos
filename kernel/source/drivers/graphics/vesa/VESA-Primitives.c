@@ -57,7 +57,7 @@ typedef struct tag_VESAINFOBLOCK {
     U8 Caps[4];       // Capabilities of the video environment
     U32 ModePointer;  // Pointer to supported Super VGA modes
     U16 Memory;       // Number of 64kb memory blocks on board
-} VESAINFOBLOCK, *LPVESAINFOBLOCK;
+} VESA_INFO_BLOCK, *LPVESAINFOBLOCK;
 
 /************************************************************************/
 
@@ -97,7 +97,7 @@ typedef struct tag_MODEINFOBLOCK {
     U32 OffScreenMemOffset;
     U16 OffScreenMemSize;
     U8 Reserved2[206];
-} MODEINFOBLOCK, *LPMODEINFOBLOCK;
+} MODE_INFO_BLOCK, *LPMODEINFOBLOCK;
 
 /************************************************************************/
 
@@ -110,15 +110,15 @@ typedef struct tag_VIDEOMODESPECS {
     COLOR (*GetPixel)(LPVESA_CONTEXT, I32, I32);
     U32 (*Line)(LPVESA_CONTEXT, I32, I32, I32, I32);
     U32 (*Rect)(LPVESA_CONTEXT, I32, I32, I32, I32);
-} VIDEOMODESPECS, *LPVIDEOMODESPECS;
+} VIDEO_MODE_SPECS, *LPVIDEOMODESPECS;
 
 /************************************************************************/
 
 struct tag_VESA_CONTEXT {
-    GRAPHICSCONTEXT Header;
-    VESAINFOBLOCK VESAInfo;
-    MODEINFOBLOCK ModeInfo;
-    VIDEOMODESPECS ModeSpecs;
+    GRAPHICS_CONTEXT Header;
+    VESA_INFO_BLOCK VESAInfo;
+    MODE_INFO_BLOCK ModeInfo;
+    VIDEO_MODE_SPECS ModeSpecs;
     U32 PixelSize;
     PHYSICAL FrameBufferPhysical;
     LINEAR FrameBufferLinear;

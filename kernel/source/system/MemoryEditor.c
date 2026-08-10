@@ -33,7 +33,7 @@
 
 typedef struct tag_MEMEDITCONTEXT {
     U32 Base;
-} MEMEDITCONTEXT, *LPMEMEDITCONTEXT;
+} MEM_EDIT_CONTEXT, *LPMEMEDITCONTEXT;
 
 /***************************************************************************/
 
@@ -103,7 +103,7 @@ static void PrintMemoryPage(U32 Base, U32 Size) {
 /***************************************************************************/
 
 void MemoryEditor(U32 Base) {
-    KEYCODE KeyCode;
+    KEY_CODE KeyCode;
 
     ClearConsole();
     PrintMemoryPage(Base, 24 * 16);

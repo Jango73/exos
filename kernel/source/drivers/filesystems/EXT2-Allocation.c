@@ -242,7 +242,7 @@ BOOL AllocateInode(
                 *GroupIndexOut = GroupIndex;
             }
 
-            MemorySet(Inode, 0, sizeof(EXT2INODE));
+            MemorySet(Inode, 0, sizeof(EXT2_INODE));
             Inode->Mode = Directory ? (EXT2_MODE_DIRECTORY | 0x01ED) : (EXT2_MODE_REGULAR | 0x01A4);
             Inode->LinksCount = Directory ? 2 : 1;
 
@@ -582,7 +582,7 @@ BOOL CreateDirectoryInternal(
     U32* NewInodeIndex,
     LPEXT2INODE NewInode) {
     U32 InodeIndex;
-    EXT2INODE DirectoryInode;
+    EXT2_INODE DirectoryInode;
     U32 BlockNumber;
     U8* BlockBuffer;
 
@@ -657,7 +657,7 @@ BOOL CreateDirectoryInternal(
     }
 
     if (NewInode != NULL) {
-        MemoryCopy(NewInode, &DirectoryInode, sizeof(EXT2INODE));
+        MemoryCopy(NewInode, &DirectoryInode, sizeof(EXT2_INODE));
     }
 
     if (NewInodeIndex != NULL) {
@@ -688,7 +688,7 @@ BOOL EnsureParentDirectory(
     STR Component[MAX_FILE_NAME];
     LPSTR Slash;
     U32 CurrentIndex;
-    EXT2INODE CurrentInode;
+    EXT2_INODE CurrentInode;
     U32 Offset;
     U32 Length;
 
@@ -744,14 +744,14 @@ BOOL EnsureParentDirectory(
 
         {
             U32 NextIndex;
-            EXT2INODE NextInode;
+            EXT2_INODE NextInode;
 
             if (FindInodeInDirectory(FileSystem, &CurrentInode, Component, &NextIndex) == FALSE) {
                 if (CreateDirectoryInternal(FileSystem, &CurrentInode, CurrentIndex, Component, &NextIndex, &NextInode) == FALSE) {
                     return FALSE;
                 }
 
-                MemoryCopy(&CurrentInode, &NextInode, sizeof(EXT2INODE));
+                MemoryCopy(&CurrentInode, &NextInode, sizeof(EXT2_INODE));
                 CurrentIndex = NextIndex;
             } else {
                 if (ReadInode(FileSystem, NextIndex, &NextInode) == FALSE) {
@@ -762,7 +762,7 @@ BOOL EnsureParentDirectory(
                     return FALSE;
                 }
 
-                MemoryCopy(&CurrentInode, &NextInode, sizeof(EXT2INODE));
+                MemoryCopy(&CurrentInode, &NextInode, sizeof(EXT2_INODE));
                 CurrentIndex = NextIndex;
             }
         }
@@ -770,7 +770,7 @@ BOOL EnsureParentDirectory(
         Offset += ComponentLength;
     }
 
-    MemoryCopy(Parent, &CurrentInode, sizeof(EXT2INODE));
+    MemoryCopy(Parent, &CurrentInode, sizeof(EXT2_INODE));
     *ParentIndex = CurrentIndex;
 
     return TRUE;
@@ -786,11 +786,11 @@ BOOL EnsureParentDirectory(
  */
 U32 CreateNode(LPFILE_INFO Info, BOOL Directory) {
     LPEXT2FILESYSTEM FileSystem;
-    EXT2INODE ParentInode;
+    EXT2_INODE ParentInode;
     U32 ParentIndex;
     STR FinalComponent[MAX_FILE_NAME];
     U32 ExistingIndex;
-    EXT2INODE ExistingInode;
+    EXT2_INODE ExistingInode;
 
     if (Info == NULL) return DF_RETURN_BAD_PARAMETER;
 
@@ -831,7 +831,7 @@ U32 CreateNode(LPFILE_INFO Info, BOOL Directory) {
         }
     } else {
         U32 NewInodeIndex;
-        EXT2INODE NewInode;
+        EXT2_INODE NewInode;
 
         if (AllocateInode(FileSystem, FALSE, &NewInodeIndex, &NewInode, NULL) == FALSE) {
             UnlockMutex(&(FileSystem->FilesMutex));

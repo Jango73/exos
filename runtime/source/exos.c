@@ -35,27 +35,39 @@ UINT CreateTask(LPTASK_INFO TaskInfo) {
 
 /***************************************************************************/
 
-BOOL KillTask(HANDLE Task) { return (BOOL)exoscall(SYSCALL_KillTask, EXOS_PARAM(Task)); }
+BOOL KillTask(HANDLE Task) {
+    return (BOOL)exoscall(SYSCALL_KillTask, EXOS_PARAM(Task));
+}
 
 /***************************************************************************/
 
-void Exit(void) { exoscall(SYSCALL_Exit, EXOS_PARAM(0)); }
+void Exit(void) {
+    exoscall(SYSCALL_Exit, EXOS_PARAM(0));
+}
 
 /***************************************************************************/
 
-void Sleep(U32 MilliSeconds) { exoscall(SYSCALL_Sleep, EXOS_PARAM(MilliSeconds)); }
+void Sleep(U32 MilliSeconds) {
+    exoscall(SYSCALL_Sleep, EXOS_PARAM(MilliSeconds));
+}
 
 /***************************************************************************/
 
-U32 Wait(LPWAIT_INFO WaitInfo) { return (U32)exoscall(SYSCALL_Wait, EXOS_PARAM(WaitInfo)); }
+U32 Wait(LPWAIT_INFO WaitInfo) {
+    return (U32)exoscall(SYSCALL_Wait, EXOS_PARAM(WaitInfo));
+}
 
 /***************************************************************************/
 
-UINT GetSystemTime(void) { return (UINT)exoscall(SYSCALL_GetSystemTime, EXOS_PARAM(0)); }
+UINT GetSystemTime(void) {
+    return (UINT)exoscall(SYSCALL_GetSystemTime, EXOS_PARAM(0));
+}
 
 /***************************************************************************/
 
-BOOL GetLocalTime(LPDATETIME Time) { return (BOOL)exoscall(SYSCALL_GetLocalTime, EXOS_PARAM(Time)); }
+BOOL GetLocalTime(LPDATETIME Time) {
+    return (BOOL)exoscall(SYSCALL_GetLocalTime, EXOS_PARAM(Time));
+}
 
 /***************************************************************************/
 
@@ -83,11 +95,29 @@ BOOL GetProfileInfo(LPPROFILE_QUERY_INFO Info) {
 
 /***************************************************************************/
 
-LPVOID HeapAlloc(UINT Size) { return (LPVOID)exoscall(SYSCALL_HeapAlloc, EXOS_PARAM(Size)); }
+BOOL GetTaskProfileInfo(LPTASK_PROFILE_QUERY_INFO Info) {
+    if (Info == NULL) {
+        return FALSE;
+    }
+
+    Info->Header.Size = sizeof(*Info);
+    Info->Header.Version = EXOS_ABI_VERSION;
+    Info->Header.Flags = 0;
+
+    return exoscall(SYSCALL_GetTaskProfileInfo, EXOS_PARAM(Info)) == DF_RETURN_SUCCESS;
+}
 
 /***************************************************************************/
 
-void HeapFree(LPVOID Pointer) { exoscall(SYSCALL_HeapFree, EXOS_PARAM(Pointer)); }
+LPVOID HeapAlloc(UINT Size) {
+    return (LPVOID)exoscall(SYSCALL_HeapAlloc, EXOS_PARAM(Size));
+}
+
+/***************************************************************************/
+
+void HeapFree(LPVOID Pointer) {
+    exoscall(SYSCALL_HeapFree, EXOS_PARAM(Pointer));
+}
 
 /***************************************************************************/
 
@@ -243,7 +273,9 @@ U32 FindNextFile(FILE_FIND_INFO* Info) {
 
 /***************************************************************************/
 
-BOOL Line(LPLINE_INFO LineInfo) { return (BOOL)exoscall(SYSCALL_Line, EXOS_PARAM(LineInfo)); }
+BOOL Line(LPLINE_INFO LineInfo) {
+    return (BOOL)exoscall(SYSCALL_Line, EXOS_PARAM(LineInfo));
+}
 
 /***************************************************************************/
 
@@ -320,11 +352,15 @@ BOOL DrawWindowBackground(HANDLE Window, HANDLE GC, LPRECT Rect, U32 ThemeToken)
 
 /***************************************************************************/
 
-BOOL GetMousePosition(LPPOINT Point) { return (BOOL)exoscall(SYSCALL_GetMousePos, EXOS_PARAM(Point)); }
+BOOL GetMousePosition(LPPOINT Point) {
+    return (BOOL)exoscall(SYSCALL_GetMousePos, EXOS_PARAM(Point));
+}
 
 /***************************************************************************/
 
-U32 GetMouseButtons(void) { return (U32)exoscall(SYSCALL_GetMouseButtons, EXOS_PARAM(0)); }
+U32 GetMouseButtons(void) {
+    return (U32)exoscall(SYSCALL_GetMouseButtons, EXOS_PARAM(0));
+}
 
 /***************************************************************************/
 
@@ -356,11 +392,15 @@ BOOL GetMouseDebugInfo(LPDRIVER_DEBUG_INFO Info) {
 
 /***************************************************************************/
 
-HANDLE CaptureMouse(HANDLE Window) { return (HANDLE)exoscall(SYSCALL_CaptureMouse, EXOS_PARAM(Window)); }
+HANDLE CaptureMouse(HANDLE Window) {
+    return (HANDLE)exoscall(SYSCALL_CaptureMouse, EXOS_PARAM(Window));
+}
 
 /***************************************************************************/
 
-BOOL ReleaseMouse(void) { return (BOOL)exoscall(SYSCALL_ReleaseMouse, EXOS_PARAM(0)); }
+BOOL ReleaseMouse(void) {
+    return (BOOL)exoscall(SYSCALL_ReleaseMouse, EXOS_PARAM(0));
+}
 
 /***************************************************************************/
 
@@ -372,19 +412,27 @@ U32 GetKeyModifiers(void) {
 
 /***************************************************************************/
 
-U32 ConsoleGetKey(LPKEYCODE KeyCode) { return exoscall(SYSCALL_ConsoleGetKey, EXOS_PARAM(KeyCode)); }
+U32 ConsoleGetKey(LPKEYCODE KeyCode) {
+    return exoscall(SYSCALL_ConsoleGetKey, EXOS_PARAM(KeyCode));
+}
 
 /***************************************************************************/
 
-U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Buffer) { return exoscall(SYSCALL_ConsoleBlitBuffer, EXOS_PARAM(Buffer)); }
+U32 ConsoleBlitBuffer(LPCONSOLE_BLIT_BUFFER Buffer) {
+    return exoscall(SYSCALL_ConsoleBlitBuffer, EXOS_PARAM(Buffer));
+}
 
 /***************************************************************************/
 
-void ConsoleGotoXY(LPPOINT Position) { exoscall(SYSCALL_ConsoleGotoXY, EXOS_PARAM(Position)); }
+void ConsoleGotoXY(LPPOINT Position) {
+    exoscall(SYSCALL_ConsoleGotoXY, EXOS_PARAM(Position));
+}
 
 /***************************************************************************/
 
-void ConsoleClear(void) { exoscall(SYSCALL_ConsoleClear, EXOS_PARAM(0)); }
+void ConsoleClear(void) {
+    exoscall(SYSCALL_ConsoleClear, EXOS_PARAM(0));
+}
 
 /***************************************************************************/
 
@@ -420,7 +468,9 @@ BOOL ConsoleGetCurrentMode(LPCONSOLE_MODE_INFO Info) {
 
 /***************************************************************************/
 
-BOOL DeleteObject(HANDLE Object) { return (BOOL)exoscall(SYSCALL_DeleteObject, EXOS_PARAM(Object)); }
+BOOL DeleteObject(HANDLE Object) {
+    return (BOOL)exoscall(SYSCALL_DeleteObject, EXOS_PARAM(Object));
+}
 
 /***************************************************************************/
 
@@ -428,7 +478,9 @@ static U32 RandomSeed = 1;
 
 /***************************************************************************/
 
-void srand(U32 Seed) { RandomSeed = Seed; }
+void srand(U32 Seed) {
+    RandomSeed = Seed;
+}
 
 /***************************************************************************/
 
@@ -543,7 +595,11 @@ I32 SocketReceive(SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Fla
 /***************************************************************************/
 
 I32 SocketSendTo(
-    SOCKET_HANDLE SocketHandle, LPCVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS DestAddress,
+    SOCKET_HANDLE SocketHandle,
+    LPCVOID Buffer,
+    U32 Length,
+    U32 Flags,
+    LPSOCKET_ADDRESS DestAddress,
     U32 AddressLength) {
     SOCKET_DATA_INFO Info;
     Info.Header.Size = sizeof(SOCKET_DATA_INFO);
@@ -566,7 +622,11 @@ I32 SocketSendTo(
 /***************************************************************************/
 
 I32 SocketReceiveFrom(
-    SOCKET_HANDLE SocketHandle, LPVOID Buffer, U32 Length, U32 Flags, LPSOCKET_ADDRESS SourceAddress,
+    SOCKET_HANDLE SocketHandle,
+    LPVOID Buffer,
+    U32 Length,
+    U32 Flags,
+    LPSOCKET_ADDRESS SourceAddress,
     U32* AddressLength) {
     SOCKET_DATA_INFO Info;
     Info.Header.Size = sizeof(SOCKET_DATA_INFO);
@@ -590,7 +650,9 @@ I32 SocketReceiveFrom(
 
 /***************************************************************************/
 
-U32 SocketClose(SOCKET_HANDLE SocketHandle) { return exoscall(SYSCALL_SocketClose, EXOS_PARAM(SocketHandle)); }
+U32 SocketClose(SOCKET_HANDLE SocketHandle) {
+    return exoscall(SYSCALL_SocketClose, EXOS_PARAM(SocketHandle));
+}
 
 /***************************************************************************/
 
@@ -723,6 +785,44 @@ LPCSTR InternetAddressToString(U32 IPAddress) {
     StringCopy((LPSTR)(inet_addr_buffer + len), (LPCSTR)temp_buffer);
 
     return (LPCSTR)inet_addr_buffer;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Resolves a host name to an IPv4 address through the kernel DNS
+ * client.
+ *
+ * The call blocks until the resolution completes or the timeout expires. The
+ * resolved address is returned in the same byte order convention as
+ * InternetAddressFromString.
+ *
+ * @param HostName     Host name to resolve.
+ * @param TimeoutMillis Maximum time to wait in milliseconds.
+ * @param OutStatus     Optional pointer receiving a DNS_RESOLVE_STATUS_xxx code.
+ * @return Resolved IPv4 address (network byte order), or 0 on failure.
+ */
+
+U32 InternetAddressFromHostName(LPCSTR HostName, U32 TimeoutMillis, U32* OutStatus) {
+    DNS_RESOLVE_INFO Info;
+
+    memset(&Info, 0, sizeof(DNS_RESOLVE_INFO));
+    Info.Header.Size = sizeof(DNS_RESOLVE_INFO);
+    Info.Header.Version = EXOS_ABI_VERSION;
+    Info.Header.Flags = 0;
+    Info.TimeoutMillis = TimeoutMillis;
+
+    if (HostName != NULL) {
+        StringCopyLimit((LPSTR)Info.Name, HostName, DNS_RESOLVE_MAX_HOST_NAME_LENGTH);
+    }
+
+    exoscall(SYSCALL_DNSResolve, EXOS_PARAM(&Info));
+
+    if (OutStatus != NULL) {
+        *OutStatus = Info.Status;
+    }
+
+    return Info.IP_Be;
 }
 
 /***************************************************************************/

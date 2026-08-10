@@ -289,8 +289,8 @@ static BOOL ThemeSplitTopLevelKey(LPCSTR Key, LPSTR SectionOut, UINT SectionOutS
  * @param FullKey Full key.
  * @return TRUE when duplicate exists before Current.
  */
-static BOOL ThemeHasDuplicateKeyBefore(const TOMLITEM* Current, LPCSTR FullKey) {
-    const TOMLITEM* Item;
+static BOOL ThemeHasDuplicateKeyBefore(const TOML_ITEM* Current, LPCSTR FullKey) {
+    const TOML_ITEM* Item;
 
     for (Item = Current; Item != NULL; Item = Item->Next) {
         if (StringCompareNC(Item->Key, FullKey) == 0) return TRUE;

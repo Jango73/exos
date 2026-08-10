@@ -30,11 +30,15 @@
 
 /***************************************************************************/
 
+// TomlParse allocates the TOML structure, the whole TOML_ITEM array and one
+// contiguous string area in a single block. Key and Value point inside that
+// block, and TomlFree releases everything with one free. The items are
+// read-only after parsing.
 typedef struct tag_TOMLITEM {
     LPSTR Key;
     LPSTR Value;
     struct tag_TOMLITEM* Next;
-} TOMLITEM, *LPTOMLITEM;
+} TOML_ITEM, *LPTOMLITEM;
 
 typedef struct tag_TOML {
     LPTOMLITEM First;

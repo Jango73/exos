@@ -1,0 +1,6 @@
+# Profiling measurement: AHCICommand count on netget 2 MiB download.
+command: "pause off"
+command: "prof reset" | log: "reset=yes"
+command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/smoke-very-large.txt /temp/smoke-very-large.txt" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/smoke-very-large.txt" "/exos/temp/smoke-very-large.txt" | timeout: 120
+command: "prof" | log: "DEBUG > [PrintProfileDumpLine] AHCICommand"
+command: "shutdown"

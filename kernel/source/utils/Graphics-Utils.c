@@ -691,13 +691,13 @@ BOOL GraphicsDrawScanlineFallback(
     U8* Pixel, U32 PixelCount, U32 BitsPerPixel, U32 RasterOperation, COLOR StartColor, COLOR EndColor) {
     U32 PixelIndex = 0;
     U32 Denominator = 0;
-    GRAPHICSCONTEXT Context;
+    GRAPHICS_CONTEXT Context;
 
     if (Pixel == NULL || PixelCount == 0) return FALSE;
     if (RasterOperation != ROP_SET) return FALSE;
 
     Denominator = PixelCount > 1 ? PixelCount - 1 : 0;
-    Context = (GRAPHICSCONTEXT){
+    Context = (GRAPHICS_CONTEXT){
         .TypeID = KOID_GRAPHICSCONTEXT,
         .Flags = GRAPHICS_CONTEXT_FLAG_SOFTWARE_ONLY,
         .Width = (I32)PixelCount,

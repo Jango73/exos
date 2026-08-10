@@ -23,6 +23,8 @@
 
 #include "NTFS-Private.h"
 
+#include "fs/DiskTransferLayer.h"
+
 /***************************************************************************/
 
 /**
@@ -57,12 +59,12 @@ BOOL NtfsIsPowerOfTwo(U32 Value) {
  * @return Bytes per sector, or 0 when unavailable.
  */
 U32 NtfsGetDiskBytesPerSector(LPSTORAGE_UNIT Disk) {
-    DISKINFO DiskInfo;
+    DISK_INFO DiskInfo;
     U32 Result;
 
     if (Disk == NULL || Disk->Driver == NULL) return 0;
 
-    MemorySet(&DiskInfo, 0, sizeof(DISKINFO));
+    MemorySet(&DiskInfo, 0, sizeof(DISK_INFO));
     DiskInfo.Disk = Disk;
     Result = Disk->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo);
     if (Result != DF_RETURN_SUCCESS) return 0;
@@ -382,7 +384,7 @@ BOOL NtfsReadBootSector(
     Control.Buffer = Buffer;
     Control.BufferSize = BytesPerSector;
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) {
         WARNING(TEXT("Boot sector read failed result=%x"), Result);
         return FALSE;
@@ -404,8 +406,7 @@ BOOL NtfsReadBootSector(
  * @param BufferSize Destination buffer size in bytes.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL NtfsReadSectors(
-    LPNTFSFILESYSTEM FileSystem, SECTOR Sector, U32 NumSectors, LPVOID Buffer, U32 BufferSize) {
+BOOL NtfsReadSectors(LPNTFSFILESYSTEM FileSystem, SECTOR Sector, U32 NumSectors, LPVOID Buffer, U32 BufferSize) {
     IOCONTROL Control;
     U32 RelativeSector;
     U32 MaxBytes;
@@ -426,8 +427,7 @@ BOOL NtfsReadSectors(
     }
 
     if (NumSectors > FileSystem->PartitionSize - RelativeSector) {
-        WARNING(TEXT("Read over partition boundary sector=%u count=%u"),
-            Sector, NumSectors);
+        WARNING(TEXT("Read over partition boundary sector=%u count=%u"), Sector, NumSectors);
         return FALSE;
     }
 
@@ -450,7 +450,7 @@ BOOL NtfsReadSectors(
     Control.Buffer = Buffer;
     Control.BufferSize = MaxBytes;
 
-    Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) {
         WARNING(TEXT("Read failed result=%x"), Result);
         return FALSE;
@@ -469,8 +469,7 @@ BOOL NtfsReadSectors(
  * @param RecordSizeOut Destination record size in bytes.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL NtfsComputeFileRecordSize(
-    LPNTFS_MBR BootSector, U32 BytesPerCluster, U32* RecordSizeOut) {
+BOOL NtfsComputeFileRecordSize(LPNTFS_MBR BootSector, U32 BytesPerCluster, U32* RecordSizeOut) {
     U8 RawValue;
     U32 RecordSize;
 
@@ -522,8 +521,7 @@ BOOL NtfsComputeFileRecordSize(
  * @param SectorOut Destination absolute sector.
  * @return TRUE on success, FALSE on overflow or unsupported value.
  */
-BOOL NtfsComputeMftStartSector(
-    SECTOR PartitionStart, U32 SectorsPerCluster, U64 MftStartCluster, U32* SectorOut) {
+BOOL NtfsComputeMftStartSector(SECTOR PartitionStart, U32 SectorsPerCluster, U64 MftStartCluster, U32* SectorOut) {
     U32 ClusterLow;
     U32 ClusterOffsetSectors;
     U32 MftSector;
@@ -532,8 +530,7 @@ BOOL NtfsComputeMftStartSector(
     if (SectorOut == NULL) return FALSE;
 
     if (U64_High32(MftStartCluster) != 0) {
-        WARNING(TEXT("Unsupported MFT cluster high part=%x"),
-            (U32)U64_High32(MftStartCluster));
+        WARNING(TEXT("Unsupported MFT cluster high part=%x"), (U32)U64_High32(MftStartCluster));
         return FALSE;
     }
 
@@ -580,16 +577,14 @@ BOOL NtfsApplyFileRecordFixup(
 
     SectorsInRecord = RecordSize / SectorSize;
     if ((U32)UpdateSequenceSize != (SectorsInRecord + 1)) {
-        WARNING(TEXT("Invalid update sequence size=%u sectors=%u"),
-            UpdateSequenceSize, SectorsInRecord);
+        WARNING(TEXT("Invalid update sequence size=%u sectors=%u"), UpdateSequenceSize, SectorsInRecord);
         return FALSE;
     }
 
     FixupWords = (U32)UpdateSequenceSize;
     if ((U32)UpdateSequenceOffset > RecordSize) return FALSE;
     if (FixupWords > (RecordSize - (U32)UpdateSequenceOffset) / sizeof(U16)) {
-        WARNING(TEXT("Update sequence out of range offset=%u words=%u"),
-            UpdateSequenceOffset, FixupWords);
+        WARNING(TEXT("Update sequence out of range offset=%u words=%u"), UpdateSequenceOffset, FixupWords);
         return FALSE;
     }
 
@@ -605,8 +600,7 @@ BOOL NtfsApplyFileRecordFixup(
             return FALSE;
         }
 
-        Replacement = NtfsLoadU16(
-            RecordBuffer + UpdateSequenceOffset + ((Index + 1) * sizeof(U16)));
+        Replacement = NtfsLoadU16(RecordBuffer + UpdateSequenceOffset + ((Index + 1) * sizeof(U16)));
         NtfsStoreU16(RecordBuffer + TailOffset, Replacement);
     }
 
@@ -695,20 +689,19 @@ static UINT NTFSCommands(UINT Function, UINT Parameter) {
 
 /***************************************************************************/
 
-DRIVER DATA_SECTION NTFSDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .OwnerProcess = &KernelProcess,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_FILESYSTEM,
-    .VersionMajor = NTFS_VER_MAJOR,
-    .VersionMinor = NTFS_VER_MINOR,
-    .Designer = "Microsoft Corporation",
-    .Manufacturer = "Microsoft Corporation",
-    .Product = "NTFS File System",
-    .Alias = "ntfs",
-    .Command = NTFSCommands};
+DRIVER DATA_SECTION NTFSDriver = { .TypeID = KOID_DRIVER,
+                                   .References = 1,
+                                   .OwnerProcess = &KernelProcess,
+                                   .Next = NULL,
+                                   .Prev = NULL,
+                                   .Type = DRIVER_TYPE_FILESYSTEM,
+                                   .VersionMajor = NTFS_VER_MAJOR,
+                                   .VersionMinor = NTFS_VER_MINOR,
+                                   .Designer = "Microsoft Corporation",
+                                   .Manufacturer = "Microsoft Corporation",
+                                   .Product = "NTFS File System",
+                                   .Alias = "ntfs",
+                                   .Command = NTFSCommands };
 
 /***************************************************************************/
 
@@ -743,19 +736,23 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     }
 
     if (Buffer[510] != 0x55 || Buffer[511] != 0xAA) {
-        WARNING(TEXT("Invalid boot signature (%x, %x)"),
-            Buffer[510], Buffer[511]);
+        WARNING(TEXT("Invalid boot signature (%x, %x)"), Buffer[510], Buffer[511]);
         return FALSE;
     }
 
     BootSector = (LPNTFS_MBR)Buffer;
-    if (BootSector->OEMName[0] != 'N' || BootSector->OEMName[1] != 'T' ||
-        BootSector->OEMName[2] != 'F' || BootSector->OEMName[3] != 'S') {
-        WARNING(TEXT("Invalid OEM name (%x %x %x %x %x %x %x %x)"),
-            BootSector->OEMName[0], BootSector->OEMName[1],
-            BootSector->OEMName[2], BootSector->OEMName[3],
-            BootSector->OEMName[4], BootSector->OEMName[5],
-            BootSector->OEMName[6], BootSector->OEMName[7]);
+    if (BootSector->OEMName[0] != 'N' || BootSector->OEMName[1] != 'T' || BootSector->OEMName[2] != 'F' ||
+        BootSector->OEMName[3] != 'S') {
+        WARNING(
+            TEXT("Invalid OEM name (%x %x %x %x %x %x %x %x)"),
+            BootSector->OEMName[0],
+            BootSector->OEMName[1],
+            BootSector->OEMName[2],
+            BootSector->OEMName[3],
+            BootSector->OEMName[4],
+            BootSector->OEMName[5],
+            BootSector->OEMName[6],
+            BootSector->OEMName[7]);
         return FALSE;
     }
 
@@ -766,8 +763,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     }
 
     if (BootBytesPerSector != DiskBytesPerSector) {
-        WARNING(TEXT("Disk/boot sector mismatch %u/%u"),
-            DiskBytesPerSector, BootBytesPerSector);
+        WARNING(TEXT("Disk/boot sector mismatch %u/%u"), DiskBytesPerSector, BootBytesPerSector);
         return FALSE;
     }
 
@@ -792,7 +788,7 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
         return FALSE;
     }
 
-    FileSystem = (LPNTFSFILESYSTEM)CreateKernelObject(sizeof(NTFSFILESYSTEM), KOID_FILESYSTEM);
+    FileSystem = (LPNTFSFILESYSTEM)CreateKernelObject(sizeof(NTFS_FILE_SYSTEM), KOID_FILESYSTEM);
     if (FileSystem == NULL) {
         ERROR(TEXT("Unable to allocate NTFS filesystem object"));
         return FALSE;

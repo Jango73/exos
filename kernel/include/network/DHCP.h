@@ -101,22 +101,22 @@
 // DHCP Message Structure
 
 typedef struct tag_DHCP_MESSAGE {
-    U8 Op;              // Operation: 1=request, 2=reply
-    U8 HType;           // Hardware type: 1=Ethernet
-    U8 HLen;            // Hardware address length: 6 for Ethernet
-    U8 Hops;            // Client sets to zero
-    U32 XID;            // Transaction ID (big-endian)
-    U16 Secs;           // Seconds elapsed (big-endian)
-    U16 Flags;          // Flags (big-endian)
-    U32 CIAddr;         // Client IP address (big-endian)
-    U32 YIAddr;         // Your (client) IP address (big-endian)
-    U32 SIAddr;         // Server IP address (big-endian)
-    U32 GIAddr;         // Gateway IP address (big-endian)
-    U8 CHAddr[16];      // Client hardware address
-    U8 SName[64];       // Server host name
-    U8 File[128];       // Boot file name
-    U32 MagicCookie;    // Magic cookie (0x63825363)
-    U8 Options[312];    // Options (variable length)
+    U8 Op;            // Operation: 1=request, 2=reply
+    U8 HType;         // Hardware type: 1=Ethernet
+    U8 HLen;          // Hardware address length: 6 for Ethernet
+    U8 Hops;          // Client sets to zero
+    U32 XID;          // Transaction ID (big-endian)
+    U16 Secs;         // Seconds elapsed (big-endian)
+    U16 Flags;        // Flags (big-endian)
+    U32 CIAddr;       // Client IP address (big-endian)
+    U32 YIAddr;       // Your (client) IP address (big-endian)
+    U32 SIAddr;       // Server IP address (big-endian)
+    U32 GIAddr;       // Gateway IP address (big-endian)
+    U8 CHAddr[16];    // Client hardware address
+    U8 SName[64];     // Server host name
+    U8 File[128];     // Boot file name
+    U32 MagicCookie;  // Magic cookie (0x63825363)
+    U8 Options[312];  // Options (variable length)
 } DHCP_MESSAGE, *LPDHCP_MESSAGE;
 
 // Fixed fields size (up to and including MagicCookie)
@@ -141,9 +141,9 @@ typedef struct tag_DHCP_CONTEXT {
     U32 Gateway_Be;
     U32 DNSServer_Be;
     U32 ServerID_Be;
-    U32 LeaseTime;      // Seconds
-    U32 RenewalTime;    // T1 (seconds)
-    U32 RebindTime;     // T2 (seconds)
+    U32 LeaseTime;    // Seconds
+    U32 RenewalTime;  // T1 (seconds)
+    U32 RebindTime;   // T2 (seconds)
 
     // Lease management
     U32 LeaseStartMillis;
@@ -156,7 +156,8 @@ void DHCP_Initialize(LPDEVICE Device);
 void DHCP_Destroy(LPDEVICE Device);
 void DHCP_Start(LPDEVICE Device);
 void DHCP_Tick(LPDEVICE Device);
-void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U8* Payload, U32 PayloadLength);
+void DHCP_OnUDPPacket(
+    U32 SourceIP, U16 SourcePort, U16 DestinationPort, U32 DestinationIP, const U8* Payload, U32 PayloadLength);
 
 /************************************************************************/
 

@@ -122,7 +122,7 @@ typedef struct tag_ATADRIVEID {
     U16 Vendor0;
     U16 Vendor1;
     U16 Vendor2;
-} ATADRIVEID, *LPATADRIVEID;
+} ATA_DRIVE_ID, *LPATADRIVEID;
 
 /***************************************************************************/
 

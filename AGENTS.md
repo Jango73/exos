@@ -20,6 +20,10 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - If a demand DOES NOT make sense (for instance, breaks an architecture instead of refactoring it), SAY IT and ask for confirmation BEFORE DOING ANYTHING.
 - NEVER create a commit unless the user explicitly asks for it in the current conversation.
 
+## Commits and Merges
+- On the `main` branch, only squash-merge is used, with a commit message summarizing all the changes of the merged branch, on at most 8 lines.
+- On other branches, merge freely, and use one-liners as commit messages.
+
 ## Architecture and Reuse Rules
 - Bidirectional coupling is **STRICTLY FORBIDDEN**, both when writing code from scratch and when delivering a fix. Keep dependencies unidirectional and break cycles instead of introducing or preserving them.
 - Any behavior likely to appear in multiple places (rate limit, retry, timeout policy, backoff, filtering, counters) MUST be implemented as a reusable module in `kernel/include/utils` + `kernel/source/utils`.
@@ -28,6 +32,7 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - For log-flood control, use the shared `RateLimiter` helper; do not hardcode ad-hoc counters/cooldowns inside modules.
 - **List usage**: this rule applies to the whole kernel. Any list usage MUST use the module List (`utils/List`). The only exception is the memory managers, which cannot use a list before the memory regions are set up.
 - **Mutex ownership**: this rule applies to the whole kernel. Never lock another object's mutex directly to inspect or mutate its internal state. Expose owner-side getters/setters/snapshot helpers, keep critical sections short, and never recurse or call callbacks/messages while holding structural object locks.
+- **User.h / Base.h**: `kernel/include/User.h` and `kernel/include/Base.h` are files visible by userland. They **MUST NOT** contain kernel function definitions, because userland cannot call kernel functions directly.
 
 ## Coding Conventions
 - **Types**: Use **LINEAR** for virtual addresses (when not using direct pointers), **PHYSICAL** for physical addresses, **UINT** for indexes, sizes and error values. In the kernel, it is **STRICTLY FORBIDDEN** to use a direct c type (int, unsigned long, long long, etc...) : **only types in Base.h are allowed.**
@@ -45,7 +50,7 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 - **Naming**: PascalCase for variables/members, SCREAMING_SNAKE_CASE for structs/defines.
 - **Naming clarity**: In addition to using full words, every name must express its intent clearly and without ambiguity.
 - **Comments**: For single-line comments, use `//`, not `/*`.
-- **Style**: 4-space indentation, follow `.clang-format` rules.
+- **Style**: 4-space indentation, follow `.clang-format` rules. Modified files **MUST** be formatted with clang-format (`.clang-format` at repo root); see `scripts/linux/build/format-all-code.sh`. Note: this rule has not been applied regularly in the past, so expect large formatting changes on files that have not been touched recently.
 - **Pointer style**: Never put a space between the type and the pointer asterisk. Write `char* Pointer` (and `(LPVOID)&...`), never `char *Pointer` or `(LPVOID) &...`.
 - **Numbers**: Hexadecimal for constant numbers, except for sizes, vectors, points and time.
 - **Number suffixes**: Do not add numeric suffixes like `u` to constants; they are not wanted here.
@@ -82,6 +87,7 @@ This is a multi-architecture operating system. Currently supporting x86-32 and x
 ## Tool Execution Policy
 - When running repository scripts that may require elevated permissions, always invoke them with the `bash scripts/...` form (example: `bash scripts/linux/test/smoke-test-global.sh`).
 - Keep this invocation form consistent so persistent elevation approval can be reused on the same command prefix.
+- NEVER write temporary or generated artifacts to `/tmp` (it triggers a permission confirmation). Use the gitignored `temp/` folder at the repository root instead (example: `temp/robustness-commands.txt`). This applies to scratch files, generated scenarios, harness command files, and any other ad-hoc output.
 - NEVER run two `./scripts/linux/build/build` commands in parallel: this repository enforces a build lock and the second build will fail with \"A build is already running\". Always run build commands sequentially.
 - If any header file (`*.h`) is modified, validation MUST use a `--clean` build.
 - If the modified header is shared across architectures, or is a central kernel header, validation MUST run with `--clean` on both `x86-32` and `x86-64`.
@@ -115,6 +121,7 @@ Replace `x86-32` with `x86-64` when targeting the x86-64 architecture.
 ./scripts/linux/test/smoke-test-global.sh --only x86-64-uefi
 ```
 This script runs build + boot + a list of commands and supports selecting a single target with `--only`.
+- **Any smoke-test command file MUST start with `command: "pause off"`** (otherwise the pager activates on verbose commands such as `taskStat`/`prof` and blocks forever waiting for a keypress) **and MUST end with `command: "shutdown"`** (otherwise QEMU is not cleanly shut down and the run times out).
 
 **Build output layout:**
 - Core artifacts are written to `build/core/<BUILD_CORE_NAME>/`.
@@ -159,37 +166,10 @@ Doxygen documentation is in `doc/generated/kernel/*`
 - **System** (`system/`): User-space system library, samples
 
 ## Debug Workflow
+0. **Known QEMU input bug (do not re-investigate)**: QEMU `usb-kbd` has a bounded HID event queue and silently drops key events (lost key-ups / stuck Shift) when scripted `sendkey` injection overflows it; `ps2-kbd` is NOT a fix (16-byte queue, same drop).
 1. Use scheduling debug build when needing per-tick information, for scheduler or interrupt issues: `./scripts/linux/build/build --arch x86-32 --fs ext2 --scheduling-debug` (or add `--clean` for a clean make) and the `x86-64` equivalent: `./scripts/linux/build/build --arch x86-64 --fs ext2 --scheduling-debug`. GENERATES TONS OF LOG, USE WITH CARE.
 2. Monitor `log/kernel-x86-32.log` and `kernel-x86-64.log` for exceptions and page faults
 3. **To assert that the systems runs, the emulator must be running and there must be no fault in the logs, in all architectures**
-
-### Reusable x86-64 debug launcher
-Use `bash scripts/linux/x86-64/debug-vesa-int10.sh` as the default one-shot launcher for interactive x86-64 debug sessions requiring:
-- QEMU start with gdb stub (`-s -S`) and monitor telnet
-- deterministic keyboard layout patch in the image for monitor `sendkey`
-- optional automatic shell command injection
-- automatic gdb attach with configurable breakpoints
-
-Default usage:
-```bash
-bash scripts/linux/x86-64/debug-vesa-int10.sh
-```
-
-Send a command automatically:
-```bash
-bash scripts/linux/x86-64/debug-vesa-int10.sh "gfx backend vesa 1024x768x16"
-```
-
-Send a command and validate it through a kernel log pattern:
-```bash
-bash scripts/linux/x86-64/debug-vesa-int10.sh "gfx backend vesa 1024x768x16" "[GraphicsSelectorForceBackendByName] Forced backend"
-```
-
-Key environment overrides:
-- `GDB_BREAKPOINTS` (semicolon-separated, example: `SetVideoMode;RealModeCall`)
-- `GDB_DISABLE_INDEXES` (space-separated gdb breakpoint indexes to disable after creation)
-- `KEYBOARD_LAYOUT` (default: `en-US`)
-- `MONITOR_PORT` and `GDB_PORT`
 
 **Disassembly Analysis:**
 - `./scripts/linux/utils/show-x86-32.sh <address> [context_lines]` (x86-32 build)

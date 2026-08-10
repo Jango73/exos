@@ -48,7 +48,7 @@ typedef struct tag_COFFHEADER {
     U32 NumSymbols;          // Number of entries in the symbol table
     U16 OptionalHeaderSize;  // Size in bytes of the optional header
     U16 Flags;               // Flags
-} COFFHEADER, *LPCOFFHEADER;
+} COFF_HEADER, *LPCOFFHEADER;
 
 #define COFF_HEADER_FLAG_RELOCSTRIPPED 0x0001
 #define COFF_HEADER_FLAG_EXECUTABLE 0x0002
@@ -72,7 +72,7 @@ typedef struct tag_COFFSECTION {
     U16 NumRelocations;   // Number of relocation entries
     U16 NumLineNumbers;   // Number of line number entries
     U32 Flags;            // Flags
-} COFFSECTION, *LPCOFFSECTION;
+} COFF_SECTION, *LPCOFFSECTION;
 
 #define COFF_SECTION_FLAG_REGULAR 0x0000
 #define COFF_SECTION_FLAG_DUMMY 0x0001
@@ -93,7 +93,7 @@ typedef struct tag_COFFRELOCATION {
     U32 Address;
     U32 SymbolIndex;
     U16 Index;
-} COFFRELOCATION, *LPCOFFRELOCATION;
+} COFF_RELOCATION, *LPCOFFRELOCATION;
 
 #define COFF_RELOCATION_ABSOLUTE 0x0000
 #define COFF_RELOCATION_DIRECT_16 0x0001
@@ -119,7 +119,7 @@ typedef struct tag_COFFSYMBOL {
     U16 Type;     // Basic and derived type specification
     U8 Storage;   // Storage class
     U8 NumAux;    // Number of auxiliary entries
-} COFFSYMBOL, *LPCOFFSYMBOL;
+} COFF_SYMBOL, *LPCOFFSYMBOL;
 
 /***************************************************************************/
 

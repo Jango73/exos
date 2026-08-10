@@ -51,7 +51,7 @@ extern "C" {
 \************************************************************************/
 
 #define EXOS_VERSION_MAJOR 0
-#define EXOS_VERSION_MINOR 73
+#define EXOS_VERSION_MINOR 74
 #define EXOS_VERSION_PATCH 0
 
 #define EXOS_COPYRIGHT_FROM 1999
@@ -318,8 +318,18 @@ typedef struct PACKED tag_ABI_HEADER {
 #define SYSCALL_SocketGetSocketName 0x00000076
 
 /************************************************************************/
+// DNS Services
 
-#define SYSCALL_Last 0x000000A2
+#define SYSCALL_DNSResolve 0x000000A2
+
+/************************************************************************/
+// Task Profiling Services
+
+#define SYSCALL_GetTaskProfileInfo 0x000000A3
+
+/************************************************************************/
+
+#define SYSCALL_Last 0x000000A4
 
 /************************************************************************/
 // Structure limits
@@ -327,6 +337,10 @@ typedef struct PACKED tag_ABI_HEADER {
 #define WAIT_INFO_MAX_OBJECTS 32
 #define PROFILE_MAX_ENTRIES 64
 #define PROFILE_NAME_LENGTH 64
+#define TASK_PROFILE_MAX_ENTRIES 64
+#define TASK_PROFILE_NAME_LENGTH 64
+#define DNS_RESOLVE_MAX_HOST_NAME_LENGTH 255
+#define DNS_RESOLVE_DEFAULT_TIMEOUT_MILLISECONDS 20000
 
 /************************************************************************/
 // ABI Data Structures
@@ -421,6 +435,35 @@ typedef struct PACKED tag_PROFILE_QUERY_INFO {
     UINT DroppedCount;
     LPPROFILE_ENTRY_INFO Entries;
 } PROFILE_QUERY_INFO, *LPPROFILE_QUERY_INFO;
+
+#define TASK_PROFILE_QUERY_FLAG_RESET 0x00000001
+
+typedef struct PACKED tag_TASK_PROFILE_ENTRY_INFO {
+    STR Name[TASK_PROFILE_NAME_LENGTH];
+    U32 Status;
+    U32 Priority;
+    UINT QuantumGrantedMilliseconds;
+    UINT QuantumUsedMilliseconds;
+    UINT MaxQuantumUsedMilliseconds;
+    UINT TotalRunTimeMilliseconds;
+    UINT TotalSleepTimeMilliseconds;
+    UINT TotalWakeupLatencyMilliseconds;
+    UINT DispatchCount;
+    UINT PreemptionCount;
+    UINT WakeupCount;
+} TASK_PROFILE_ENTRY_INFO, *LPTASK_PROFILE_ENTRY_INFO;
+
+typedef struct PACKED tag_TASK_PROFILE_QUERY_INFO {
+    ABI_HEADER Header;
+    UINT Capacity;
+    UINT Flags;
+    UINT EntryCount;
+    UINT TotalTaskCount;
+    UINT TotalDispatchCount;
+    UINT TotalRunTimeMilliseconds;
+    UINT TotalSleepTimeMilliseconds;
+    LPTASK_PROFILE_ENTRY_INFO Entries;
+} TASK_PROFILE_QUERY_INFO, *LPTASK_PROFILE_QUERY_INFO;
 
 typedef struct PACKED tag_MODULE_LOAD_INFO {
     ABI_HEADER Header;
@@ -581,7 +624,7 @@ typedef struct PACKED tag_KEYCODE {
     U8 VirtualKey;
     STR ASCIICode;
     USTR Unicode;
-} KEYCODE, *LPKEYCODE;
+} KEY_CODE, *LPKEYCODE;
 
 typedef struct PACKED tag_POINT {
     I32 X, Y;
@@ -686,7 +729,7 @@ typedef struct PACKED tag_GCSELECT {
     ABI_HEADER Header;
     HANDLE GC;
     HANDLE Object;
-} GCSELECT, *LPGCSELECT;
+} GC_SELECT, *LPGCSELECT;
 
 typedef struct PACKED tag_BRUSH_INFO {
     ABI_HEADER Header;
@@ -918,6 +961,25 @@ typedef struct PACKED tag_SOCKET_SHUTDOWN_INFO {
     SOCKET_HANDLE SocketHandle;
     U32 How;  // SOCKET_SHUTDOWN_READ, SOCKET_SHUTDOWN_WRITE, SOCKET_SHUTDOWN_BOTH
 } SOCKET_SHUTDOWN_INFO, *LPSOCKET_SHUTDOWN_INFO;
+
+/************************************************************************/
+// DNS Resolution Structures
+
+// DNS resolution status codes
+#define DNS_RESOLVE_STATUS_SUCCESS 0x00000000
+#define DNS_RESOLVE_STATUS_TIMEOUT 0x00000001
+#define DNS_RESOLVE_STATUS_NAME_ERROR 0x00000002
+#define DNS_RESOLVE_STATUS_NO_ANSWER 0x00000003
+#define DNS_RESOLVE_STATUS_TRUNCATED 0x00000004
+#define DNS_RESOLVE_STATUS_ERROR 0xFFFFFFFF
+
+typedef struct PACKED tag_DNS_RESOLVE_INFO {
+    ABI_HEADER Header;
+    STR Name[DNS_RESOLVE_MAX_HOST_NAME_LENGTH + 1];  // Host name to resolve
+    U32 TimeoutMillis;                               // Maximum wait time in milliseconds
+    U32 Status;                                      // DNS_RESOLVE_STATUS_xxx
+    U32 IP_Be;                                       // Resolved IPv4 address in network byte order
+} DNS_RESOLVE_INFO, *LPDNS_RESOLVE_INFO;
 
 /************************************************************************/
 // Socket Address Structures

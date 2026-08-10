@@ -1,0 +1,22 @@
+# Shell smoke-test command specification
+# Format:
+# command: "<command line>" | log: "<expected fixed log fragment>"
+
+command: "pause off" | log: "TEST > [CMD_pause] pause off : OK"
+command: "commands" | log: "TEST > [CMD_commands] commands : OK"
+command: "changeFolder system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
+command: "listFolder -r /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=1 stress=0 : OK" | timeout: 30
+command: "makeFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_makeFolder] makeFolder /temp/shell-smoke-block1 : OK"
+command: "listFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=0 recursive=0 stress=0 : OK"
+command: "ls --sort=name /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "ls --sort=extension /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "ls --sort=modified /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "lf --limit=2 /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "lf --limit=0 /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "lf --sort=name --limit=3 /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "ls -sn /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "ls -se /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "ls -sm /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "lf -l2 /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "lf -l0 /system" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
+command: "shutdown"

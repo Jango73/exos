@@ -1,0 +1,5 @@
+status = setGraphicsDriver("vesa", 1024, 768, 16);
+if (status == 0) {
+    return 42;
+}
+return 0;

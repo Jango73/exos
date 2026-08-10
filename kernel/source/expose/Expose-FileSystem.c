@@ -67,7 +67,7 @@ SCRIPT_ERROR FileSystemRootGetProperty(
  */
 SCRIPT_ERROR FileSystemGetProperty(
     LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
-    DISKINFO DiskInfo;
+    DISK_INFO DiskInfo;
     LPSTORAGE_UNIT StorageUnit = NULL;
     BOOL DiskInfoValid = FALSE;
 

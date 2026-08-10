@@ -41,12 +41,7 @@ SCRIPT_HOST_HANDLE NetworkRootHandle = &NetworkRootSentinel;
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR NetworkGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR NetworkGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
     UNUSED(Parent);
 
@@ -68,14 +63,9 @@ SCRIPT_ERROR NetworkGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR NetworkDeviceGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     NETWORK_INFO Info;
     NETWORK_GET_INFO GetInfo;
-    U32 IpHost = 0;
     LPPCI_DEVICE Device = NULL;
 
     UNUSED(Context);
@@ -95,8 +85,6 @@ SCRIPT_ERROR NetworkDeviceGetProperty(
                 Device->Driver->Command(DF_NT_GETINFO, (UINT)(LPVOID)&GetInfo);
             }
 
-            IpHost = Ntohl(NetContext->ActiveConfig.LocalIPv4_Be);
-
             EXPOSE_BIND_STRING("name", Device->Name);
             EXPOSE_BIND_STRING("manufacturer", Device->Driver != NULL ? Device->Driver->Manufacturer : TEXT(""));
             EXPOSE_BIND_STRING("product", Device->Driver != NULL ? Device->Driver->Product : TEXT(""));
@@ -106,10 +94,10 @@ SCRIPT_ERROR NetworkDeviceGetProperty(
             EXPOSE_BIND_INTEGER("mac3", Info.MAC[3]);
             EXPOSE_BIND_INTEGER("mac4", Info.MAC[4]);
             EXPOSE_BIND_INTEGER("mac5", Info.MAC[5]);
-            EXPOSE_BIND_INTEGER("ip0", (IpHost >> 24) & 0xFF);
-            EXPOSE_BIND_INTEGER("ip1", (IpHost >> 16) & 0xFF);
-            EXPOSE_BIND_INTEGER("ip2", (IpHost >> 8) & 0xFF);
-            EXPOSE_BIND_INTEGER("ip3", IpHost & 0xFF);
+            EXPOSE_BIND_INTEGER("ip0", (NetContext->ActiveConfig.LocalIPv4_Be >> 24) & 0xFF);
+            EXPOSE_BIND_INTEGER("ip1", (NetContext->ActiveConfig.LocalIPv4_Be >> 16) & 0xFF);
+            EXPOSE_BIND_INTEGER("ip2", (NetContext->ActiveConfig.LocalIPv4_Be >> 8) & 0xFF);
+            EXPOSE_BIND_INTEGER("ip3", NetContext->ActiveConfig.LocalIPv4_Be & 0xFF);
             EXPOSE_BIND_INTEGER("linkUp", Info.LinkUp);
             EXPOSE_BIND_INTEGER("speedMbps", Info.SpeedMbps);
             EXPOSE_BIND_INTEGER("duplexFull", Info.DuplexFull);
@@ -134,11 +122,7 @@ SCRIPT_ERROR NetworkDeviceGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR NetworkDeviceArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -164,11 +148,7 @@ SCRIPT_ERROR NetworkDeviceArrayGetProperty(
  * @return SCRIPT_OK when the device exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR NetworkDeviceArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -193,25 +173,12 @@ SCRIPT_ERROR NetworkDeviceArrayGetElement(
 
 /************************************************************************/
 
-const SCRIPT_HOST_DESCRIPTOR NetworkDescriptor = {
-    NetworkGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR NetworkDescriptor = { NetworkGetProperty, NULL, NULL, NULL };
 
-const SCRIPT_HOST_DESCRIPTOR NetworkDeviceDescriptor = {
-    NetworkDeviceGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+const SCRIPT_HOST_DESCRIPTOR NetworkDeviceDescriptor = { NetworkDeviceGetProperty, NULL, NULL, NULL };
 
 const SCRIPT_HOST_DESCRIPTOR NetworkDeviceArrayDescriptor = {
-    NetworkDeviceArrayGetProperty,
-    NetworkDeviceArrayGetElement,
-    NULL,
-    NULL
+    NetworkDeviceArrayGetProperty, NetworkDeviceArrayGetElement, NULL, NULL
 };
 
 /************************************************************************/

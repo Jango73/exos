@@ -24,21 +24,21 @@
 
 #include "drivers/filesystems/FAT32-Private.h"
 #include "drivers/filesystems/FileSystem-Common.h"
+#include "fs/DiskTransferLayer.h"
 
-DRIVER DATA_SECTION FAT32Driver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .OwnerProcess = &KernelProcess,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_FILESYSTEM,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Microsoft Corporation",
-    .Product = "Fat 32 File System",
-    .Alias = "fat32",
-    .Command = FAT32Commands};
+DRIVER DATA_SECTION FAT32Driver = { .TypeID = KOID_DRIVER,
+                                    .References = 1,
+                                    .OwnerProcess = &KernelProcess,
+                                    .Next = NULL,
+                                    .Prev = NULL,
+                                    .Type = DRIVER_TYPE_FILESYSTEM,
+                                    .VersionMajor = VER_MAJOR,
+                                    .VersionMinor = VER_MINOR,
+                                    .Designer = "Jango73",
+                                    .Manufacturer = "Microsoft Corporation",
+                                    .Product = "Fat 32 File System",
+                                    .Alias = "fat32",
+                                    .Command = FAT32Commands };
 
 /**
  * @brief Allocate and initialize a FAT32 file system object.
@@ -48,10 +48,10 @@ DRIVER DATA_SECTION FAT32Driver = {
 static LPFAT32FILESYSTEM NewFATFileSystem(LPSTORAGE_UNIT Disk) {
     LPFAT32FILESYSTEM This;
 
-    This = (LPFAT32FILESYSTEM)KernelHeapAlloc(sizeof(FAT32FILESYSTEM));
+    This = (LPFAT32FILESYSTEM)KernelHeapAlloc(sizeof(FAT32_FILE_SYSTEM));
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(FAT32FILESYSTEM));
+    MemorySet(This, 0, sizeof(FAT32_FILE_SYSTEM));
 
     This->Header.TypeID = KOID_FILESYSTEM;
     This->Header.References = 1;
@@ -78,15 +78,15 @@ static LPFAT32FILESYSTEM NewFATFileSystem(LPSTORAGE_UNIT Disk) {
  * @brief Allocate and initialize a FAT32 file handle.
  * @param FileSystem Owning file system.
  * @param FileLoc Initial file location information.
- * @return Pointer to a new FATFILE or NULL on failure.
+ * @return Pointer to a new FAT_FILE or NULL on failure.
  */
 LPFATFILE NewFATFile(LPFAT32FILESYSTEM FileSystem, LPFATFILELOC FileLoc) {
     LPFATFILE This;
 
-    This = (LPFATFILE)KernelHeapAlloc(sizeof(FATFILE));
+    This = (LPFATFILE)KernelHeapAlloc(sizeof(FAT_FILE));
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(FATFILE));
+    MemorySet(This, 0, sizeof(FAT_FILE));
 
     This->Header.TypeID = KOID_FILE;
     This->Header.References = 1;
@@ -219,14 +219,15 @@ static BOOL FAT32TransferCluster(LPFAT32FILESYSTEM FileSystem, CLUSTER Cluster, 
     Sector =
         FileSystem->DataStart + ((Cluster - FileSystem->Master.RootCluster) * FileSystem->Master.SectorsPerCluster);
 
-    if (PartitionTransferSectors(FileSystem->Disk,
-                                 FileSystem->PartitionStart,
-                                 FileSystem->PartitionSize,
-                                 Sector,
-                                 FileSystem->Master.SectorsPerCluster,
-                                 Buffer,
-                                 FileSystem->Master.SectorsPerCluster * SECTOR_SIZE,
-                                 Command) == FALSE) {
+    if (PartitionTransferSectors(
+            FileSystem->Disk,
+            FileSystem->PartitionStart,
+            FileSystem->PartitionSize,
+            Sector,
+            FileSystem->Master.SectorsPerCluster,
+            Buffer,
+            FileSystem->Master.SectorsPerCluster * SECTOR_SIZE,
+            Command) == FALSE) {
         return FALSE;
     }
 
@@ -292,7 +293,7 @@ CLUSTER GetNextClusterInChain(LPFAT32FILESYSTEM FileSystem, CLUSTER Cluster) {
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     if (Result == DF_RETURN_SUCCESS) {
         NextCluster = Buffer[Offset];
@@ -334,7 +335,7 @@ static CLUSTER FindFreeCluster(LPFAT32FILESYSTEM FileSystem) {
         Control.SectorHigh = 0;
         Control.NumSectors = 1;
 
-        Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+        Result = DiskTransferLayerRead(&Control);
         if (Result != DF_RETURN_SUCCESS) {
             goto Out;
         }
@@ -352,7 +353,7 @@ static CLUSTER FindFreeCluster(LPFAT32FILESYSTEM FileSystem) {
                 Control.SectorLow = FileSystem->FATStart + CurrentSector;
                 Control.SectorHigh = 0;
                 Control.NumSectors = 1;
-                Result = FileSystem->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+                Result = DiskTransferLayerWrite(&Control);
                 if (Result != DF_RETURN_SUCCESS) {
                     goto Out;
                 }
@@ -366,7 +367,7 @@ static CLUSTER FindFreeCluster(LPFAT32FILESYSTEM FileSystem) {
                     Control.SectorLow = FileSystem->FATStart2 + CurrentSector;
                     Control.SectorHigh = 0;
                     Control.NumSectors = 1;
-                    Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+                    Result = DiskTransferLayerRead(&Control);
                     if (Result != DF_RETURN_SUCCESS) {
                         goto Out;
                     }
@@ -382,7 +383,7 @@ static CLUSTER FindFreeCluster(LPFAT32FILESYSTEM FileSystem) {
                     Control.SectorLow = FileSystem->FATStart2 + CurrentSector;
                     Control.SectorHigh = 0;
                     Control.NumSectors = 1;
-                    Result = FileSystem->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+                    Result = DiskTransferLayerWrite(&Control);
                     if (Result != DF_RETURN_SUCCESS) {
                         goto Out;
                     }
@@ -430,7 +431,7 @@ static BOOL FindFreeFATEntry(LPFAT32FILESYSTEM FileSystem, U32* Sector,
         Control.Buffer = Buffer;
         Control.BufferSize = SECTOR_SIZE;
 
-        Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+        Result = DiskTransferLayerRead(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return FALSE;
@@ -505,7 +506,7 @@ static BOOL SetDirEntry(LPVOID Buffer, LPSTR Name, CLUSTER Cluster, U32 Attribut
     //-------------------------------------
     // Fill the directory entry
 
-    DirEntry = (LPFATDIRENTRY_EXT)(Buffer + ((NumEntries - 1) * sizeof(FATDIRENTRY_EXT)));
+    DirEntry = (LPFATDIRENTRY_EXT)(Buffer + ((NumEntries - 1) * sizeof(FAT_DIR_ENTRY_EXT)));
 
     DirEntry->Name[0] = ShortName[0];
     DirEntry->Name[1] = ShortName[1];
@@ -710,7 +711,7 @@ BOOL CreateDirEntry(LPFAT32FILESYSTEM FileSystem, CLUSTER FolderCluster, LPSTR N
                 return TRUE;
             }
 
-            CurrentOffset += sizeof(FATDIRENTRY_EXT);
+            CurrentOffset += sizeof(FAT_DIR_ENTRY_EXT);
 
             if (CurrentOffset >= FileSystem->BytesPerCluster) {
                 BaseEntry = NULL;
@@ -763,7 +764,7 @@ CLUSTER ChainNewCluster(LPFAT32FILESYSTEM FileSystem, CLUSTER Cluster) {
         Control.SectorHigh = 0;
         Control.NumSectors = 1;
 
-        Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+        Result = DiskTransferLayerRead(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;
@@ -793,7 +794,7 @@ Next:
         Control.SectorHigh = 0;
         Control.NumSectors = 1;
 
-        Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+        Result = DiskTransferLayerRead(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;
@@ -801,7 +802,7 @@ Next:
 
         Buffer[CurrentOffset] = NewCluster;
 
-        Result = FileSystem->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+        Result = DiskTransferLayerWrite(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;

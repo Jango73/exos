@@ -118,7 +118,7 @@
 #define E1000_ReadReg32(Base, Off) (*(volatile U32 *)((U8 *)(Base) + (Off)))
 #define E1000_WriteReg32(Base, Off, Val) (*(volatile U32 *)((U8 *)(Base) + (Off)) = (U32)(Val))
 
-typedef struct tag_E1000DEVICE E1000DEVICE, *LPE1000DEVICE;
+typedef struct tag_E1000DEVICE E1000_DEVICE, *LPE1000DEVICE;
 
 #pragma pack(push, 1)
 
@@ -567,10 +567,10 @@ static BOOL E1000_SetupTransmit(LPE1000DEVICE Device) {
  * @return Pointer to device cast as LPPCI_DEVICE.
  */
 static LPPCI_DEVICE E1000_Attach(LPPCI_DEVICE PciDevice) {
-    LPE1000DEVICE Device = (LPE1000DEVICE)KernelHeapAlloc(sizeof(E1000DEVICE));
+    LPE1000DEVICE Device = (LPE1000DEVICE)KernelHeapAlloc(sizeof(E1000_DEVICE));
     if (Device == NULL) return NULL;
 
-    MemorySet(Device, 0, sizeof(E1000DEVICE));
+    MemorySet(Device, 0, sizeof(E1000_DEVICE));
     MemoryCopy(Device, PciDevice, sizeof(PCI_DEVICE));
     InitMutex(&(Device->Mutex));
     Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
@@ -798,7 +798,7 @@ static BOOL E1000_AcknowledgeInterrupt(LPE1000DEVICE Device, U32 *Cause) {
  * Acknowledges interrupts and determines if deferred work is needed.
  *
  * @param DevicePointer Device pointer from interrupt context.
- * @param Context Driver context (E1000DEVICE).
+ * @param Context Driver context (E1000_DEVICE).
  * @return TRUE if interrupt was relevant and should schedule bottom half.
  */
 static BOOL E1000_InterruptTopHalf(LPDEVICE DevicePointer, LPVOID Context) {
@@ -848,7 +848,7 @@ static BOOL E1000_InterruptTopHalf(LPDEVICE DevicePointer, LPVOID Context) {
  * @brief Deferred (bottom-half) routine for processing RX and maintenance.
  *
  * @param DevicePointer Device pointer from interrupt context.
- * @param Context Driver context (E1000DEVICE).
+ * @param Context Driver context (E1000_DEVICE).
  */
 static void E1000_DeferredRoutine(LPDEVICE DevicePointer, LPVOID Context) {
     UNUSED(DevicePointer);
@@ -869,7 +869,7 @@ static void E1000_DeferredRoutine(LPDEVICE DevicePointer, LPVOID Context) {
  * @brief Polling routine when running without interrupts.
  *
  * @param DevicePointer Device pointer from polling context.
- * @param Context Driver context (E1000DEVICE).
+ * @param Context Driver context (E1000_DEVICE).
  */
 static void E1000_PollRoutine(LPDEVICE DevicePointer, LPVOID Context) { E1000_DeferredRoutine(DevicePointer, Context); }
 

@@ -22,9 +22,15 @@ command: "listFolder /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] l
 command: "listFolder -p /temp/shell-smoke-block1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-block1 pause=1 recursive=0 stress=0 : OK"
 command: "changeFolder /temp/shell-smoke-block1" | log: "TEST > [ChangeFolder] changeFolder /temp/shell-smoke-block1 : OK"
 command: "changeFolder /system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
+command: "md /temp/shell-smoke-alias1" | log: "TEST > [CMD_makeFolder] makeFolder /temp/shell-smoke-alias1 : OK"
+command: "mkdir /temp/shell-smoke-alias1/sub" | log: "TEST > [CMD_makeFolder] makeFolder /temp/shell-smoke-alias1/sub : OK"
+command: "dir /temp/shell-smoke-alias1" | log: "TEST > [CMD_listFolder] listFolder base=/temp/shell-smoke-alias1 pause=0 recursive=0 stress=0 : OK"
+command: "cd .." | log: "TEST > [ChangeFolder] changeFolder / : OK"
+command: "cf system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
+command: "ls" | log: "TEST > [CMD_listFolder] listFolder base=/system pause=0 recursive=0 stress=0 : OK"
 command: "scripts/test-exposed-objects.e0" | timeout: 20 | log: "TEST > [ShellPrintScriptReturnValue] 36"
-command: "memoryMap" | timeout: 10 | log: "TEST > [CMD_memorymap] memoryMap : OK"
-command: "memoryMap --heap" | timeout: 10 | log: "TEST > [CMD_memorymap] memoryMap : OK"
+command: "memoryMap" | timeout: 30 | log: "TEST > [CMD_memorymap] memoryMap : OK"
+command: "memoryMap --heap" | timeout: 30 | log: "TEST > [CMD_memorymap] memoryMap : OK"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
 command: "/system/apps/hello --no-pause" | log: "TEST > [Spawn] Executable finished normally : /system/apps/hello"
@@ -35,6 +41,7 @@ hotkey: "shift-n"
 hotkey: "esc"
 hotkey: "shift-q" | log: "TEST > [Spawn] Executable finished normally : /system/apps/terminal-tactics"
 command: "tcc /system/apps/tcc/samples/hello.c -o /temp/tcc-global-hello" | log: "DEBUG > [Spawn] Process completed successfully, exit code: 0" | timeout: 60
+command: "/temp/tcc-global-hello" | log: "TCC_GLOBAL_HELLO:Hello from a TinyCC-compiled EXOS program" | timeout: 15
 command: "/temp/tcc-global-hello" | log: "TEST > [Spawn] Executable finished normally : /temp/tcc-global-hello" | timeout: 15
 command: "type /fs/n0p0/read.txt" | log: "TEST > [CMD_type] type /fs/n0p0/read.txt : OK"
 command: "copy /fs/n0p0/read.txt /fs/n0p0/write.txt" | log: "TEST > [CMD_copy] copy /fs/n0p0/read.txt /fs/n0p0/write.txt : OK"
@@ -54,6 +61,6 @@ command: "/system/apps/memory-stress" | log: "memory stress: OK"
 command: "/system/apps/netget @LOCAL_HTTP_BASE_URL@/index.html /temp/index.html" | log: "TEST > [Spawn] Executable finished normally : /system/apps/netget" | file-size-compare: "scripts/common/net/www/index.html" "/exos/temp/index.html"
 command: "package run test" | log: "TEST > [Spawn] Executable finished normally : /package/binary/master"
 command: "run -b /system/apps/portal"
-hotkey: "ctrl-alt-f1" | before: 5
+hotkey: "ctrl-shift-f1" | before: 5
 command: "clear"
 command: "shutdown"

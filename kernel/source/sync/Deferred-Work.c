@@ -24,6 +24,7 @@
 #include "sync/Deferred-Work.h"
 
 #include "core/Kernel.h"
+#include "console/Console.h"
 #include "log/Log.h"
 #include "process/Process.h"
 #include "process/Task.h"
@@ -75,7 +76,9 @@ DRIVER DATA_SECTION DeferredWorkDriver = {
  * @brief Retrieve the deferred work driver descriptor.
  * @return Pointer to the deferred work driver.
  */
-LPDRIVER DeferredWorkGetDriver(void) { return &DeferredWorkDriver; }
+LPDRIVER DeferredWorkGetDriver(void) {
+    return &DeferredWorkDriver;
+}
 
 /************************************************************************/
 
@@ -205,20 +208,27 @@ BOOL InitializeDeferredWork(void) {
     }
 
     if (DeferredWorkInitializeQueue(
-            DEFERRED_WORK_QUEUE_STANDARD, TEXT("DeferredWork"), PollingMode, GetDeferredWorkWaitTimeout(),
+            DEFERRED_WORK_QUEUE_STANDARD,
+            TEXT("DeferredWork"),
+            PollingMode,
+            GetDeferredWorkWaitTimeout(),
             GetDeferredWorkPollDelay()) == FALSE) {
         return FALSE;
     }
 
     if (DeferredWorkInitializeQueue(
-            DEFERRED_WORK_QUEUE_FAST, TEXT("DeferredWorkFast"), PollingMode, DEFERRED_WORK_FAST_DELAY_MS,
+            DEFERRED_WORK_QUEUE_FAST,
+            TEXT("DeferredWorkFast"),
+            PollingMode,
+            DEFERRED_WORK_FAST_DELAY_MS,
             DEFERRED_WORK_FAST_DELAY_MS) == FALSE) {
         DeferredWorkQueueShutdown(&(g_DeferredWorkQueues[DEFERRED_WORK_QUEUE_STANDARD]));
         return FALSE;
     }
 
     DEBUG(
-        TEXT("Queues initialized standard_delay=%u fast_delay=%u"), GetDeferredWorkPollDelay(),
+        TEXT("Queues initialized standard_delay=%u fast_delay=%u"),
+        GetDeferredWorkPollDelay(),
         DEFERRED_WORK_FAST_DELAY_MS);
     return TRUE;
 }
@@ -341,7 +351,9 @@ void DeferredWorkSignal(DEFERRED_WORK_TOKEN Token) {
  * @brief Tell whether the standard queue uses polling mode.
  * @return TRUE when polling mode is enabled.
  */
-BOOL DeferredWorkIsPollingMode(void) { return DeferredWorkIsPollingModeForQueue(DEFERRED_WORK_QUEUE_STANDARD); }
+BOOL DeferredWorkIsPollingMode(void) {
+    return DeferredWorkIsPollingModeForQueue(DEFERRED_WORK_QUEUE_STANDARD);
+}
 
 /************************************************************************/
 

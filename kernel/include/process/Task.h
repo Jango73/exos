@@ -39,6 +39,7 @@
 #include "sync/Mutex.h"
 #include "utils/List.h"
 #include "utils/MessageQueue.h"
+#include "utils/TaskProfile.h"
 
 /************************************************************************/
 
@@ -53,6 +54,14 @@
 #define TASK_USER_TLS_CONTROL_BLOCK_MAGIC 0x544C5343
 #define TASK_USER_TLS_CONTROL_BLOCK_VERSION 1
 
+// Scheduler quantum policy. The default maximum is large enough to keep
+// every standard priority distinct under ComputeTaskQuantumTime(), and the
+// configuration ratio preserves the min/max relationship when General.QuantumMS
+// overrides the minimum quantum.
+#define SCHEDULING_QUANTUM_DEFAULT_MINIMUM 1
+#define SCHEDULING_QUANTUM_DEFAULT_MAXIMUM 64
+#define SCHEDULING_QUANTUM_CONFIG_RATIO 64
+
 /************************************************************************/
 // Message queue
 
@@ -64,14 +73,16 @@ typedef struct tag_MESSAGEQUEUE {
     MESSAGE_QUEUE_BUFFER MessageBuffer;  // Optional fixed-size message buffer
     LINEAR MessageBufferBase;            // Backing storage virtual base for task queue
     UINT MessageBufferSize;              // Backing storage size in bytes
-} MESSAGEQUEUE, *LPMESSAGEQUEUE;
+} MESSAGE_QUEUE, *LPMESSAGEQUEUE;
 
 // Scheduler-owned task state
 
 typedef struct tag_TASK_SCHEDULER_STATE {
     U32 Status;
-    UINT WakeUpTime;
+    UINT WakeUpTime;  // Absolute sleep deadline (INFINITY when not sleeping)
+    UINT TimeSlice;   // Absolute time-slice expiry deadline (INFINITY when not armed)
     BOOL Suspended;
+    BOOL InitDone;  // TRUE once the task has been started by the scheduler (JumpToReadyTask ran)
 } TASK_SCHEDULER_STATE, *LPTASK_SCHEDULER_STATE;
 
 typedef struct tag_EXECUTABLE_MODULE_BINDING EXECUTABLE_MODULE_BINDING, *LPEXECUTABLE_MODULE_BINDING;
@@ -132,7 +143,7 @@ struct tag_TASK {
     U32 HeldMutexClassDepth;                                 // Number of held lock classes tracked for diagnostics
     U32 HeldMutexClasses[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];  // Held lock class stack
     LPMUTEX HeldMutexes[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];   // Held mutex stack
-    MESSAGEQUEUE MessageQueue;                               // Message queue for this task
+    MESSAGE_QUEUE MessageQueue;                               // Message queue for this task
     LPVOID WindowDispatchWindow;                             // Current window in nested window dispatch
     LPVOID WindowDispatchClass;                              // Current class in nested window dispatch
     WINDOWFUNC WindowDispatchFunction;                       // Current function in nested window dispatch
@@ -141,6 +152,9 @@ struct tag_TASK {
     UINT ModuleTlsBlockCount;                                // Number of task-owned executable module TLS blocks
     LINEAR UserTlsAnchor;                                    // User-visible thread control block base
     UINT UserTlsAnchorSize;                                  // User-visible thread control block mapping size
+#if PROFILING
+    TASK_PROFILE_STATE Profile;  // Per-task profiling counters
+#endif
 };
 
 typedef struct tag_TASK TASK, *LPTASK;
@@ -164,15 +178,25 @@ void SetTaskStatusDirect(LPTASK Task, U32 Status);
 BOOL SetTaskSchedulerStatus(LPTASK Task, U32 Status);
 void SetTaskWakeUpTimeDirect(LPTASK Task, UINT WakeupTime);
 void SetTaskWakeUpTime(LPTASK Task, UINT WakeupTime);
+void SetTaskTimeSliceDirect(LPTASK Task, UINT Quantum);
+void SetTaskTimeSlice(LPTASK Task, UINT Quantum);
 U32 ComputeTaskQuantumTime(U32 Priority);
 BOOL TaskEnsureModuleTlsBlock(
-    LPTASK Task, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR TemplateBase, UINT TemplateSize, UINT TotalSize,
+    LPTASK Task,
+    LPEXECUTABLE_MODULE_BINDING Binding,
+    LINEAR TemplateBase,
+    UINT TemplateSize,
+    UINT TotalSize,
     UINT Alignment);
 void TaskReleaseModuleTlsBlock(LPTASK Task, LPEXECUTABLE_MODULE_BINDING Binding);
 void TaskReleaseModuleTlsBlocks(LPTASK Task);
 void TaskReleaseProcessModuleTlsBlocks(LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding);
 BOOL TaskInstallProcessModuleTlsBlocks(
-    LPPROCESS Process, LPEXECUTABLE_MODULE_BINDING Binding, LINEAR TemplateBase, UINT TemplateSize, UINT TotalSize,
+    LPPROCESS Process,
+    LPEXECUTABLE_MODULE_BINDING Binding,
+    LINEAR TemplateBase,
+    UINT TemplateSize,
+    UINT TotalSize,
     UINT Alignment);
 BOOL InitializeTaskProcessModuleTlsBindings(LPPROCESS Process, LPTASK Task);
 BOOL TaskSetUserTlsAnchor(LPTASK Task, LINEAR Anchor);

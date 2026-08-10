@@ -103,7 +103,7 @@ INT MemoryCompare(LPCVOID First, LPCVOID Second, UINT Size) {
 
 #ifdef __KERNEL__
         UINT Count = Size;
-        #if defined(__EXOS_ARCH_X86_64__)
+    #if defined(__EXOS_ARCH_X86_64__)
         __asm__ __volatile__(
             "xor %%eax, %%eax\n"
             "cld\n"
@@ -473,9 +473,7 @@ BOOL StringContains(LPCSTR Text, LPCSTR Search) {
     while (*Text != STR_NULL) {
         U32 Index = 0;
 
-        while (Text[Index] != STR_NULL &&
-               Search[Index] != STR_NULL &&
-               Text[Index] == Search[Index]) {
+        while (Text[Index] != STR_NULL && Search[Index] != STR_NULL && Text[Index] == Search[Index]) {
             Index++;
         }
 
@@ -794,20 +792,20 @@ U32 StringToU32(LPCSTR Text) {
 
 // Helper macro for division with remainder - divides n by base and returns remainder
 #ifdef __EXOS_64__
-    #define DoDiv(n, base)                     \
-        ({                                     \
-            int __res;                         \
+    #define DoDiv(n, base)                         \
+        ({                                         \
+            int __res;                             \
             __res = (int)((U64)(n) % (U64)(base)); \
             (n) = (UINT)((U64)(n) / (U64)(base));  \
-            __res;                             \
+            __res;                                 \
         })
 #else
-    #define DoDiv(n, base)                \
-        ({                                \
-            int __res;                    \
-            __res = ((U32)(n)) % (U32)(base); \
+    #define DoDiv(n, base)                        \
+        ({                                        \
+            int __res;                            \
+            __res = ((U32)(n)) % (U32)(base);     \
             (n) = (UINT)((U32)(n) / (U32)(base)); \
-            __res;                        \
+            __res;                                \
         })
 #endif
 
@@ -1017,9 +1015,9 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
     UINT NumberValue = 0;
     BOOL NumberIsNegative = FALSE;
     BOOL NumberIsPreloaded = FALSE;
-    #if defined(__EXOS_64__)
+#if defined(__EXOS_64__)
     BOOL QualifierIsLongLong = FALSE;
-    #endif
+#endif
     int Flags, FieldWidth, Precision, Qualifier, Base, Length, i;
     LPSTR Dst = Destination;  // Output pointer
 
@@ -1098,16 +1096,16 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
         }
 
         Qualifier = -1;
-        #if defined(__EXOS_64__)
+#if defined(__EXOS_64__)
         QualifierIsLongLong = FALSE;
-        #endif
+#endif
         if (*Format == 'h' || *Format == 'l' || *Format == 'L') {
             Qualifier = *Format;
             Format++;
             if (Qualifier == 'l' && *Format == 'l') {
-                #if defined(__EXOS_64__)
+#if defined(__EXOS_64__)
                 QualifierIsLongLong = TRUE;
-                #endif
+#endif
                 Format++;
             }
         }
@@ -1173,22 +1171,21 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
                 break;
             case 'u':
                 break;
-            case 'f':
-                {
-                    F32 FloatValue = (F32)VarArg(Args, F64);
-                    STR FloatBuffer[64];
-                    FloatToString(FloatBuffer, FloatValue, Precision);
+            case 'f': {
+                F32 FloatValue = (F32)VarArg(Args, F64);
+                STR FloatBuffer[64];
+                FloatToString(FloatBuffer, FloatValue, Precision);
 
-                    // Handle field width and alignment
-                    Length = StringLength(FloatBuffer);
-                    if (!(Flags & PF_LEFT)) {
-                        while (Length < FieldWidth--) *Dst++ = STR_SPACE;
-                    }
-                    for (i = 0; i < Length && FloatBuffer[i] != STR_NULL; i++) {
-                        *Dst++ = FloatBuffer[i];
-                    }
+                // Handle field width and alignment
+                Length = StringLength(FloatBuffer);
+                if (!(Flags & PF_LEFT)) {
                     while (Length < FieldWidth--) *Dst++ = STR_SPACE;
                 }
+                for (i = 0; i < Length && FloatBuffer[i] != STR_NULL; i++) {
+                    *Dst++ = FloatBuffer[i];
+                }
+                while (Length < FieldWidth--) *Dst++ = STR_SPACE;
+            }
                 continue;
             default:
                 if (*Format != '%') *Dst++ = '%';
@@ -1204,7 +1201,7 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
     HandleNumber:
         if (!NumberIsPreloaded) {
             if (Flags & PF_SIGN) {
-                #ifdef __EXOS_64__
+#ifdef __EXOS_64__
                 if (QualifierIsLongLong) {
                     I64 SignedValue = VarArg(Args, I64);
                     if (SignedValue < 0) {
@@ -1214,8 +1211,8 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
                         NumberValue = (UINT)SignedValue;
                     }
                 } else
-                #endif
-                if (Qualifier == 'l' || Qualifier == 'L') {
+#endif
+                    if (Qualifier == 'l' || Qualifier == 'L') {
                     I32 SignedValue = VarArg(Args, I32);
                     if (SignedValue < 0) {
                         NumberIsNegative = TRUE;
@@ -1242,12 +1239,12 @@ void StringPrintFormatArgs(LPSTR Destination, LPCSTR Format, VarArgList Args) {
                     }
                 }
             } else {
-                #ifdef __EXOS_64__
+#ifdef __EXOS_64__
                 if (QualifierIsLongLong) {
                     NumberValue = VarArg(Args, U64);
                 } else
-                #endif
-                if (Qualifier == 'l' || Qualifier == 'L') {
+#endif
+                    if (Qualifier == 'l' || Qualifier == 'L') {
                     NumberValue = (UINT)VarArg(Args, U32);
                 } else if (Qualifier == 'h') {
                     NumberValue = (UINT)(U16)VarArg(Args, UINT);
@@ -1300,7 +1297,7 @@ void StringPrintFormat(LPSTR Destination, LPCSTR Format, ...) {
  * @return IPv4 address in big-endian format, or 0 if parsing failed
  */
 U32 ParseIPAddress(LPCSTR ipStr) {
-    U32 octets[4] = {0};
+    U32 octets[4] = { 0 };
     U32 octetIndex = 0;
     U32 currentOctet = 0;
     U32 i = 0;
@@ -1314,7 +1311,7 @@ U32 ParseIPAddress(LPCSTR ipStr) {
         if (c >= '0' && c <= '9') {
             // Add digit to current octet
             currentOctet = currentOctet * 10 + (c - '0');
-            if (currentOctet > 255) return 0; // Invalid octet value
+            if (currentOctet > 255) return 0;  // Invalid octet value
         } else if (c == '.') {
             // End of current octet
             octets[octetIndex] = currentOctet;
@@ -1331,7 +1328,7 @@ U32 ParseIPAddress(LPCSTR ipStr) {
     if (octetIndex == 3) {
         octets[3] = currentOctet;
     } else {
-        return 0; // Not enough octets
+        return 0;  // Not enough octets
     }
 
     // Validate all octets are <= 255 and convert to big-endian
@@ -1340,4 +1337,27 @@ U32 ParseIPAddress(LPCSTR ipStr) {
     }
 
     return Htonl((octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]);
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Format a big-endian IPv4 address into a dotted-decimal string.
+ *
+ * The address is expected in network byte order (big-endian). The octets are
+ * extracted directly from this representation without any byte-order
+ * conversion, so the first octet comes from the most significant byte.
+ *
+ * @param IPv4_Be IPv4 address in big-endian (network byte order).
+ * @param Buffer Destination buffer (at least 16 characters).
+ */
+
+void FormatIPv4(U32 IPv4_Be, LPSTR Buffer) {
+    StringPrintFormat(
+        Buffer,
+        TEXT("%u.%u.%u.%u"),
+        (IPv4_Be >> 24) & 0xFF,
+        (IPv4_Be >> 16) & 0xFF,
+        (IPv4_Be >> 8) & 0xFF,
+        IPv4_Be & 0xFF);
 }

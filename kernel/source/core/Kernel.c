@@ -363,14 +363,14 @@ static void InitializeFocusState(void) {
  * Sets Kernel.MinimumQuantum and Kernel.MaximumQuantum to appropriate value.
  */
 void InitializeQuantumTime(void) {
-    SetMinimumQuantum(1);
+    SetMinimumQuantum(SCHEDULING_QUANTUM_DEFAULT_MINIMUM);
 
     if (SCHEDULING_DEBUG_OUTPUT == 1) {
         // Double quantum when scheduling debug is enabled (logs slow down execution)
         SetMinimumQuantum(GetMinimumQuantum() * 2);
     }
 
-    SetMaximumQuantum(GetMinimumQuantum() * 8);
+    SetMaximumQuantum(GetMinimumQuantum() * SCHEDULING_QUANTUM_CONFIG_RATIO);
 }
 
 /************************************************************************/
@@ -384,7 +384,9 @@ void DumpCriticalInformation(void) {
 
     for (U32 Index = 0; Index < KernelStartup.MultibootMemoryEntryCount; Index++) {
         DEBUG(
-            TEXT("Multiboot entry %d : %p, %d, %d"), Index, U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Base),
+            TEXT("Multiboot entry %d : %p, %d, %d"),
+            Index,
+            U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Base),
             U64_Low32(KernelStartup.MultibootMemoryEntries[Index].Length),
             (U32)KernelStartup.MultibootMemoryEntries[Index].Type);
     }
@@ -436,7 +438,11 @@ static void Welcome(void) {
     ConsolePrint(
         TEXT("Extensible Operating System for %s computers\n"
              "Version %u.%u.%u - Copyright (c) %u-%u Jango73\n"),
-        Text_Architecture, EXOS_VERSION_MAJOR, EXOS_VERSION_MINOR, EXOS_VERSION_PATCH, EXOS_COPYRIGHT_FROM,
+        Text_Architecture,
+        EXOS_VERSION_MAJOR,
+        EXOS_VERSION_MINOR,
+        EXOS_VERSION_PATCH,
+        EXOS_COPYRIGHT_FROM,
         EXOS_COPYRIGHT_TO);
 
     ConsolePrint(TEXT("\n%s\n\n"), GetRandomQuote());
@@ -520,7 +526,9 @@ LPVOID CreateKernelObject(UINT Size, U32 ObjectTypeID) {
 void SetKernelObjectDestructor(LPVOID Object, OBJECTDESTRUCTOR Destructor) {
     LPLISTNODE Node = (LPLISTNODE)Object;
 
-    SAFE_USE(Node) { Node->Destructor = Destructor; }
+    SAFE_USE(Node) {
+        Node->Destructor = Destructor;
+    }
 }
 
 /************************************************************************/
@@ -742,6 +750,8 @@ static void UseConfiguration(void) {
 
         if (STRING_EMPTY(QuantumMS) == FALSE) {
             SetMinimumQuantum(StringToU32(QuantumMS));
+            // Preserve the min/max policy ratio so priority-based quantums stay distinct.
+            SetMaximumQuantum(GetMinimumQuantum() * SCHEDULING_QUANTUM_CONFIG_RATIO);
         }
 
         LPCSTR UseDeadlockMonitor = TomlGet(Configuration, TEXT("Debug.UseDeadlockMonitor"));
@@ -809,7 +819,9 @@ void LoadDriver(LPDRIVER Driver) {
     SAFE_USE(Driver) {
         if (Driver->TypeID != KOID_DRIVER) {
             ERROR(
-                TEXT("%s driver not valid (at address %X). ID = %X. Halting."), TEXT(Driver->Product), Driver,
+                TEXT("%s driver not valid (at address %X). ID = %X. Halting."),
+                TEXT(Driver->Product),
+                Driver,
                 Driver->TypeID);
 
             // Wait forever
@@ -878,9 +890,13 @@ void LoadAllDrivers(void) {
     U32 DriverIndex = 0;
     for (LPLISTNODE Node = DriverList->First; Node; Node = Node->Next, DriverIndex++) {
         LPDRIVER Driver = ((LPSTARTUP_DRIVER_ENTRY)Node)->Driver;
-        SAFE_USE(Driver) { DEBUG(TEXT("Driver[%u] loading %s @ %p"), DriverIndex, Driver->Product, Driver); }
+        SAFE_USE(Driver) {
+            DEBUG(TEXT("Driver[%u] loading %s @ %p"), DriverIndex, Driver->Product, Driver);
+        }
         LoadDriver(Driver);
-        SAFE_USE(Driver) { DEBUG(TEXT("Driver[%u] load done flags=%x"), DriverIndex, Driver->Flags); }
+        SAFE_USE(Driver) {
+            DEBUG(TEXT("Driver[%u] load done flags=%x"), DriverIndex, Driver->Flags);
+        }
     }
 
     DEBUG(TEXT("Complete (%u drivers)"), DriverIndex);
@@ -949,7 +965,9 @@ static U32 KernelMonitor(LPVOID Parameter) {
 void KernelIdle(void) {
     ConsoleSetPagingActive(TRUE);
 
-    FOREVER { Sleep(4000); }
+    FOREVER {
+        Sleep(4000);
+    }
 }
 
 /************************************************************************/
@@ -986,7 +1004,9 @@ static void KillActiveUserlandProcesses(void) {
 
     for (LPLISTNODE Node = ProcessesToKill->First; Node; Node = Node->Next) {
         LPPROCESS Process = (LPPROCESS)Node;
-        SAFE_USE_VALID_ID(Process, KOID_PROCESS) { KillProcess(Process); }
+        SAFE_USE_VALID_ID(Process, KOID_PROCESS) {
+            KillProcess(Process);
+        }
     }
 
     DeleteList(ProcessesToKill);
@@ -1053,7 +1073,8 @@ void InitializeKernel(void) {
     DEBUG(TEXT("CPU information captured"));
     BusyWaitSetFrequencyMHz(GetKernelCPUInfo()->BaseFrequencyMHz);
     DEBUG(
-        TEXT("BusyWait profile base_mhz=%u loops_per_ms=%u"), GetKernelCPUInfo()->BaseFrequencyMHz,
+        TEXT("BusyWait profile base_mhz=%u loops_per_ms=%u"),
+        GetKernelCPUInfo()->BaseFrequencyMHz,
         BusyWaitGetLoopsPerMillisecond());
     PreInitializeKernel();
     DEBUG(TEXT("Architecture pre-initialization complete"));
@@ -1120,7 +1141,9 @@ void InitializeKernel(void) {
     LPTOML Configuration = GetConfiguration();
     LPCSTR Mono = NULL;
 
-    SAFE_USE(Configuration) { Mono = TomlGet(Configuration, TEXT("General.Mono")); }
+    SAFE_USE(Configuration) {
+        Mono = TomlGet(Configuration, TEXT("General.Mono"));
+    }
 
     if (STRING_EMPTY(Mono) == FALSE && StringCompare(Mono, TEXT("1")) == 0) {
         Shell(NULL);

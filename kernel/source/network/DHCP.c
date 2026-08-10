@@ -378,7 +378,6 @@ static void DHCP_SendDiscover(LPDEVICE Device) {
 
     Context = DHCP_GetContext(Device);
     SAFE_USE(Context) {
-
         DHCP_InitMessage(&Message, Context, DHCP_BROADCAST_FLAG, 0);
 
         OptionsOffset = 0;
@@ -403,7 +402,8 @@ static void DHCP_SendDiscover(LPDEVICE Device) {
         Message.Options[OptionsOffset++] = DHCP_OPTION_END;
 
         // Send via UDP (broadcast to 255.255.255.255:67)
-        UDP_Send(Device, DHCP_BROADCAST_IP, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
+        UDP_Send(
+            Device, DHCP_BROADCAST_IP, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
 
         Context->State = DHCP_STATE_SELECTING;
         Context->StartMillis = GetSystemTime();
@@ -478,13 +478,15 @@ static BOOL DHCP_SendRequest(LPDEVICE Device, U32 TargetState) {
         // Option 50: Requested IP Address
         RequestedIP_Be = Context->OfferedIP_Be;
         if (RequestedIP_Be != 0) {
-            OptionsOffset = DHCP_WriteOption(Message.Options, OptionsOffset, DHCP_OPTION_REQUESTED_IP, 4, (const U8*)&RequestedIP_Be);
+            OptionsOffset = DHCP_WriteOption(
+                Message.Options, OptionsOffset, DHCP_OPTION_REQUESTED_IP, 4, (const U8*)&RequestedIP_Be);
         }
 
         // Option 54: Server Identifier
         ServerID_Be = Context->ServerID_Be;
         if (ServerID_Be != 0) {
-            OptionsOffset = DHCP_WriteOption(Message.Options, OptionsOffset, DHCP_OPTION_SERVER_ID, 4, (const U8*)&ServerID_Be);
+            OptionsOffset =
+                DHCP_WriteOption(Message.Options, OptionsOffset, DHCP_OPTION_SERVER_ID, 4, (const U8*)&ServerID_Be);
         }
 
         // Option 255: End
@@ -494,7 +496,8 @@ static BOOL DHCP_SendRequest(LPDEVICE Device, U32 TargetState) {
         UNUSED(DestinationHostOrder);
 
         // Send via UDP (broadcast/unicast depending on state)
-        UDP_Send(Device, DestinationIP_Be, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
+        UDP_Send(
+            Device, DestinationIP_Be, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
 
         if (Context->State != TargetState) {
             Context->RetryCount = 0;
@@ -569,7 +572,8 @@ static void DHCP_SendRelease(LPDEVICE Device) {
         OptionsOffset = DHCP_WriteClientIdentifier(Message.Options, OptionsOffset, Context->LocalMacAddress);
 
         if (Context->ServerID_Be != 0) {
-            OptionsOffset = DHCP_WriteOption(Message.Options, OptionsOffset, DHCP_OPTION_SERVER_ID, 4, (const U8*)&Context->ServerID_Be);
+            OptionsOffset = DHCP_WriteOption(
+                Message.Options, OptionsOffset, DHCP_OPTION_SERVER_ID, 4, (const U8*)&Context->ServerID_Be);
         }
 
         Message.Options[OptionsOffset++] = DHCP_OPTION_END;
@@ -577,7 +581,8 @@ static void DHCP_SendRelease(LPDEVICE Device) {
         DestinationHostOrder = Ntohl(DestinationIP_Be);
         UNUSED(DestinationHostOrder);
 
-        UDP_Send(Device, DestinationIP_Be, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
+        UDP_Send(
+            Device, DestinationIP_Be, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, (const U8*)&Message, sizeof(DHCP_MESSAGE));
         Context->State = DHCP_STATE_INIT;
         Context->RetryCount = 0;
     }
@@ -632,8 +637,7 @@ static void DHCP_ApplyAck(LPDHCP_CONTEXT Context, LPDHCP_MESSAGE Message) {
     PreviousGateway_Be = (IPv4Context != NULL) ? IPv4Context->DefaultGatewayBe : 0;
     PreviousDNS_Be = (NetCtx != NULL) ? NetCtx->ActiveConfig.DNSServer_Be : 0;
 
-    ConfigChanged = (PreviousIP_Be != Context->OfferedIP_Be) ||
-                    (PreviousMask_Be != Context->SubnetMask_Be) ||
+    ConfigChanged = (PreviousIP_Be != Context->OfferedIP_Be) || (PreviousMask_Be != Context->SubnetMask_Be) ||
                     (PreviousGateway_Be != Context->Gateway_Be);
     DNSChanged = (PreviousDNS_Be != Context->DNSServer_Be);
     LeaseTransition = (Context->State != DHCP_STATE_BOUND) || ConfigChanged;
@@ -668,7 +672,6 @@ static void DHCP_ApplyAck(LPDHCP_CONTEXT Context, LPDHCP_MESSAGE Message) {
         }
         NetCtx->IsReady = TRUE;
     }
-
 }
 
 /************************************************************************/
@@ -684,7 +687,8 @@ static void DHCP_ApplyAck(LPDHCP_CONTEXT Context, LPDHCP_MESSAGE Message) {
  * @param PayloadLength   Payload length.
  */
 
-void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U8* Payload, U32 PayloadLength) {
+void DHCP_OnUDPPacket(
+    U32 SourceIP, U16 SourcePort, U16 DestinationPort, U32 DestinationIP, const U8* Payload, U32 PayloadLength) {
     LPDHCP_CONTEXT Context;
     LPDHCP_MESSAGE Message;
     U8 MessageType;
@@ -692,6 +696,7 @@ void DHCP_OnUDPPacket(U32 SourceIP, U16 SourcePort, U16 DestinationPort, const U
 
     UNUSED(SourcePort);
     UNUSED(DestinationPort);
+    UNUSED(DestinationIP);
 
     if (g_DHCPDevice == NULL) return;
 
@@ -831,19 +836,21 @@ static void DHCP_HandleRequestTimeout(LPDEVICE Device, LPDHCP_CONTEXT Context) {
         return;
     }
 
-    WARNING(TEXT("Timeout in state %u after %u ms (backoff %u ms), retry %u/%u"),
-            Context->State,
-            ElapsedMillis,
-            TimeoutMillis,
-            Context->RetryCount + 1,
-            DHCP_MAX_RETRIES);
+    WARNING(
+        TEXT("Timeout in state %u after %u ms (backoff %u ms), retry %u/%u"),
+        Context->State,
+        ElapsedMillis,
+        TimeoutMillis,
+        Context->RetryCount + 1,
+        DHCP_MAX_RETRIES);
 
     Context->RetryCount++;
 
     if (Context->State == DHCP_STATE_SELECTING) {
         DHCP_SendDiscover(Device);
-    } else if (Context->State == DHCP_STATE_REQUESTING || Context->State == DHCP_STATE_RENEWING ||
-               Context->State == DHCP_STATE_REBINDING) {
+    } else if (
+        Context->State == DHCP_STATE_REQUESTING || Context->State == DHCP_STATE_RENEWING ||
+        Context->State == DHCP_STATE_REBINDING) {
         DHCP_SendRequest(Device, Context->State);
     }
 }
@@ -899,7 +906,6 @@ void DHCP_Initialize(LPDEVICE Device) {
 
     // Register UDP port handler for DHCP client port
     UDP_RegisterPortHandler(Device, DHCP_CLIENT_PORT, DHCP_OnUDPPacket);
-
 }
 
 /************************************************************************/

@@ -175,6 +175,7 @@ U32 CMD_edit(LPSHELLCONTEXT Context) {
     BOOL HasArgument = FALSE;
     BOOL ArgumentProvided = FALSE;
     BOOL LineNumbers;
+    BOOL Clear;
 
     FileName[0] = STR_NULL;
 
@@ -193,11 +194,12 @@ U32 CMD_edit(LPSHELLCONTEXT Context) {
     }
 
     LineNumbers = HasOption(Context, TEXT("n"), TEXT("lineNumbers"));
+    Clear = HasOption(Context, TEXT("c"), TEXT("clear"));
 
     if (HasArgument) {
-        Edit(1, (LPCSTR*)Arguments, LineNumbers);
+        Edit(1, (LPCSTR*)Arguments, LineNumbers, Clear);
     } else if (!ArgumentProvided) {
-        Edit(0, NULL, LineNumbers);
+        Edit(0, NULL, LineNumbers, Clear);
     }
 
     return DF_RETURN_SUCCESS;

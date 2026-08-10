@@ -46,7 +46,7 @@ typedef struct tag_EXFSMBR {
     U16 SectorsPerCluster;
     U8 Code[486];
     U16 BIOSMark;  // 0xAA55
-} EXFSMBR, *LPEXFSMBR;
+} EXFS_MBR, *LPEXFSMBR;
 
 /***************************************************************************/
 

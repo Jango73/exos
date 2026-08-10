@@ -67,8 +67,10 @@
                 { "label": "smoke tests---------" },
 
                 { "label": "Smoke test global (all targets)", "script": "bash scripts/linux/test/smoke-test-global.sh" },
-                { "label": "Smoke test x86-32", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-32" },
-                { "label": "Smoke test x86-64 UEFI", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-64-uefi" }
+                { "label": "Smoke test x86-32 MBR", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-32" },
+                { "label": "Smoke test x86-64 UEFI", "script": "bash scripts/linux/test/smoke-test-global.sh --only x86-64-uefi" },
+                { "label": "Edit test x86-32 MBR", "script": "bash scripts/linux/test/smoke-test-edit.sh --only x86-32" },
+                { "label": "Edit test x86-64 UEFI", "script": "bash scripts/linux/test/smoke-test-edit.sh --only x86-64-uefi" }
             ]
         },
         {

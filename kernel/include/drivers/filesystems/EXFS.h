@@ -57,7 +57,7 @@ typedef struct tag_EXFSSUPER {
     U8 Password[32];
     U8 Creator[32];
     U8 VolumeName[128];
-} EXFSSUPER, *LPEXFSSUPER;
+} EXFS_SUPER, *LPEXFSSUPER;
 
 /***************************************************************************/
 // File time, 64 bytes
@@ -71,7 +71,7 @@ typedef struct tag_EXFSTIME {
     U32 Second : 6;
     U32 Milli : 10;
     U32 Reserved : 4;
-} EXFSTIME, *LPEXFSTIME;
+} EXFS_TIME, *LPEXFSTIME;
 
 /***************************************************************************/
 // EXFS File Record, 256 bytes
@@ -79,9 +79,9 @@ typedef struct tag_EXFSTIME {
 typedef struct tag_EXFSFILEREC {
     U32 SizeLo;
     U32 SizeHi;
-    EXFSTIME CreationTime;
-    EXFSTIME LastAccessTime;
-    EXFSTIME LastModificationTime;
+    EXFS_TIME CreationTime;
+    EXFS_TIME LastAccessTime;
+    EXFS_TIME LastModificationTime;
     U32 ClusterTable;  // 0xFFFFFFFF = End of list
     U32 Attributes;
     U32 Security;
@@ -90,7 +90,7 @@ typedef struct tag_EXFSFILEREC {
     U32 NameFormat;
     U8 Reserved[72];  // Zeroes
     U8 Name[128];
-} EXFSFILEREC, *LPEXFSFILEREC;
+} EXFS_FILE_RECORD, *LPEXFSFILEREC;
 
 #define EXFS_ATTR_FOLDER BIT_0
 #define EXFS_ATTR_READONLY BIT_1

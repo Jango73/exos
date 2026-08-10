@@ -150,7 +150,7 @@ LPCSTR DriverDomainToText(UINT Domain);
 typedef struct tag_DRIVERCAPS {
     U32 Size;
     U32 Caps1;
-} DRIVERCAPS, *LPDRIVERCAPS;
+} DRIVER_CAPS, *LPDRIVERCAPS;
 
 /***************************************************************************/
 // EXOS Driver Services

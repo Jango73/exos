@@ -79,7 +79,7 @@ typedef struct tag_EXT2SUPER {
     U8 UUID[16];
     U8 VolumeName[16];
     U8 LastMounted[64];
-} EXT2SUPER, *LPEXT2SUPER;
+} EXT2_SUPER, *LPEXT2SUPER;
 
 /***************************************************************************/
 // EXT2 Block Group Descriptor (partial)
@@ -93,7 +93,7 @@ typedef struct tag_EXT2BLOCKGROUP {
     U16 UsedDirsCount;
     U16 Pad;
     U8 Reserved[12];
-} EXT2BLOCKGROUP, *LPEXT2BLOCKGROUP;
+} EXT2_BLOCK_GROUP, *LPEXT2BLOCKGROUP;
 
 /***************************************************************************/
 // EXT2 Inode structure (partial)
@@ -116,7 +116,7 @@ typedef struct tag_EXT2INODE {
     U32 FileACL;
     U32 DirectoryACL;
     U32 FragmentAddress;
-} EXT2INODE, *LPEXT2INODE;
+} EXT2_INODE, *LPEXT2INODE;
 
 /***************************************************************************/
 // EXT2 Directory entry (variable length)
@@ -127,7 +127,7 @@ typedef struct tag_EXT2DIRECTORYENTRY {
     U8 NameLength;
     U8 FileType;
     U8 Name[EXT2_NAME_MAX];
-} EXT2DIRECTORYENTRY, *LPEXT2DIRECTORYENTRY;
+} EXT2_DIRECTORY_ENTRY, *LPEXT2DIRECTORYENTRY;
 
 /***************************************************************************/
 

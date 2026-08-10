@@ -84,14 +84,14 @@ LPDRIVER ATADiskGetDriver(void) { return &ATADiskDriver; }
 
 typedef struct tag_ATADISK {
     STORAGE_UNIT Header;
-    DISKGEOMETRY Geometry;
+    DISK_GEOMETRY Geometry;
     U32 Access;  // Access parameters
     U32 IOPort;  // 0x01F0 or 0x0170
     U32 IRQ;     // 0x0E
     U32 Drive;   // 0 or 1
     CACHE SectorCache;
     BUFFER_POOL SectorBufferPool;
-} ATADISK, *LPATADISK;
+} ATA_DISK, *LPATADISK;
 
 /***************************************************************************/
 
@@ -144,11 +144,11 @@ static void ATACacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
 static LPATADISK NewATADisk(void) {
     LPATADISK This;
 
-    This = (LPATADISK)KernelHeapAlloc(sizeof(ATADISK));
+    This = (LPATADISK)KernelHeapAlloc(sizeof(ATA_DISK));
 
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(ATADISK));
+    MemorySet(This, 0, sizeof(ATA_DISK));
 
     This->Header.TypeID = KOID_DISK;
     This->Header.References = 1;
@@ -261,7 +261,7 @@ static BOOL InitializeATA(void) {
                 Disk->IRQ = IRQ_ATA;
                 Disk->Drive = Drive;
                 if (!BufferPoolInit(
-                        &Disk->SectorBufferPool, (UINT)sizeof(SECTORBUFFER), ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
+                        &Disk->SectorBufferPool, (UINT)sizeof(SECTOR_BUFFER), ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
                         ATA_SECTOR_BUFFER_INITIAL_SLABS, ATA_POOL_ALLOC_FLAGS, TEXT("AtaSectorBuffer"))) {
                     KernelHeapFree(Disk);
                     continue;

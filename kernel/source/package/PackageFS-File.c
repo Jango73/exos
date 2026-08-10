@@ -46,7 +46,7 @@ static LPPACKAGEFSFILE PackageFSCreateFileObject(LPPACKAGEFSFILESYSTEM FileSyste
         return NULL;
     }
 
-    File = (LPPACKAGEFSFILE)CreateKernelObject(sizeof(PACKAGEFSFILE), KOID_FILE);
+    File = (LPPACKAGEFSFILE)CreateKernelObject(sizeof(PACKAGE_FS_FILE), KOID_FILE);
     if (File == NULL) {
         return NULL;
     }

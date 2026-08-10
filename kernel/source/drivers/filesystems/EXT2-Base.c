@@ -251,7 +251,7 @@ BOOL SetupDirectoryHandle(
 
     File->IsDirectory = TRUE;
     File->Enumerate = Enumerate;
-    MemoryCopy(&(File->Inode), Directory, sizeof(EXT2INODE));
+    MemoryCopy(&(File->Inode), Directory, sizeof(EXT2_INODE));
     File->InodeIndex = InodeIndex;
     File->DirectoryBlockIndex = 0;
     File->DirectoryBlockOffset = 0;
@@ -333,7 +333,7 @@ BOOL LoadNextDirectoryEntry(LPEXT2FILE File) {
             U8 NameLength;
             U32 NameLength32;
             STR EntryName[MAX_FILE_NAME];
-            EXT2INODE EntryInode;
+            EXT2_INODE EntryInode;
 
             Offset = File->DirectoryBlockOffset;
             Entry = (LPEXT2DIRECTORYENTRY)(File->DirectoryBlock + Offset);
@@ -404,7 +404,7 @@ BOOL FlushSuperBlock(LPEXT2FILESYSTEM FileSystem) {
     if (FileSystem == NULL) return FALSE;
 
     MemorySet(Buffer, 0, sizeof(Buffer));
-    MemoryCopy(Buffer, &(FileSystem->Super), sizeof(EXT2SUPER));
+    MemoryCopy(Buffer, &(FileSystem->Super), sizeof(EXT2_SUPER));
 
     return WriteSectors(FileSystem, 2, 2, Buffer);
 }
@@ -429,11 +429,11 @@ BOOL FlushGroupDescriptor(LPEXT2FILESYSTEM FileSystem, U32 GroupIndex) {
 
     if (FileSystem->BlockSize == 0) return FALSE;
 
-    DescriptorsPerBlock = FileSystem->BlockSize / sizeof(EXT2BLOCKGROUP);
+    DescriptorsPerBlock = FileSystem->BlockSize / sizeof(EXT2_BLOCK_GROUP);
     if (DescriptorsPerBlock == 0) return FALSE;
 
     TargetBlock = FileSystem->Super.FirstDataBlock + 1 + (GroupIndex / DescriptorsPerBlock);
-    OffsetInBlock = (GroupIndex % DescriptorsPerBlock) * sizeof(EXT2BLOCKGROUP);
+    OffsetInBlock = (GroupIndex % DescriptorsPerBlock) * sizeof(EXT2_BLOCK_GROUP);
 
     Buffer = (U8*)Ext2AcquireBlockBuffer(FileSystem);
     if (Buffer == NULL) return FALSE;
@@ -443,7 +443,7 @@ BOOL FlushGroupDescriptor(LPEXT2FILESYSTEM FileSystem, U32 GroupIndex) {
         return FALSE;
     }
 
-    MemoryCopy(Buffer + OffsetInBlock, &(FileSystem->Groups[GroupIndex]), sizeof(EXT2BLOCKGROUP));
+    MemoryCopy(Buffer + OffsetInBlock, &(FileSystem->Groups[GroupIndex]), sizeof(EXT2_BLOCK_GROUP));
 
     if (WriteBlock(FileSystem, TargetBlock, Buffer) == FALSE) {
         Ext2ReleaseBlockBuffer(FileSystem, Buffer);

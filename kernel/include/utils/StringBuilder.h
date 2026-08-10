@@ -36,7 +36,7 @@ typedef struct tag_STRINGBUILDER {
     UINT Length;
     UINT RequiredLength;
     BOOL Overflowed;
-} STRINGBUILDER, *LPSTRINGBUILDER;
+} STRING_BUILDER, *LPSTRINGBUILDER;
 
 /***************************************************************************/
 

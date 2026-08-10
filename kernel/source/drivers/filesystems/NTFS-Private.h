@@ -90,7 +90,7 @@ typedef struct tag_NTFSFILESYSTEM {
     STR VolumeLabel[MAX_FS_LOGICAL_NAME];
     U32 PathLookupCacheNextSlot;
     NTFS_PATH_LOOKUP_CACHE_ENTRY PathLookupCache[NTFS_PATH_LOOKUP_CACHE_SIZE];
-} NTFSFILESYSTEM, *LPNTFSFILESYSTEM;
+} NTFS_FILE_SYSTEM, *LPNTFSFILESYSTEM;
 
 /***************************************************************************/
 
@@ -106,7 +106,7 @@ typedef struct tag_NTFSFILE {
     U32 EnumerationIndex;
     U32 EnumerationCount;
     LPNTFS_FOLDER_ENTRY_INFO EnumerationEntries;
-} NTFSFILE, *LPNTFSFILE;
+} NTFS_FILE, *LPNTFSFILE;
 
 /***************************************************************************/
 

@@ -24,9 +24,11 @@
 
 #include "drivers/filesystems/FAT.h"
 #include "drivers/filesystems/EXT2.h"
+#include "fs/DiskTransferLayer.h"
 #include "system/Clock.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "utils/Helpers.h"
 
 /***************************************************************************/
 
@@ -35,20 +37,19 @@
 
 UINT RAMDiskCommands(UINT, UINT);
 
-DRIVER DATA_SECTION RAMDiskDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_RAMDISK,
-    .VersionMajor = VER_MAJOR,
-    .VersionMinor = VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "N/A",
-    .Product = "RAM Disk Controller",
-    .Alias = "ramdisk",
-    .Flags = 0,
-    .Command = RAMDiskCommands};
+DRIVER DATA_SECTION RAMDiskDriver = { .TypeID = KOID_DRIVER,
+                                      .References = 1,
+                                      .Next = NULL,
+                                      .Prev = NULL,
+                                      .Type = DRIVER_TYPE_RAMDISK,
+                                      .VersionMajor = VER_MAJOR,
+                                      .VersionMinor = VER_MINOR,
+                                      .Designer = "Jango73",
+                                      .Manufacturer = "N/A",
+                                      .Product = "RAM Disk Controller",
+                                      .Alias = "ramdisk",
+                                      .Flags = 0,
+                                      .Command = RAMDiskCommands };
 
 /***************************************************************************/
 
@@ -68,7 +69,7 @@ typedef struct tag_RAMDISK {
     LINEAR Base;
     UINT Size;
     U32 Access;  // Access parameters
-} RAMDISK, *LPRAMDISK;
+} RAM_DISK, *LPRAMDISK;
 
 /***************************************************************************/
 
@@ -79,11 +80,11 @@ typedef struct tag_RAMDISK {
 static LPRAMDISK NewRAMDisk(void) {
     LPRAMDISK This;
 
-    This = (LPRAMDISK)KernelHeapAlloc(sizeof(RAMDISK));
+    This = (LPRAMDISK)KernelHeapAlloc(sizeof(RAM_DISK));
 
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(RAMDISK));
+    MemorySet(This, 0, sizeof(RAM_DISK));
 
     This->Header.TypeID = KOID_DISK;
     This->Header.References = 1;
@@ -145,7 +146,7 @@ static U32 CreateFATDirEntry(LINEAR Buffer, LPCSTR Name, U32 Attributes,
     // Fill the directory entry
 
     DirEntry = (LPFATDIRENTRY_EXT)(Buffer + ((NumEntries - 1) *
-                                             sizeof(FATDIRENTRY_EXT)));
+                                             sizeof(FAT_DIR_ENTRY_EXT)));
 
     DirEntry->Name[0] = ShortName[0];
     DirEntry->Name[1] = ShortName[1];
@@ -269,7 +270,7 @@ static U32 CreateFATDirEntry(LINEAR Buffer, LPCSTR Name, U32 Attributes,
 
     LFNEntry->Ordinal |= BIT_6;
 
-    return NumEntries * sizeof(FATDIRENTRY_EXT);
+    return NumEntries * sizeof(FAT_DIR_ENTRY_EXT);
 }
 */
 
@@ -501,6 +502,18 @@ static U32 RAMDiskInitialize(void) {
     EXT2GetDriver()->Command(DF_FS_CREATEPARTITION, (UINT)&Create);
 
     DEBUG(TEXT("Partition formated in EXT2"));
+
+    //-------------------------------------
+    // Attach the generic transfer layer. The per-command transfer limit is
+    // resolved from the configuration lazily (the configuration file is
+    // loaded after the storage drivers), defaulting to a large value.
+
+    if (!DiskTransferLayerInit(
+            (LPSTORAGE_UNIT)Disk,
+            CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER_DEFAULT,
+            CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER)) {
+        return DF_RETURN_UNEXPECTED;
+    }
 
     //-------------------------------------
 

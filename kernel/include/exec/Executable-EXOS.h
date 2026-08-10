@@ -86,14 +86,14 @@ typedef struct tag_EXOSHEADER {
     U32 Reserved2;
     U32 Reserved3;
     U32 Reserved4;
-} EXOSHEADER, *LPEXOSHEADER;
+} EXOS_HEADER, *LPEXOSHEADER;
 
 /***************************************************************************/
 
 typedef struct tag_EXOSCHUNK {
     U32 ID;
     UINT Size;
-} EXOSCHUNK, *LPEXOSCHUNK;
+} EXOS_CHUNK, *LPEXOSCHUNK;
 
 /***************************************************************************/
 

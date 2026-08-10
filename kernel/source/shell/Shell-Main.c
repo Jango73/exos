@@ -378,7 +378,7 @@ static BOOL ShellSessionIdleCallback(LPVOID UserData) {
  * @return TRUE when login succeeds.
  */
 static BOOL HandleUserLoginProcess(void) {
-    SHELLCONTEXT TempContext;
+    SHELL_CONTEXT TempContext;
     UINT AccountCount = 0;
     BOOL HasUsers = FALSE;
 
@@ -416,7 +416,7 @@ static BOOL HandleUserLoginProcess(void) {
     ConsolePrint(TEXT("Login\n"));
 
     for (U32 LoginAttempts = 1; LoginAttempts <= 5; LoginAttempts++) {
-        SHELLCONTEXT TempContext;
+        SHELL_CONTEXT TempContext;
         LPUSER_SESSION Session = NULL;
         LPUSER_ACCOUNT Account = NULL;
         BOOL LoggedIn = FALSE;
@@ -461,7 +461,7 @@ U32 Shell(LPVOID Param) {
     TRACED_FUNCTION;
 
     UNUSED(Param);
-    SHELLCONTEXT Context;
+    SHELL_CONTEXT Context;
 
 
     InitShellContext(&Context);

@@ -23,15 +23,17 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
+#include "fs/DiskTransferLayer.h"
+
 /************************************************************************/
 
 static LPEXT2FILESYSTEM NewEXT2FileSystem(LPSTORAGE_UNIT Disk) {
     LPEXT2FILESYSTEM FileSystem;
 
-    FileSystem = (LPEXT2FILESYSTEM)KernelHeapAlloc(sizeof(EXT2FILESYSTEM));
+    FileSystem = (LPEXT2FILESYSTEM)KernelHeapAlloc(sizeof(EXT2_FILE_SYSTEM));
     if (FileSystem == NULL) return NULL;
 
-    MemorySet(FileSystem, 0, sizeof(EXT2FILESYSTEM));
+    MemorySet(FileSystem, 0, sizeof(EXT2_FILE_SYSTEM));
 
     FileSystem->Header.TypeID = KOID_FILESYSTEM;
     FileSystem->Header.References = 1;
@@ -66,10 +68,10 @@ static LPEXT2FILESYSTEM NewEXT2FileSystem(LPSTORAGE_UNIT Disk) {
 static LPEXT2FILE NewEXT2File(LPEXT2FILESYSTEM FileSystem) {
     LPEXT2FILE File;
 
-    File = (LPEXT2FILE)KernelHeapAlloc(sizeof(EXT2FILE));
+    File = (LPEXT2FILE)KernelHeapAlloc(sizeof(EXT2_FILE));
     if (File == NULL) return NULL;
 
-    MemorySet(File, 0, sizeof(EXT2FILE));
+    MemorySet(File, 0, sizeof(EXT2_FILE));
 
     File->Header.TypeID = KOID_FILE;
     File->Header.References = 1;
@@ -93,7 +95,9 @@ static LPEXT2FILE NewEXT2File(LPEXT2FILESYSTEM FileSystem) {
  * @brief Initializes the EXT2 driver when it is loaded by the kernel.
  * @return DF_RETURN_SUCCESS on success.
  */
-static U32 Initialize(void) { return DF_RETURN_SUCCESS; }
+static U32 Initialize(void) {
+    return DF_RETURN_SUCCESS;
+}
 
 /************************************************************************/
 
@@ -123,7 +127,7 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
         STR DirectoryPath[MAX_PATH_NAME];
         STR Pattern[MAX_FILE_NAME];
         LPSTR Slash;
-        EXT2INODE DirectoryInode;
+        EXT2_INODE DirectoryInode;
         U32 DirectoryIndex;
 
         StringCopy(DirectoryPath, Info->Name);
@@ -165,7 +169,7 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
     }
 
     {
-        EXT2INODE Inode;
+        EXT2_INODE Inode;
         U32 InodeIndex;
 
         if (ResolvePath(FileSystem, Info->Name, &Inode, &InodeIndex) == FALSE) {
@@ -198,7 +202,7 @@ static LPEXT2FILE OpenFile(LPFILE_INFO Info) {
             return NULL;
         }
 
-        MemoryCopy(&(File->Inode), &Inode, sizeof(EXT2INODE));
+        MemoryCopy(&(File->Inode), &Inode, sizeof(EXT2_INODE));
         File->InodeIndex = InodeIndex;
 
         if ((Inode.Mode & EXT2_MODE_TYPE_MASK) == EXT2_MODE_DIRECTORY) {
@@ -376,9 +380,8 @@ static U32 ReadFile(LPEXT2FILE File) {
             Chunk = Remaining;
         }
 
-        MemoryCopy(((U8*)File->Header.Buffer) + File->Header.BytesTransferred,
-            FileSystem->IOBuffer + OffsetInBlock,
-            Chunk);
+        MemoryCopy(
+            ((U8*)File->Header.Buffer) + File->Header.BytesTransferred, FileSystem->IOBuffer + OffsetInBlock, Chunk);
 
         File->Header.Position += Chunk;
         File->Header.BytesTransferred += Chunk;
@@ -529,7 +532,7 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = sizeof(Buffer);
 
-    Result = Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -542,7 +545,7 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     FileSystem = NewEXT2FileSystem(Disk);
     if (FileSystem == NULL) return FALSE;
 
-    MemoryCopy(&(FileSystem->Super), Super, sizeof(EXT2SUPER));
+    MemoryCopy(&(FileSystem->Super), Super, sizeof(EXT2_SUPER));
 
     FileSystem->PartitionStart = PartitionStart;
     FileSystem->PartitionSize = Partition->Size;
@@ -560,7 +563,7 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
     FileSystem->InodeSize = Super->InodeSize;
     if (FileSystem->InodeSize == 0) {
-        FileSystem->InodeSize = sizeof(EXT2INODE);
+        FileSystem->InodeSize = sizeof(EXT2_INODE);
     }
 
     FileSystem->InodesPerBlock = FileSystem->BlockSize / FileSystem->InodeSize;

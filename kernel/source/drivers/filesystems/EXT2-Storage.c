@@ -23,6 +23,8 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
+#include "fs/DiskTransferLayer.h"
+
 /************************************************************************/
 
 BOOL ReadSectors(LPEXT2FILESYSTEM FileSystem, U32 Sector, U32 Count, LPVOID Buffer) {
@@ -40,7 +42,7 @@ BOOL ReadSectors(LPEXT2FILESYSTEM FileSystem, U32 Sector, U32 Count, LPVOID Buff
     Control.Buffer = Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    Result = FileSystem->Disk->Driver->Command(DF_DISK_READ, (UINT)&Control);
+    Result = DiskTransferLayerRead(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }
@@ -90,7 +92,7 @@ BOOL WriteSectors(LPEXT2FILESYSTEM FileSystem, U32 Sector, U32 Count, LPCVOID Bu
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    return FileSystem->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control) == DF_RETURN_SUCCESS;
+    return DiskTransferLayerWrite(&Control) == DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
@@ -134,12 +136,12 @@ BOOL LoadGroupDescriptors(LPEXT2FILESYSTEM FileSystem) {
         FileSystem->GroupCount = 0;
     }
 
-    GroupCount = (FileSystem->Super.BlocksCount + FileSystem->Super.BlocksPerGroup - 1) /
-        FileSystem->Super.BlocksPerGroup;
+    GroupCount =
+        (FileSystem->Super.BlocksCount + FileSystem->Super.BlocksPerGroup - 1) / FileSystem->Super.BlocksPerGroup;
 
     if (GroupCount == 0) return FALSE;
 
-    TableSize = GroupCount * sizeof(EXT2BLOCKGROUP);
+    TableSize = GroupCount * sizeof(EXT2_BLOCK_GROUP);
     FileSystem->Groups = (LPEXT2BLOCKGROUP)KernelHeapAlloc(TableSize);
     if (FileSystem->Groups == NULL) return FALSE;
 
@@ -188,8 +190,8 @@ BOOL LoadGroupDescriptors(LPEXT2FILESYSTEM FileSystem) {
  * @param CopySizeOut Receives the inode copy size.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL PrepareInodeBlockAccess(LPEXT2FILESYSTEM FileSystem, U32 InodeIndex, U8** BlockBufferOut, U32* OffsetInBlockOut,
-                             U32* CopySizeOut) {
+BOOL PrepareInodeBlockAccess(
+    LPEXT2FILESYSTEM FileSystem, U32 InodeIndex, U8** BlockBufferOut, U32* OffsetInBlockOut, U32* CopySizeOut) {
     LPEXT2BLOCKGROUP Group;
     U32 GroupIndex;
     U32 IndexInGroup;
@@ -220,8 +222,8 @@ BOOL PrepareInodeBlockAccess(LPEXT2FILESYSTEM FileSystem, U32 InodeIndex, U8** B
     }
 
     *CopySizeOut = FileSystem->InodeSize;
-    if (*CopySizeOut > sizeof(EXT2INODE)) {
-        *CopySizeOut = sizeof(EXT2INODE);
+    if (*CopySizeOut > sizeof(EXT2_INODE)) {
+        *CopySizeOut = sizeof(EXT2_INODE);
     }
 
     *BlockBufferOut = BlockBuffer;
@@ -246,7 +248,7 @@ BOOL ReadInode(LPEXT2FILESYSTEM FileSystem, U32 InodeIndex, LPEXT2INODE Inode) {
     if (FileSystem == NULL || Inode == NULL) return FALSE;
     if (PrepareInodeBlockAccess(FileSystem, InodeIndex, &BlockBuffer, &OffsetInBlock, &CopySize) == FALSE) return FALSE;
 
-    MemorySet(Inode, 0, sizeof(EXT2INODE));
+    MemorySet(Inode, 0, sizeof(EXT2_INODE));
     MemoryCopy(Inode, BlockBuffer + OffsetInBlock, CopySize);
 
     Ext2ReleaseBlockBuffer(FileSystem, BlockBuffer);
@@ -670,8 +672,7 @@ BOOL ResolveInodeBlock(
  * @param InodeIndex Receives the inode index when found.
  * @return TRUE if the entry exists, FALSE otherwise.
  */
-BOOL FindInodeInDirectory(
-    LPEXT2FILESYSTEM FileSystem, LPEXT2INODE Directory, LPCSTR Name, U32* InodeIndex) {
+BOOL FindInodeInDirectory(LPEXT2FILESYSTEM FileSystem, LPEXT2INODE Directory, LPCSTR Name, U32* InodeIndex) {
     U32 BlockCount;
     U32 BlockIndex;
     U32 NameLength;
@@ -714,7 +715,7 @@ BOOL FindInodeInDirectory(
         }
 
         U32 Offset = 0;
-        while (Offset + sizeof(EXT2DIRECTORYENTRY) <= FileSystem->BlockSize) {
+        while (Offset + sizeof(EXT2_DIRECTORY_ENTRY) <= FileSystem->BlockSize) {
             LPEXT2DIRECTORYENTRY Entry = (LPEXT2DIRECTORYENTRY)(BlockBuffer + Offset);
             U32 EntryLength;
 
@@ -760,9 +761,8 @@ BOOL FindInodeInDirectory(
  * @param InodeIndex Receives the inode index on success (may be NULL).
  * @return TRUE when the path is resolved, FALSE otherwise.
  */
-BOOL ResolvePath(
-    LPEXT2FILESYSTEM FileSystem, LPCSTR Path, LPEXT2INODE Inode, U32* InodeIndex) {
-    EXT2INODE CurrentInode;
+BOOL ResolvePath(LPEXT2FILESYSTEM FileSystem, LPCSTR Path, LPEXT2INODE Inode, U32* InodeIndex) {
+    EXT2_INODE CurrentInode;
     U32 CurrentIndex;
     U32 Offset;
     U32 Length;
@@ -814,7 +814,7 @@ BOOL ResolvePath(
         Offset += ComponentLength;
     }
 
-    MemoryCopy(Inode, &CurrentInode, sizeof(EXT2INODE));
+    MemoryCopy(Inode, &CurrentInode, sizeof(EXT2_INODE));
     if (InodeIndex != NULL) {
         *InodeIndex = CurrentIndex;
     }

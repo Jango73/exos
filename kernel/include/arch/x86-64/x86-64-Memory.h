@@ -72,7 +72,7 @@
 #define VMA_USER_LIMIT ((U64)0x00007F0000000000)
 #define VMA_TASK_RUNNER (VMA_USER_LIMIT - PAGE_SIZE)
 #ifndef CONFIG_VMA_KERNEL
-#error "CONFIG_VMA_KERNEL is not defined"
+    #error "CONFIG_VMA_KERNEL is not defined"
 #endif
 
 #define VMA_KERNEL (CONFIG_VMA_KERNEL)
@@ -80,7 +80,7 @@
 #define PAGE_PRIVILEGE(Address) \
     (((U64)(Address) >= VMA_USER && (U64)(Address) < VMA_KERNEL) ? PAGE_PRIVILEGE_USER : PAGE_PRIVILEGE_KERNEL)
 
-#define PAGE_ALIGN(Address) (((U64)(Address) + PAGE_SIZE - (U64)1) & PAGE_MASK)
+#define PAGE_ALIGN(Address) ALIGN_UP((U64)(Address), PAGE_SIZE)
 
 /************************************************************************/
 // typedefs
@@ -136,8 +136,8 @@ static inline U64 CanonicalizeLinearAddress(U64 Address) {
 }
 
 static inline U64 BuildRecursiveAddress(UINT Pml4, UINT Pdpt, UINT Directory, UINT Table, U64 Offset) {
-    U64 Address = ((U64)Pml4 << 39) | ((U64)Pdpt << 30) | ((U64)Directory << 21) | ((U64)Table << 12) |
-        (Offset & PAGE_SIZE_MASK);
+    U64 Address =
+        ((U64)Pml4 << 39) | ((U64)Pdpt << 30) | ((U64)Directory << 21) | ((U64)Table << 12) | (Offset & PAGE_SIZE_MASK);
     return CanonicalizeLinearAddress(Address);
 }
 
@@ -158,12 +158,7 @@ static inline UINT GetTableEntry(U64 Address) {
 }
 
 static inline U64 BuildPageFlags(
-    U32 ReadWrite,
-    U32 Privilege,
-    U32 WriteThrough,
-    U32 CacheDisabled,
-    U32 Global,
-    U32 Fixed) {
+    U32 ReadWrite, U32 Privilege, U32 WriteThrough, U32 CacheDisabled, U32 Global, U32 Fixed) {
     U64 Flags = PAGE_FLAG_PRESENT;
 
     if (ReadWrite) Flags |= PAGE_FLAG_READ_WRITE;
@@ -177,26 +172,14 @@ static inline U64 BuildPageFlags(
 }
 
 static inline U64 MakePageDirectoryEntryValue(
-    PHYSICAL Physical,
-    U32 ReadWrite,
-    U32 Privilege,
-    U32 WriteThrough,
-    U32 CacheDisabled,
-    U32 Global,
-    U32 Fixed) {
+    PHYSICAL Physical, U32 ReadWrite, U32 Privilege, U32 WriteThrough, U32 CacheDisabled, U32 Global, U32 Fixed) {
     U64 Flags = BuildPageFlags(ReadWrite, Privilege, WriteThrough, CacheDisabled, Global, Fixed);
     Flags &= ~PAGE_FLAG_PAGE_SIZE;
     return ((U64)Physical & PAGE_MASK) | Flags;
 }
 
 U64 MakePageTableEntryValue(
-    PHYSICAL Physical,
-    U32 ReadWrite,
-    U32 Privilege,
-    U32 WriteThrough,
-    U32 CacheDisabled,
-    U32 Global,
-    U32 Fixed);
+    PHYSICAL Physical, U32 ReadWrite, U32 Privilege, U32 WriteThrough, U32 CacheDisabled, U32 Global, U32 Fixed);
 
 U64 MakePageEntryRaw(PHYSICAL Physical, U64 Flags);
 
@@ -244,7 +227,8 @@ static inline BOOL ClipPhysicalRange(U64 Base, U64 Length, PHYSICAL* OutBase, UI
 }
 
 static inline LPPML4 GetCurrentPml4VA(void) {
-    return (LPPML4)BuildRecursiveAddress(PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, 0);
+    return (LPPML4)BuildRecursiveAddress(
+        PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, PML4_RECURSIVE_SLOT, 0);
 }
 
 static inline LPPAGE_DIRECTORY GetCurrentPageDirectoryVA(void) {

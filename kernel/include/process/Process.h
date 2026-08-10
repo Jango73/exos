@@ -58,7 +58,7 @@ typedef struct tag_WINDOW WINDOW, *LPWINDOW;
 typedef struct tag_WINDOW_CLASS WINDOW_CLASS, *LPWINDOW_CLASS;
 typedef struct tag_DESKTOP DESKTOP, *LPDESKTOP;
 typedef struct tag_FILESYSTEM FILESYSTEM, *LPFILESYSTEM;
-typedef struct tag_GRAPHICSCONTEXT GRAPHICSCONTEXT, *LPGRAPHICSCONTEXT;
+typedef struct tag_GRAPHICSCONTEXT GRAPHICS_CONTEXT, *LPGRAPHICSCONTEXT;
 
 /************************************************************************/
 // Scheduler-owned process state
@@ -185,7 +185,7 @@ struct tag_PROCESS {
     HANDLE StdIn;                                // Standard input handle owned by the process
     HANDLE StdErr;                               // Standard error handle owned by the process
     UINT TaskCount;                              // Number of active tasks in this process
-    MESSAGEQUEUE MessageQueue;                   // Process-level message queue (input, etc.)
+    MESSAGE_QUEUE MessageQueue;                   // Process-level message queue (input, etc.)
     U64 UserID;                                  // Owner user
     LPDESKTOP Desktop;                           // This process' desktop
     LPUSER_SESSION Session;                      // User session

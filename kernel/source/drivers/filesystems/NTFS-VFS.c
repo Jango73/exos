@@ -280,7 +280,7 @@ static LPNTFSFILE NtfsCreateFileHandle(LPFILESYSTEM FileSystem) {
 
     if (FileSystem == NULL) return NULL;
 
-    File = (LPNTFSFILE)CreateKernelObject(sizeof(NTFSFILE), KOID_FILE);
+    File = (LPNTFSFILE)CreateKernelObject(sizeof(NTFS_FILE), KOID_FILE);
     if (File == NULL) return NULL;
 
     InitMutex(&(File->Header.Mutex));
