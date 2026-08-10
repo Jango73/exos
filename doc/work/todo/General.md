@@ -2,23 +2,38 @@
 
 ## High priority
 
+### Drivers
+
 - [ ] Execute Universal-Serial-Bus.md : all remaining steps
 - [ ] Execute Non-Volatile-Memory-Express.md : all remaining steps
 - [ ] Execute Packaging-System-Plan.md : all remaining steps
 - [ ] Execute Network.md : all remaining steps
 
+### Multicore
+
+- [ ] Implement Symmetric-Multiprocessing.md
+
+### I18n
+
 - [ ] Implement full UTF and Unicode.md
 - [ ] Handle languages
+
+### Disks
+
+- [ ] Reference disks by stable ID in the kernel, not by position index. Introduce a stable disk ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference disks by ID (default method) and by index as a fallback.
+  - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Disks without hardware serial (RAMDisk) get a synthetic ID persisted in the registry so it stays stable across reboots.
+- [ ] Change partition naming (`GetDefaultFileSystemName`) so partition names embed the stable disk ID instead of the per-driver-type list index, keeping the partition index within the disk. This keeps volume names (used in VFS paths and `ActivePartitionName`) stable across disk reorder/removal.
+
+### Network
+- [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
+- [ ] Optimize/evolve the network stack
+- [ ] Verify downloaded file integrity: netget / HTTP_DownloadToFile only checks that the byte count matches Content-Length; no content checksum/hash is computed. The network smoke test compares only the file size (`file-size-compare`), not the bytes. Add a hash (for example CRC) exposed by the HTTP server and verified at the end of the download.
 
 ## Medium priority
 
 ### Shell
 
 - [ ] Make the shell syscall-clean: the shell will become a userland program, so no shell command may call a kernel function directly; every service access must go through a syscall (`DoSystemCall`/`exoscall`). Existing direct kernel calls in shell commands (for example `NetworkManager_*` device checks, socket layer calls) are known and will be migrated to their syscall equivalents progressively.
-
-### Multicore
-
-- [ ] Implement Symmetric-Multiprocessing.md
 
 ### Keyboard
 
@@ -90,11 +105,6 @@
 ### Filesystem cache
 
 - [ ] Add a cluster-chain navigation cache to FAT16 and FAT32 (FAT sectors are already cached by the generic DiskTransferLayer sector cache)
-
-### Network
-- [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
-- [ ] Optimize/evolve the network stack
-- [ ] Verify downloaded file integrity: netget / HTTP_DownloadToFile only checks that the byte count matches Content-Length; no content checksum/hash is computed. The network smoke test compares only the file size (`file-size-compare`), not the bytes. Add a hash (for example CRC) exposed by the HTTP server and verified at the end of the download.
 
 ### Security 
 
