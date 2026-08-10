@@ -14,11 +14,11 @@ if (process.count >= 1) {
             score = score + 1;
         }
 
-        if (process[0].task[0].stack.base > 0) {
+        if (process[0].task[0].stack.base != 0) {
             score = score + 1;
         }
 
-        if (process[0].task[0].architecture.context > 0) {
+        if (process[0].task[0].architecture.context != 0) {
             score = score + 1;
         }
     }
