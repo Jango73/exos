@@ -299,13 +299,12 @@
 
 ### System data view
 
-- [ ] Add following infos in PCI page:
-  - VendorID/DeviceID
+- [x] Add following infos in PCI page (VendorID/DeviceID and Class/Subclass/ProgIF are already displayed):
   - Command / Status
-  - Class/Subclass/ProgIF
   - BAR0..BAR5 (detect 32 vs 64-bit)
   - Capabilities Pointer + scan capabilities (MSI/MSI-X, PCIe)
   - Interrupt Line/Pin
+  - Implemented in `SystemDataViewDrawPagePciList` (PCI page): Command/Status, BAR0..BAR5 with IO/M32/M64 detection, capability pointer plus full scanned capability list (named PM/AGP/VPD/MSI/PCI-X/HT/VendorSpecific/DebugPort/HotPlug/PCIe/MSI-X/SATA/AdvancedFeatures/EnhancedAllocation/FlatteningPortalBridge), and IRQ Line/Pin. Added reusable `PCI_ScanCapabilities` to the PCI module, refactored `PCI_FindCapability` on top of it, and extended `PCI_INFO`-like snapshot struct with the new registers. Clean debug builds pass on x86-32 and x86-64.
 
 ### Drivers
 
