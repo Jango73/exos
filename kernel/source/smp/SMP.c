@@ -22,6 +22,7 @@
 
 \************************************************************************/
 
+#include "smp/LAPICTimer.h"
 #include "smp/SMP.h"
 
 #include "Base.h"
@@ -146,6 +147,9 @@ static U32 SelectUsableCpus(U32 DetectedCount, U32 EnabledMask) {
  */
 void InitializeSMP(void) {
     MemorySet(&G_SMPConfig, 0, sizeof(SMP_CONFIG));
+
+    // Calibrate the Local APIC timer against the PIT reference clock
+    CalibrateLAPICTimer();
 
     LPACPI_CONFIG AcpiConfig = GetACPIConfig();
     if (AcpiConfig == NULL || AcpiConfig->Valid == FALSE || AcpiConfig->UseLocalApic == FALSE ||

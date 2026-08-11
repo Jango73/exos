@@ -108,5 +108,7 @@ Goal: orderly multi-CPU lifecycle.
 - New SMP module files placed under `kernel/source/smp/` + `kernel/include/smp/`; add a `$(wildcard source/smp/*.c)` line to `kernel/Makefile`.
 
 ## State Summary
-- No implementation started. Discovery done: LAPIC/IOAPIC drivers single-CPU, ACPI MADT parsing present, scheduler/clock/IDT/TSS all single-global, no atomics/spinlocks, no per-CPU structs, run.sh `-smp 1` default.
+- Step 1 done: CPU discovery and boot policy implemented in `kernel/source/smp/SMP.c` + `kernel/include/smp/SMP.h`. Effective CPU set driven by `General.SMP`, `General.EnabledCPUs`, `nosmp`; per-CPU records with BSP selection; monoprocessor config boots exactly as before (verified on QEMU x86-32/x86-64, `detected=1 usable=1`).
+- Step 2 done: BSP APIC mode was already active in the default path (IOAPIC AUTO mode enables LAPIC, masks PIC, routes legacy IRQs through IOAPIC to the BSP). Added LAPIC timer calibration scaffolding in `kernel/source/smp/LAPICTimer.c` + `kernel/include/smp/LAPICTimer.h`: 10 ms PIT one-shot reference window, divide-by-16, calibrated frequency stored and logged (`CalibrateLAPICTimer`, `GetLAPICTimerFrequency`). Not yet wired into the scheduler tick.
+- Still pending: Steps 3-11 (AP trampoline bring-up, per-CPU structures/accessors, scheduler affinity + `run --cpu N`, IPIs, per-CPU LAPIC timer tick + single timekeeper, atomics/spinlocks, TLB shootdown, boot/shutdown flow + Kernel.md update, QEMU `-smp` testing matrix).
 - This roadmap tracks missing behavior, not merely uncommitted code.
