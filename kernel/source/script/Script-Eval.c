@@ -36,11 +36,10 @@
  * @return TRUE if the string is a keyword
  */
 BOOL ScriptIsKeyword(LPCSTR Str) {
-    return (StringCompare(Str, TEXT("if")) == 0 ||
-            StringCompare(Str, TEXT("else")) == 0 ||
-            StringCompare(Str, TEXT("for")) == 0 ||
-            StringCompare(Str, TEXT("return")) == 0 ||
-            StringCompare(Str, TEXT("continue")) == 0);
+    return (
+        StringCompare(Str, TEXT("if")) == 0 || StringCompare(Str, TEXT("else")) == 0 ||
+        StringCompare(Str, TEXT("for")) == 0 || StringCompare(Str, TEXT("return")) == 0 ||
+        StringCompare(Str, TEXT("continue")) == 0);
 }
 
 /************************************************************************/
@@ -71,10 +70,7 @@ BOOL ScriptValueIsTrue(const SCRIPT_VALUE* Value, BOOL* OutValue) {
  * @return SCRIPT_OK on success, otherwise an error code.
  */
 static SCRIPT_ERROR ScriptEvaluateBinaryIntegerOperator(
-    const SCRIPT_VALUE* LeftValue,
-    const SCRIPT_VALUE* RightValue,
-    LPCSTR Operator,
-    SCRIPT_VALUE* Result) {
+    const SCRIPT_VALUE* LeftValue, const SCRIPT_VALUE* RightValue, LPCSTR Operator, SCRIPT_VALUE* Result) {
     INT LeftInteger = 0;
     INT RightInteger = 0;
     UINT ShiftBits = (UINT)(sizeof(INT) * 8);
@@ -83,8 +79,7 @@ static SCRIPT_ERROR ScriptEvaluateBinaryIntegerOperator(
         return SCRIPT_ERROR_SYNTAX;
     }
 
-    if (!ScriptValueToInteger(LeftValue, &LeftInteger) ||
-        !ScriptValueToInteger(RightValue, &RightInteger)) {
+    if (!ScriptValueToInteger(LeftValue, &LeftInteger) || !ScriptValueToInteger(RightValue, &RightInteger)) {
         return SCRIPT_ERROR_TYPE_MISMATCH;
     }
 
@@ -132,10 +127,7 @@ static SCRIPT_ERROR ScriptEvaluateBinaryIntegerOperator(
  * @param ArgumentCount Number of argument strings.
  */
 static void ScriptReleaseFunctionArguments(
-    LPSCRIPT_CONTEXT Context,
-    LPCSTR* Arguments,
-    BOOL* OwnedArguments,
-    UINT ArgumentCount) {
+    LPSCRIPT_CONTEXT Context, LPCSTR* Arguments, BOOL* OwnedArguments, UINT ArgumentCount) {
     UINT Index;
 
     if (Context == NULL) {
@@ -171,18 +163,15 @@ static void ScriptReleaseFunctionArguments(
  * @return SCRIPT_OK on success, otherwise an error code.
  */
 static SCRIPT_ERROR ScriptBuildFunctionArguments(
-    LPSCRIPT_PARSER Parser,
-    LPAST_NODE Expr,
-    LPCSTR** OutArguments,
-    BOOL** OutOwnedArguments,
-    UINT* OutArgumentCount) {
+    LPSCRIPT_PARSER Parser, LPAST_NODE Expr, LPCSTR** OutArguments, BOOL** OutOwnedArguments, UINT* OutArgumentCount) {
     UINT ArgumentCount;
     LPCSTR* Arguments = NULL;
     BOOL* OwnedArguments = NULL;
     UINT Index = 0;
     LPAST_NODE ArgumentNode;
 
-    if (Parser == NULL || Expr == NULL || OutArguments == NULL || OutOwnedArguments == NULL || OutArgumentCount == NULL) {
+    if (Parser == NULL || Expr == NULL || OutArguments == NULL || OutOwnedArguments == NULL ||
+        OutArgumentCount == NULL) {
         return SCRIPT_ERROR_SYNTAX;
     }
 
@@ -222,11 +211,8 @@ static SCRIPT_ERROR ScriptBuildFunctionArguments(
             return EvaluationError;
         }
 
-        SCRIPT_ERROR Result = ScriptValueToString(
-            &ArgumentValue,
-            Parser->Context,
-            &Arguments[Index],
-            &OwnedArguments[Index]);
+        SCRIPT_ERROR Result =
+            ScriptValueToString(&ArgumentValue, Parser->Context, &Arguments[Index], &OwnedArguments[Index]);
 
         if (Result != SCRIPT_OK) {
             ScriptValueRelease(&ArgumentValue);
@@ -346,8 +332,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
             if (Expr->Data.Expression.IsFunctionCall) {
                 if (Expr->Data.Expression.IsShellCommand) {
                     if (Parser->Callbacks && Parser->Callbacks->ExecuteCommand) {
-                        LPCSTR CommandLine = Expr->Data.Expression.CommandLine ?
-                            Expr->Data.Expression.CommandLine : Expr->Data.Expression.Value;
+                        LPCSTR CommandLine = Expr->Data.Expression.CommandLine ? Expr->Data.Expression.CommandLine
+                                                                               : Expr->Data.Expression.Value;
                         UINT Status = Parser->Callbacks->ExecuteCommand(CommandLine, Parser->Callbacks->UserData);
 
                         if (Status == DF_RETURN_SUCCESS) {
@@ -395,12 +381,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     LPCSTR* Arguments = NULL;
                     BOOL* OwnedArguments = NULL;
                     UINT ArgumentCount = 0;
-                    SCRIPT_ERROR ArgumentError = ScriptBuildFunctionArguments(
-                        Parser,
-                        Expr,
-                        &Arguments,
-                        &OwnedArguments,
-                        &ArgumentCount);
+                    SCRIPT_ERROR ArgumentError =
+                        ScriptBuildFunctionArguments(Parser, Expr, &Arguments, &OwnedArguments, &ArgumentCount);
                     if (ArgumentError != SCRIPT_OK) {
                         if (Error) {
                             *Error = ArgumentError;
@@ -409,10 +391,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     }
 
                     INT Status = Parser->Callbacks->CallFunction(
-                        Expr->Data.Expression.Value,
-                        ArgumentCount,
-                        (LPCSTR*)Arguments,
-                        Parser->Callbacks->UserData);
+                        Expr->Data.Expression.Value, ArgumentCount, (LPCSTR*)Arguments, Parser->Callbacks->UserData);
                     ScriptReleaseFunctionArguments(Parser->Context, Arguments, OwnedArguments, ArgumentCount);
 
                     if (Status == SCRIPT_FUNCTION_STATUS_UNKNOWN) {
@@ -421,9 +400,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                             Context->ErrorCode = SCRIPT_ERROR_UNDEFINED_VAR;
                             if (Context->ErrorMessage[0] == STR_NULL) {
                                 StringPrintFormat(
-                                    Context->ErrorMessage,
-                                    TEXT("Unknown function: %s"),
-                                    Expr->Data.Expression.Value);
+                                    Context->ErrorMessage, TEXT("Unknown function: %s"), Expr->Data.Expression.Value);
                             }
                         }
 
@@ -496,7 +473,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 U32 ArrayIndex = (U32)IndexNumeric;
                 ScriptValueRelease(&IndexValue);
 
-                LPSCRIPT_HOST_SYMBOL HostArray = ScriptFindHostSymbol(&Parser->Context->HostRegistry, Expr->Data.Expression.Value);
+                LPSCRIPT_HOST_SYMBOL HostArray =
+                    ScriptFindHostSymbol(&Parser->Context->HostRegistry, Expr->Data.Expression.Value);
                 if (HostArray) {
                     if (HostArray->Descriptor == NULL || HostArray->Descriptor->GetElement == NULL) {
                         if (Error) {
@@ -508,7 +486,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     SCRIPT_VALUE HostValue;
                     ScriptValueInit(&HostValue);
                     LPVOID HostCtx = HostArray->Context ? HostArray->Context : HostArray->Descriptor->Context;
-                    SCRIPT_ERROR HostError = HostArray->Descriptor->GetElement(HostCtx, HostArray->Handle, ArrayIndex, &HostValue);
+                    SCRIPT_ERROR HostError =
+                        HostArray->Descriptor->GetElement(HostCtx, HostArray->Handle, ArrayIndex, &HostValue);
                     if (HostError != SCRIPT_OK) {
                         if (Error) {
                             *Error = HostError;
@@ -529,7 +508,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     return HostValue;
                 }
 
-                LPSCRIPT_VARIABLE Element = ScriptGetArrayElement(Parser->Context, Expr->Data.Expression.Value, ArrayIndex);
+                LPSCRIPT_VARIABLE Element =
+                    ScriptGetArrayElement(Parser->Context, Expr->Data.Expression.Value, ArrayIndex);
                 if (Element == NULL) {
                     if (Error) {
                         *Error = SCRIPT_ERROR_UNDEFINED_VAR;
@@ -545,7 +525,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 return Result;
             }
 
-            LPSCRIPT_HOST_SYMBOL HostSymbol = ScriptFindHostSymbol(&Parser->Context->HostRegistry, Expr->Data.Expression.Value);
+            LPSCRIPT_HOST_SYMBOL HostSymbol =
+                ScriptFindHostSymbol(&Parser->Context->HostRegistry, Expr->Data.Expression.Value);
             if (HostSymbol) {
                 LPVOID HostCtx = HostSymbol->Context ? HostSymbol->Context : HostSymbol->Descriptor->Context;
 
@@ -559,11 +540,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
 
                     SCRIPT_VALUE HostValue;
                     ScriptValueInit(&HostValue);
-                    SCRIPT_ERROR HostError = HostSymbol->Descriptor->GetProperty(
-                        HostCtx,
-                        HostSymbol->Handle,
-                        HostSymbol->Name,
-                        &HostValue);
+                    SCRIPT_ERROR HostError =
+                        HostSymbol->Descriptor->GetProperty(HostCtx, HostSymbol->Handle, HostSymbol->Name, &HostValue);
                     if (HostError != SCRIPT_OK) {
                         if (Error) {
                             *Error = HostError;
@@ -599,7 +577,8 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 return Result;
             }
 
-            LPSCRIPT_VARIABLE Variable = ScriptFindVariableInScope(Parser->CurrentScope, Expr->Data.Expression.Value, TRUE);
+            LPSCRIPT_VARIABLE Variable =
+                ScriptFindVariableInScope(Parser->CurrentScope, Expr->Data.Expression.Value, TRUE);
             if (Variable == NULL) {
                 if (Error) {
                     *Error = SCRIPT_ERROR_UNDEFINED_VAR;
@@ -838,16 +817,11 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     }
                 }
 
-                if (StringCompare(OperatorText, TEXT("&")) == 0 ||
-                    StringCompare(OperatorText, TEXT("|")) == 0 ||
-                    StringCompare(OperatorText, TEXT("^")) == 0 ||
-                    StringCompare(OperatorText, TEXT("<<")) == 0 ||
+                if (StringCompare(OperatorText, TEXT("&")) == 0 || StringCompare(OperatorText, TEXT("|")) == 0 ||
+                    StringCompare(OperatorText, TEXT("^")) == 0 || StringCompare(OperatorText, TEXT("<<")) == 0 ||
                     StringCompare(OperatorText, TEXT(">>")) == 0) {
-                    SCRIPT_ERROR IntegerError = ScriptEvaluateBinaryIntegerOperator(
-                        &LeftValue,
-                        &RightValue,
-                        OperatorText,
-                        &Result);
+                    SCRIPT_ERROR IntegerError =
+                        ScriptEvaluateBinaryIntegerOperator(&LeftValue, &RightValue, OperatorText, &Result);
                     if (IntegerError != SCRIPT_OK && Error) {
                         *Error = IntegerError;
                     }
@@ -858,8 +832,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
 
                 F32 LeftNumeric;
                 F32 RightNumeric;
-                if (!ScriptValueToFloat(&LeftValue, &LeftNumeric) ||
-                    !ScriptValueToFloat(&RightValue, &RightNumeric)) {
+                if (!ScriptValueToFloat(&LeftValue, &LeftNumeric) || !ScriptValueToFloat(&RightValue, &RightNumeric)) {
                     if (Error) {
                         *Error = SCRIPT_ERROR_TYPE_MISMATCH;
                     }
@@ -868,8 +841,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                     return Result;
                 }
 
-                if (LeftValue.Type == SCRIPT_VAR_INTEGER &&
-                    RightValue.Type == SCRIPT_VAR_INTEGER) {
+                if (LeftValue.Type == SCRIPT_VAR_INTEGER && RightValue.Type == SCRIPT_VAR_INTEGER) {
                     Result.Type = SCRIPT_VAR_INTEGER;
 
                     if (Operator == '+') {
@@ -937,12 +909,16 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
 
                     if (StringCompare(Expr->Data.Expression.Value, TEXT("==")) == 0) {
                         Result.Value.Integer = (StringCompare(
-                            LeftValue.Value.String ? LeftValue.Value.String : TEXT(""),
-                            RightValue.Value.String ? RightValue.Value.String : TEXT("")) == 0) ? 1 : 0;
+                                                    LeftValue.Value.String ? LeftValue.Value.String : TEXT(""),
+                                                    RightValue.Value.String ? RightValue.Value.String : TEXT("")) == 0)
+                                                   ? 1
+                                                   : 0;
                     } else {
                         Result.Value.Integer = (StringCompare(
-                            LeftValue.Value.String ? LeftValue.Value.String : TEXT(""),
-                            RightValue.Value.String ? RightValue.Value.String : TEXT("")) != 0) ? 1 : 0;
+                                                    LeftValue.Value.String ? LeftValue.Value.String : TEXT(""),
+                                                    RightValue.Value.String ? RightValue.Value.String : TEXT("")) != 0)
+                                                   ? 1
+                                                   : 0;
                     }
 
                     ScriptValueRelease(&LeftValue);
@@ -953,8 +929,7 @@ SCRIPT_VALUE ScriptEvaluateExpression(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, S
                 F32 LeftNumeric;
                 F32 RightNumeric;
 
-                if (!ScriptValueToFloat(&LeftValue, &LeftNumeric) ||
-                    !ScriptValueToFloat(&RightValue, &RightNumeric)) {
+                if (!ScriptValueToFloat(&LeftValue, &LeftNumeric) || !ScriptValueToFloat(&RightValue, &RightNumeric)) {
                     if (Error) {
                         *Error = SCRIPT_ERROR_TYPE_MISMATCH;
                     }
@@ -1012,10 +987,8 @@ SCRIPT_VALUE ScriptEvaluateHostProperty(LPSCRIPT_PARSER Parser, LPAST_NODE Expr,
     if (BaseValue.Type != SCRIPT_VAR_HOST_HANDLE || BaseValue.HostDescriptor == NULL ||
         BaseValue.HostDescriptor->GetProperty == NULL) {
         if (BaseValue.Type == SCRIPT_VAR_OBJECT && BaseValue.Value.Object != NULL) {
-            SCRIPT_ERROR ObjectError = ScriptGetObjectProperty(
-                BaseValue.Value.Object,
-                Expr->Data.Expression.PropertyName,
-                &Result);
+            SCRIPT_ERROR ObjectError =
+                ScriptGetObjectProperty(BaseValue.Value.Object, Expr->Data.Expression.PropertyName, &Result);
             ScriptValueRelease(&BaseValue);
             if (ObjectError != SCRIPT_OK) {
                 if (Error) {
@@ -1038,10 +1011,7 @@ SCRIPT_VALUE ScriptEvaluateHostProperty(LPSCRIPT_PARSER Parser, LPAST_NODE Expr,
     SCRIPT_VALUE HostValue;
     ScriptValueInit(&HostValue);
     SCRIPT_ERROR HostError = BaseValue.HostDescriptor->GetProperty(
-        HostCtx,
-        BaseValue.Value.HostHandle,
-        Expr->Data.Expression.PropertyName,
-        &HostValue);
+        HostCtx, BaseValue.Value.HostHandle, Expr->Data.Expression.PropertyName, &HostValue);
 
     ScriptValueRelease(&BaseValue);
 
@@ -1054,10 +1024,7 @@ SCRIPT_VALUE ScriptEvaluateHostProperty(LPSCRIPT_PARSER Parser, LPAST_NODE Expr,
     }
 
     HostError = ScriptPrepareHostValue(
-        Parser->Context,
-        &HostValue,
-        HostValue.HostDescriptor ? HostValue.HostDescriptor : DefaultDescriptor,
-        HostCtx);
+        Parser->Context, &HostValue, HostValue.HostDescriptor ? HostValue.HostDescriptor : DefaultDescriptor, HostCtx);
     if (HostError != SCRIPT_OK) {
         if (Error) {
             *Error = HostError;
@@ -1095,6 +1062,55 @@ SCRIPT_VALUE ScriptEvaluateArrayAccess(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, 
         return Result;
     }
 
+    if (BaseValue.Type == SCRIPT_VAR_HOST_HANDLE && BaseValue.HostDescriptor &&
+        BaseValue.HostDescriptor->GetStringElement) {
+        if (IndexValue.Type != SCRIPT_VAR_STRING || IndexValue.Value.String == NULL) {
+            if (Error) {
+                *Error = SCRIPT_ERROR_TYPE_MISMATCH;
+            }
+            ScriptValueRelease(&BaseValue);
+            ScriptValueRelease(&IndexValue);
+            return Result;
+        }
+
+        LPVOID HostCtx = BaseValue.HostContext ? BaseValue.HostContext : BaseValue.HostDescriptor->Context;
+        const SCRIPT_HOST_DESCRIPTOR* DefaultDescriptor = BaseValue.HostDescriptor;
+
+        SCRIPT_VALUE HostValue;
+        ScriptValueInit(&HostValue);
+        SCRIPT_ERROR HostError = BaseValue.HostDescriptor->GetStringElement(
+            HostCtx, BaseValue.Value.HostHandle, IndexValue.Value.String, &HostValue);
+
+        ScriptValueRelease(&BaseValue);
+        ScriptValueRelease(&IndexValue);
+
+        if (HostError != SCRIPT_OK) {
+            if (Error) {
+                *Error = HostError;
+            }
+            ScriptValueRelease(&HostValue);
+            return Result;
+        }
+
+        HostError = ScriptPrepareHostValue(Parser->Context, &HostValue, DefaultDescriptor, HostCtx);
+        if (HostError != SCRIPT_OK) {
+            if (Error) {
+                *Error = HostError;
+            }
+            ScriptValueRelease(&HostValue);
+            return Result;
+        }
+
+        if (HostValue.Type == SCRIPT_VAR_HOST_HANDLE && HostValue.HostDescriptor == NULL) {
+            HostValue.HostDescriptor = DefaultDescriptor;
+        }
+        if (HostValue.Type == SCRIPT_VAR_HOST_HANDLE && HostValue.HostContext == NULL) {
+            HostValue.HostContext = HostCtx;
+        }
+
+        return HostValue;
+    }
+
     INT IndexNumeric;
     if (!ScriptValueToInteger(&IndexValue, &IndexNumeric) || IndexNumeric < 0) {
         if (Error) {
@@ -1107,18 +1123,14 @@ SCRIPT_VALUE ScriptEvaluateArrayAccess(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, 
 
     ScriptValueRelease(&IndexValue);
 
-    if (BaseValue.Type == SCRIPT_VAR_HOST_HANDLE &&
-        BaseValue.HostDescriptor && BaseValue.HostDescriptor->GetElement) {
+    if (BaseValue.Type == SCRIPT_VAR_HOST_HANDLE && BaseValue.HostDescriptor && BaseValue.HostDescriptor->GetElement) {
         LPVOID HostCtx = BaseValue.HostContext ? BaseValue.HostContext : BaseValue.HostDescriptor->Context;
         const SCRIPT_HOST_DESCRIPTOR* DefaultDescriptor = BaseValue.HostDescriptor;
 
         SCRIPT_VALUE HostValue;
         ScriptValueInit(&HostValue);
-        SCRIPT_ERROR HostError = BaseValue.HostDescriptor->GetElement(
-            HostCtx,
-            BaseValue.Value.HostHandle,
-            (U32)IndexNumeric,
-            &HostValue);
+        SCRIPT_ERROR HostError =
+            BaseValue.HostDescriptor->GetElement(HostCtx, BaseValue.Value.HostHandle, (U32)IndexNumeric, &HostValue);
 
         ScriptValueRelease(&BaseValue);
 
@@ -1152,11 +1164,7 @@ SCRIPT_VALUE ScriptEvaluateArrayAccess(LPSCRIPT_PARSER Parser, LPAST_NODE Expr, 
     if (BaseValue.Type == SCRIPT_VAR_ARRAY && BaseValue.Value.Array != NULL) {
         SCRIPT_VAR_TYPE ElementType;
         SCRIPT_VAR_VALUE ElementValue;
-        SCRIPT_ERROR ArrayError = ScriptArrayGet(
-            BaseValue.Value.Array,
-            (U32)IndexNumeric,
-            &ElementType,
-            &ElementValue);
+        SCRIPT_ERROR ArrayError = ScriptArrayGet(BaseValue.Value.Array, (U32)IndexNumeric, &ElementType, &ElementValue);
 
         ScriptValueRelease(&BaseValue);
 

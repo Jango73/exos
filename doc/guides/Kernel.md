@@ -1279,7 +1279,7 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 - USB: vendor + product from SCSI INQUIRY.
 - RAMDisk and disks without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered disks of the same driver type, stable across reboots.
 
-`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed). `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`.
+`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed). `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `DiskIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
 
 ## Storage and Filesystems
 

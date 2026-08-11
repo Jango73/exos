@@ -205,8 +205,15 @@ Storage units exposed through `storage[i]` carry a stable hardware-derived ID pl
 - `storage[i].vendor`, `storage[i].model`, `storage[i].serial`: sanitized identity parts read at enumeration time (all lower-case-safe characters; unsafe characters become `_`).
 - `storage[i].driverManufacturer`, `storage[i].driverProduct`, `storage[i].type`, `storage[i].removable`, `storage[i].bytesPerSector`, `storage[i].numSectorsLow`, `storage[i].numSectorsHigh`, `storage[i].access`: controller and geometry information.
 
+Disks are also addressable by their stable ID through a string-key lookup on the storage array:
 ```text
-if (storage[i].id == "QEMU_HARDDISK_QM00013") { ... }
+storage.byId["ramdisk_0"];
+storage.byId["QEMU_HARDDISK_QM00013"].model;
+```
+The lookup uses the kernel's `DiskIdFindById`; an unknown ID resolves to the undefined-variable error, so scripts should use index access `storage[i]` as a fallback when the ID may be absent. Example:
+
+```text
+if (storage.byId["ramdisk_0"].id == "ramdisk_0") { ... }
 ```
 
 ### Shell command statements

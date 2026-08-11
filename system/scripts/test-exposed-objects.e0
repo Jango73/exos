@@ -100,6 +100,7 @@ if (storage.count >= 1) {
 
 storageWithModel = 0;
 storageFoundById = 0;
+storageLookupId = "";
 for (i = 0; i < storage.count; i = i + 1) {
     if (storage[i].model != "") {
         storageWithModel = 1;
@@ -107,6 +108,7 @@ for (i = 0; i < storage.count; i = i + 1) {
 
     if (storage[i].id == "ramdisk_0") {
         storageFoundById = 1;
+        storageLookupId = storage[i].id;
     }
 }
 
@@ -116,6 +118,16 @@ if (storageWithModel != 0) {
 
 if (storageFoundById != 0) {
     score = score + 1;
+}
+
+if (storageFoundById != 0) {
+    if (storage.byId["ramdisk_0"].id == "ramdisk_0") {
+        score = score + 1;
+    }
+
+    if (storage.byId[storageLookupId].id == storageLookupId) {
+        score = score + 1;
+    }
 }
 
 if (fileSystem.activePartitionName != "") {

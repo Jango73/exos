@@ -3,7 +3,7 @@
 # command: "<command line>" | log: "<expected fixed log fragment>"
 
 command: "changeFolder system" | log: "TEST > [ChangeFolder] changeFolder /system : OK"
-command: "scripts/test-exposed-objects.e0" | timeout: 20 | log: "TEST > [ShellPrintScriptReturnValue] 41"
+command: "scripts/test-exposed-objects.e0" | timeout: 5 | log: "TEST > [ShellPrintScriptReturnValue] 43"
 command: "scripts/test.e0" | log: "TEST > [ShellPrintScriptReturnValue] 832040"
 command: "scripts/test-multi-args.e0" | log: "TEST > [ShellPrintScriptReturnValue] 42023171"
 command: "scripts/test-objects.e0" | log: "TEST > [ShellPrintScriptReturnValue] 42"
