@@ -202,7 +202,7 @@ disk.size;
 
 Storage units exposed through `storage[i]` carry a stable hardware-derived ID plus the identity parts they were built from:
 - `storage[i].id`: stable disk ID, composed as `vendor_model_serial` (empty parts skipped), following the Linux `/dev/disk/by-id` model; deterministic for disks without hardware identity (for example `ramdisk_0`).
-- `storage[i].vendor`, `storage[i].model`, `storage[i].serial`: sanitized identity parts read at enumeration time (all lower-case-safe characters; unsafe characters become `_`).
+- `storage[i].vendor`, `storage[i].model`, `storage[i].serial`: sanitized identity parts read at enumeration time (characters from `A-Z a-z 0-9 _ - .`, original case preserved; other characters become `_`).
 - `storage[i].driverManufacturer`, `storage[i].driverProduct`, `storage[i].type`, `storage[i].removable`, `storage[i].bytesPerSector`, `storage[i].numSectorsLow`, `storage[i].numSectorsHigh`, `storage[i].access`: controller and geometry information.
 
 Disks are also addressable by their stable ID through a string-key lookup on the storage array:

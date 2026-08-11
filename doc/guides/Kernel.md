@@ -1276,10 +1276,10 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 **Stable disk IDs**: each `STORAGE_UNIT` carries a stable ID (`StorageId`) unique per disk and independent of enumeration order and driver type, following the Linux `/dev/disk/by-id` model. The identity is captured at enumeration time by each storage driver through `utils/DiskID` (`kernel/source/utils/DiskID.c`):
 - ATA/SATA: serial + model from IDENTIFY DEVICE (decoded through `ATADecodeIdentifyString`, reused by the AHCI path after a real IDENTIFY command).
 - NVMe: serial + model from Identify Controller.
-- USB: vendor + product from SCSI INQUIRY.
+- USB: vendor + product from SCSI INQUIRY (the only path that populates the `vendor` part; ATA/SATA, NVMe and the RAMDisk pass `NULL` for it).
 - RAMDisk and disks without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered disks of the same driver type, stable across reboots.
 
-`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed). `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `DiskIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
+`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed) and preserves the original case. `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. For example the boot RAMDisk yields `ramdisk_0` and a QEMU ATA disk yields `QEMU_HARDDISK_QM00013`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `DiskIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
 
 ## Storage and Filesystems
 
