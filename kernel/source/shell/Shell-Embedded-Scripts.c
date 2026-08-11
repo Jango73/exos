@@ -118,13 +118,13 @@ static LPCSTR G_EmbeddedScripts[SHELL_EMBEDDED_SCRIPT_COUNT] = {
         "for (i = 0; i < count; i = i + 1) {\n"
         "    print(i + \" handle=\" + task[i].handle + \" name=\" + task[i].name + \" type=\" + task[i].type + \" status=\" + task[i].status + \" priority=\" + task[i].priority + \" flags=\" + task[i].flags + \" exit=\" + task[i].exitCode);\n"
         "}\n",
-    [SHELL_EMBEDDED_SCRIPT_DISK_LIST] = (LPCSTR)
+    [SHELL_EMBEDDED_SCRIPT_STORAGE_LIST] = (LPCSTR)
         "count = storage.count;\n"
         "if (count == 0) {\n"
-        "    print(\"No disk detected\");\n"
+        "    print(\"No storage detected\");\n"
         "}\n"
         "for (i = 0; i < count; i = i + 1) {\n"
-        "    print(\"disk=\" + i + \" id=\" + storage[i].id + \" type=\" + storage[i].type + \" removable=\" + storage[i].removable + \" access=\" + storage[i].access + \" bytesPerSector=\" + storage[i].bytesPerSector + \" sectors_high=\" + storage[i].numSectorsHigh + \" sectors_low=\" + storage[i].numSectorsLow + \" manufacturer=\" + storage[i].driverManufacturer + \" product=\" + storage[i].driverProduct + \" model=\" + storage[i].model + \" serial=\" + storage[i].serial);\n"
+        "    print(\"storage=\" + i + \" id=\" + storage[i].id + \" type=\" + storage[i].type + \" removable=\" + storage[i].removable + \" access=\" + storage[i].access + \" bytesPerSector=\" + storage[i].bytesPerSector + \" sectors_high=\" + storage[i].numSectorsHigh + \" sectors_low=\" + storage[i].numSectorsLow + \" manufacturer=\" + storage[i].driverManufacturer + \" product=\" + storage[i].driverProduct + \" model=\" + storage[i].model + \" serial=\" + storage[i].serial);\n"
         "}\n",
     [SHELL_EMBEDDED_SCRIPT_FILE_SYSTEM_LIST] = (LPCSTR)
         "activePartitionName = fileSystem.activePartitionName;\n"
@@ -196,7 +196,7 @@ static LPCSTR G_EmbeddedScripts[SHELL_EMBEDDED_SCRIPT_COUNT] = {
         "        } else {\n"
         "            print(\"Read only    : NO\");\n"
         "        }\n"
-        "        print(\"Disk sectors : \" + fileSystem.mounted[i].diskNumSectorsHigh + \", \" + fileSystem.mounted[i].diskNumSectorsLow);\n"
+        "        print(\"Storage sectors : \" + fileSystem.mounted[i].numSectorsHigh + \", \" + fileSystem.mounted[i].numSectorsLow);\n"
         "    } else {\n"
         "        print(\"Storage      : <none>\");\n"
         "    }\n"
@@ -241,7 +241,7 @@ static LPCSTR G_EmbeddedScripts[SHELL_EMBEDDED_SCRIPT_COUNT] = {
         "        } else {\n"
         "            print(\"Read only    : NO\");\n"
         "        }\n"
-        "        print(\"Disk sectors : \" + fileSystem.unused[i].diskNumSectorsHigh + \", \" + fileSystem.unused[i].diskNumSectorsLow);\n"
+        "        print(\"Storage sectors : \" + fileSystem.unused[i].numSectorsHigh + \", \" + fileSystem.unused[i].numSectorsLow);\n"
         "    } else {\n"
         "        print(\"Storage      : <none>\");\n"
         "    }\n"

@@ -757,7 +757,7 @@ static BOOL CommandExit(LPEDITCONTEXT Context) {
 /***************************************************************************/
 
 /**
- * @brief Save the current file to disk.
+ * @brief Save the current file to storage.
  * @param File File to save.
  * @return TRUE on success, FALSE on error.
  */

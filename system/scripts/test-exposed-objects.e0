@@ -106,7 +106,7 @@ for (i = 0; i < storage.count; i = i + 1) {
         storageWithModel = 1;
     }
 
-    if (storage[i].id == "ramdisk_0") {
+    if (storage[i].id == "ramstorage_0") {
         storageFoundById = 1;
         storageLookupId = storage[i].id;
     }
@@ -121,7 +121,7 @@ if (storageFoundById != 0) {
 }
 
 if (storageFoundById != 0) {
-    if (storage.byId["ramdisk_0"].id == "ramdisk_0") {
+    if (storage.byId["ramstorage_0"].id == "ramstorage_0") {
         score = score + 1;
     }
 

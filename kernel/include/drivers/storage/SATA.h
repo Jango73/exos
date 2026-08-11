@@ -28,7 +28,7 @@
 /***************************************************************************/
 
 #include "Base.h"
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 #include "drivers/bus/PCI.h"
 
 /***************************************************************************/
@@ -439,7 +439,7 @@ typedef struct tag_AHCI_FIS {
 /***************************************************************************/
 
 LPDRIVER AHCIPCIGetDriver(void);
-LPDRIVER SATADiskGetDriver(void);
+LPDRIVER SATAStorageGetDriver(void);
 
 /***************************************************************************/
 

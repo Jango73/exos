@@ -23,33 +23,33 @@
 \************************************************************************/
 
 #include "drivers/filesystems/FAT.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /***************************************************************************/
 
 /**
  * @brief Read the boot sector of a FAT partition and validate the BIOS mark.
  *
- * @param Disk Physical disk hosting the partition.
+ * @param Storage Physical storage hosting the partition.
  * @param Partition Partition descriptor.
  * @param Base Base sector offset.
  * @param Buffer Caller-provided SECTOR_SIZE buffer to fill.
  * @return TRUE on success with valid BIOS mark, FALSE otherwise.
  */
-BOOL FATReadBootSector(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, LPVOID Buffer) {
+BOOL FATReadBootSector(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, LPVOID Buffer) {
     IOCONTROL Control;
     U32 Result;
     U16* BiosMark;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = Base + Partition->LBA;
     Control.SectorHigh = 0;
     Control.NumSectors = 1;
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
     BiosMark = (U16*)((U8*)Buffer + (SECTOR_SIZE - sizeof(U16)));

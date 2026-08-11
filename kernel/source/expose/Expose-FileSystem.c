@@ -67,9 +67,9 @@ SCRIPT_ERROR FileSystemRootGetProperty(
  */
 SCRIPT_ERROR FileSystemGetProperty(
     LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
-    DISK_INFO DiskInfo;
+    STORAGE_INFO StorageInfo;
     LPSTORAGE_UNIT StorageUnit = NULL;
-    BOOL DiskInfoValid = FALSE;
+    BOOL StorageInfoValid = FALSE;
 
     UNUSED(Context);
 
@@ -118,23 +118,23 @@ SCRIPT_ERROR FileSystemGetProperty(
 
         EXPOSE_BIND_INTEGER("hasStorage", StorageUnit != NULL);
         if (StorageUnit != NULL && StorageUnit->Driver != NULL) {
-            MemorySet(&DiskInfo, 0, sizeof(DiskInfo));
-            DiskInfo.Disk = StorageUnit;
-            DiskInfoValid = (StorageUnit->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo) == DF_RETURN_SUCCESS);
+            MemorySet(&StorageInfo, 0, sizeof(StorageInfo));
+            StorageInfo.Storage = StorageUnit;
+            StorageInfoValid = (StorageUnit->Driver->Command(DF_STORAGE_GETINFO, (UINT)&StorageInfo) == DF_RETURN_SUCCESS);
 
             EXPOSE_BIND_STRING("storageManufacturer", StorageUnit->Driver->Manufacturer);
             EXPOSE_BIND_STRING("storageProduct", StorageUnit->Driver->Product);
-            EXPOSE_BIND_INTEGER("removable", DiskInfoValid ? DiskInfo.Removable : 0);
-            EXPOSE_BIND_INTEGER("readOnly", DiskInfoValid ? ((DiskInfo.Access & DISK_ACCESS_READONLY) != 0) : 0);
-            EXPOSE_BIND_INTEGER("diskNumSectorsLow", DiskInfoValid ? (U32)U64_Low32(DiskInfo.NumSectors) : 0);
-            EXPOSE_BIND_INTEGER("diskNumSectorsHigh", DiskInfoValid ? (U32)U64_High32(DiskInfo.NumSectors) : 0);
+            EXPOSE_BIND_INTEGER("removable", StorageInfoValid ? StorageInfo.Removable : 0);
+            EXPOSE_BIND_INTEGER("readOnly", StorageInfoValid ? ((StorageInfo.Access & STORAGE_ACCESS_READONLY) != 0) : 0);
+            EXPOSE_BIND_INTEGER("numSectorsLow", StorageInfoValid ? (U32)U64_Low32(StorageInfo.NumSectors) : 0);
+            EXPOSE_BIND_INTEGER("numSectorsHigh", StorageInfoValid ? (U32)U64_High32(StorageInfo.NumSectors) : 0);
         } else {
             EXPOSE_BIND_STRING("storageManufacturer", TEXT(""));
             EXPOSE_BIND_STRING("storageProduct", TEXT(""));
             EXPOSE_BIND_INTEGER("removable", 0);
             EXPOSE_BIND_INTEGER("readOnly", 0);
-            EXPOSE_BIND_INTEGER("diskNumSectorsLow", 0);
-            EXPOSE_BIND_INTEGER("diskNumSectorsHigh", 0);
+            EXPOSE_BIND_INTEGER("numSectorsLow", 0);
+            EXPOSE_BIND_INTEGER("numSectorsHigh", 0);
         }
 
         return SCRIPT_ERROR_UNDEFINED_VAR;

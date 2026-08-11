@@ -24,7 +24,7 @@
 
 #include "utils/ExosMbr.h"
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "text/CoreString.h"
 
 /************************************************************************/
@@ -60,30 +60,30 @@ void ExosMbrFill(LPEXFSMBR Master, U16 SectorsPerCluster) {
 /************************************************************************/
 
 /**
- * @brief Write an EXOS MBR to disk.
- * @param Disk Target storage unit.
+ * @brief Write an EXOS MBR to storage.
+ * @param Storage Target storage unit.
  * @param StartSector Sector offset for the MBR write.
  * @param SectorsPerCluster Cluster size in sectors.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL ExosMbrWrite(LPSTORAGE_UNIT Disk, U32 StartSector, U16 SectorsPerCluster) {
+BOOL ExosMbrWrite(LPSTORAGE_UNIT Storage, U32 StartSector, U16 SectorsPerCluster) {
     EXFS_MBR Master;
     IOCONTROL Control;
     U32 Result;
 
-    if (Disk == NULL) return FALSE;
+    if (Storage == NULL) return FALSE;
 
     ExosMbrFill(&Master, SectorsPerCluster);
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = StartSector;
     Control.SectorHigh = 0;
     Control.NumSectors = 2;
     Control.Buffer = (LPVOID)&Master;
     Control.BufferSize = sizeof(EXFS_MBR);
 
-    Result = DiskTransferLayerWrite(&Control);
+    Result = StorageTransferLayerWrite(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }

@@ -419,7 +419,7 @@ BOOL FreeIndirectTree(LPEXT2FILESYSTEM FileSystem, U32 BlockNumber, U32 Depth) {
  * @brief Inserts a directory entry into a directory inode.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @param Directory Directory inode that will receive the entry.
- * @param DirectoryIndex Index of the directory inode on disk.
+ * @param DirectoryIndex Index of the directory inode in storage.
  * @param ChildInodeIndex Index of the child inode to reference.
  * @param Name Name of the entry to create.
  * @param FileType EXT2 file type identifier for the entry.
@@ -568,7 +568,7 @@ BOOL AddDirectoryEntry(
  * @brief Creates a new directory under a parent inode.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @param Parent Parent directory inode in memory.
- * @param ParentIndex Index of the parent inode on disk.
+ * @param ParentIndex Index of the parent inode in storage.
  * @param Name Name of the directory to create.
  * @param NewInodeIndex Optionally receives the created inode index.
  * @param NewInode Optionally receives the created inode contents.

@@ -394,7 +394,7 @@ U32 AlignDirectoryNameLength(U32 Length) {
 /************************************************************************/
 
 /**
- * @brief Writes the in-memory superblock back to disk.
+ * @brief Writes the in-memory superblock back to storage.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @return TRUE on success, FALSE otherwise.
  */
@@ -412,7 +412,7 @@ BOOL FlushSuperBlock(LPEXT2FILESYSTEM FileSystem) {
 /************************************************************************/
 
 /**
- * @brief Persists a block group descriptor to disk.
+ * @brief Persists a block group descriptor to storage.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @param GroupIndex Index of the block group descriptor to flush.
  * @return TRUE on success, FALSE otherwise.
@@ -458,7 +458,7 @@ BOOL FlushGroupDescriptor(LPEXT2FILESYSTEM FileSystem, U32 GroupIndex) {
 /************************************************************************/
 
 /**
- * @brief Writes an inode structure back to disk.
+ * @brief Writes an inode structure back to storage.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @param InodeIndex Index of the inode to update.
  * @param Inode Source inode data to persist.

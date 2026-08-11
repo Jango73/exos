@@ -23,12 +23,12 @@
 
 #include "NTFS-Private.h"
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /***************************************************************************/
 
 /**
- * @brief Returns TRUE for supported disk sector sizes.
+ * @brief Returns TRUE for supported storage sector sizes.
  *
  * @param BytesPerSector Logical bytes per sector.
  * @return TRUE for supported sizes, FALSE otherwise.
@@ -55,21 +55,21 @@ BOOL NtfsIsPowerOfTwo(U32 Value) {
 /**
  * @brief Query logical bytes per sector from a storage unit.
  *
- * @param Disk Target storage unit.
+ * @param Storage Target storage unit.
  * @return Bytes per sector, or 0 when unavailable.
  */
-U32 NtfsGetDiskBytesPerSector(LPSTORAGE_UNIT Disk) {
-    DISK_INFO DiskInfo;
+U32 NtfsGetStorageBytesPerSector(LPSTORAGE_UNIT Storage) {
+    STORAGE_INFO StorageInfo;
     U32 Result;
 
-    if (Disk == NULL || Disk->Driver == NULL) return 0;
+    if (Storage == NULL || Storage->Driver == NULL) return 0;
 
-    MemorySet(&DiskInfo, 0, sizeof(DISK_INFO));
-    DiskInfo.Disk = Disk;
-    Result = Disk->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo);
+    MemorySet(&StorageInfo, 0, sizeof(STORAGE_INFO));
+    StorageInfo.Storage = Storage;
+    Result = Storage->Driver->Command(DF_STORAGE_GETINFO, (UINT)&StorageInfo);
     if (Result != DF_RETURN_SUCCESS) return 0;
 
-    return DiskInfo.BytesPerSector;
+    return StorageInfo.BytesPerSector;
 }
 
 /***************************************************************************/
@@ -349,7 +349,7 @@ BOOL NtfsIsValidFileRecordIndex(LPNTFSFILESYSTEM FileSystem, U32 Index) {
 /**
  * @brief Reads a partition boot sector.
  *
- * @param Disk Target disk.
+ * @param Storage Target storage.
  * @param BootSectorLba Boot sector LBA.
  * @param Buffer Destination buffer.
  * @param BufferSize Destination buffer size.
@@ -357,15 +357,15 @@ BOOL NtfsIsValidFileRecordIndex(LPNTFSFILESYSTEM FileSystem, U32 Index) {
  * @return TRUE on success, FALSE on read/validation failure.
  */
 BOOL NtfsReadBootSector(
-    LPSTORAGE_UNIT Disk, SECTOR BootSectorLba, LPVOID Buffer, U32 BufferSize, U32* BytesPerSectorOut) {
+    LPSTORAGE_UNIT Storage, SECTOR BootSectorLba, LPVOID Buffer, U32 BufferSize, U32* BytesPerSectorOut) {
     IOCONTROL Control;
     U32 BytesPerSector;
     U32 Result;
 
     if (BytesPerSectorOut != NULL) *BytesPerSectorOut = 0;
-    if (Disk == NULL || Disk->Driver == NULL || Buffer == NULL) return FALSE;
+    if (Storage == NULL || Storage->Driver == NULL || Buffer == NULL) return FALSE;
 
-    BytesPerSector = NtfsGetDiskBytesPerSector(Disk);
+    BytesPerSector = NtfsGetStorageBytesPerSector(Storage);
     if (!NtfsIsSupportedSectorSize(BytesPerSector)) {
         WARNING(TEXT("Unsupported sector size %u"), BytesPerSector);
         return FALSE;
@@ -377,14 +377,14 @@ BOOL NtfsReadBootSector(
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = BootSectorLba;
     Control.SectorHigh = 0;
     Control.NumSectors = 1;
     Control.Buffer = Buffer;
     Control.BufferSize = BytesPerSector;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) {
         WARNING(TEXT("Boot sector read failed result=%x"), Result);
         return FALSE;
@@ -400,7 +400,7 @@ BOOL NtfsReadBootSector(
  * @brief Read sectors from a mounted NTFS partition.
  *
  * @param FileSystem Mounted NTFS file system.
- * @param Sector Absolute disk sector.
+ * @param Sector Absolute storage sector.
  * @param NumSectors Number of sectors to read.
  * @param Buffer Destination buffer.
  * @param BufferSize Destination buffer size in bytes.
@@ -443,14 +443,14 @@ BOOL NtfsReadSectors(LPNTFSFILESYSTEM FileSystem, SECTOR Sector, U32 NumSectors,
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = NumSectors;
     Control.Buffer = Buffer;
     Control.BufferSize = MaxBytes;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
     if (Result != DF_RETURN_SUCCESS) {
         WARNING(TEXT("Read failed result=%x"), Result);
         return FALSE;
@@ -708,17 +708,17 @@ DRIVER DATA_SECTION NTFSDriver = { .TypeID = KOID_DRIVER,
 /**
  * @brief Mount an NTFS partition and cache boot geometry.
  *
- * @param Disk Physical disk.
+ * @param Storage Physical storage.
  * @param Partition Partition descriptor.
  * @param Base Base LBA offset.
  * @param PartIndex Partition index.
  * @return TRUE on success, FALSE otherwise.
  */
-BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
+BOOL MountPartition_NTFS(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
     U8 Buffer[NTFS_MAX_SECTOR_SIZE];
     LPNTFS_MBR BootSector;
     LPNTFSFILESYSTEM FileSystem;
-    U32 DiskBytesPerSector;
+    U32 StorageBytesPerSector;
     U32 BootBytesPerSector;
     U32 SectorsPerCluster;
     U32 BytesPerCluster;
@@ -728,10 +728,10 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     SECTOR PartitionStart;
     NTFS_FILE_RECORD_INFO RecordInfo;
 
-    if (Disk == NULL || Partition == NULL) return FALSE;
+    if (Storage == NULL || Partition == NULL) return FALSE;
 
     PartitionStart = Base + Partition->LBA;
-    if (!NtfsReadBootSector(Disk, PartitionStart, Buffer, sizeof(Buffer), &DiskBytesPerSector)) {
+    if (!NtfsReadBootSector(Storage, PartitionStart, Buffer, sizeof(Buffer), &StorageBytesPerSector)) {
         return FALSE;
     }
 
@@ -762,8 +762,8 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
         return FALSE;
     }
 
-    if (BootBytesPerSector != DiskBytesPerSector) {
-        WARNING(TEXT("Disk/boot sector mismatch %u/%u"), DiskBytesPerSector, BootBytesPerSector);
+    if (BootBytesPerSector != StorageBytesPerSector) {
+        WARNING(TEXT("Storage/boot sector mismatch %u/%u"), StorageBytesPerSector, BootBytesPerSector);
         return FALSE;
     }
 
@@ -796,10 +796,10 @@ BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 
     InitMutex(&(FileSystem->Header.Mutex));
     FileSystem->Header.Driver = &NTFSDriver;
-    FileSystem->Header.StorageUnit = Disk;
-    GetDefaultFileSystemName(FileSystem->Header.Name, Disk, PartIndex);
+    FileSystem->Header.StorageUnit = Storage;
+    GetDefaultFileSystemName(FileSystem->Header.Name, Storage, PartIndex);
 
-    FileSystem->Disk = Disk;
+    FileSystem->Storage = Storage;
     MemoryCopy(&(FileSystem->BootSector), BootSector, sizeof(NTFS_MBR));
     FileSystem->PartitionStart = PartitionStart;
     FileSystem->PartitionSize = Partition->Size;

@@ -27,7 +27,7 @@
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Task.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 
 /************************************************************************/
 
@@ -187,7 +187,7 @@ BOOL USBStorageInquiry(LPUSB_MASS_STORAGE_DEVICE Device) {
     MemoryCopy(Vendor, &InquiryData[8], 8);
     MemoryCopy(Product, &InquiryData[16], 16);
 
-    DiskIdSetIdentity((LPSTORAGE_UNIT)Device, Vendor, Product, NULL);
+    StorageIdSetIdentity((LPSTORAGE_UNIT)Device, Vendor, Product, NULL);
 
     DEBUG(TEXT("Vendor=%s Product=%s"), Vendor, Product);
     return TRUE;

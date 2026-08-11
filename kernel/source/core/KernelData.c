@@ -119,7 +119,7 @@ static LIST MutexList = { .First = (LPLISTNODE)&KernelMutex,
 
 /************************************************************************/
 
-static LIST DiskList = { .First = NULL,
+static LIST StorageList = { .First = NULL,
                          .Last = NULL,
                          .Current = NULL,
                          .NumItems = 0,
@@ -277,7 +277,7 @@ static KERNEL_DATA DATA_SECTION Kernel = {
     .Process = &ProcessList,
     .Task = &TaskList,
     .Mutex = &MutexList,
-    .Disk = &DiskList,
+    .Storage = &StorageList,
     .USBDevice = &USBDeviceList,
     .USBInterface = &USBInterfaceList,
     .USBEndpoint = &USBEndpointList,
@@ -454,9 +454,9 @@ void InitializeDriverList(void) {
     RegisterDriver(MouseSelectorGetDriver(), TRUE);
     RegisterDriver(USBMouseGetDriver(), TRUE);
     RegisterDriver(USBStorageGetDriver(), TRUE);
-    RegisterDriver(ATADiskGetDriver(), TRUE);
-    RegisterDriver(SATADiskGetDriver(), TRUE);
-    RegisterDriver(RAMDiskGetDriver(), TRUE);
+    RegisterDriver(ATAStorageGetDriver(), TRUE);
+    RegisterDriver(SATAStorageGetDriver(), TRUE);
+    RegisterDriver(RAMStorageGetDriver(), TRUE);
     RegisterDriver(FileSystemGetDriver(), TRUE);
     RegisterDriver(NetworkManagerGetDriver(), TRUE);
     RegisterDriver(UserAccountGetDriver(), TRUE);
@@ -548,11 +548,11 @@ LPLIST GetMutexList(void) {
 /************************************************************************/
 
 /**
- * @brief Retrieves the disk list.
- * @return Pointer to the disk list.
+ * @brief Retrieves the storage list.
+ * @return Pointer to the storage list.
  */
-LPLIST GetDiskList(void) {
-    return Kernel.Disk;
+LPLIST GetStorageList(void) {
+    return Kernel.Storage;
 }
 
 /************************************************************************/

@@ -30,7 +30,7 @@
   - [Graphics](#graphics)
   - [Early boot console](#early-boot-console)
   - [ACPI services](#acpi-services)
-  - [Disk interfaces](#disk-interfaces)
+  - [Storage interfaces](#storage-interfaces)
 - [Storage and Filesystems](#storage-and-filesystems)
   - [File systems](#file-systems)
     - [Mounted volume naming](#mounted-volume-naming)
@@ -110,7 +110,7 @@ The following naming conventions have been adopted throughout the EXOS code base
 
 Everything in this sequence runs in 16-bit real mode on x86-32 processors. However, the code uses 32 bit registers when appropriate.
 
-1. BIOS loads disk MBR at 0x7C00.
+1. BIOS loads storage MBR at 0x7C00.
 2. Code in mbr.asm is executed.
 3. MBR code looks for the active partition and loads its VBR at 0x7E00.
 4. Code in vbr.asm is executed.
@@ -355,7 +355,7 @@ An administrator session is obtained only through a successful login: `HandleUse
 
 The recovery path for a missing or unreadable user database is bootstrap re-creation: when `LoadUserDatabase()` fails, the account list is empty and the boot flow prompts to create the first administrator account, which then overwrites the database through `SaveUserDatabase()` (`kernel/source/user/Account.c`). This path triggers on deletion or detectable corruption, not on silent tampering.
 
-Known boundary: `users.database` carries no integrity protection. A modification that keeps the file loadable (privilege bit flip, password hash replacement) is not detected and loads silently, granting the attacker whatever the edited account allows. Physical access to the disk bypasses all software-level barriers.
+Known boundary: `users.database` carries no integrity protection. A modification that keeps the file loadable (privilege bit flip, password hash replacement) is not detected and loads silently, granting the attacker whatever the edited account allows. Physical access to the storage bypasses all software-level barriers.
 
 ##### Process and object targeting policy
 
@@ -1003,7 +1003,7 @@ The Realtek Ethernet families (`rtl8139`, `rtl8139cplus`, `rtl8169`) share one c
 `rtl8139` keeps the legacy receive-buffer ring used by pre-CPlus revisions, while `rtl8139cplus` switches to the descriptor-based C+ DMA path (separate RX/TX rings) even though both revisions expose the same PCI device identifier and PHY register set.
 That shared layer also centralizes DWORD multicast-filter initialization and optional deferred interrupt acknowledgment for controller families whose receive-overflow handling must update device state before clearing selected ISR bits.
 
-The NVMe driver initializes admin queues first, then I/O queues, configures completion interrupts through MSI-X when available, enumerates namespaces, and registers each namespace as a disk so `MountDiskPartitions` can attach file systems.
+The NVMe driver initializes admin queues first, then I/O queues, configures completion interrupts through MSI-X when available, enumerates namespaces, and registers each namespace as a storage so `MountStoragePartitions` can attach file systems.
 
 
 ### Input device stack
@@ -1070,13 +1070,13 @@ Interrupt endpoint contexts derive interval, Max Burst, and Max ESIT payload fro
 
 USB mass storage support is implemented in `kernel/source/drivers/storage/USBStorage.c`, `kernel/source/drivers/storage/USBStorage-Transport.c`, and `kernel/source/drivers/storage/USBStorage-SCSI.c`. Device discovery runs from a deferred poll callback that scans xHCI-managed USB devices, selects interfaces matching Mass Storage class, SCSI subclass, and BOT protocol, rejects UAS, resolves one bulk IN endpoint and one bulk OUT endpoint, then starts a per-device `USB_MASS_STORAGE_DEVICE` context.
 
-Startup configures the bulk endpoint pair in xHCI, allocates one page-sized shared I/O buffer, issues SCSI `INQUIRY`, then issues `READ CAPACITY(10)`. Capacity parsing accepts 512-byte and 4096-byte logical blocks and rejects devices beyond the `READ CAPACITY(10)` range. A successful device is registered both in the global disk list and in `Kernel.USBDevice`, with mount deferred until `FileSystemReady()` when needed.
+Startup configures the bulk endpoint pair in xHCI, allocates one page-sized shared I/O buffer, issues SCSI `INQUIRY`, then issues `READ CAPACITY(10)`. Capacity parsing accepts 512-byte and 4096-byte logical blocks and rejects devices beyond the `READ CAPACITY(10)` range. A successful device is registered both in the global storage list and in `Kernel.USBDevice`, with mount deferred until `FileSystemReady()` when needed.
 
 The BOT transport builds one CBW, optional data stage, and one CSW in the shared buffer. Transport code validates CSW signature, tag, residue bounds, and status values. Phase errors, invalid CSWs, and transport failures trigger BOT reset recovery through the class-specific reset request followed by endpoint halt clear on both bulk pipes. A stalled data stage or CSW stage is handled through endpoint halt clear and bounded retry flow. Completion waits use xHCI transfer completion matching with timeout handling, endpoint reset on timeout or stall, and rate-limited debug traces for repetitive `READ(10)` and `WRITE(10)` traffic.
 
-SCSI command helpers cover `INQUIRY`, `TEST UNIT READY`, `REQUEST SENSE`, `READ CAPACITY(10)`, `READ(10)`, `WRITE(10)`, and `SYNCHRONIZE CACHE(10)`. Each disk write request flushes the medium cache before completion. When `REQUEST SENSE` reports `UNIT ATTENTION` or `NOT READY`, the driver runs BOT reset recovery, waits for `TEST UNIT READY`, refreshes inquiry/capacity data, updates the exported disk geometry, and retries the failed read/write or cache-flush request once.
+SCSI command helpers cover `INQUIRY`, `TEST UNIT READY`, `REQUEST SENSE`, `READ CAPACITY(10)`, `READ(10)`, `WRITE(10)`, and `SYNCHRONIZE CACHE(10)`. Each storage write request flushes the medium cache before completion. When `REQUEST SENSE` reports `UNIT ATTENTION` or `NOT READY`, the driver runs BOT reset recovery, waits for `TEST UNIT READY`, refreshes inquiry/capacity data, updates the exported storage geometry, and retries the failed read/write or cache-flush request once.
 
-Disk I/O goes through one shared validation and chunking path. `DF_DISK_READ` and `DF_DISK_WRITE` validate geometry, readiness, access flags, buffer size, and present-state, then split transfers into page-sized `READ(10)` or `WRITE(10)` requests. On removal, the driver detaches mounted and unused filesystems associated with the storage unit, unregisters the list entry, releases USB references and I/O buffers, and broadcasts `ETM_USB_MASS_STORAGE_MOUNTED` or `ETM_USB_MASS_STORAGE_UNMOUNTED` to process message queues.
+Storage I/O goes through one shared validation and chunking path. `DF_STORAGE_READ` and `DF_STORAGE_WRITE` validate geometry, readiness, access flags, buffer size, and present-state, then split transfers into page-sized `READ(10)` or `WRITE(10)` requests. On removal, the driver detaches mounted and unused filesystems associated with the storage unit, unregisters the list entry, releases USB references and I/O buffers, and broadcasts `ETM_USB_MASS_STORAGE_MOUNTED` or `ETM_USB_MASS_STORAGE_UNMOUNTED` to process message queues.
 
 ### Console
 
@@ -1239,7 +1239,7 @@ Advanced power-management and reset paths live in `kernel/source/ACPI.c`. The mo
 
 Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell commands, clear userland processes, then kernel tasks, and perform reverse-order driver unload before handing control to the ACPI routines. This shutdown ordering reduces the amount of subsystem state left pending when the machine powers off or reboots.
 
-### Disk interfaces
+### Storage interfaces
 
 ```
 +------------------------------------+
@@ -1271,15 +1271,15 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 ```
 
 **AHCI interrupt policy**: the SATA driver registers the controller with the shared `DeviceInterruptRegister` infrastructure and installs dedicated top and bottom halves so IRQ 11 traffic can be routed through a private slot when the hardware gets its own vector (MSI/MSI-X or a non-shared INTx line). Commands complete synchronously, therefore all AHCI per-port interrupt masks (`PORT.ie`) and the global `GHC.IE` bit are cleared in shipping builds so the shared IRQ 11 line stays quiet for the `E1000` NIC.
- Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+ Storage drivers expose `BytesPerSector` through `DF_STORAGE_GETINFO` (`STORAGE_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
 
-**Stable disk IDs**: each `STORAGE_UNIT` carries a stable ID (`StorageId`) unique per disk and independent of enumeration order and driver type, following the Linux `/dev/disk/by-id` model. The identity is captured at enumeration time by each storage driver through `utils/DiskID` (`kernel/source/utils/DiskID.c`):
+**Stable storage IDs**: each `STORAGE_UNIT` carries a stable ID (`StorageId`) unique per storage and independent of enumeration order and driver type, following the Linux `/dev/disk/by-id` model. The identity is captured at enumeration time by each storage driver through `utils/StorageID` (`kernel/source/utils/Storage-ID.c`):
 - ATA/SATA: serial + model from IDENTIFY DEVICE (decoded through `ATADecodeIdentifyString`, reused by the AHCI path after a real IDENTIFY command).
 - NVMe: serial + model from Identify Controller.
-- USB: vendor + product from SCSI INQUIRY (the only path that populates the `vendor` part; ATA/SATA, NVMe and the RAMDisk pass `NULL` for it).
-- RAMDisk and disks without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered disks of the same driver type, stable across reboots.
+- USB: vendor + product from SCSI INQUIRY (the only path that populates the `vendor` part; ATA/SATA, NVMe and the RAMStorage pass `NULL` for it).
+- RAMStorage and storage units without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered storage units of the same driver type, stable across reboots.
 
-`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed) and preserves the original case. `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. For example the boot RAMDisk yields `ramdisk_0` and a QEMU ATA disk yields `QEMU_HARDDISK_QM00013`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `DiskIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
+`StorageIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed) and preserves the original case. `StorageIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `StorageIdGet` returns it and `StorageIdFindById` looks up a storage unit by ID in `Kernel.Storage`. For example the boot RAMStorage yields `ramstorage_0` and a QEMU ATA storage unit yields `QEMU_HARDDISK_QM00013`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `StorageIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
 
 ## Storage and Filesystems
 
@@ -1295,14 +1295,14 @@ File system state is split between:
 
 Each `FILESYSTEM` object carries runtime fields (`Driver`, `StorageUnit`, `Mounted`, `Mutex`, `Name`) plus partition metadata in `PARTITION` (`Scheme`, `Type`, `Format`, `Index`, `Flags`, `StartSector`, `NumSectors`, `TypeGuid`).
 
-`FileSystemGetStorageUnit()` and `FileSystemHasStorageUnit()` expose backing storage uniformly for disk-backed and virtual filesystems. Display helpers (`FileSystemGetPartitionSchemeName`, `FileSystemGetPartitionTypeName`, `FileSystemGetPartitionFormatName`) centralize partition labeling.
+`FileSystemGetStorageUnit()` and `FileSystemHasStorageUnit()` expose backing storage uniformly for storage-backed and virtual filesystems. Display helpers (`FileSystemGetPartitionSchemeName`, `FileSystemGetPartitionTypeName`, `FileSystemGetPartitionFormatName`) centralize partition labeling.
 
 #### Discovery and mount pipeline
 
 `InitializeFileSystems()` is the main orchestration path:
 1. Clear `ActivePartitionName`.
 2. Release stale entries from `Kernel.UnusedFileSystem`.
-3. Scan `Kernel.Disk` and call `MountDiskPartitions()` for each storage unit.
+3. Scan `Kernel.Storage` and call `MountStoragePartitions()` for each storage unit.
 4. Select an active partition by searching for `exos.toml`/`EXOS.TOML` (`FileSystemSelectActivePartitionFromConfig()`).
 5. Build and mount SystemFS (`MountSystemFS()`).
 6. Load kernel configuration (`ReadKernelConfiguration()`).
@@ -1315,40 +1315,40 @@ Logical kernel path keys are consumed through `utils/KernelPath`:
 - `KernelPath.SystemAppsRoot`: absolute VFS folder path used by shell package-name resolution (`package run <name>`).
 - `KernelPath.Binaries.<index>.Path`: repeatable absolute VFS folder path searched by the shell for executable command names after the current-folder resolution fails; resolved through the generic `KernelPathResolveListEntry(KERNEL_PATH_LIST_BINARY, ...)` helper.
 
-`MountDiskPartitions()` handles MBR and switches to GPT parsing when a protective MBR entry (`0xEE`) is detected. Supported formats are mounted through dedicated drivers (FAT16/FAT32/NTFS/EXFS/EXT2 path); partition metadata is written with `SetFileSystemPartitionInfo()`. Non-mounted partitions are materialized through `RegisterUnusedFileSystem()` so diagnostics and shell tooling can inspect them.
+`MountStoragePartitions()` handles MBR and switches to GPT parsing when a protective MBR entry (`0xEE`) is detected. Supported formats are mounted through dedicated drivers (FAT16/FAT32/NTFS/EXFS/EXT2 path); partition metadata is written with `SetFileSystemPartitionInfo()`. Non-mounted partitions are materialized through `RegisterUnusedFileSystem()` so diagnostics and shell tooling can inspect them.
 
 When SystemFS is ready (`FileSystemReady()`), newly mounted filesystems are attached into SystemFS under `/fs/<volume>` through `SystemFSMountFileSystem()`.
 
-The RAM disk driver initializes a small in-memory disk and formats it with EXT2 through the filesystem `DF_FS_CREATEPARTITION` command. EXT2 formatting populates a minimal superblock, group descriptor, bitmaps, inode table, and root directory.
+The RAM storage driver initializes a small in-memory storage and formats it with EXT2 through the filesystem `DF_FS_CREATEPARTITION` command. EXT2 formatting populates a minimal superblock, group descriptor, bitmaps, inode table, and root directory.
 
-#### Generic disk transfer layer
+#### Generic storage transfer layer
 
-All sector data transfers between filesystems and disk drivers pass through one
-generic layer (`kernel/source/fs/DiskTransferLayer.c`,
-`kernel/include/fs/DiskTransferLayer.h`), the block-layer equivalent of the
+All sector data transfers between filesystems and storage drivers pass through one
+generic layer (`kernel/source/fs/Storage-Transfer-Layer.c`,
+`kernel/include/fs/Storage-Transfer-Layer.h`), the block-layer equivalent of the
 kernel. The layer owns the sector cache, the request merge and the chunking
-policy for every disk driver (SATA, USB mass storage, NVMe, RAM disk), following
+policy for every storage driver (SATA, USB mass storage, NVMe, RAM storage), following
 the Linux block-layer model.
 
-Per-storage-unit state (`DISK_TRANSFER_UNIT`) is attached by the driver at
-attach time through `DiskTransferLayerInit(Disk, MaxSectorsPerTransfer,
+Per-storage-unit state (`STORAGE_TRANSFER_UNIT`) is attached by the driver at
+attach time through `StorageTransferLayerInit(Storage, MaxSectorsPerTransfer,
 ConfigMaxSectorsPath)`. The driver declares its per-command transfer limit:
 - SATA/AHCI: bounded by the AHCI bounce buffer (`SATA_MAX_DMA_SECTORS`).
 - USB mass storage: `PAGE_SIZE / BlockSize`.
 - NVMe: the queue/PRP bounded transfer size.
-- RAM disk: a large default, overridable through the `RAMDisk.MaxSectorsPerTransfer`
+- RAM storage: a large default, overridable through the `RAMStorage.MaxSectorsPerTransfer`
   configuration key (read lazily on first use, the configuration file is loaded
   after the drivers).
 
-`DiskTransferLayerRead()` and `DiskTransferLayerWrite()` validate the request,
+`StorageTransferLayerRead()` and `StorageTransferLayerWrite()` validate the request,
 run cache cleanup, split it into chunks bounded by `MaxSectorsPerTransfer`,
 copy cache hits and serve the uncached run with a single raw driver command, then
 populate the cache from the transferred data. Writes are write-through with a
-synchronous cache update. When a disk has no layer attached the call falls back
-to the raw driver `DF_DISK_READ`/`DF_DISK_WRITE` command.
+synchronous cache update. When a storage has no layer attached the call falls back
+to the raw driver `DF_STORAGE_READ`/`DF_STORAGE_WRITE` command.
 
 Filesystems and partition probing paths call the layer instead of
-`Disk->Driver->Command(DF_DISK_READ/DF_DISK_WRITE)` directly
+`Storage->Driver->Command(DF_STORAGE_READ/DF_STORAGE_WRITE)` directly
 (`FileSystem-Common.c`, `File-System.c`, EXT2, FAT16/FAT32, EXFS, NTFS, EXOS MBR).
 Drivers keep only the raw transfer and their geometry/information query.
 
@@ -1357,19 +1357,19 @@ Drivers keep only the raw transfer and their geometry/information query.
 Mounted partition names are generated by `GetDefaultFileSystemName()` (`kernel/source/fs/FileSystem.c`) and exposed under `/fs/<volume>`.
 
 Format:
-- `<prefix><disk_index>p<partition_index>`
+- `<prefix><storage_index>p<partition_index>`
 
 Prefix by storage driver type:
-- `r` for RAM disks (`DRIVER_TYPE_RAMDISK`)
-- `f` for floppy disks (`DRIVER_TYPE_FLOPPYDISK`)
+- `r` for RAM storage (`DRIVER_TYPE_RAMSTORAGE`)
+- `f` for floppy storage (`DRIVER_TYPE_FLOPPYSTORAGE`)
 - `u` for USB mass storage (`DRIVER_TYPE_USB_STORAGE`)
 - `n` for NVMe storage (`DRIVER_TYPE_NVME_STORAGE`)
 - `s` for SATA/AHCI storage (`DRIVER_TYPE_SATA_STORAGE`)
 - `a` for ATA storage (`DRIVER_TYPE_ATA_STORAGE`)
-- `d` for all other disk drivers (fallback)
+- `d` for all other storage drivers (fallback)
 
 Index rules:
-- `disk_index` is zero-based and counted among disks of the same driver type.
+- `storage_index` is zero-based and counted among storage units of the same driver type.
 - `partition_index` is zero-based and comes from the partition enumeration path (MBR slot index or GPT entry index).
 
 Examples:
@@ -1387,7 +1387,7 @@ The EPK package binary layout is frozen for parser/tooling integration in:
 - `kernel/include/package/EpkParser.h`
 - `kernel/source/package/EpkParser.c`
 
-The format is a strict on-disk contract:
+The format is a strict stored contract:
 - fixed 128-byte header (`EPK_HEADER`) with explicit section offsets/sizes and package hash,
 - TOC section (`EPK_TOC_HEADER` + `EPK_TOC_ENTRY` records + variable UTF-8 path blobs),
 - block table section (`EPK_BLOCK_ENTRY` records for compressed chunks),
@@ -1525,7 +1525,7 @@ Command resolution without package name is deterministic:
 #### Package launch flow
 
 Step-8 launch activation is wired in shell launch path (`SpawnExecutable`):
-- when target extension is `.epk`, shell reads package bytes from disk,
+- when target extension is `.epk`, shell reads package bytes from storage,
 - package manifest is parsed and compatibility-checked before activation,
 - package is mounted through `PackageFSMountFromBuffer(...)`,
 - package aliases are bound through `PackageNamespaceBindCurrentProcessPackageView(...)`,
@@ -1551,8 +1551,8 @@ The file layer synchronizes filesystem list access with `MUTEX_FILESYSTEM`, but 
 #### Removable storage behavior
 
 USB mass storage hot-plug integrates with the same pipeline:
-- on attach, `USBMassStorageStartDevice()` calls `MountDiskPartitions()` only when `FileSystemReady()` is true;
-- on detach, `USBMassStorageDetachFileSystems()` unmounts from SystemFS (`SystemFSUnmountFileSystem()`), releases mounted and unused filesystem objects for that disk, and clears `ActivePartitionName` when the removed volume was active.
+- on attach, `USBMassStorageStartDevice()` calls `MountStoragePartitions()` only when `FileSystemReady()` is true;
+- on detach, `USBMassStorageDetachFileSystems()` unmounts from SystemFS (`SystemFSUnmountFileSystem()`), releases mounted and unused filesystem objects for that storage, and clears `ActivePartitionName` when the removed volume was active.
 
 Mount and unmount notifications are broadcast to processes (`ETM_USB_MASS_STORAGE_MOUNTED` / `ETM_USB_MASS_STORAGE_UNMOUNTED`).
 
@@ -2714,7 +2714,7 @@ Available log classes are `DEBUG`, `WARNING`, `ERROR`, `VERBOSE`, and `TEST`.
 #### Tag filtering
 
 `KernelLogSetTagFilter()` provides optional tag-based filtering.
-The filter value accepts separators (comma, semicolon, pipe, or space), and each token matches the function tag supplied by the log macro (for example `MountDiskPartitionsGpt` or `[MountDiskPartitionsGpt]`).
+The filter value accepts separators (comma, semicolon, pipe, or space), and each token matches the function tag supplied by the log macro (for example `MountStoragePartitionsGpt` or `[MountStoragePartitionsGpt]`).
 When filtering is active, only matching tagged lines are emitted.
 The default startup filter is initialized for NVMe/GPT diagnostics.
 Builds can override this value with `--kernel-log-tag-filter <value>` in `scripts/linux/build/build.sh`; passing an empty value compiles an empty default filter.
@@ -2744,7 +2744,7 @@ The repository provides `scripts/linux/test/smoke-test-global.sh` to run an auto
 - clean build + image generation,
 - QEMU boot,
 - shell command injection (`systemInfo`, `listFolder`, `/system/apps/hello`),
-- cross-filesystem storage checks including RAM disk folder creation and copy (`/fs/n0p0` to `/fs/r0p0`),
+- cross-filesystem storage checks including RAM storage folder creation and copy (`/fs/n0p0` to `/fs/r0p0`),
 - kernel log pattern checks.
 
 The script supports selecting one target with `--only x86-32`, `--only x86-64`, or `--only x86-64-uefi`.  

@@ -524,7 +524,7 @@ static LPFATFILE OpenFile(LPFILE_INFO Find) {
             // Update directory entry
             DirEntry->Size = 0;
 
-            // Write the updated directory entry back to disk
+            // Write the updated directory entry back to storage
             if (WriteCluster(FileSystem, FileLoc.FileCluster, FileSystem->IOBuffer) == FALSE) {
                 // Don't free directly - let ReleaseKernelObject handle it
                 return NULL;
@@ -896,7 +896,7 @@ static U32 WriteFile(LPFATFILE File) {
 /***************************************************************************/
 
 /**
- * @brief Create a new FAT32 partition on disk.
+ * @brief Create a new FAT32 partition in storage.
  * @param Create Partition creation parameters.
  * @return DF_RETURN_* code.
  */
@@ -907,7 +907,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     // Check validity of parameters
 
     if (Create == NULL) return DF_RETURN_BAD_PARAMETER;
-    if (Create->Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Create->Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
 

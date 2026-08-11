@@ -302,7 +302,7 @@ static BOOL NtfsDecodeFileReference(
 /***************************************************************************/
 
 /**
- * @brief Initialize parsed file-record metadata from one on-disk header.
+ * @brief Initialize parsed file-record metadata from one stored header.
  *
  * @param FileSystem Mounted NTFS file system.
  * @param RecordIndex MFT record index.

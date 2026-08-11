@@ -349,7 +349,7 @@ static BOOL BuildListDirectoryPattern(LPCSTR Base, STR Pattern[MAX_PATH_NAME]) {
 static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_INFO* Find, U32 Indent) {
     LPFILE File;
     FILE_SYSTEM_PATH_CHECK PathCheck;
-    STR DiskName[MAX_FILE_NAME];
+    STR StorageName[MAX_FILE_NAME];
     STR Pattern[MAX_PATH_NAME];
     LPCSTR Reason = TEXT("unknown");
 
@@ -377,14 +377,14 @@ static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_I
         return NULL;
     }
 
-    StringCopy(DiskName, Base);
+    StringCopy(StorageName, Base);
     if (Base[0] == PATH_SEP && Base[1] == 'f' && Base[2] == 's' && Base[3] == PATH_SEP) {
         UINT ReadIndex = 4;
         UINT WriteIndex = 0;
         while (Base[ReadIndex] != STR_NULL && Base[ReadIndex] != PATH_SEP && WriteIndex < MAX_FILE_NAME - 1) {
-            DiskName[WriteIndex++] = Base[ReadIndex++];
+            StorageName[WriteIndex++] = Base[ReadIndex++];
         }
-        DiskName[WriteIndex] = STR_NULL;
+        StorageName[WriteIndex] = STR_NULL;
     }
 
     PathCheck.CurrentFolder[0] = STR_NULL;
@@ -395,10 +395,10 @@ static LPFILE OpenListDirectoryFile(LPFILESYSTEM FileSystem, LPCSTR Base, FILE_I
         Reason = TEXT("path not found");
     }
 
-    ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), DiskName, Reason);
+    ConsolePrint(TEXT("Unable to read on volume %s, reason : %s\n"), StorageName, Reason);
     WARNING(
         TEXT("Unable to read on volume %s, reason : %s (path=%s fs=%s driver=%s)"),
-        DiskName,
+        StorageName,
         Reason,
         Base,
         FileSystem->Name,

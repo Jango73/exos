@@ -42,7 +42,7 @@
 
 typedef struct tag_FAT32FILESYSTEM {
     FILESYSTEM Header;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     FAT32_MBR Master;
     SECTOR PartitionStart;
     U32 PartitionSize;

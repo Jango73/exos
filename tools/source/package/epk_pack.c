@@ -841,7 +841,7 @@ static void AppendFileBlocks(const uint8_t *FileBytes,
 }
 
 /**
- * @brief Serializes the TOC (table of contents) into the on-disk binary format.
+ * @brief Serializes the TOC (table of contents) into the stored binary format.
  *
  * Writes a TOC header containing entry count, then writes each TOC entry header followed by the path bytes.
  *
@@ -887,7 +887,7 @@ static BYTE_BUFFER BuildTocBuffer(const TOC_LIST *TocEntries) {
 }
 
 /**
- * @brief Serializes the block table into the on-disk binary format.
+ * @brief Serializes the block table into the stored binary format.
  *
  * Each entry stores absolute compressed offset (DataOffset + CompressedOffset), sizes, method and chunk hash.
  *
@@ -1255,7 +1255,7 @@ static void EnsureFolderExistsForFile(const char *OutputPath) {
 }
 
 /**
- * @brief Writes an in-memory buffer to disk.
+ * @brief Writes an in-memory buffer to storage.
  *
  * Creates the output folder when needed and writes Buffer->Data to Path.
  *

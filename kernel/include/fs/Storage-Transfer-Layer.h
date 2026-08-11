@@ -18,37 +18,37 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    Generic Disk Transfer Layer
+    Generic Storage Transfer Layer
 
 \************************************************************************/
 
-#ifndef DISK_TRANSFER_LAYER_H_INCLUDED
-#define DISK_TRANSFER_LAYER_H_INCLUDED
+#ifndef STORAGE_TRANSFER_LAYER_H_INCLUDED
+#define STORAGE_TRANSFER_LAYER_H_INCLUDED
 
 /***************************************************************************/
 
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 
 /***************************************************************************/
 
 /**
- * @brief Attach the generic disk transfer state (sector cache, buffer pool,
+ * @brief Attach the generic storage transfer state (sector cache, buffer pool,
  *        per-command transfer limit) to a storage unit.
- * @param Disk Storage unit to attach the layer to.
+ * @param Storage Storage unit to attach the layer to.
  * @param MaxSectorsPerTransfer Maximum sectors the driver accepts per command.
  * @param ConfigMaxSectorsPath Optional configuration key resolving the transfer
  *        limit lazily on first use (may be NULL).
  * @return TRUE on success, FALSE on failure.
  */
-BOOL DiskTransferLayerInit(LPSTORAGE_UNIT Disk, U32 MaxSectorsPerTransfer, LPCSTR ConfigMaxSectorsPath);
+BOOL StorageTransferLayerInit(LPSTORAGE_UNIT Storage, U32 MaxSectorsPerTransfer, LPCSTR ConfigMaxSectorsPath);
 
 /***************************************************************************/
 
 /**
- * @brief Release the generic disk transfer state attached to a storage unit.
- * @param Disk Storage unit to detach.
+ * @brief Release the generic storage transfer state attached to a storage unit.
+ * @param Storage Storage unit to detach.
  */
-void DiskTransferLayerDeinit(LPSTORAGE_UNIT Disk);
+void StorageTransferLayerDeinit(LPSTORAGE_UNIT Storage);
 
 /***************************************************************************/
 
@@ -58,7 +58,7 @@ void DiskTransferLayerDeinit(LPSTORAGE_UNIT Disk);
  * @param Control IO control structure describing the request.
  * @return DF_RETURN_SUCCESS or a driver error code.
  */
-U32 DiskTransferLayerRead(LPIOCONTROL Control);
+U32 StorageTransferLayerRead(LPIOCONTROL Control);
 
 /***************************************************************************/
 
@@ -68,8 +68,8 @@ U32 DiskTransferLayerRead(LPIOCONTROL Control);
  * @param Control IO control structure describing the request.
  * @return DF_RETURN_SUCCESS or a driver error code.
  */
-U32 DiskTransferLayerWrite(LPIOCONTROL Control);
+U32 StorageTransferLayerWrite(LPIOCONTROL Control);
 
 /***************************************************************************/
 
-#endif  // DISK_TRANSFER_LAYER_H_INCLUDED
+#endif  // STORAGE_TRANSFER_LAYER_H_INCLUDED

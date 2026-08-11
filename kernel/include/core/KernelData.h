@@ -137,7 +137,7 @@ typedef struct tag_KERNEL_DATA {
     LPLIST Process;
     LPLIST Task;
     LPLIST Mutex;
-    LPLIST Disk;
+    LPLIST Storage;
     LPLIST USBDevice;
     LPLIST USBInterface;
     LPLIST USBEndpoint;
@@ -202,7 +202,7 @@ UINT GetDeferredWorkPollDelay(void);
 UINT GetDeferredWorkWaitTimeout(void);
 BOOL GetUseDeadlockMonitor(void);
 LPLIST GetDesktopList(void);
-LPLIST GetDiskList(void);
+LPLIST GetStorageList(void);
 BOOL GetDoLogin(void);
 BOOL GetWindowPipelineTraceEnabled(void);
 BOOL GetKernelBootTime(LPDATETIME Time);

@@ -63,7 +63,7 @@
 
 typedef struct tag_EXT2FILESYSTEM {
     FILESYSTEM Header;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     EXT2_SUPER Super;
     LPEXT2BLOCKGROUP Groups;
     U32 GroupCount;
@@ -164,7 +164,7 @@ BOOL EnsureParentDirectory(
     LPSTR FinalComponent);
 U32 CreateNode(LPFILE_INFO Info, BOOL Directory);
 
-BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex);
+BOOL MountPartition_EXT2(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex);
 U32 Ext2CreatePartition(LPPARTITION_CREATION Create);
 UINT EXT2Commands(UINT Function, UINT Parameter);
 

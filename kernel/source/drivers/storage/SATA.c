@@ -30,13 +30,13 @@
 #include "drivers/bus/PCI.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
 #include "drivers/storage/ATA.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "log/Log.h"
 #include "log/Profile.h"
 #include "memory/Memory.h"
 #include "system/Clock.h"
 #include "utils/BufferPool.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 
 /***************************************************************************/
 // Version
@@ -79,7 +79,7 @@
 
 typedef struct tag_AHCI_PORT {
     STORAGE_UNIT Header;
-    DISK_GEOMETRY Geometry;
+    STORAGE_GEOMETRY Geometry;
     U32 Access;  // Access parameters
     U32 PortNumber;
     LPAHCI_HBA_PORT HBAPort;  // Pointer to HBA port registers
@@ -140,9 +140,9 @@ static const DRIVER_MATCH AHCIMatches[] = {
 
 /***************************************************************************/
 
-UINT SATADiskCommands(UINT, UINT);
+UINT SATAStorageCommands(UINT, UINT);
 
-DRIVER DATA_SECTION SATADiskDriver = { .TypeID = KOID_DRIVER,
+DRIVER DATA_SECTION SATAStorageDriver = { .TypeID = KOID_DRIVER,
                                        .References = 1,
                                        .Next = NULL,
                                        .Prev = NULL,
@@ -154,7 +154,7 @@ DRIVER DATA_SECTION SATADiskDriver = { .TypeID = KOID_DRIVER,
                                        .Product = "AHCI SATA Controller",
                                        .Alias = "sata",
                                        .Flags = 0,
-                                       .Command = SATADiskCommands,
+                                       .Command = SATAStorageCommands,
                                        .EnumDomainCount = 1,
                                        .EnumDomains = { ENUM_DOMAIN_AHCI_PORT } };
 
@@ -189,11 +189,11 @@ LPDRIVER AHCIPCIGetDriver(void) {
 /***************************************************************************/
 
 /**
- * @brief Retrieves the SATA disk driver descriptor.
- * @return Pointer to the SATA disk driver.
+ * @brief Retrieves the SATA storage driver descriptor.
+ * @return Pointer to the SATA storage driver.
  */
-LPDRIVER SATADiskGetDriver(void) {
-    return &SATADiskDriver;
+LPDRIVER SATAStorageGetDriver(void) {
+    return &SATAStorageDriver;
 }
 
 /***************************************************************************/
@@ -212,11 +212,11 @@ static LPAHCI_PORT NewAHCIPort(void) {
 
     MemorySet(This, 0, sizeof(AHCI_PORT));
 
-    This->Header.TypeID = KOID_DISK;
+    This->Header.TypeID = KOID_STORAGE;
     This->Header.References = 1;
     This->Header.Next = NULL;
     This->Header.Prev = NULL;
-    This->Header.Driver = &SATADiskDriver;
+    This->Header.Driver = &SATAStorageDriver;
     This->Access = 0;
     This->PendingInterrupts = 0;
 
@@ -350,21 +350,21 @@ static void AHCIIdeIdentifyDevice(LPAHCI_PORT AHCIPort) {
 
     if (AHCICommand(AHCIPort, ATA_CMD_IDENTIFY, 0, 1, Identify, FALSE) == DF_RETURN_SUCCESS) {
         U16* Words = (U16*)Identify;
-        STR Serial[DISK_ID_SERIAL_MAX_SIZE];
-        STR Model[DISK_ID_MODEL_MAX_SIZE];
+        STR Serial[STORAGE_ID_SERIAL_MAX_SIZE];
+        STR Model[STORAGE_ID_MODEL_MAX_SIZE];
 
         ATADecodeIdentifyString(Serial, sizeof(Serial), Words, 10, 10);
         ATADecodeIdentifyString(Model, sizeof(Model), Words, 27, 20);
 
-        DiskIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, Model, Serial);
+        StorageIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, Model, Serial);
 
         DEBUG(TEXT("IDENTIFY port=%u serial=%s model=%s"), AHCIPort->PortNumber, Serial, Model);
     } else {
         DEBUG(TEXT("IDENTIFY failed port=%u, using synthetic ID"), AHCIPort->PortNumber);
-        DiskIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, NULL, NULL);
+        StorageIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, NULL, NULL);
     }
 
-    DiskIdEnsure((LPSTORAGE_UNIT)AHCIPort);
+    StorageIdEnsure((LPSTORAGE_UNIT)AHCIPort);
 }
 
 /***************************************************************************/
@@ -497,7 +497,7 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
 
     // Attach the generic transfer layer (sector cache + chunking). The
     // transfer limit is bounded by the bounce buffer AHCICommand uses.
-    if (!DiskTransferLayerInit((LPSTORAGE_UNIT)AHCIPort, SATA_MAX_DMA_SECTORS, NULL)) {
+    if (!StorageTransferLayerInit((LPSTORAGE_UNIT)AHCIPort, SATA_MAX_DMA_SECTORS, NULL)) {
         return FALSE;
     }
 
@@ -637,13 +637,13 @@ static U32 InitializeAHCIController(void) {
 
             SAFE_USE(AHCIPort) {
                 if (InitializeAHCIPort(AHCIPort, i)) {
-                    ListAddItem(GetDiskList(), AHCIPort);
+                    ListAddItem(GetStorageList(), AHCIPort);
                 }
             }
         }
     }
 
-    // Leave global interrupts masked. The disk driver uses polling for
+    // Leave global interrupts masked. The storage driver uses polling for
     // command completion, so unmasking the HBA would generate useless INTx
     // storms on shared IRQ lines.
     AHCIState.Base->ghc &= ~AHCI_GHC_IE;
@@ -806,7 +806,7 @@ static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCoun
 /***************************************************************************/
 
 /**
- * @brief Read sectors from a SATA disk using AHCI.
+ * @brief Read sectors from a SATA storage using AHCI.
  *
  * Sectors are grouped into chunks of up to SATA_MAX_DMA_SECTORS and each
  * chunk is served by a single AHCI command. Caching and request merging are
@@ -823,12 +823,12 @@ static U32 Read(LPIOCONTROL Control) {
     // Check validity of parameters
     if (Control == NULL) return DF_RETURN_BAD_PARAMETER;
 
-    // Get the physical disk to which operation applies
-    AHCIPort = (LPAHCI_PORT)Control->Disk;
+    // Get the physical storage to which operation applies
+    AHCIPort = (LPAHCI_PORT)Control->Storage;
     if (AHCIPort == NULL) return DF_RETURN_BAD_PARAMETER;
 
     // Check validity of parameters
-    if (AHCIPort->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
+    if (AHCIPort->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
 
     Current = 0;
     while (Current < Control->NumSectors) {
@@ -857,7 +857,7 @@ static U32 Read(LPIOCONTROL Control) {
 /***************************************************************************/
 
 /**
- * @brief Write sectors to a SATA disk using AHCI.
+ * @brief Write sectors to a SATA storage using AHCI.
  *
  * Sectors are grouped into chunks of up to SATA_MAX_DMA_SECTORS and each
  * chunk is written with a single AHCI command. Caching and request merging
@@ -874,15 +874,15 @@ static U32 Write(LPIOCONTROL Control) {
     // Check validity of parameters
     if (Control == NULL) return DF_RETURN_BAD_PARAMETER;
 
-    // Get the physical disk to which operation applies
-    AHCIPort = (LPAHCI_PORT)Control->Disk;
+    // Get the physical storage to which operation applies
+    AHCIPort = (LPAHCI_PORT)Control->Storage;
     if (AHCIPort == NULL) return DF_RETURN_BAD_PARAMETER;
 
     // Check validity of parameters
-    if (AHCIPort->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
+    if (AHCIPort->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
 
     // Check access permissions
-    if (AHCIPort->Access & DISK_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
+    if (AHCIPort->Access & STORAGE_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
 
     Current = 0;
     while (Current < Control->NumSectors) {
@@ -911,22 +911,22 @@ static U32 Write(LPIOCONTROL Control) {
 /***************************************************************************/
 
 /**
- * @brief Retrieve disk information for a SATA device.
+ * @brief Retrieve storage information for a SATA device.
  *
  * @param Info Output structure to populate.
  * @return DF_RETURN_SUCCESS on success, DF_RETURN_BAD_PARAMETER otherwise.
  */
-static U32 GetInfo(LPDISKINFO Info) {
+static U32 GetInfo(LPSTORAGEINFO Info) {
     LPAHCI_PORT AHCIPort;
 
     if (Info == NULL) return DF_RETURN_BAD_PARAMETER;
 
-    // Get the physical disk to which operation applies
-    AHCIPort = (LPAHCI_PORT)Info->Disk;
+    // Get the physical storage to which operation applies
+    AHCIPort = (LPAHCI_PORT)Info->Storage;
     if (AHCIPort == NULL) return DF_RETURN_BAD_PARAMETER;
 
     // Check validity of parameters
-    if (AHCIPort->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
+    if (AHCIPort->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
 
     Info->Type = DRIVER_TYPE_SATA_STORAGE;
     Info->Removable = 0;
@@ -941,22 +941,22 @@ static U32 GetInfo(LPDISKINFO Info) {
 /***************************************************************************/
 
 /**
- * @brief Set access parameters for a SATA disk.
+ * @brief Set access parameters for a SATA storage.
  *
  * @param Access Access parameters to store.
  * @return DF_RETURN_SUCCESS on success, DF_RETURN_BAD_PARAMETER otherwise.
  */
-static U32 SetAccess(LPDISKACCESS Access) {
+static U32 SetAccess(LPSTORAGEACCESS Access) {
     LPAHCI_PORT AHCIPort;
 
     if (Access == NULL) return DF_RETURN_BAD_PARAMETER;
 
-    // Get the physical disk to which operation applies
-    AHCIPort = (LPAHCI_PORT)Access->Disk;
+    // Get the physical storage to which operation applies
+    AHCIPort = (LPAHCI_PORT)Access->Storage;
     if (AHCIPort == NULL) return DF_RETURN_BAD_PARAMETER;
 
     // Check validity of parameters
-    if (AHCIPort->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
+    if (AHCIPort->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
 
     AHCIPort->Access = Access->Access;
 
@@ -1132,7 +1132,7 @@ static void AHCIInterruptBottomHalf(LPDEVICE Device, LPVOID Context) {
             continue;
         }
 
-        SAFE_USE_VALID_ID((LPLISTNODE)Port, KOID_DISK) {
+        SAFE_USE_VALID_ID((LPLISTNODE)Port, KOID_STORAGE) {
             if ((PortStatus & (1U << 30)) != 0U) {
                 WARNING(TEXT("Port %u reported task file error (status=%x)"), PortIndex, PortStatus);
             } else if (BottomHalfLogCount < 4U) {
@@ -1182,40 +1182,40 @@ void AHCIInterruptHandler(void) {
 /**
  * @brief SATA driver command dispatcher.
  *
- * Handles load/unload, version, disk I/O, and access configuration requests.
+ * Handles load/unload, version, storage I/O, and access configuration requests.
  *
  * @param Function Driver function code.
  * @param Parameter Function-specific parameter.
  * @return Driver-specific status/value.
  */
-UINT SATADiskCommands(UINT Function, UINT Parameter) {
+UINT SATAStorageCommands(UINT Function, UINT Parameter) {
     switch (Function) {
         case DF_LOAD:
-            if ((SATADiskDriver.Flags & DRIVER_FLAG_READY) != 0) {
+            if ((SATAStorageDriver.Flags & DRIVER_FLAG_READY) != 0) {
                 return DF_RETURN_SUCCESS;
             }
 
-            SATADiskDriver.Flags |= DRIVER_FLAG_READY;
+            SATAStorageDriver.Flags |= DRIVER_FLAG_READY;
             return DF_RETURN_SUCCESS;
         case DF_UNLOAD:
-            if ((SATADiskDriver.Flags & DRIVER_FLAG_READY) == 0) {
+            if ((SATAStorageDriver.Flags & DRIVER_FLAG_READY) == 0) {
                 return DF_RETURN_SUCCESS;
             }
 
-            SATADiskDriver.Flags &= ~DRIVER_FLAG_READY;
+            SATAStorageDriver.Flags &= ~DRIVER_FLAG_READY;
             return DF_RETURN_SUCCESS;
         case DF_GET_VERSION:
             return MAKE_VERSION(VER_MAJOR, VER_MINOR);
-        case DF_DISK_RESET:
+        case DF_STORAGE_RESET:
             return DF_RETURN_NOT_IMPLEMENTED;
-        case DF_DISK_READ:
+        case DF_STORAGE_READ:
             return Read((LPIOCONTROL)Parameter);
-        case DF_DISK_WRITE:
+        case DF_STORAGE_WRITE:
             return Write((LPIOCONTROL)Parameter);
-        case DF_DISK_GETINFO:
-            return GetInfo((LPDISKINFO)Parameter);
-        case DF_DISK_SETACCESS:
-            return SetAccess((LPDISKACCESS)Parameter);
+        case DF_STORAGE_GETINFO:
+            return GetInfo((LPSTORAGEINFO)Parameter);
+        case DF_STORAGE_SETACCESS:
+            return SetAccess((LPSTORAGEACCESS)Parameter);
         case DF_ENUM_NEXT:
             return SATA_EnumNext((LPDRIVER_ENUM_NEXT)(LPVOID)Parameter);
         case DF_ENUM_PRETTY:

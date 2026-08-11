@@ -26,7 +26,7 @@
 #include "console/Console.h"
 #include "core/Kernel.h"
 #include "drivers/storage/USBStorage-Private.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "fs/File-System.h"
 #include "log/Log.h"
 #include "memory/Memory.h"
@@ -34,7 +34,7 @@
 #include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 #include "utils/Helpers.h"
 
 /************************************************************************/
@@ -147,7 +147,7 @@ static UINT USBStorageTryMountPending(LPUSB_MASS_STORAGE_DEVICE Device) {
     FileSystemList = GetFileSystemList();
     PreviousLast = (FileSystemList != NULL) ? FileSystemList->Last : NULL;
 
-    if (!MountDiskPartitions((LPSTORAGE_UNIT)Device, NULL, 0)) {
+    if (!MountStoragePartitions((LPSTORAGE_UNIT)Device, NULL, 0)) {
         WARNING(TEXT("Partition mount failed"));
         return 0;
     }
@@ -166,26 +166,26 @@ static UINT USBStorageTryMountPending(LPUSB_MASS_STORAGE_DEVICE Device) {
 /************************************************************************/
 
 /**
- * @brief Unmount and release filesystems associated with a USB disk.
- * @param Disk USB disk to detach.
+ * @brief Unmount and release filesystems associated with a USB storage.
+ * @param Storage USB storage to detach.
  */
-static void USBStorageDetachFileSystems(LPSTORAGE_UNIT Disk, U32 UsbAddress) {
+static void USBStorageDetachFileSystems(LPSTORAGE_UNIT Storage, U32 UsbAddress) {
     LPLIST FileSystemList = GetFileSystemList();
     LPLIST UnusedFileSystemList = GetUnusedFileSystemList();
     FILE_SYSTEM_GLOBAL_INFO* GlobalInfo = GetFileSystemGlobalInfo();
     UINT UnmountedCount = 0;
     UINT UnusedCount = 0;
 
-    if (Disk == NULL || FileSystemList == NULL || UnusedFileSystemList == NULL || GlobalInfo == NULL) {
+    if (Storage == NULL || FileSystemList == NULL || UnusedFileSystemList == NULL || GlobalInfo == NULL) {
         return;
     }
 
     for (LPLISTNODE Node = FileSystemList->First; Node;) {
         LPLISTNODE Next = Node->Next;
         LPFILESYSTEM FileSystem = (LPFILESYSTEM)Node;
-        LPSTORAGE_UNIT FileSystemDisk = FileSystemGetStorageUnit(FileSystem);
+        LPSTORAGE_UNIT FileSystemStorage = FileSystemGetStorageUnit(FileSystem);
 
-        if (FileSystemDisk == Disk) {
+        if (FileSystemStorage == Storage) {
             SystemFSUnmountFileSystem(FileSystem);
             if (StringCompare(GlobalInfo->ActivePartitionName, FileSystem->Name) == 0) {
                 StringClear(GlobalInfo->ActivePartitionName);
@@ -200,9 +200,9 @@ static void USBStorageDetachFileSystems(LPSTORAGE_UNIT Disk, U32 UsbAddress) {
     for (LPLISTNODE Node = UnusedFileSystemList->First; Node;) {
         LPLISTNODE Next = Node->Next;
         LPFILESYSTEM FileSystem = (LPFILESYSTEM)Node;
-        LPSTORAGE_UNIT FileSystemDisk = FileSystemGetStorageUnit(FileSystem);
+        LPSTORAGE_UNIT FileSystemStorage = FileSystemGetStorageUnit(FileSystem);
 
-        if (FileSystemDisk == Disk) {
+        if (FileSystemStorage == Storage) {
             ReleaseKernelObject(FileSystem);
             UnusedCount++;
         }
@@ -234,7 +234,7 @@ static void USBStorageDetachDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
         USBStorageDetachFileSystems((LPSTORAGE_UNIT)Device, 0);
     }
 
-    DiskTransferLayerDeinit((LPSTORAGE_UNIT)Device);
+    StorageTransferLayerDeinit((LPSTORAGE_UNIT)Device);
 
     if (Device->InputOutputBufferLinear != 0) {
         FreeRegion(Device->InputOutputBufferLinear, PAGE_SIZE);
@@ -278,11 +278,11 @@ static LPUSB_MASS_STORAGE_DEVICE USBStorageAllocateDevice(void) {
     }
 
     MemorySet(Device, 0, sizeof(USB_MASS_STORAGE_DEVICE));
-    Device->Disk.TypeID = KOID_DISK;
-    Device->Disk.References = 1;
-    Device->Disk.Next = NULL;
-    Device->Disk.Prev = NULL;
-    Device->Disk.Driver = &USBStorageDriver;
+    Device->Storage.TypeID = KOID_STORAGE;
+    Device->Storage.References = 1;
+    Device->Storage.Next = NULL;
+    Device->Storage.Prev = NULL;
+    Device->Storage.Driver = &USBStorageDriver;
     Device->Access = 0;
     Device->Tag = 1;
     Device->Ready = FALSE;
@@ -487,7 +487,7 @@ static BOOL USBStorageStartDevice(
 
     // Attach the generic transfer layer (sector cache + chunking). The
     // transfer limit mirrors the USB bulk transfer cap (one page per command).
-    if (!DiskTransferLayerInit((LPSTORAGE_UNIT)Device, PAGE_SIZE / Device->BlockSize, NULL)) {
+    if (!StorageTransferLayerInit((LPSTORAGE_UNIT)Device, PAGE_SIZE / Device->BlockSize, NULL)) {
         ERROR(TEXT("Unable to attach transfer layer"));
         USBStorageFreeDevice(Device);
         return FALSE;
@@ -495,24 +495,24 @@ static BOOL USBStorageStartDevice(
 
     // Build the stable ID before registration so the synthetic index stays
     // deterministic when the hardware does not provide a serial number.
-    DiskIdEnsure((LPSTORAGE_UNIT)Device);
+    StorageIdEnsure((LPSTORAGE_UNIT)Device);
 
-    LPLIST DiskList = GetDiskList();
-    if (DiskList == NULL || ListAddItem(DiskList, Device) == FALSE) {
-        ERROR(TEXT("Unable to register disk entry"));
+    LPLIST StorageList = GetStorageList();
+    if (StorageList == NULL || ListAddItem(StorageList, Device) == FALSE) {
+        ERROR(TEXT("Unable to register storage entry"));
         USBStorageFreeDevice(Device);
         return FALSE;
     }
 
     if (FileSystemReady()) {
-        DEBUG(TEXT("Mounting disk partitions"));
+        DEBUG(TEXT("Mounting storage partitions"));
         (void)USBStorageTryMountPending(Device);
     } else {
         DEBUG(TEXT("Deferred partition mount (filesystem not ready)"));
     }
 
     DEBUG(
-        TEXT("USB disk addr=%x blocks=%u block_size=%u"),
+        TEXT("USB storage addr=%x blocks=%u block_size=%u"),
         (U32)UsbDevice->Address,
         Device->BlockCount,
         Device->BlockSize);
@@ -711,12 +711,12 @@ static U32 USBStorageValidateIoControl(LPUSB_MASS_STORAGE_DEVICE* DeviceOut, LPI
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    Device = (LPUSB_MASS_STORAGE_DEVICE)Control->Disk;
+    Device = (LPUSB_MASS_STORAGE_DEVICE)Control->Storage;
     if (Device == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Device->Disk.TypeID != KOID_DISK) {
+    if (Device->Storage.TypeID != KOID_STORAGE) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -805,7 +805,7 @@ static U32 USBStorageTransfer(LPIOCONTROL Control, BOOL DirectionIn) {
         return Validation;
     }
 
-    if (!DirectionIn && (Device->Access & DISK_ACCESS_READONLY) != 0) {
+    if (!DirectionIn && (Device->Access & STORAGE_ACCESS_READONLY) != 0) {
         return DF_RETURN_NO_PERMISSION;
     }
 
@@ -876,21 +876,21 @@ static U32 USBStorageWrite(LPIOCONTROL Control) {
 /************************************************************************/
 
 /**
- * @brief Populate disk information for a USB mass storage device.
- * @param Info Output disk info structure.
+ * @brief Populate storage information for a USB mass storage device.
+ * @param Info Output storage info structure.
  * @return DF_RETURN_SUCCESS on success.
  */
-static U32 USBStorageGetInfo(LPDISKINFO Info) {
+static U32 USBStorageGetInfo(LPSTORAGEINFO Info) {
     if (Info == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPUSB_MASS_STORAGE_DEVICE Device = (LPUSB_MASS_STORAGE_DEVICE)Info->Disk;
+    LPUSB_MASS_STORAGE_DEVICE Device = (LPUSB_MASS_STORAGE_DEVICE)Info->Storage;
     if (Device == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Device->Disk.TypeID != KOID_DISK) {
+    if (Device->Storage.TypeID != KOID_STORAGE) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -910,17 +910,17 @@ static U32 USBStorageGetInfo(LPDISKINFO Info) {
  * @param Access Access request.
  * @return DF_RETURN_SUCCESS on success.
  */
-static U32 USBStorageSetAccess(LPDISKACCESS Access) {
+static U32 USBStorageSetAccess(LPSTORAGEACCESS Access) {
     if (Access == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPUSB_MASS_STORAGE_DEVICE Device = (LPUSB_MASS_STORAGE_DEVICE)Access->Disk;
+    LPUSB_MASS_STORAGE_DEVICE Device = (LPUSB_MASS_STORAGE_DEVICE)Access->Storage;
     if (Device == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Device->Disk.TypeID != KOID_DISK) {
+    if (Device->Storage.TypeID != KOID_STORAGE) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -1002,16 +1002,16 @@ UINT USBStorageCommands(UINT Function, UINT Parameter) {
         case DF_GET_VERSION:
             return MAKE_VERSION(USB_MASS_STORAGE_VER_MAJOR, USB_MASS_STORAGE_VER_MINOR);
 
-        case DF_DISK_RESET:
+        case DF_STORAGE_RESET:
             return USBStorageReset((LPUSB_MASS_STORAGE_DEVICE)Parameter);
-        case DF_DISK_READ:
+        case DF_STORAGE_READ:
             return USBStorageRead((LPIOCONTROL)Parameter);
-        case DF_DISK_WRITE:
+        case DF_STORAGE_WRITE:
             return USBStorageWrite((LPIOCONTROL)Parameter);
-        case DF_DISK_GETINFO:
-            return USBStorageGetInfo((LPDISKINFO)Parameter);
-        case DF_DISK_SETACCESS:
-            return USBStorageSetAccess((LPDISKACCESS)Parameter);
+        case DF_STORAGE_GETINFO:
+            return USBStorageGetInfo((LPSTORAGEINFO)Parameter);
+        case DF_STORAGE_SETACCESS:
+            return USBStorageSetAccess((LPSTORAGEACCESS)Parameter);
     }
 
     return DF_RETURN_NOT_IMPLEMENTED;

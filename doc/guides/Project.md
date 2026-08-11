@@ -11,7 +11,7 @@ This document describes the organization of the git repository directories.
 Floppy bootloader with assembly files (boot-floppy.asm, hd-sector0.asm).
 
 ### `/boot-mbr/`
-Scripts and tools for creating bootable disk images. Contains subdirectories for kernel, runtime, system, and tools, as well as linker scripts.
+Scripts and tools for creating bootable images. Contains subdirectories for kernel, runtime, system, and tools, as well as linker scripts.
 
 ### `/build/`
 Build directory containing generated binaries and temporary build files.

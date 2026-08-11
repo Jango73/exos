@@ -18,11 +18,11 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    Generic Disk Transfer Layer
+    Generic Storage Transfer Layer
 
 \************************************************************************/
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 #include "core/Kernel.h"
 #include "log/Profile.h"
@@ -35,14 +35,14 @@
 /***************************************************************************/
 // Buffer pool configuration
 
-#define DISK_TRANSFER_LAYER_BUFFER_FLAGS (ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE)
-#define DISK_TRANSFER_LAYER_CACHE_CAPACITY NUM_BUFFERS
-#define DISK_TRANSFER_LAYER_CONFIG_MIN_SECTORS 1
-#define DISK_TRANSFER_LAYER_CONFIG_MAX_SECTORS 65535
+#define STORAGE_TRANSFER_LAYER_BUFFER_FLAGS (ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE)
+#define STORAGE_TRANSFER_LAYER_CACHE_CAPACITY NUM_BUFFERS
+#define STORAGE_TRANSFER_LAYER_CONFIG_MIN_SECTORS 1
+#define STORAGE_TRANSFER_LAYER_CONFIG_MAX_SECTORS 65535
 
 /***************************************************************************/
 
-struct tag_DISK_TRANSFER_UNIT {
+struct tag_STORAGE_TRANSFER_UNIT {
     CACHE SectorCache;
     BUFFER_POOL SectorBufferPool;
     U32 MaxSectorsPerTransfer;
@@ -59,7 +59,7 @@ struct tag_DISK_TRANSFER_UNIT {
  * @param Context Matching context describing the requested sector.
  * @return TRUE if entry matches the requested sector.
  */
-static BOOL DiskTransferCacheMatcher(LPVOID Data, LPVOID Context) {
+static BOOL StorageTransferCacheMatcher(LPVOID Data, LPVOID Context) {
     LPSECTORBUFFER Buffer = (LPSECTORBUFFER)Data;
     LPSECTORBUFFER Match = (LPSECTORBUFFER)Context;
 
@@ -78,7 +78,7 @@ static BOOL DiskTransferCacheMatcher(LPVOID Data, LPVOID Context) {
  * @param Dirty Dirty flag from cache entry.
  * @param Context Buffer pool context pointer.
  */
-static void DiskTransferCacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
+static void StorageTransferCacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
     LPBUFFER_POOL Pool = (LPBUFFER_POOL)Context;
 
     UNUSED(Dirty);
@@ -108,7 +108,7 @@ static void DiskTransferCacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
  * @param Unit Transfer unit to resolve the limit for.
  * @return Maximum sectors accepted by the driver per command.
  */
-static U32 DiskTransferGetMaxSectors(LPDISK_TRANSFER_UNIT Unit) {
+static U32 StorageTransferGetMaxSectors(LPSTORAGE_TRANSFER_UNIT Unit) {
     if (Unit == NULL) {
         return 0;
     }
@@ -122,57 +122,57 @@ static U32 DiskTransferGetMaxSectors(LPDISK_TRANSFER_UNIT Unit) {
         &Unit->ConfigInitialized,
         Unit->ConfigMaxSectorsPath,
         Unit->MaxSectorsPerTransfer,
-        DISK_TRANSFER_LAYER_CONFIG_MIN_SECTORS,
-        DISK_TRANSFER_LAYER_CONFIG_MAX_SECTORS);
+        STORAGE_TRANSFER_LAYER_CONFIG_MIN_SECTORS,
+        STORAGE_TRANSFER_LAYER_CONFIG_MAX_SECTORS);
 }
 
 /***************************************************************************/
 
 /**
- * @brief Attach the generic disk transfer state to a storage unit.
+ * @brief Attach the generic storage transfer state to a storage unit.
  *
  * Allocates the sector cache, the sector buffer pool and the per-command
- * transfer limit. A NULL transfer state is allowed for disks without the
+ * transfer limit. A NULL transfer state is allowed for storage units without the
  * layer attached; in that case transfers fall back to the raw driver command.
  *
- * @param Disk Storage unit to attach the layer to.
+ * @param Storage Storage unit to attach the layer to.
  * @param MaxSectorsPerTransfer Maximum sectors the driver accepts per command.
  * @param ConfigMaxSectorsPath Optional configuration key resolving the transfer
  *        limit lazily on first use (may be NULL).
  * @return TRUE on success, FALSE on failure.
  */
-BOOL DiskTransferLayerInit(LPSTORAGE_UNIT Disk, U32 MaxSectorsPerTransfer, LPCSTR ConfigMaxSectorsPath) {
-    LPDISK_TRANSFER_UNIT Unit;
+BOOL StorageTransferLayerInit(LPSTORAGE_UNIT Storage, U32 MaxSectorsPerTransfer, LPCSTR ConfigMaxSectorsPath) {
+    LPSTORAGE_TRANSFER_UNIT Unit;
 
-    if (Disk == NULL || MaxSectorsPerTransfer == 0) {
+    if (Storage == NULL || MaxSectorsPerTransfer == 0) {
         return FALSE;
     }
 
-    Unit = (LPDISK_TRANSFER_UNIT)KernelHeapAlloc(sizeof(DISK_TRANSFER_UNIT));
+    Unit = (LPSTORAGE_TRANSFER_UNIT)KernelHeapAlloc(sizeof(STORAGE_TRANSFER_UNIT));
     if (Unit == NULL) {
         return FALSE;
     }
 
-    MemorySet(Unit, 0, sizeof(DISK_TRANSFER_UNIT));
+    MemorySet(Unit, 0, sizeof(STORAGE_TRANSFER_UNIT));
 
     if (!BufferPoolInit(
             &Unit->SectorBufferPool,
             (UINT)sizeof(SECTOR_BUFFER),
-            DISK_TRANSFER_LAYER_CACHE_CAPACITY,
+            STORAGE_TRANSFER_LAYER_CACHE_CAPACITY,
             1,
-            DISK_TRANSFER_LAYER_BUFFER_FLAGS,
-            TEXT("DiskTransferBuffer"))) {
+            STORAGE_TRANSFER_LAYER_BUFFER_FLAGS,
+            TEXT("StorageTransferBuffer"))) {
         KernelHeapFree(Unit);
         return FALSE;
     }
 
-    if (!BufferPoolReserve(&Unit->SectorBufferPool, DISK_TRANSFER_LAYER_CACHE_CAPACITY)) {
+    if (!BufferPoolReserve(&Unit->SectorBufferPool, STORAGE_TRANSFER_LAYER_CACHE_CAPACITY)) {
         BufferPoolDeinit(&Unit->SectorBufferPool);
         KernelHeapFree(Unit);
         return FALSE;
     }
 
-    CacheInit(&Unit->SectorCache, DISK_TRANSFER_LAYER_CACHE_CAPACITY);
+    CacheInit(&Unit->SectorCache, STORAGE_TRANSFER_LAYER_CACHE_CAPACITY);
     if (Unit->SectorCache.Entries == NULL) {
         BufferPoolDeinit(&Unit->SectorBufferPool);
         KernelHeapFree(Unit);
@@ -180,14 +180,14 @@ BOOL DiskTransferLayerInit(LPSTORAGE_UNIT Disk, U32 MaxSectorsPerTransfer, LPCST
     }
 
     CacheSetWritePolicy(
-        &Unit->SectorCache, CACHE_WRITE_POLICY_READ_ONLY, NULL, DiskTransferCacheRelease, &Unit->SectorBufferPool);
+        &Unit->SectorCache, CACHE_WRITE_POLICY_READ_ONLY, NULL, StorageTransferCacheRelease, &Unit->SectorBufferPool);
 
     Unit->MaxSectorsPerTransfer = MaxSectorsPerTransfer;
     Unit->ConfigMaxSectorsPath = ConfigMaxSectorsPath;
     Unit->CachedConfigMaxSectors = 0;
     Unit->ConfigInitialized = FALSE;
 
-    Disk->DiskTransfer = Unit;
+    Storage->StorageTransfer = Unit;
 
     return TRUE;
 }
@@ -195,22 +195,22 @@ BOOL DiskTransferLayerInit(LPSTORAGE_UNIT Disk, U32 MaxSectorsPerTransfer, LPCST
 /***************************************************************************/
 
 /**
- * @brief Release the generic disk transfer state attached to a storage unit.
- * @param Disk Storage unit to detach.
+ * @brief Release the generic storage transfer state attached to a storage unit.
+ * @param Storage Storage unit to detach.
  */
-void DiskTransferLayerDeinit(LPSTORAGE_UNIT Disk) {
-    LPDISK_TRANSFER_UNIT Unit;
+void StorageTransferLayerDeinit(LPSTORAGE_UNIT Storage) {
+    LPSTORAGE_TRANSFER_UNIT Unit;
 
-    if (Disk == NULL) {
+    if (Storage == NULL) {
         return;
     }
 
-    Unit = Disk->DiskTransfer;
+    Unit = Storage->StorageTransfer;
     if (Unit == NULL) {
         return;
     }
 
-    Disk->DiskTransfer = NULL;
+    Storage->StorageTransfer = NULL;
 
     CacheDeinit(&Unit->SectorCache);
     BufferPoolDeinit(&Unit->SectorBufferPool);
@@ -229,25 +229,25 @@ void DiskTransferLayerDeinit(LPSTORAGE_UNIT Disk) {
  * @param Control IO control structure describing the request.
  * @return DF_RETURN_SUCCESS or a driver error code.
  */
-U32 DiskTransferLayerRead(LPIOCONTROL Control) {
-    LPDISK_TRANSFER_UNIT Unit;
+U32 StorageTransferLayerRead(LPIOCONTROL Control) {
+    LPSTORAGE_TRANSFER_UNIT Unit;
     U32 MaxSectors;
     U32 Current;
     U32 Result;
 
-    if (Control == NULL || Control->Disk == NULL) {
+    if (Control == NULL || Control->Storage == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    Unit = Control->Disk->DiskTransfer;
+    Unit = Control->Storage->StorageTransfer;
     if (Unit == NULL) {
-        return Control->Disk->Driver->Command(DF_DISK_READ, (UINT)Control);
+        return Control->Storage->Driver->Command(DF_STORAGE_READ, (UINT)Control);
     }
 
-    PROFILE_SCOPED("DiskTransferLayerRead") {
+    PROFILE_SCOPED("StorageTransferLayerRead") {
         CacheCleanup(&Unit->SectorCache, GetSystemTime());
 
-        MaxSectors = DiskTransferGetMaxSectors(Unit);
+        MaxSectors = StorageTransferGetMaxSectors(Unit);
         if (MaxSectors == 0) {
             return DF_RETURN_BAD_PARAMETER;
         }
@@ -270,7 +270,8 @@ U32 DiskTransferLayerRead(LPIOCONTROL Control) {
             FirstUncached = ChunkSectors;
             for (U32 Index = 0; Index < ChunkSectors; Index++) {
                 SECTOR_BUFFER Match = { U64_Low32(U64_Add(ChunkLba, U64_FromU32(Index))), 0, 0, { 0 } };
-                LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Unit->SectorCache, DiskTransferCacheMatcher, &Match);
+                LPSECTORBUFFER Buffer =
+                    (LPSECTORBUFFER)CacheFind(&Unit->SectorCache, StorageTransferCacheMatcher, &Match);
 
                 if (Buffer == NULL) {
                     if (FirstUncached == ChunkSectors) {
@@ -290,24 +291,24 @@ U32 DiskTransferLayerRead(LPIOCONTROL Control) {
                 IOCONTROL Chunk;
 
                 Chunk.TypeID = KOID_IOCONTROL;
-                Chunk.Disk = Control->Disk;
+                Chunk.Storage = Control->Storage;
                 Chunk.SectorLow = U64_Low32(ReadLba);
                 Chunk.SectorHigh = U64_High32(ReadLba);
                 Chunk.NumSectors = ReadSectors;
                 Chunk.Buffer = ReadDest;
                 Chunk.BufferSize = ReadSectors * SECTOR_SIZE;
 
-                Result = Control->Disk->Driver->Command(DF_DISK_READ, (UINT)&Chunk);
+                Result = Control->Storage->Driver->Command(DF_STORAGE_READ, (UINT)&Chunk);
                 if (Result != DF_RETURN_SUCCESS) {
                     return Result;
                 }
 
-                // Phase 3: populate the cache from the sectors read from disk.
+                // Phase 3: populate the cache from the sectors read from storage.
                 for (U32 Index = 0; Index < ReadSectors; Index++) {
                     SECTOR_BUFFER Match = { U64_Low32(U64_Add(ReadLba, U64_FromU32(Index))), 0, 0, { 0 } };
                     LPSECTORBUFFER Buffer;
 
-                    if (CacheFind(&Unit->SectorCache, DiskTransferCacheMatcher, &Match) != NULL) {
+                    if (CacheFind(&Unit->SectorCache, StorageTransferCacheMatcher, &Match) != NULL) {
                         continue;
                     }
 
@@ -321,7 +322,7 @@ U32 DiskTransferLayerRead(LPIOCONTROL Control) {
                     Buffer->Dirty = 0;
                     MemoryCopy(Buffer->Data, ReadDest + Index * SECTOR_SIZE, SECTOR_SIZE);
 
-                    if (!CacheAdd(&Unit->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
+                    if (!CacheAdd(&Unit->SectorCache, Buffer, STORAGE_CACHE_TTL_MS)) {
                         BufferPoolRelease(&Unit->SectorBufferPool, Buffer);
                     }
                 }
@@ -342,30 +343,30 @@ U32 DiskTransferLayerRead(LPIOCONTROL Control) {
  * The request is split into chunks bounded by the driver transfer limit and
  * each chunk is written with a single raw driver command. After a successful
  * write the sector cache is populated (or updated) so subsequent reads do not
- * touch the disk.
+ * touch the storage.
  *
  * @param Control IO control structure describing the request.
  * @return DF_RETURN_SUCCESS or a driver error code.
  */
-U32 DiskTransferLayerWrite(LPIOCONTROL Control) {
-    LPDISK_TRANSFER_UNIT Unit;
+U32 StorageTransferLayerWrite(LPIOCONTROL Control) {
+    LPSTORAGE_TRANSFER_UNIT Unit;
     U32 MaxSectors;
     U32 Current;
     U32 Result;
 
-    if (Control == NULL || Control->Disk == NULL) {
+    if (Control == NULL || Control->Storage == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    Unit = Control->Disk->DiskTransfer;
+    Unit = Control->Storage->StorageTransfer;
     if (Unit == NULL) {
-        return Control->Disk->Driver->Command(DF_DISK_WRITE, (UINT)Control);
+        return Control->Storage->Driver->Command(DF_STORAGE_WRITE, (UINT)Control);
     }
 
-    PROFILE_SCOPED("DiskTransferLayerWrite") {
+    PROFILE_SCOPED("StorageTransferLayerWrite") {
         CacheCleanup(&Unit->SectorCache, GetSystemTime());
 
-        MaxSectors = DiskTransferGetMaxSectors(Unit);
+        MaxSectors = StorageTransferGetMaxSectors(Unit);
         if (MaxSectors == 0) {
             return DF_RETURN_BAD_PARAMETER;
         }
@@ -386,14 +387,14 @@ U32 DiskTransferLayerWrite(LPIOCONTROL Control) {
 
             // Issue one raw driver write for the whole chunk.
             Chunk.TypeID = KOID_IOCONTROL;
-            Chunk.Disk = Control->Disk;
+            Chunk.Storage = Control->Storage;
             Chunk.SectorLow = U64_Low32(ChunkLba);
             Chunk.SectorHigh = U64_High32(ChunkLba);
             Chunk.NumSectors = ChunkSectors;
             Chunk.Buffer = Src;
             Chunk.BufferSize = ChunkSectors * SECTOR_SIZE;
 
-            Result = Control->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Chunk);
+            Result = Control->Storage->Driver->Command(DF_STORAGE_WRITE, (UINT)&Chunk);
             if (Result != DF_RETURN_SUCCESS) {
                 return Result;
             }
@@ -401,7 +402,8 @@ U32 DiskTransferLayerWrite(LPIOCONTROL Control) {
             // Populate or update the cache for each sector in the chunk.
             for (U32 Index = 0; Index < ChunkSectors; Index++) {
                 SECTOR_BUFFER Match = { U64_Low32(U64_Add(ChunkLba, U64_FromU32(Index))), 0, 0, { 0 } };
-                LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Unit->SectorCache, DiskTransferCacheMatcher, &Match);
+                LPSECTORBUFFER Buffer =
+                    (LPSECTORBUFFER)CacheFind(&Unit->SectorCache, StorageTransferCacheMatcher, &Match);
 
                 if (Buffer == NULL) {
                     Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&Unit->SectorBufferPool);
@@ -414,7 +416,7 @@ U32 DiskTransferLayerWrite(LPIOCONTROL Control) {
                     Buffer->Dirty = 0;
                     MemoryCopy(Buffer->Data, Src + Index * SECTOR_SIZE, SECTOR_SIZE);
 
-                    if (!CacheAdd(&Unit->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
+                    if (!CacheAdd(&Unit->SectorCache, Buffer, STORAGE_CACHE_TTL_MS)) {
                         BufferPoolRelease(&Unit->SectorBufferPool, Buffer);
                     }
                 } else {

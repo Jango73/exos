@@ -23,8 +23,8 @@
 
 #include "expose/Exposed.h"
 
-#include "fs/Disk.h"
-#include "utils/DiskID.h"
+#include "fs/Storage.h"
+#include "utils/Storage-ID.h"
 
 /************************************************************************/
 
@@ -42,27 +42,27 @@ SCRIPT_ERROR StorageGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCST
     EXPOSE_PROPERTY_GUARD();
 
     LPSTORAGE_UNIT Storage = (LPSTORAGE_UNIT)Parent;
-    SAFE_USE_VALID_ID(Storage, KOID_DISK) {
-        DISK_INFO DiskInfo;
+    SAFE_USE_VALID_ID(Storage, KOID_STORAGE) {
+        STORAGE_INFO StorageInfo;
         U32 Result = 0;
 
-        MemorySet(&DiskInfo, 0, sizeof(DISK_INFO));
-        DiskInfo.Disk = Storage;
-        Result = Storage->Driver->Command(DF_DISK_GETINFO, (UINT)&DiskInfo);
+        MemorySet(&StorageInfo, 0, sizeof(STORAGE_INFO));
+        StorageInfo.Storage = Storage;
+        Result = Storage->Driver->Command(DF_STORAGE_GETINFO, (UINT)&StorageInfo);
         if (Result != DF_RETURN_SUCCESS) {
             return SCRIPT_ERROR_UNDEFINED_VAR;
         }
 
-        EXPOSE_BIND_INTEGER("type", DiskInfo.Type);
-        EXPOSE_BIND_INTEGER("removable", DiskInfo.Removable);
-        EXPOSE_BIND_INTEGER("bytesPerSector", DiskInfo.BytesPerSector);
-        EXPOSE_BIND_INTEGER("numSectorsLow", (U32)U64_Low32(DiskInfo.NumSectors));
-        EXPOSE_BIND_INTEGER("numSectorsHigh", (U32)U64_High32(DiskInfo.NumSectors));
-        EXPOSE_BIND_INTEGER("access", DiskInfo.Access);
+        EXPOSE_BIND_INTEGER("type", StorageInfo.Type);
+        EXPOSE_BIND_INTEGER("removable", StorageInfo.Removable);
+        EXPOSE_BIND_INTEGER("bytesPerSector", StorageInfo.BytesPerSector);
+        EXPOSE_BIND_INTEGER("numSectorsLow", (U32)U64_Low32(StorageInfo.NumSectors));
+        EXPOSE_BIND_INTEGER("numSectorsHigh", (U32)U64_High32(StorageInfo.NumSectors));
+        EXPOSE_BIND_INTEGER("access", StorageInfo.Access);
         EXPOSE_BIND_STRING("driverManufacturer", Storage->Driver->Manufacturer);
         EXPOSE_BIND_STRING("driverProduct", Storage->Driver->Product);
 
-        EXPOSE_BIND_STRING("id", DiskIdGet(Storage));
+        EXPOSE_BIND_STRING("id", StorageIdGet(Storage));
         EXPOSE_BIND_STRING("vendor", Storage->Vendor);
         EXPOSE_BIND_STRING("model", Storage->Model);
         EXPOSE_BIND_STRING("serial", Storage->Serial);
@@ -125,7 +125,7 @@ SCRIPT_ERROR StorageArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U
     }
 
     LPSTORAGE_UNIT Storage = (LPSTORAGE_UNIT)ListGetItem(StorageList, Index);
-    SAFE_USE_VALID_ID(Storage, KOID_DISK) {
+    SAFE_USE_VALID_ID(Storage, KOID_STORAGE) {
         EXPOSE_SET_HOST_HANDLE(Storage, &StorageDescriptor, NULL, FALSE);
         return SCRIPT_OK;
     }
@@ -136,10 +136,10 @@ SCRIPT_ERROR StorageArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U
 /************************************************************************/
 
 /**
- * @brief Retrieve a storage object from the exposed storage array by stable disk ID.
+ * @brief Retrieve a storage object from the exposed storage array by stable storage ID.
  * @param Context Host callback context (unused for storage exposure)
  * @param Parent Handle to the byId lookup container exposed by the kernel
- * @param Key Stable disk ID requested by the script
+ * @param Key Stable storage ID requested by the script
  * @param OutValue Output holder for the resulting storage handle
  * @return SCRIPT_OK when the storage object exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
@@ -152,8 +152,8 @@ SCRIPT_ERROR StorageByIdGetStringElement(
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }
 
-    LPSTORAGE_UNIT Storage = DiskIdFindById(Key);
-    SAFE_USE_VALID_ID(Storage, KOID_DISK) {
+    LPSTORAGE_UNIT Storage = StorageIdFindById(Key);
+    SAFE_USE_VALID_ID(Storage, KOID_STORAGE) {
         EXPOSE_SET_HOST_HANDLE(Storage, &StorageDescriptor, NULL, FALSE);
         return SCRIPT_OK;
     }

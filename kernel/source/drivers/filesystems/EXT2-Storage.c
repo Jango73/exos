@@ -23,7 +23,7 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /************************************************************************/
 
@@ -31,18 +31,18 @@ BOOL ReadSectors(LPEXT2FILESYSTEM FileSystem, U32 Sector, U32 Count, LPVOID Buff
     IOCONTROL Control;
     U32 Result;
 
-    if (FileSystem == NULL || FileSystem->Disk == NULL) return FALSE;
+    if (FileSystem == NULL || FileSystem->Storage == NULL) return FALSE;
     if (Buffer == NULL || Count == 0) return FALSE;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = FileSystem->PartitionStart + Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = Count;
     Control.Buffer = Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }
@@ -81,18 +81,18 @@ BOOL ReadBlock(LPEXT2FILESYSTEM FileSystem, U32 Block, LPVOID Buffer) {
 BOOL WriteSectors(LPEXT2FILESYSTEM FileSystem, U32 Sector, U32 Count, LPCVOID Buffer) {
     IOCONTROL Control;
 
-    if (FileSystem == NULL || FileSystem->Disk == NULL) return FALSE;
+    if (FileSystem == NULL || FileSystem->Storage == NULL) return FALSE;
     if (Buffer == NULL || Count == 0) return FALSE;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = FileSystem->PartitionStart + Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = Count;
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    return DiskTransferLayerWrite(&Control) == DF_RETURN_SUCCESS;
+    return StorageTransferLayerWrite(&Control) == DF_RETURN_SUCCESS;
 }
 
 /************************************************************************/
@@ -115,7 +115,7 @@ BOOL WriteBlock(LPEXT2FILESYSTEM FileSystem, U32 Block, LPCVOID Buffer) {
 /************************************************************************/
 
 /**
- * @brief Loads block group descriptors from disk into memory.
+ * @brief Loads block group descriptors from storage into memory.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @return TRUE when descriptors are successfully loaded, FALSE otherwise.
  */
@@ -234,7 +234,7 @@ BOOL PrepareInodeBlockAccess(
 /************************************************************************/
 
 /**
- * @brief Reads an inode from disk.
+ * @brief Reads an inode from storage.
  * @param FileSystem Pointer to the EXT2 file system instance.
  * @param InodeIndex Index of the inode to read.
  * @param Inode Destination buffer for the inode data.
@@ -824,6 +824,6 @@ BOOL ResolvePath(LPEXT2FILESYSTEM FileSystem, LPCSTR Path, LPEXT2INODE Inode, U3
 
 /**
  * @brief Allocates and initializes a new EXT2 filesystem structure.
- * @param Disk Pointer to the physical disk hosting the filesystem.
+ * @param Storage Pointer to the physical storage hosting the filesystem.
  * @return Newly allocated filesystem descriptor, or NULL on failure.
  */

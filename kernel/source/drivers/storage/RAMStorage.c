@@ -18,17 +18,17 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    RAM Disk
+    RAM Storage
 
 \************************************************************************/
 
 #include "drivers/filesystems/FAT.h"
 #include "drivers/filesystems/EXT2.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "system/Clock.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 #include "utils/Helpers.h"
 
 /***************************************************************************/
@@ -36,62 +36,62 @@
 #define VER_MAJOR 1
 #define VER_MINOR 0
 
-UINT RAMDiskCommands(UINT, UINT);
+UINT RAMStorageCommands(UINT, UINT);
 
-DRIVER DATA_SECTION RAMDiskDriver = { .TypeID = KOID_DRIVER,
+DRIVER DATA_SECTION RAMStorageDriver = { .TypeID = KOID_DRIVER,
                                       .References = 1,
                                       .Next = NULL,
                                       .Prev = NULL,
-                                      .Type = DRIVER_TYPE_RAMDISK,
+                                      .Type = DRIVER_TYPE_RAMSTORAGE,
                                       .VersionMajor = VER_MAJOR,
                                       .VersionMinor = VER_MINOR,
                                       .Designer = "Jango73",
                                       .Manufacturer = "N/A",
-                                      .Product = "RAM Disk Controller",
-                                      .Alias = "ramdisk",
+                                      .Product = "RAM Storage Controller",
+                                      .Alias = "ramstorage",
                                       .Flags = 0,
-                                      .Command = RAMDiskCommands };
+                                      .Command = RAMStorageCommands };
 
 /***************************************************************************/
 
 /**
- * @brief Retrieves the RAM disk driver descriptor.
- * @return Pointer to the RAM disk driver.
+ * @brief Retrieves the RAM storage driver descriptor.
+ * @return Pointer to the RAM storage driver.
  */
-LPDRIVER RAMDiskGetDriver(void) {
-    return &RAMDiskDriver;
+LPDRIVER RAMStorageGetDriver(void) {
+    return &RAMStorageDriver;
 }
 
 /***************************************************************************/
-// RAM physical disk, derives from STORAGE_UNIT
+// RAM physical storage, derives from STORAGE_UNIT
 
-typedef struct tag_RAMDISK {
+typedef struct tag_RAMSTORAGE {
     STORAGE_UNIT Header;
     LINEAR Base;
     UINT Size;
     U32 Access;  // Access parameters
-} RAM_DISK, *LPRAMDISK;
+} RAM_STORAGE, *LPRAMSTORAGE;
 
 /***************************************************************************/
 
 /**
- * @brief Allocates and initializes a new RAM disk structure.
- * @return Pointer to the initialized RAM disk or NULL on allocation failure.
+ * @brief Allocates and initializes a new RAM storage structure.
+ * @return Pointer to the initialized RAM storage or NULL on allocation failure.
  */
-static LPRAMDISK NewRAMDisk(void) {
-    LPRAMDISK This;
+static LPRAMSTORAGE NewRAMStorage(void) {
+    LPRAMSTORAGE This;
 
-    This = (LPRAMDISK)KernelHeapAlloc(sizeof(RAM_DISK));
+    This = (LPRAMSTORAGE)KernelHeapAlloc(sizeof(RAM_STORAGE));
 
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(RAM_DISK));
+    MemorySet(This, 0, sizeof(RAM_STORAGE));
 
-    This->Header.TypeID = KOID_DISK;
+    This->Header.TypeID = KOID_STORAGE;
     This->Header.References = 1;
     This->Header.Next = NULL;
     This->Header.Prev = NULL;
-    This->Header.Driver = &RAMDiskDriver;
+    This->Header.Driver = &RAMStorageDriver;
     This->Base = NULL;
     This->Size = 0;
     This->Access = 0;
@@ -278,7 +278,7 @@ static U32 CreateFATDirEntry(LINEAR Buffer, LPCSTR Name, U32 Attributes,
 /***************************************************************************/
 
 /*
-static BOOL FormatRAMDisk_FAT32(LINEAR Base, U32 Size) {
+static BOOL FormatRAMStorage_FAT32(LINEAR Base, U32 Size) {
     LPFAT32MBR Master = NULL;
 
     U32* FAT = NULL;
@@ -413,42 +413,42 @@ ClusterEntry6);
 /***************************************************************************/
 
 /**
- * @brief Initializes and registers the RAM disk device.
+ * @brief Initializes and registers the RAM storage device.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
-static U32 RAMDiskInitialize(void) {
+static U32 RAMStorageInitialize(void) {
     PARTITION_CREATION Create;
     LPBOOT_PARTITION Partition;
-    LPRAMDISK Disk;
+    LPRAMSTORAGE Storage;
 
     DEBUG(TEXT("Enter"));
 
-    Disk = NewRAMDisk();
-    if (Disk == NULL) return DF_RETURN_NO_MEMORY;
+    Storage = NewRAMStorage();
+    if (Storage == NULL) return DF_RETURN_NO_MEMORY;
 
-    Disk->Size = N_512KB;
-    Disk->Base = AllocKernelRegion(0, Disk->Size, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("RamDisk"));
+    Storage->Size = N_512KB;
+    Storage->Base = AllocKernelRegion(0, Storage->Size, ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE, TEXT("RAMStorage"));
 
-    if (Disk->Base == NULL) {
+    if (Storage->Base == NULL) {
         return DF_RETURN_NO_MEMORY;
     }
 
-    DEBUG(TEXT("Memory allocated at %x"), Disk->Base);
+    DEBUG(TEXT("Memory allocated at %x"), Storage->Base);
 
     //-------------------------------------
-    // Purge the disk
+    // Purge the storage
 
-    MemorySet((LPVOID)Disk->Base, 0, Disk->Size);
+    MemorySet((LPVOID)Storage->Base, 0, Storage->Size);
 
-    DEBUG(TEXT("Disk purged"));
+    DEBUG(TEXT("Storage purged"));
 
     /*
       //-------------------------------------
       // Initialize the partitions
 
-      Partition = (LPBOOT_PARTITION) (Disk->Base + MBR_PARTITION_START);
+      Partition = (LPBOOT_PARTITION) (Storage->Base + MBR_PARTITION_START);
 
-      Partition->Disk              = 0x80;
+      Partition->Storage              = 0x80;
       Partition->StartCHS.Head     = 0;
       Partition->StartCHS.Cylinder = 0;
       Partition->StartCHS.Sector   = 0;
@@ -457,25 +457,25 @@ static U32 RAMDiskInitialize(void) {
       Partition->EndCHS.Cylinder   = 0;
       Partition->EndCHS.Sector     = 0;
       Partition->LBA               = 2;
-      Partition->Size              = (Disk->Size - (Partition->LBA *
+      Partition->Size              = (Storage->Size - (Partition->LBA *
       SECTOR_SIZE)) / SECTOR_SIZE;
 
       //-------------------------------------
-      // Format and register the disk
+      // Format and register the storage
 
-      FormatRAMDisk_FAT32
+      FormatRAMStorage_FAT32
       (
-    Disk->Base + (Partition->LBA * SECTOR_SIZE),
-    Disk->Size - (Partition->LBA * SECTOR_SIZE)
+    Storage->Base + (Partition->LBA * SECTOR_SIZE),
+    Storage->Size - (Partition->LBA * SECTOR_SIZE)
       );
     */
 
     //-------------------------------------
     // Initialize the partitions
 
-    Partition = (LPBOOT_PARTITION)(Disk->Base + MBR_PARTITION_START);
+    Partition = (LPBOOT_PARTITION)(Storage->Base + MBR_PARTITION_START);
 
-    Partition->Disk = 0x00;
+    Partition->Storage = 0x00;
     Partition->StartCHS.Head = 0;
     Partition->StartCHS.Cylinder = 0;
     Partition->StartCHS.Sector = 0;
@@ -484,7 +484,7 @@ static U32 RAMDiskInitialize(void) {
     Partition->EndCHS.Cylinder = 0;
     Partition->EndCHS.Sector = 0;
     Partition->LBA = 2;
-    Partition->Size = (Disk->Size - (Partition->LBA * SECTOR_SIZE)) / SECTOR_SIZE;
+    Partition->Size = (Storage->Size - (Partition->LBA * SECTOR_SIZE)) / SECTOR_SIZE;
 
     DEBUG(TEXT("Partition created"));
 
@@ -492,13 +492,13 @@ static U32 RAMDiskInitialize(void) {
     // Create an EXFS partition
 
     Create.Size = sizeof(PARTITION_CREATION);
-    Create.Disk = (LPSTORAGE_UNIT)Disk;
+    Create.Storage = (LPSTORAGE_UNIT)Storage;
     Create.PartitionStartSector = 2;
     Create.PartitionNumSectors = Partition->Size;
     Create.SectorsPerCluster = 2;
     Create.Flags = 0;
 
-    StringCopy(Create.VolumeName, TEXT("RamDisk"));
+    StringCopy(Create.VolumeName, TEXT("RAMStorage"));
 
     EXT2GetDriver()->Command(DF_FS_CREATEPARTITION, (UINT)&Create);
 
@@ -509,24 +509,24 @@ static U32 RAMDiskInitialize(void) {
     // resolved from the configuration lazily (the configuration file is
     // loaded after the storage drivers), defaulting to a large value.
 
-    if (!DiskTransferLayerInit(
-            (LPSTORAGE_UNIT)Disk,
-            CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER_DEFAULT,
-            CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER)) {
+    if (!StorageTransferLayerInit(
+            (LPSTORAGE_UNIT)Storage,
+            CONFIG_RAMSTORAGE_MAX_SECTORS_PER_TRANSFER_DEFAULT,
+            CONFIG_RAMSTORAGE_MAX_SECTORS_PER_TRANSFER)) {
         return DF_RETURN_UNEXPECTED;
     }
 
     //-------------------------------------
     // Build the stable ID before registration so the synthetic ID index
-    // (driver alias + same-type disk count) is deterministic.
+    // (driver alias + same-type storage count) is deterministic.
 
-    DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, NULL, NULL);
-    DiskIdEnsure((LPSTORAGE_UNIT)Disk);
+    StorageIdSetIdentity((LPSTORAGE_UNIT)Storage, NULL, NULL, NULL);
+    StorageIdEnsure((LPSTORAGE_UNIT)Storage);
 
     //-------------------------------------
 
-    LPLIST DiskList = GetDiskList();
-    ListAddItem(DiskList, Disk);
+    LPLIST StorageList = GetStorageList();
+    ListAddItem(StorageList, Storage);
 
     return DF_RETURN_SUCCESS;
 }
@@ -534,30 +534,30 @@ static U32 RAMDiskInitialize(void) {
 /***************************************************************************/
 
 /**
- * @brief Reads sectors from the RAM disk into a buffer.
+ * @brief Reads sectors from the RAM storage into a buffer.
  * @param Control IO control structure describing the read operation.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
 static U32 Read(LPIOCONTROL Control) {
-    LPRAMDISK Disk;
+    LPRAMSTORAGE Storage;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPRAMDISK)Control->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPRAMSTORAGE)Control->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Base == NULL) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Size == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Base == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Size == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Check if we are in the limits of the disk
+    // Check if we are in the limits of the storage
 
-    if ((Control->SectorLow * SECTOR_SIZE) >= Disk->Size) {
+    if ((Control->SectorLow * SECTOR_SIZE) >= Storage->Size) {
         return DF_RETURN_GENERIC;
     }
 
@@ -565,7 +565,7 @@ static U32 Read(LPIOCONTROL Control) {
     // Copy the sectors to the user's buffer
 
     MemoryCopy(
-        Control->Buffer, (LPVOID)(Disk->Base + (Control->SectorLow * SECTOR_SIZE)), Control->NumSectors * SECTOR_SIZE);
+        Control->Buffer, (LPVOID)(Storage->Base + (Control->SectorLow * SECTOR_SIZE)), Control->NumSectors * SECTOR_SIZE);
 
     return DF_RETURN_SUCCESS;
 }
@@ -573,45 +573,45 @@ static U32 Read(LPIOCONTROL Control) {
 /***************************************************************************/
 
 /**
- * @brief Writes sectors from a buffer to the RAM disk.
+ * @brief Writes sectors from a buffer to the RAM storage.
  * @param Control IO control structure describing the write operation.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
 static U32 Write(LPIOCONTROL Control) {
-    LPRAMDISK Disk;
+    LPRAMSTORAGE Storage;
 
     if (Control == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPRAMDISK)Control->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPRAMSTORAGE)Control->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Base == NULL) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Size == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Base == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Size == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check access permissions
 
-    if (Disk->Access & DISK_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
+    if (Storage->Access & STORAGE_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
 
     //-------------------------------------
-    // Check if we are in the limits of the disk
+    // Check if we are in the limits of the storage
 
-    if (((Control->SectorLow * SECTOR_SIZE) + (Control->NumSectors * SECTOR_SIZE)) >= Disk->Size) {
+    if (((Control->SectorLow * SECTOR_SIZE) + (Control->NumSectors * SECTOR_SIZE)) >= Storage->Size) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
     //-------------------------------------
-    // Copy the user's buffer to the disk
+    // Copy the user's buffer to the storage
 
     MemoryCopy(
-        (LPVOID)(Disk->Base + (Control->SectorLow * SECTOR_SIZE)), Control->Buffer, Control->NumSectors * SECTOR_SIZE);
+        (LPVOID)(Storage->Base + (Control->SectorLow * SECTOR_SIZE)), Control->Buffer, Control->NumSectors * SECTOR_SIZE);
 
     return DF_RETURN_SUCCESS;
 }
@@ -619,35 +619,35 @@ static U32 Write(LPIOCONTROL Control) {
 /***************************************************************************/
 
 /**
- * @brief Retrieves information about the RAM disk device.
- * @param Info Disk info structure to populate.
+ * @brief Retrieves information about the RAM storage device.
+ * @param Info Storage info structure to populate.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
-static U32 GetInfo(LPDISKINFO Info) {
-    LPRAMDISK Disk;
+static U32 GetInfo(LPSTORAGEINFO Info) {
+    LPRAMSTORAGE Storage;
 
     if (Info == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPRAMDISK)Info->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPRAMSTORAGE)Info->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Base == NULL) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Size == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Base == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Size == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
 
-    Info->Type = DRIVER_TYPE_RAMDISK;
+    Info->Type = DRIVER_TYPE_RAMSTORAGE;
     Info->Removable = 0;
     Info->BytesPerSector = SECTOR_SIZE;
-    Info->NumSectors = U64_FromUINT(Disk->Size / SECTOR_SIZE);
-    Info->Access = Disk->Access;
+    Info->NumSectors = U64_FromUINT(Storage->Size / SECTOR_SIZE);
+    Info->Access = Storage->Access;
 
     return DF_RETURN_SUCCESS;
 }
@@ -655,31 +655,31 @@ static U32 GetInfo(LPDISKINFO Info) {
 /***************************************************************************/
 
 /**
- * @brief Sets access permissions on the RAM disk.
- * @param Access Access descriptor containing the target disk and flags.
+ * @brief Sets access permissions on the RAM storage.
+ * @param Access Access descriptor containing the target storage and flags.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
-static U32 SetAccess(LPDISKACCESS Access) {
-    LPRAMDISK Disk;
+static U32 SetAccess(LPSTORAGEACCESS Access) {
+    LPRAMSTORAGE Storage;
 
     if (Access == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPRAMDISK)Access->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPRAMSTORAGE)Access->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Base == NULL) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->Size == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Base == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Size == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
 
-    Disk->Access = Access->Access;
+    Storage->Access = Access->Access;
 
     return DF_RETURN_SUCCESS;
 }
@@ -687,43 +687,43 @@ static U32 SetAccess(LPDISKACCESS Access) {
 /***************************************************************************/
 
 /**
- * @brief RAM disk driver command dispatcher.
+ * @brief RAM storage driver command dispatcher.
  * @param Function Driver function code.
  * @param Parameter Optional pointer parameter for the command.
  * @return Command-specific status code.
  */
-UINT RAMDiskCommands(UINT Function, UINT Parameter) {
+UINT RAMStorageCommands(UINT Function, UINT Parameter) {
     switch (Function) {
         case DF_LOAD:
-            if ((RAMDiskDriver.Flags & DRIVER_FLAG_READY) != 0) {
+            if ((RAMStorageDriver.Flags & DRIVER_FLAG_READY) != 0) {
                 return DF_RETURN_SUCCESS;
             }
 
-            if (RAMDiskInitialize() == DF_RETURN_SUCCESS) {
-                RAMDiskDriver.Flags |= DRIVER_FLAG_READY;
+            if (RAMStorageInitialize() == DF_RETURN_SUCCESS) {
+                RAMStorageDriver.Flags |= DRIVER_FLAG_READY;
                 return DF_RETURN_SUCCESS;
             }
 
             return DF_RETURN_UNEXPECTED;
         case DF_UNLOAD:
-            if ((RAMDiskDriver.Flags & DRIVER_FLAG_READY) == 0) {
+            if ((RAMStorageDriver.Flags & DRIVER_FLAG_READY) == 0) {
                 return DF_RETURN_SUCCESS;
             }
 
-            RAMDiskDriver.Flags &= ~DRIVER_FLAG_READY;
+            RAMStorageDriver.Flags &= ~DRIVER_FLAG_READY;
             return DF_RETURN_SUCCESS;
         case DF_GET_VERSION:
             return MAKE_VERSION(VER_MAJOR, VER_MINOR);
-        case DF_DISK_RESET:
+        case DF_STORAGE_RESET:
             return DF_RETURN_NOT_IMPLEMENTED;
-        case DF_DISK_READ:
+        case DF_STORAGE_READ:
             return Read((LPIOCONTROL)Parameter);
-        case DF_DISK_WRITE:
+        case DF_STORAGE_WRITE:
             return Write((LPIOCONTROL)Parameter);
-        case DF_DISK_GETINFO:
-            return GetInfo((LPDISKINFO)Parameter);
-        case DF_DISK_SETACCESS:
-            return SetAccess((LPDISKACCESS)Parameter);
+        case DF_STORAGE_GETINFO:
+            return GetInfo((LPSTORAGEINFO)Parameter);
+        case DF_STORAGE_SETACCESS:
+            return SetAccess((LPSTORAGEACCESS)Parameter);
     }
 
     return DF_RETURN_NOT_IMPLEMENTED;

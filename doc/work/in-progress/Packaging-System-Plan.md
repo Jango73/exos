@@ -57,7 +57,7 @@
 
 ## Step 5 --- On-demand block decompression
 
-**Goal**: stream file bytes from compressed blocks without extracting package content on disk.
+**Goal**: stream file bytes from compressed blocks without extracting package content in storage.
 
 - [x] Map file reads to block table ranges.
 - [x] Decompress required chunks only, with bounds and hash validation.

@@ -44,7 +44,7 @@ typedef struct tag_NTFS_MBR {
     U16 BytesPerSector;
     U8 SectorsPerCluster;
     U8 Unused1[7];
-    U8 MediaDescriptor;  // 0xF8 for Hard Disks
+    U8 MediaDescriptor;  // 0xF8 for hard storage
     U16 Unused2;
     U16 SectorsPerTrack;
     U16 NumHeads;  // Number of heads of media
@@ -223,13 +223,13 @@ BOOL NtfsTimestampToDateTime(U64 NtfsTimestamp, LPDATETIME DateTime);
 /**
  * @brief Mount an NTFS partition after validating its boot sector.
  *
- * @param Disk Physical disk pointer.
+ * @param Storage Physical storage pointer.
  * @param Partition Partition descriptor.
  * @param Base Base LBA offset.
  * @param PartIndex Partition index used for volume naming.
  * @return TRUE on success, FALSE when validation or allocation fails.
  */
-BOOL MountPartition_NTFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex);
+BOOL MountPartition_NTFS(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex);
 
 /***************************************************************************/
 
@@ -319,7 +319,11 @@ BOOL NtfsReadFileDataByPath(LPFILESYSTEM FileSystem, LPCSTR Path, LPVOID Buffer,
  * @return TRUE on success, FALSE on malformed metadata or read failure.
  */
 BOOL NtfsEnumerateFolderByIndex(
-    LPFILESYSTEM FileSystem, U32 FolderIndex, LPNTFS_FOLDER_ENTRY_INFO Entries, U32 MaxEntries, U32* EntryCountOut,
+    LPFILESYSTEM FileSystem,
+    U32 FolderIndex,
+    LPNTFS_FOLDER_ENTRY_INFO Entries,
+    U32 MaxEntries,
+    U32* EntryCountOut,
     U32* TotalEntriesOut);
 
 /***************************************************************************/
@@ -339,7 +343,11 @@ BOOL NtfsEnumerateFolderByIndex(
  * @return TRUE on success, FALSE on malformed metadata or read failure.
  */
 BOOL NtfsEnumerateFolderByIndexWindow(
-    LPFILESYSTEM FileSystem, U32 FolderIndex, U32 StartEntryIndex, LPNTFS_FOLDER_ENTRY_INFO Entries, U32 MaxEntries,
+    LPFILESYSTEM FileSystem,
+    U32 FolderIndex,
+    U32 StartEntryIndex,
+    LPNTFS_FOLDER_ENTRY_INFO Entries,
+    U32 MaxEntries,
     U32* EntryCountOut);
 
 /***************************************************************************/

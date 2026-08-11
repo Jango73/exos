@@ -67,8 +67,8 @@ static BOOL EpkU64ToU32(U64 Value, U32* Out) {
 
 /**
  * @brief Validate an offset/size range inside the package blob.
- * @param Offset64 Range offset (U64 on-disk field).
- * @param Size64 Range size (U64 on-disk field).
+ * @param Offset64 Range offset (U64 stored field).
+ * @param Size64 Range size (U64 stored field).
  * @param BlobSize Total package size.
  * @param OffsetOut Receives converted offset.
  * @param SizeOut Receives converted size.

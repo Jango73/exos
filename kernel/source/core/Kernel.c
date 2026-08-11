@@ -614,7 +614,7 @@ void DeleteUnreferencedObjects(void) {
     ProcessList(GetProcessList(), TEXT("Process"));
     ProcessList(GetTaskList(), TEXT("Task"));
     ProcessList(GetMutexList(), TEXT("Mutex"));
-    ProcessList(GetDiskList(), TEXT("Disk"));
+    ProcessList(GetStorageList(), TEXT("Storage"));
     ProcessList(GetUsbDeviceList(), TEXT("USBDevice"));
     ProcessList(GetUsbInterfaceList(), TEXT("USBInterface"));
     ProcessList(GetUsbEndpointList(), TEXT("USBEndpoint"));
@@ -674,7 +674,7 @@ void ReleaseProcessKernelObjects(struct tag_PROCESS* Process) {
         ReleaseProcessObjectsFromList(Process, GetProcessList());
         ReleaseProcessObjectsFromList(Process, GetTaskList());
         ReleaseProcessObjectsFromList(Process, GetMutexList());
-        ReleaseProcessObjectsFromList(Process, GetDiskList());
+        ReleaseProcessObjectsFromList(Process, GetStorageList());
         ReleaseProcessObjectsFromList(Process, GetUsbDeviceList());
         ReleaseProcessObjectsFromList(Process, GetUsbStorageList());
         ReleaseProcessObjectsFromList(Process, GetPCIDeviceList());

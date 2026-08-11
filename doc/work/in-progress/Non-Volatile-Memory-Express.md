@@ -49,11 +49,11 @@ Success: write a signature and verify by reading it back.
 ## Step 7 — Namespace Management
 Goal: support multiple namespaces.  
 - [x] Enumerate all namespaces (Identify CNS=0x02).  
-- [x] Expose each namespace as a DISK object (OBJECT_FIELDS, KOID_DISK).  
-- [x] Implement DF_DISK_READ/WRITE/GETINFO/SETACCESS for the NVMe driver.  
-- [x] Add each NVMe disk to `GetDiskList()` so filesystem mount can use it.  
-- [x] Ensure the partition scan runs on NVMe disks so EXT2 can mount.  
-Success: shell command `disk` lists all NVMe namespaces with capacities and the filesystem mount sees the EXT2 partition.
+- [x] Expose each namespace as a STORAGE object (OBJECT_FIELDS, KOID_STORAGE).  
+- [x] Implement DF_STORAGE_READ/WRITE/GETINFO/SETACCESS for the NVMe driver.  
+- [x] Add each NVMe storage to `GetStorageList()` so filesystem mount can use it.  
+- [x] Ensure the partition scan runs on NVMe storage so EXT2 can mount.  
+Success: shell command `storage` lists all NVMe namespaces with capacities and the filesystem mount sees the EXT2 partition.
 
 ## Step 8 — Error Handling & Reset
 Goal: robust recovery.  
@@ -87,11 +87,11 @@ Success: kernel log or shell output shows key health metrics.
 - 10: optional enhancements.  
 
 ## Integration into EXOS
-Goal: integrate NVMe cleanly with existing EXOS driver and disk layers.  
+Goal: integrate NVMe cleanly with existing EXOS driver and storage layers.  
 
 ### Reuse and align with existing code
 - Driver model: follow the PCI driver pattern used by `kernel/source/drivers/SATA.c` and `kernel/source/drivers/XHCI-*.c`.
-- Device lists: reuse `GetDiskList()` and disk info structs already used by AHCI (see `kernel/source/drivers/SATA.c`).
+- Device lists: reuse `GetStorageList()` and storage info structs already used by AHCI (see `kernel/source/drivers/SATA.c`).
 - DMA + mapping: reuse `MapIOMemory`, `MapLinearToPhysical`, `KernelHeapAlloc`, `KernelHeapFree`, and cache helpers in `kernel/include/utils/Cache.h`.
 - Interrupts: reuse `DeviceInterruptRegister` and the top-half/bottom-half pattern from AHCI and XHCI.
 - Driver enumeration: expose NVMe through `DriverEnum` in the same style as AHCI/USB if needed.
@@ -108,10 +108,10 @@ Goal: integrate NVMe cleanly with existing EXOS driver and disk layers.
 - Match class 0x01, subclass 0x08, progIF 0x02.
 - Store BAR0 MMIO base and size; map with `MapIOMemory`.
 
-### Disk integration (read/write)
-- Expose each namespace as a `DISK` object with `OBJECT_FIELDS` and `KOID_DISK`.
-- Add each NVMe disk to `GetDiskList()` just like AHCI does in `InitializeAHCIController`.
-- Implement `DF_DISK_READ/WRITE/GETINFO/SETACCESS` on the NVMe driver, matching the AHCI disk interface.
+### Storage integration (read/write)
+- Expose each namespace as a `STORAGE` object with `OBJECT_FIELDS` and `KOID_STORAGE`.
+- Add each NVMe storage to `GetStorageList()` just like AHCI does in `InitializeAHCIController`.
+- Implement `DF_STORAGE_READ/WRITE/GETINFO/SETACCESS` on the NVMe driver, matching the AHCI storage interface.
 - [ ] Reuse the sector cache (`CacheInit`, `CacheFind`, `CacheAdd`, `CacheCleanup`) for read path parity with AHCI.
 
 ### Scheduling and polling
@@ -131,6 +131,6 @@ Goal: integrate NVMe cleanly with existing EXOS driver and disk layers.
 - On bare metal, validate PCI detection first, then admin queue readiness.
 
 ## State Summary
-- Admin queue setup, identify commands, one I/O queue pair, read path, write path, namespace enumeration, disk registration, and partition mounting are implemented.
+- Admin queue setup, identify commands, one I/O queue pair, read path, write path, namespace enumeration, storage registration, and partition mounting are implemented.
 - The main remaining work is robustness: functional interrupt-driven completion, timeout recovery, controller reset on fatal status, centralized status decoding, and broader validation of write persistence.
 - The roadmap above tracks missing behavior, not merely uncommitted code.

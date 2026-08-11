@@ -26,12 +26,12 @@
 
 /************************************************************************/
 
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 
 /************************************************************************/
 // External functions
 
-BOOL PartitionTransferSectors(LPSTORAGE_UNIT Disk, SECTOR PartitionStart, U32 PartitionSize, SECTOR Sector,
+BOOL PartitionTransferSectors(LPSTORAGE_UNIT Storage, SECTOR PartitionStart, U32 PartitionSize, SECTOR Sector,
                               U32 SectorCount, LPVOID Buffer, U32 BufferSize, UINT Command);
 
 /************************************************************************/

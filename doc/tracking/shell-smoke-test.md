@@ -43,7 +43,7 @@ Conventions:
 - [ ] `edit / ed <path>`.
 - [ ] `edit / ed -n`.
 - [ ] `edit / ed --lineNumbers`.
-- [ ] `disk / disk list`.
+- [ ] `storage / storage list`.
 - [ ] `fs / fileSystem list`.
 
 ## Block 3 - User and Session Commands

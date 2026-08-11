@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the EKM1 on-disk text format used to describe USB HID keyboard layouts in EXOS.
+This document defines the EKM1 stored text format used to describe USB HID keyboard layouts in EXOS.
 
 Reference implementation:
 - Loader and parser behavior: `kernel/source/drivers/input/KeyLayout-HID.c`

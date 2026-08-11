@@ -37,7 +37,7 @@ SHELL_COMMAND_ENTRY COMMANDS[] = {
     { "dataView", "data", "", "View kernel data", CMD_dataView },
     { "deleteUser", "delUser", "username", "Remove user account", CMD_deleteUser },
     { "disasm", "dis", "Address InstructionCount", "Disassemble memory range", CMD_disasm },
-    { "disk", "disk", "list", "Show disk information", CMD_disk },
+    { "storage", "storage", "list", "Show storage information", CMD_storage },
     { "driver", "drv", "list|Alias", "Show driver details", CMD_driver },
     { "desktop", "dskt", "show|status|theme <path-or-name>", "Control desktop and theme runtime", CMD_desktop },
     { "dnsresolve", "dns", "HostName", "Resolve a host name through DNS", CMD_dnsresolve },

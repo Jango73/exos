@@ -296,7 +296,7 @@ HandleExistingToolchainInstall()
         return 1
     fi
 
-    echo "i686-elf-toolchain already present on disk: $INSTALL_DIR"
+    echo "i686-elf-toolchain already present in storage: $INSTALL_DIR"
     if [ "$FORCE_TOOLCHAIN_REINSTALL" -eq 1 ]; then
         echo "Forcing toolchain reinstall to pinned release ${TOOLCHAIN_VERSION}..."
         RunOrFail \

@@ -1,8 +1,7 @@
-
 /************************************************************************\
 
     EXOS Kernel
-    Copyright (c) 1999-2026 Jango73
+    Copyright (c) 1999-2025 Jango73
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,25 +17,32 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    Stable disk identification
+    Storage
 
 \************************************************************************/
 
-#ifndef DISKID_H_INCLUDED
-#define DISKID_H_INCLUDED
+#include "fs/Storage.h"
+
+#include "core/Kernel.h"
+#include "log/Log.h"
 
 /***************************************************************************/
 
-#include "Base.h"
-#include "fs/Disk.h"
+void SectorToBlockParams(LPSTORAGEGEOMETRY Geometry, U32 Sector, LPBLOCKPARAMS Block) {
+    U32 Temp1, Temp2;
+
+    Block->Cylinder = 0;
+    Block->Head = 0;
+    Block->Sector = 0;
+
+    if (Geometry->Heads == 0) return;
+    if (Geometry->SectorsPerTrack == 0) return;
+
+    Temp1 = Geometry->Heads * Geometry->SectorsPerTrack;
+    Block->Cylinder = Sector / Temp1;
+    Temp2 = Sector % Temp1;
+    Block->Head = Temp2 / Geometry->SectorsPerTrack;
+    Block->Sector = Temp2 % Geometry->SectorsPerTrack + 1;
+}
 
 /***************************************************************************/
-
-void DiskIdSetIdentity(LPSTORAGE_UNIT Storage, LPCSTR Vendor, LPCSTR Model, LPCSTR Serial);
-LPCSTR DiskIdEnsure(LPSTORAGE_UNIT Storage);
-LPCSTR DiskIdGet(LPSTORAGE_UNIT Storage);
-LPSTORAGE_UNIT DiskIdFindById(LPCSTR Id);
-
-/***************************************************************************/
-
-#endif

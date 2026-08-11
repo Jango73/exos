@@ -25,27 +25,27 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /************************************************************************/
 
-static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Disk, U32 StartSector, U32 Count, LPCVOID Buffer) {
+static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Storage, U32 StartSector, U32 Count, LPCVOID Buffer) {
     IOCONTROL Control;
     U32 Result;
 
-    if (Disk == NULL) return FALSE;
+    if (Storage == NULL) return FALSE;
     if (Buffer == NULL) return FALSE;
     if (Count == 0) return FALSE;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = StartSector;
     Control.SectorHigh = 0;
     Control.NumSectors = Count;
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = Count * SECTOR_SIZE;
 
-    Result = DiskTransferLayerWrite(&Control);
+    Result = StorageTransferLayerWrite(&Control);
 
     return Result == DF_RETURN_SUCCESS;
 }
@@ -53,8 +53,8 @@ static BOOL WriteSectorsRaw(LPSTORAGE_UNIT Disk, U32 StartSector, U32 Count, LPC
 /************************************************************************/
 
 static BOOL WriteBlockRaw(
-    LPSTORAGE_UNIT Disk, U32 PartitionStartSector, U32 SectorsPerBlock, U32 Block, LPCVOID Buffer) {
-    return WriteSectorsRaw(Disk, PartitionStartSector + (Block * SectorsPerBlock), SectorsPerBlock, Buffer);
+    LPSTORAGE_UNIT Storage, U32 PartitionStartSector, U32 SectorsPerBlock, U32 Block, LPCVOID Buffer) {
+    return WriteSectorsRaw(Storage, PartitionStartSector + (Block * SectorsPerBlock), SectorsPerBlock, Buffer);
 }
 
 /************************************************************************/
@@ -136,7 +136,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
 
     if (Create == NULL) return DF_RETURN_BAD_PARAMETER;
     if (Create->Size != sizeof(PARTITION_CREATION)) return DF_RETURN_BAD_PARAMETER;
-    if (Create->Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Create->Storage == NULL) return DF_RETURN_BAD_PARAMETER;
     if (Create->PartitionNumSectors == 0) return DF_RETURN_BAD_PARAMETER;
 
     BlockSize = EXT2_DEFAULT_BLOCK_SIZE;
@@ -198,7 +198,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
 
     MemorySet(BlockBuffer, 0, BlockSize);
     MemoryCopy(BlockBuffer, &Super, sizeof(EXT2_SUPER));
-    if (WriteSectorsRaw(Create->Disk, Create->PartitionStartSector + 2, 2, BlockBuffer) == FALSE) {
+    if (WriteSectorsRaw(Create->Storage, Create->PartitionStartSector + 2, 2, BlockBuffer) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
@@ -212,7 +212,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
 
     MemorySet(BlockBuffer, 0, BlockSize);
     MemoryCopy(BlockBuffer, &Group, sizeof(EXT2_BLOCK_GROUP));
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, GroupDescBlock, BlockBuffer) ==
+    if (WriteBlockRaw(Create->Storage, Create->PartitionStartSector, SectorsPerBlock, GroupDescBlock, BlockBuffer) ==
         FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
@@ -221,7 +221,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     for (Index = 0; Index < UsedBlocks; Index++) {
         SetBitmapBit(BitmapBuffer, Index);
     }
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, BlockBitmapBlock, BitmapBuffer) ==
+    if (WriteBlockRaw(Create->Storage, Create->PartitionStartSector, SectorsPerBlock, BlockBitmapBlock, BitmapBuffer) ==
         FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
@@ -230,7 +230,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     for (Index = 0; Index < ReservedInodes; Index++) {
         SetBitmapBit(BitmapBuffer, Index);
     }
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, InodeBitmapBlock, BitmapBuffer) ==
+    if (WriteBlockRaw(Create->Storage, Create->PartitionStartSector, SectorsPerBlock, InodeBitmapBlock, BitmapBuffer) ==
         FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
@@ -249,7 +249,7 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
 
     MemoryCopy(BlockBuffer + RootOffsetInBlock, &RootInode, sizeof(EXT2_INODE));
     if (WriteBlockRaw(
-            Create->Disk,
+            Create->Storage,
             Create->PartitionStartSector,
             SectorsPerBlock,
             InodeTableBlock + RootBlockOffset,
@@ -260,14 +260,14 @@ U32 Ext2CreatePartition(LPPARTITION_CREATION Create) {
     MemorySet(BlockBuffer, 0, BlockSize);
     for (Index = 1; Index < InodeTableBlocks; Index++) {
         if (WriteBlockRaw(
-                Create->Disk, Create->PartitionStartSector, SectorsPerBlock, InodeTableBlock + Index, BlockBuffer) ==
+                Create->Storage, Create->PartitionStartSector, SectorsPerBlock, InodeTableBlock + Index, BlockBuffer) ==
             FALSE) {
             return DF_RETURN_FS_CANT_WRITE_SECTOR;
         }
     }
 
     BuildRootDirectoryBlock(BlockBuffer, BlockSize);
-    if (WriteBlockRaw(Create->Disk, Create->PartitionStartSector, SectorsPerBlock, RootDataBlock, BlockBuffer) ==
+    if (WriteBlockRaw(Create->Storage, Create->PartitionStartSector, SectorsPerBlock, RootDataBlock, BlockBuffer) ==
         FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document freezes the on-disk `.epk` layout for parser and tooling work.
+This document freezes the stored `.epk` layout for parser and tooling work.
 All numeric fields are little-endian.
 
 Reference header: `kernel/include/package/EpkFormat.h`

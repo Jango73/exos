@@ -28,7 +28,7 @@
 
 #include "drivers/storage/USBStorage.h"
 #include "drivers/usb/XHCI-Internal.h"
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 #include "sync/Deferred-Work.h"
 #include "utils/RateLimiter.h"
 
@@ -96,7 +96,7 @@ typedef struct tag_USB_MASS_STORAGE_COMMAND_STATUS_WRAPPER {
 /************************************************************************/
 
 typedef struct tag_USB_MASS_STORAGE_DEVICE {
-    STORAGE_UNIT Disk;
+    STORAGE_UNIT Storage;
     U32 Access;
     LPXHCI_DEVICE Controller;
     LPXHCI_USB_DEVICE UsbDevice;

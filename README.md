@@ -17,7 +17,7 @@
 
 Multi-threaded operating system for IA32 (i386-i686) and x86-64 (core 3-9, etc...).<br>
 Runs on QEMU, Bochs, and real hardware.<br>
-**NOT READY** for production (disk I/O incomplete).
+**NOT READY** for production (storage I/O incomplete).
 
 ## Disclaimer
 
@@ -50,13 +50,13 @@ Quick note on license "contamination" (copyleft propagation):
 ./scripts/linux/setup/update-submodules.sh   <- initialize/sync submodules
 ./scripts/linux/setup/update-submodules.sh --remote   <- update submodules from remotes
 
-#### Build (Disk image with ext2)
+#### Build (Image with ext2)
 
 ./scripts/linux/build/build --arch <x86-32|x86-64> --fs ext2 --release (or --debug)
 
 ( add --clean for a clean build )
 
-#### Build (Disk image with FAT32)
+#### Build (Image with FAT32)
 
 ./scripts/linux/build/build --arch <x86-32|x86-64> --fs fat32 --release (or --debug)
 
@@ -172,11 +172,11 @@ Bm437_IBM_VGA_8x16.otb from the Ultimate Oldschool PC Font Pack by VileR, licens
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C                              396          37502          38933         128376
-C/C++ Header                   284           6815           7331          17142
+C                              396          37502          38933         128402
+C/C++ Header                   284           6815           7331          17150
 Assembly                        20           1982           1244           6756
 -------------------------------------------------------------------------------
-SUM:                           700          46299          47508         152274
+SUM:                           700          46299          47508         152308
 -------------------------------------------------------------------------------
 ```
 

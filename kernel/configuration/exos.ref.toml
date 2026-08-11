@@ -43,9 +43,9 @@ MinimumSystemStackSize=16384
 # Specify maximum number of pending messages in task and process message queues
 MessageQueueMaxMessages=100
 
-[RAMDisk]
-# Maximum number of sectors transferred in a single RAM disk operation.
-# The generic disk transfer layer chunks larger requests into this limit.
+[RAMStorage]
+# Maximum number of sectors transferred in a single RAM storage operation.
+# The generic storage transfer layer chunks larger requests into this limit.
 # MaxSectorsPerTransfer=1024
 
 [KernelPath]

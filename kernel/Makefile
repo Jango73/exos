@@ -190,7 +190,7 @@ $(BSS_BIN): $(KERNEL_ELF)
 
 # Build final padded image
 $(FINAL_IMG): $(TEXT_BIN) $(SHARED_TEXT_BIN) $(DATA_BIN) $(KERNEL_ELF)
-	@echo "Building paged disk image: $@ (ALIGN=$(ALIGN))"
+	@echo "Building paged image: $@ (ALIGN=$(ALIGN))"
 
 	# Clear binary file
 	rm -f -- $@

@@ -18,11 +18,11 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    Stable disk identification
+    Stable storage identification
 
 \************************************************************************/
 
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 
 #include "core/KernelData.h"
 #include "log/Log.h"
@@ -30,7 +30,7 @@
 
 /***************************************************************************/
 
-static BOOL DiskIdIsAllowedChar(STR Character) {
+static BOOL StorageIdIsAllowedChar(STR Character) {
     if (Character >= 'A' && Character <= 'Z') return TRUE;
     if (Character >= 'a' && Character <= 'z') return TRUE;
     if (Character >= '0' && Character <= '9') return TRUE;
@@ -40,7 +40,7 @@ static BOOL DiskIdIsAllowedChar(STR Character) {
 
 /***************************************************************************/
 
-static void DiskIdSanitize(LPSTR Output, UINT OutputSize, LPCSTR Input) {
+static void StorageIdSanitize(LPSTR Output, UINT OutputSize, LPCSTR Input) {
     UINT Index;
     UINT OutputIndex = 0;
     UINT Length;
@@ -55,7 +55,7 @@ static void DiskIdSanitize(LPSTR Output, UINT OutputSize, LPCSTR Input) {
     if (Length > (OutputSize - 1)) Length = (OutputSize - 1);
 
     for (Index = 0; Index < Length; Index++) {
-        Output[OutputIndex] = DiskIdIsAllowedChar(Input[Index]) ? Input[Index] : '_';
+        Output[OutputIndex] = StorageIdIsAllowedChar(Input[Index]) ? Input[Index] : '_';
         OutputIndex++;
     }
     Output[OutputIndex] = STR_NULL;
@@ -80,17 +80,17 @@ static void DiskIdSanitize(LPSTR Output, UINT OutputSize, LPCSTR Input) {
  * @param Model Hardware model string.
  * @param Serial Hardware serial string.
  */
-void DiskIdSetIdentity(LPSTORAGE_UNIT Storage, LPCSTR Vendor, LPCSTR Model, LPCSTR Serial) {
+void StorageIdSetIdentity(LPSTORAGE_UNIT Storage, LPCSTR Vendor, LPCSTR Model, LPCSTR Serial) {
     if (Storage == NULL) return;
 
-    DiskIdSanitize(Storage->Vendor, sizeof(Storage->Vendor), Vendor);
-    DiskIdSanitize(Storage->Model, sizeof(Storage->Model), Model);
-    DiskIdSanitize(Storage->Serial, sizeof(Storage->Serial), Serial);
+    StorageIdSanitize(Storage->Vendor, sizeof(Storage->Vendor), Vendor);
+    StorageIdSanitize(Storage->Model, sizeof(Storage->Model), Model);
+    StorageIdSanitize(Storage->Serial, sizeof(Storage->Serial), Serial);
 }
 
 /***************************************************************************/
 
-static BOOL DiskIdAppendPart(LPSTR Output, UINT OutputSize, LPCSTR Part) {
+static BOOL StorageIdAppendPart(LPSTR Output, UINT OutputSize, LPCSTR Part) {
     UINT Length;
     UINT PartLength;
 
@@ -114,17 +114,17 @@ static BOOL DiskIdAppendPart(LPSTR Output, UINT OutputSize, LPCSTR Part) {
 
 /***************************************************************************/
 
-static void DiskIdBuildSynthetic(LPSTORAGE_UNIT Storage) {
-    LPLIST DiskList;
+static void StorageIdBuildSynthetic(LPSTORAGE_UNIT Storage) {
+    LPLIST StorageList;
     UINT Index;
     UINT Count = 0;
 
     if (Storage == NULL || Storage->Driver == NULL) return;
 
-    DiskList = GetDiskList();
-    if (DiskList != NULL) {
-        for (Index = 0; Index < ListGetSize(DiskList); Index++) {
-            LPSTORAGE_UNIT Other = (LPSTORAGE_UNIT)ListGetItem(DiskList, Index);
+    StorageList = GetStorageList();
+    if (StorageList != NULL) {
+        for (Index = 0; Index < ListGetSize(StorageList); Index++) {
+            LPSTORAGE_UNIT Other = (LPSTORAGE_UNIT)ListGetItem(StorageList, Index);
             if (Other != NULL && Other->Driver != NULL && Other->Driver->Type == Storage->Driver->Type) {
                 Count++;
             }
@@ -141,28 +141,28 @@ static void DiskIdBuildSynthetic(LPSTORAGE_UNIT Storage) {
  *
  * The ID is composed as vendor_model_serial following the Linux
  * /dev/disk/by-id model. Empty parts are skipped. Storage units without any
- * hardware identity (for example the RAM disk) receive a deterministic
- * synthetic ID derived from the driver alias and the count of disks already
- * registered for the same driver type.
+ * hardware identity (for example the RAM storage) receive a deterministic
+ * synthetic ID derived from the driver alias and the count of storage units
+ * already registered for the same driver type.
  *
  * @param Storage Target storage unit.
  * @return Pointer to the stable ID string.
  */
-LPCSTR DiskIdEnsure(LPSTORAGE_UNIT Storage) {
+LPCSTR StorageIdEnsure(LPSTORAGE_UNIT Storage) {
     if (Storage == NULL) return NULL;
 
     if (Storage->StorageId[0] != STR_NULL) return Storage->StorageId;
 
-    DiskIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Vendor);
-    DiskIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Model);
-    DiskIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Serial);
+    StorageIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Vendor);
+    StorageIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Model);
+    StorageIdAppendPart(Storage->StorageId, sizeof(Storage->StorageId), Storage->Serial);
 
     if (Storage->StorageId[0] == STR_NULL) {
-        DiskIdBuildSynthetic(Storage);
+        StorageIdBuildSynthetic(Storage);
     }
 
     if (Storage->StorageId[0] == STR_NULL) {
-        ERROR(TEXT("[DiskIdEnsure] Unable to build an ID for storage unit"));
+        ERROR(TEXT("[StorageIdEnsure] Unable to build an ID for storage unit"));
     }
 
     return Storage->StorageId;
@@ -175,8 +175,8 @@ LPCSTR DiskIdEnsure(LPSTORAGE_UNIT Storage) {
  * @param Storage Target storage unit.
  * @return Pointer to the stable ID string.
  */
-LPCSTR DiskIdGet(LPSTORAGE_UNIT Storage) {
-    return DiskIdEnsure(Storage);
+LPCSTR StorageIdGet(LPSTORAGE_UNIT Storage) {
+    return StorageIdEnsure(Storage);
 }
 
 /***************************************************************************/
@@ -186,19 +186,19 @@ LPCSTR DiskIdGet(LPSTORAGE_UNIT Storage) {
  * @param Id Stable ID to look up.
  * @return Matching storage unit or NULL when not found.
  */
-LPSTORAGE_UNIT DiskIdFindById(LPCSTR Id) {
-    LPLIST DiskList;
+LPSTORAGE_UNIT StorageIdFindById(LPCSTR Id) {
+    LPLIST StorageList;
     UINT Index;
 
     if (Id == NULL || Id[0] == STR_NULL) return NULL;
 
-    DiskList = GetDiskList();
-    if (DiskList == NULL) return NULL;
+    StorageList = GetStorageList();
+    if (StorageList == NULL) return NULL;
 
-    for (Index = 0; Index < ListGetSize(DiskList); Index++) {
-        LPSTORAGE_UNIT Storage = (LPSTORAGE_UNIT)ListGetItem(DiskList, Index);
+    for (Index = 0; Index < ListGetSize(StorageList); Index++) {
+        LPSTORAGE_UNIT Storage = (LPSTORAGE_UNIT)ListGetItem(StorageList, Index);
         if (Storage == NULL) continue;
-        if (StringCompare(DiskIdGet(Storage), Id) == 0) {
+        if (StringCompare(StorageIdGet(Storage), Id) == 0) {
             return Storage;
         }
     }

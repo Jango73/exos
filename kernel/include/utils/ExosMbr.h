@@ -25,7 +25,7 @@
 
 /***************************************************************************/
 
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 
 /***************************************************************************/
 
@@ -37,7 +37,7 @@
 typedef struct tag_EXFSMBR {
     U8 Jump[4];          // Jump to code and 2 NOPs
     U8 OEMName[8];       // "EXOS    "
-    U8 MediaDescriptor;  // 0xF8 for Hard Disks
+    U8 MediaDescriptor;  // 0xF8 for hard storage
     U8 LogicalDriveNumber;
     U16 Cylinders;
     U16 Heads;
@@ -55,7 +55,7 @@ typedef struct tag_EXFSMBR {
 /***************************************************************************/
 
 void ExosMbrFill(LPEXFSMBR Master, U16 SectorsPerCluster);
-BOOL ExosMbrWrite(LPSTORAGE_UNIT Disk, U32 StartSector, U16 SectorsPerCluster);
+BOOL ExosMbrWrite(LPSTORAGE_UNIT Storage, U32 StartSector, U16 SectorsPerCluster);
 
 /***************************************************************************/
 

@@ -28,7 +28,7 @@
 
 #include "drivers/storage/NVMe-Core.h"
 #include "system/Clock.h"
-#include "fs/Disk.h"
+#include "fs/Storage.h"
 #include "core/Driver.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
@@ -55,14 +55,14 @@
 /************************************************************************/
 // Type definitions
 
-typedef struct tag_NVME_DISK {
+typedef struct tag_NVME_STORAGE {
     STORAGE_UNIT Header;
     LPNVME_DEVICE Controller;
     U32 NamespaceId;
     U64 NumSectors;
     U32 BytesPerSector;
     U32 Access;
-} NVME_DISK, *LPNVME_DISK;
+} NVME_STORAGE, *LPNVME_STORAGE;
 
 /************************************************************************/
 // External functions
@@ -89,7 +89,7 @@ void NVMeFreeIoQueues(LPNVME_DEVICE Device);
 
 volatile U32* NVMeGetDoorbellBase(LPNVME_DEVICE Device);
 
-void NVMeInitDiskDriver(LPNVME_DEVICE Device);
+void NVMeInitStorageDriver(LPNVME_DEVICE Device);
 BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device);
 
 /************************************************************************/

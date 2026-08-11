@@ -61,7 +61,7 @@
 #define CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES "Task.MessageQueueMaxMessages"
 #define CONFIG_KEYBOARD_REPEAT_DELAY_MS "Keyboard.RepeatDelayMS"
 #define CONFIG_KEYBOARD_REPEAT_INTERVAL_MS "Keyboard.RepeatIntervalMS"
-#define CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER "RAMDisk.MaxSectorsPerTransfer"
+#define CONFIG_RAMSTORAGE_MAX_SECTORS_PER_TRANSFER "RAMStorage.MaxSectorsPerTransfer"
 
 // Per-device network interface configuration (format strings for dynamic paths)
 #define CONFIG_NETWORK_INTERFACE_DEVICE_NAME_FMT "NetworkInterface.%u.DeviceName"
@@ -70,7 +70,7 @@
 /***************************************************************************/
 // Configuration fallbacks
 
-#define CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER_DEFAULT 1024
+#define CONFIG_RAMSTORAGE_MAX_SECTORS_PER_TRANSFER_DEFAULT 1024
 
 #define DEFERRED_WORK_MAX_ITEMS 16        // Maximum number of deferred work items fallback
 #define DEFERRED_WORK_WAIT_TIMEOUT_MS 50  // Deferred work wait timeout fallback (ms)

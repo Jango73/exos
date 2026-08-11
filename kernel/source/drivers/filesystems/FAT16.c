@@ -25,7 +25,7 @@
 #include "core/Kernel.h"
 #include "drivers/filesystems/FAT.h"
 #include "fs/File-System.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /***************************************************************************/
 
@@ -53,7 +53,7 @@ DRIVER DATA_SECTION FAT16Driver = { .TypeID = KOID_DRIVER,
 
 typedef struct tag_FAT16FILESYSTEM {
     FILESYSTEM Header;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     FAT16_MBR Master;
     SECTOR PartitionStart;
     U32 PartitionSize;
@@ -81,10 +81,10 @@ typedef struct tag_FATFILE {
 /**
  * @brief Allocate and initialize a FAT16 filesystem object.
  *
- * @param Disk Physical disk to bind.
+ * @param Storage Physical storage to bind.
  * @return Allocated filesystem or NULL on failure.
  */
-static LPFAT16FILESYSTEM NewFAT16FileSystem(LPSTORAGE_UNIT Disk) {
+static LPFAT16FILESYSTEM NewFAT16FileSystem(LPSTORAGE_UNIT Storage) {
     LPFAT16FILESYSTEM This;
 
     This = (LPFAT16FILESYSTEM)KernelHeapAlloc(sizeof(FAT16_FILE_SYSTEM));
@@ -97,8 +97,8 @@ static LPFAT16FILESYSTEM NewFAT16FileSystem(LPSTORAGE_UNIT Disk) {
     This->Header.Next = NULL;
     This->Header.Prev = NULL;
     This->Header.Driver = &FAT16Driver;
-    This->Header.StorageUnit = Disk;
-    This->Disk = Disk;
+    This->Header.StorageUnit = Storage;
+    This->Storage = Storage;
     This->FATStart = 0;
     This->FATStart2 = 0;
     This->DataStart = 0;
@@ -150,13 +150,13 @@ static LPFATFILE NewFATFile(LPFAT16FILESYSTEM FileSystem, LPFATFILELOC FileLoc) 
 
 /***************************************************************************/
 
-BOOL MountPartition_FAT16(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
+BOOL MountPartition_FAT16(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
     U8 Buffer[SECTOR_SIZE];
     LPFAT16MBR Master;
     LPFAT16FILESYSTEM FileSystem;
     BOOL Success;
 
-    Success = FATReadBootSector(Disk, Partition, Base, (LPVOID)Buffer);
+    Success = FATReadBootSector(Storage, Partition, Base, (LPVOID)Buffer);
     if (Success == FALSE) return FALSE;
 
     //-------------------------------------
@@ -176,10 +176,10 @@ BOOL MountPartition_FAT16(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 B
     //-------------------------------------
     // Create the file system object
 
-    FileSystem = NewFAT16FileSystem(Disk);
+    FileSystem = NewFAT16FileSystem(Storage);
     if (FileSystem == NULL) return FALSE;
 
-    GetDefaultFileSystemName(FileSystem->Header.Name, Disk, PartIndex);
+    GetDefaultFileSystemName(FileSystem->Header.Name, Storage, PartIndex);
 
     //-------------------------------------
     // Copy the Master Sector
@@ -220,7 +220,7 @@ BOOL MountPartition_FAT16(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 B
 /***************************************************************************/
 
 /**
- * @brief Read a cluster from disk into buffer.
+ * @brief Read a cluster from storage into buffer.
  *
  * @param FileSystem FAT16 filesystem context.
  * @param Cluster Cluster number to read.
@@ -253,14 +253,14 @@ static BOOL ReadCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Bu
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = NumSectors;
     Control.Buffer = Buffer;
     Control.BufferSize = NumSectors * SECTOR_SIZE;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -272,7 +272,7 @@ static BOOL ReadCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Bu
 /***************************************************************************/
 
 /**
- * @brief Write a cluster to disk from buffer.
+ * @brief Write a cluster to storage from buffer.
  *
  * @param FileSystem FAT16 filesystem context.
  * @param Cluster Cluster number to write.
@@ -305,14 +305,14 @@ static BOOL WriteCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster, LPVOID B
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = NumSectors;
     Control.Buffer = Buffer;
     Control.BufferSize = NumSectors * SECTOR_SIZE;
 
-    Result = DiskTransferLayerWrite(&Control);
+    Result = StorageTransferLayerWrite(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -346,14 +346,14 @@ static CLUSTER GetNextClusterInChain(LPFAT16FILESYSTEM FileSystem, CLUSTER Clust
     Offset = Cluster % NumEntriesPerSector;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = FileSystem->FATStart + Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = 1;
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     if (Result == DF_RETURN_SUCCESS) {
         NextCluster = Buffer[Offset];
@@ -817,7 +817,7 @@ static CLUSTER ChainNewCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster) {
     CurrentSector = 0;
     NewCluster = 0;
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
@@ -826,7 +826,7 @@ static CLUSTER ChainNewCluster(LPFAT16FILESYSTEM FileSystem, CLUSTER Cluster) {
         Control.SectorHigh = 0;
         Control.NumSectors = 1;
 
-        Result = DiskTransferLayerRead(&Control);
+        Result = StorageTransferLayerRead(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;
@@ -856,7 +856,7 @@ Next:
         Control.SectorHigh = 0;
         Control.NumSectors = 1;
 
-        Result = DiskTransferLayerRead(&Control);
+        Result = StorageTransferLayerRead(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;
@@ -864,7 +864,7 @@ Next:
 
         Buffer[CurrentOffset] = NewCluster;
 
-        Result = DiskTransferLayerWrite(&Control);
+        Result = StorageTransferLayerWrite(&Control);
 
         if (Result != DF_RETURN_SUCCESS) {
             return NewCluster;

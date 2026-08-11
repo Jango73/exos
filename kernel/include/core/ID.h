@@ -41,7 +41,7 @@
 #define KOID_USBINTERFACE 0x49425355               // "USBI"
 #define KOID_USBENDPOINT 0x45425355                // "USBE"
 #define KOID_USBSTORAGE 0x534D5355                 // "USMS"
-#define KOID_DISK 0x4B534944                       // "DISK"
+#define KOID_STORAGE 0x4B534944                       // "STORAGE"
 #define KOID_IOCONTROL 0x54434F49                  // "IOCT"
 #define KOID_FILESYSTEM 0x53595346                 // "FSYS"
 #define KOID_FILE 0x454C4946                       // "FILE"
@@ -129,7 +129,7 @@
 #define FSID_XENIX_BBT 0xFF       // Xenix Bad Block Table
 
 /************************************************************************/
-// GPT partition type GUIDs (little-endian on disk)
+// GPT partition type GUIDs (little-endian in storage)
 
 #define GPT_GUID_LENGTH 16
 #define GPT_GUID_LINUX_EXTX \

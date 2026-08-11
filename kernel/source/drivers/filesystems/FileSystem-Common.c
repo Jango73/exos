@@ -22,25 +22,25 @@
 \************************************************************************/
 
 #include "drivers/filesystems/FileSystem-Common.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /************************************************************************/
 
 /**
  * @brief Execute one bounded sector transfer inside a partition.
  *
- * @param Disk Target disk.
+ * @param Storage Target storage.
  * @param PartitionStart First partition sector.
  * @param PartitionSize Partition size in sectors.
  * @param Sector Starting sector to transfer.
  * @param SectorCount Number of sectors to transfer.
  * @param Buffer Transfer buffer.
  * @param BufferSize Transfer buffer size in bytes.
- * @param Command Disk command to execute.
+ * @param Command Storage command to execute.
  * @return TRUE on success, FALSE on failure.
  */
 BOOL PartitionTransferSectors(
-    LPSTORAGE_UNIT Disk,
+    LPSTORAGE_UNIT Storage,
     SECTOR PartitionStart,
     U32 PartitionSize,
     SECTOR Sector,
@@ -50,7 +50,7 @@ BOOL PartitionTransferSectors(
     UINT Command) {
     IOCONTROL Control;
 
-    if (Disk == NULL || Buffer == NULL || SectorCount == 0 || BufferSize == 0) {
+    if (Storage == NULL || Buffer == NULL || SectorCount == 0 || BufferSize == 0) {
         return FALSE;
     }
 
@@ -59,19 +59,19 @@ BOOL PartitionTransferSectors(
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = SectorCount;
     Control.Buffer = Buffer;
     Control.BufferSize = BufferSize;
 
-    if (Command == DF_DISK_READ) {
-        return (DiskTransferLayerRead(&Control) == DF_RETURN_SUCCESS);
+    if (Command == DF_STORAGE_READ) {
+        return (StorageTransferLayerRead(&Control) == DF_RETURN_SUCCESS);
     }
 
-    if (Command == DF_DISK_WRITE) {
-        return (DiskTransferLayerWrite(&Control) == DF_RETURN_SUCCESS);
+    if (Command == DF_STORAGE_WRITE) {
+        return (StorageTransferLayerWrite(&Control) == DF_RETURN_SUCCESS);
     }
 
     return FALSE;

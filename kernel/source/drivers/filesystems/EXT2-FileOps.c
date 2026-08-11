@@ -23,11 +23,11 @@
 
 #include "drivers/filesystems/EXT2-Private.h"
 
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 
 /************************************************************************/
 
-static LPEXT2FILESYSTEM NewEXT2FileSystem(LPSTORAGE_UNIT Disk) {
+static LPEXT2FILESYSTEM NewEXT2FileSystem(LPSTORAGE_UNIT Storage) {
     LPEXT2FILESYSTEM FileSystem;
 
     FileSystem = (LPEXT2FILESYSTEM)KernelHeapAlloc(sizeof(EXT2_FILE_SYSTEM));
@@ -40,8 +40,8 @@ static LPEXT2FILESYSTEM NewEXT2FileSystem(LPSTORAGE_UNIT Disk) {
     FileSystem->Header.Next = NULL;
     FileSystem->Header.Prev = NULL;
     FileSystem->Header.Driver = &EXT2Driver;
-    FileSystem->Header.StorageUnit = Disk;
-    FileSystem->Disk = Disk;
+    FileSystem->Header.StorageUnit = Storage;
+    FileSystem->Storage = Storage;
     FileSystem->Groups = NULL;
     FileSystem->GroupCount = 0;
     FileSystem->PartitionStart = 0;
@@ -506,13 +506,13 @@ static U32 WriteFile(LPEXT2FILE File) {
 
 /**
  * @brief Mounts an EXT2 partition and registers it with the kernel.
- * @param Disk Physical disk hosting the partition.
+ * @param Storage Physical storage hosting the partition.
  * @param Partition Partition descriptor provided by the kernel.
- * @param Base Base LBA of the containing disk extent.
- * @param PartIndex Index of the partition on the disk.
+ * @param Base Base LBA of the containing storage extent.
+ * @param PartIndex Index of the partition on the storage.
  * @return TRUE on success, FALSE if the partition could not be mounted.
  */
-BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
+BOOL MountPartition_EXT2(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
     U8 Buffer[SECTOR_SIZE * 2];
     IOCONTROL Control;
     LPEXT2SUPER Super;
@@ -520,19 +520,19 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     U32 Result;
     SECTOR PartitionStart;
 
-    if (Disk == NULL || Partition == NULL) return FALSE;
+    if (Storage == NULL || Partition == NULL) return FALSE;
 
     PartitionStart = Base + Partition->LBA;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = PartitionStart + 2;
     Control.SectorHigh = 0;
     Control.NumSectors = 2;
     Control.Buffer = (LPVOID)Buffer;
     Control.BufferSize = sizeof(Buffer);
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -542,7 +542,7 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
         return FALSE;
     }
 
-    FileSystem = NewEXT2FileSystem(Disk);
+    FileSystem = NewEXT2FileSystem(Storage);
     if (FileSystem == NULL) return FALSE;
 
     MemoryCopy(&(FileSystem->Super), Super, sizeof(EXT2_SUPER));
@@ -591,7 +591,7 @@ BOOL MountPartition_EXT2(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
         return FALSE;
     }
 
-    GetDefaultFileSystemName(FileSystem->Header.Name, Disk, PartIndex);
+    GetDefaultFileSystemName(FileSystem->Header.Name, Storage, PartIndex);
 
     ListAddItem(GetFileSystemList(), FileSystem);
 

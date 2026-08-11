@@ -18,14 +18,14 @@
 - [ ] Implement full UTF and Unicode.md
 - [ ] Handle languages
 
-### Disks
+### Storage
 
-- [x] Reference disks by stable ID in the kernel, not by position index. Introduce a stable disk ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference disks by ID (default method) and by index as a fallback.
-  - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Disks without hardware serial (RAMDisk) get a deterministic synthetic ID derived from the driver alias and the count of already-registered disks of the same driver type, so it stays stable across reboots.
-  - DONE: kernel-side `DiskID` module (`kernel/source/utils/DiskID.c`) + identity capture in ATA, SATA (real AHCI IDENTIFY DEVICE), NVMe, USB and RAMDisk drivers; `id`/`vendor`/`model`/`serial` exposed to scripts via `storage[i].id` etc. Validated on x86-32 and x86-64 UEFI.
-- [x] Expose a script-side lookup of storage units by stable disk ID. The kernel has `DiskIdFindById`, but no script-facing equivalent yet: add a lookup path (for example `storage.findById("...")` or `storage.byId[...]`) so scripts reference disks by ID as the default method, with index access as a fallback.
-  - DONE: added a generic string-key host element callback (`SCRIPT_HOST_GET_STRING_ELEMENT`) to the E0 host descriptors and wired it into array-access evaluation; `storage.byId["<id>"]` now resolves through `DiskIdFindById`, exposed by `kernel/source/expose/Expose-Storage.c`. Index access `storage[i]` is unchanged. Exercised by `system/scripts/test-exposed-objects.e0` (score 43) and documented in `doc/guides/E0-Scripting.md` / `doc/guides/Kernel.md`. Validated on x86-32 and x86-64 UEFI.
-- [ ] Make the `disk` command treat a missing argument as `disk list`.
+- [x] Reference storage units by stable ID in the kernel, not by position index. Introduce a stable storage ID (unique per storage unit, independent of enumeration order and driver type) and use it as the primary reference in the kernel (storage objects, filesystem linkage). Scripts must be able to reference storage units by ID (default method) and by index as a fallback.
+  - The stable ID is derived from the hardware identity read at enumeration time, following the Linux `/dev/disk/by-id` model: ATA/SATA serial + model from IDENTIFY DEVICE (words 10-19, 27-46), NVMe serial + model from Identify Controller (serial bytes 4-19), USB vendor + product + serial from device descriptors; formatted as `vendor_model_serial`. Storage units without hardware serial (RAMStorage) get a deterministic synthetic ID derived from the driver alias and the count of already-registered storage units of the same driver type, so it stays stable across reboots.
+  - DONE: kernel-side `StorageID` module (`kernel/source/utils/Storage-ID.c`) + identity capture in ATA, SATA (real AHCI IDENTIFY DEVICE), NVMe, USB and RAMStorage drivers; `id`/`vendor`/`model`/`serial` exposed to scripts via `storage[i].id` etc. Validated on x86-32 and x86-64 UEFI.
+- [x] Expose a script-side lookup of storage units by stable storage ID. The kernel has `StorageIdFindById`, but no script-facing equivalent yet: add a lookup path (for example `storage.findById("...")` or `storage.byId[...]`) so scripts reference storage units by ID as the default method, with index access as a fallback.
+  - DONE: added a generic string-key host element callback (`SCRIPT_HOST_GET_STRING_ELEMENT`) to the E0 host descriptors and wired it into array-access evaluation; `storage.byId["<id>"]` now resolves through `StorageIdFindById`, exposed by `kernel/source/expose/Expose-Storage.c`. Index access `storage[i]` is unchanged. Exercised by `system/scripts/test-exposed-objects.e0` (score 43) and documented in `doc/guides/E0-Scripting.md` / `doc/guides/Kernel.md`. Validated on x86-32 and x86-64 UEFI.
+- [ ] Make the `storage` command treat a missing argument as `storage list`.
 
 ### Network
 - [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
@@ -106,7 +106,7 @@
 
 ### Filesystem cache
 
-- [ ] Add a cluster-chain navigation cache to FAT16 and FAT32 (FAT sectors are already cached by the generic DiskTransferLayer sector cache)
+- [ ] Add a cluster-chain navigation cache to FAT16 and FAT32 (FAT sectors are already cached by the generic StorageTransferLayer sector cache)
 
 ### Security 
 

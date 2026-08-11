@@ -197,23 +197,23 @@ kill(task[0].handle);
 
 ```text
 user.name;
-disk.size;
+storage.size;
 ```
 
 Storage units exposed through `storage[i]` carry a stable hardware-derived ID plus the identity parts they were built from:
-- `storage[i].id`: stable disk ID, composed as `vendor_model_serial` (empty parts skipped), following the Linux `/dev/disk/by-id` model; deterministic for disks without hardware identity (for example `ramdisk_0`).
+- `storage[i].id`: stable storage ID, composed as `vendor_model_serial` (empty parts skipped), following the Linux `/dev/disk/by-id` model; deterministic for storage units without hardware identity (for example `ramstorage_0`).
 - `storage[i].vendor`, `storage[i].model`, `storage[i].serial`: sanitized identity parts read at enumeration time (characters from `A-Z a-z 0-9 _ - .`, original case preserved; other characters become `_`).
 - `storage[i].driverManufacturer`, `storage[i].driverProduct`, `storage[i].type`, `storage[i].removable`, `storage[i].bytesPerSector`, `storage[i].numSectorsLow`, `storage[i].numSectorsHigh`, `storage[i].access`: controller and geometry information.
 
-Disks are also addressable by their stable ID through a string-key lookup on the storage array:
+Storage units are also addressable by their stable ID through a string-key lookup on the storage array:
 ```text
-storage.byId["ramdisk_0"];
+storage.byId["ramstorage_0"];
 storage.byId["QEMU_HARDDISK_QM00013"].model;
 ```
-The lookup uses the kernel's `DiskIdFindById`; an unknown ID resolves to the undefined-variable error, so scripts should use index access `storage[i]` as a fallback when the ID may be absent. Example:
+The lookup uses the kernel's `StorageIdFindById`; an unknown ID resolves to the undefined-variable error, so scripts should use index access `storage[i]` as a fallback when the ID may be absent. Example:
 
 ```text
-if (storage.byId["ramdisk_0"].id == "ramdisk_0") { ... }
+if (storage.byId["ramstorage_0"].id == "ramstorage_0") { ... }
 ```
 
 ### Shell command statements

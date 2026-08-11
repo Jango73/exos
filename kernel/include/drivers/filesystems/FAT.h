@@ -47,7 +47,7 @@ typedef struct tag_FAT16MBR {
     U8 NumFATs;
     U16 NumRootEntries;
     U16 NumSectors_Less32MB;
-    U8 MediaDescriptor;  // 0xF8 for Hard Disks
+    U8 MediaDescriptor;  // 0xF8 for hard storage
     U16 SectorsPerFAT;
     U16 SectorsPerTrack;
     U16 NumHeads;          // Number of heads of media
@@ -76,7 +76,7 @@ typedef struct tag_FAT32MBR {
     U8 NumFATs;
     U16 NumRootEntries_NA;  // Not available for FAT32
     U16 NumSectors_NA;      // Not available for FAT32
-    U8 MediaDescriptor;     // 0xF8 for Hard Disks
+    U8 MediaDescriptor;     // 0xF8 for hard storage
     U16 SectorsPerFAT_NA;   // Not available for FAT32
     U16 SectorsPerTrack;
     U16 NumHeads;          // Number of heads of media
@@ -209,12 +209,12 @@ typedef struct tag_FATFILELOC {
 /**
  * @brief Read the boot sector of a FAT partition and validate the BIOS mark.
  *
- * @param Disk Physical disk hosting the partition.
+ * @param Storage Physical storage hosting the partition.
  * @param Partition Partition descriptor.
  * @param Base Base sector offset.
  * @param Buffer Caller-provided SECTOR_SIZE buffer to fill.
  * @return TRUE if the sector is read successfully and the BIOS mark is valid.
  */
-BOOL FATReadBootSector(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, LPVOID Buffer);
+BOOL FATReadBootSector(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, LPVOID Buffer);
 
 #endif

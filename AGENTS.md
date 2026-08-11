@@ -162,7 +162,7 @@ Doxygen documentation is in `doc/generated/kernel/*`
 **Core Components:**
 - **Kernel** (`kernel/source/`): Main OS kernel with multitasking, memory management, drivers
 - **Shell** (`kernel/source/Shell.c`): Command-line interface
-- **Boot** (`boot-mbr/` and `boot-uefi/`): Bootloader and disk image creation
+- **Boot** (`boot-mbr/` and `boot-uefi/`): Bootloader and image creation
 - **Runtime** (`runtime/`): User-space runtime library, but included in the kernel to interface with 3rd party code
 - **System** (`system/`): User-space system library, samples
 

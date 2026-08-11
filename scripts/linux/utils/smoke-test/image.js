@@ -268,7 +268,7 @@ function AssertDownloadedFileSize(offset, sourcePath, downloadedName) {
         throw new Error(`Source file not found for size compare: ${resolvedSourcePath}`);
     }
     if (!config.CURRENT_IMAGE_PATH || !fs.existsSync(config.CURRENT_IMAGE_PATH)) {
-        throw new Error(`Guest disk image not available for size compare: ${config.CURRENT_IMAGE_PATH}`);
+        throw new Error(`Guest image not available for size compare: ${config.CURRENT_IMAGE_PATH}`);
     }
     if (!downloadedName) {
         throw new Error('Missing downloaded file name in file-size-compare.');
@@ -297,7 +297,7 @@ function AssertDownloadedFileHash(offset, sourcePath, downloadedName) {
         throw new Error(`Source file not found for hash compare: ${resolvedSourcePath}`);
     }
     if (!config.CURRENT_IMAGE_PATH || !fs.existsSync(config.CURRENT_IMAGE_PATH)) {
-        throw new Error(`Guest disk image not available for hash compare: ${config.CURRENT_IMAGE_PATH}`);
+        throw new Error(`Guest image not available for hash compare: ${config.CURRENT_IMAGE_PATH}`);
     }
     if (!downloadedName) {
         throw new Error('Missing downloaded file name in hash compare.');

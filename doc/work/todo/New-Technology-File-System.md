@@ -2,7 +2,7 @@
 
 ## Prerequisites (one-time)
 
-- [X] **Block device**: read sectors with LBA, 512 bytes or 4K. (Disk info now exposes BytesPerSector and partition probing reads 512/4K sectors.)
+- [X] **Block device**: read sectors with LBA, 512 bytes or 4K. (Storage info now exposes BytesPerSector and partition probing reads 512/4K sectors.)
 - [X] **Partition**: identify NTFS partition in GPT or MBR, expose start LBA.
 - [X] **Cache**: cache for clusters.
 - [ ] **Unicode**: UTF-16LE decode for file and folder names.
@@ -74,7 +74,7 @@
 
 **Goal**: keep design ready for full NTFS later.
 
-- [X] Separate on-disk parsing from VFS layer. (`kernel/source/drivers/NTFS-Record.c`, `kernel/source/drivers/NTFS-VFS.c`)
+- [X] Separate stored parsing from VFS layer. (`kernel/source/drivers/NTFS-Record.c`, `kernel/source/drivers/NTFS-VFS.c`)
 - [X] Reserve structures for security descriptors and object identifiers. (`kernel/include/drivers/NTFS.h`)
 - [X] Add placeholder interfaces for write path (create, write, delete). (`kernel/source/drivers/NTFS-Write.c`)
 - [X] Define attribute handlers table to extend support cleanly. (`kernel/source/drivers/NTFS-Record.c`)

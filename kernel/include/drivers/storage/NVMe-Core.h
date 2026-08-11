@@ -150,7 +150,7 @@ typedef struct tag_NVME_DEVICE {
     COOLDOWN IoCompletionCoherencyWarningCooldown;
     COOLDOWN AdminCompletionMismatchWarningCooldown;
     COOLDOWN AdminCompletionTimeoutWarningCooldown;
-    DRIVER DiskDriver;
+    DRIVER StorageDriver;
 } NVME_DEVICE, *LPNVME_DEVICE;
 
 /************************************************************************/

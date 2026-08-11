@@ -187,7 +187,7 @@ function ReleaseBuildLock() {
     fi
 }
 
-function FlushPathToDisk() {
+function FlushPathToStorage() {
     local TargetPath="$1"
 
     if [ ! -e "$TargetPath" ]; then
@@ -210,10 +210,10 @@ function FlushImageArtifacts() {
     local ImagePath=""
 
     while IFS= read -r -d '' ImagePath; do
-        FlushPathToDisk "$ImagePath"
+        FlushPathToStorage "$ImagePath"
     done < <(find "$ImageBuildDir" -type f -name "*.img" -print0 2>/dev/null || true)
 
-    FlushPathToDisk "$ImageBuildDir"
+    FlushPathToStorage "$ImageBuildDir"
 }
 
 while [ $# -gt 0 ]; do

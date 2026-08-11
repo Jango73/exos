@@ -29,7 +29,7 @@
 
 #include "core/Driver.h"
 #include "core/ID.h"
-#include "Disk.h"
+#include "Storage.h"
 #include "../process/Process.h"
 
 /***************************************************************************/
@@ -109,10 +109,10 @@ typedef struct tag_LCHS {
 /***************************************************************************/
 
 typedef struct tag_BOOT_PARTITION {
-    U8 Disk;        // 0x80 for active partition
-    PCHS StartCHS;  // CHS of disk start
+    U8 Storage;        // 0x80 for active partition
+    PCHS StartCHS;  // CHS of storage start
     U8 Type;        // Type of partition
-    PCHS EndCHS;    // CHS of disk end
+    PCHS EndCHS;    // CHS of storage end
     SECTOR LBA;     // Logical Block Addressing start
     U32 Size;       // Size in sectors
 } BOOT_PARTITION, *LPBOOT_PARTITION;
@@ -208,7 +208,7 @@ typedef struct tag_FILE {
 
 typedef struct tag_PARTITION_CREATION {
     UINT Size;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     UINT PartitionStartSector;
     UINT PartitionNumSectors;
     UINT SectorsPerCluster;
@@ -242,7 +242,7 @@ typedef struct tag_FILESYSTEM_PATHCHECK {
 
 /***************************************************************************/
 
-BOOL MountDiskPartitions(LPSTORAGE_UNIT, LPBOOT_PARTITION, U32);
+BOOL MountStoragePartitions(LPSTORAGE_UNIT, LPBOOT_PARTITION, U32);
 U32 GetNumFileSystems(void);
 LPSTORAGE_UNIT FileSystemGetStorageUnit(LPFILESYSTEM FileSystem);
 BOOL FileSystemHasStorageUnit(LPFILESYSTEM FileSystem);

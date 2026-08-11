@@ -17,7 +17,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    EPK package on-disk format constants and structures
+    EPK package stored format constants and structures
 
 \************************************************************************/
 

@@ -17,49 +17,49 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    NVMe (disk integration)
+    NVMe (storage integration)
 
 \************************************************************************/
 
 #include "core/KernelData.h"
 #include "drivers/storage/NVMe-Internal.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "fs/File-System.h"
 #include "text/CoreString.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 
 /************************************************************************/
 
-#define NVME_DISK_VER_MAJOR 1
-#define NVME_DISK_VER_MINOR 0
+#define NVME_STORAGE_VER_MAJOR 1
+#define NVME_STORAGE_VER_MINOR 0
 
 /************************************************************************/
 
-static UINT NVMeDiskCommands(UINT Function, UINT Parameter);
-static UINT NVMeDiskRead(LPIOCONTROL Control);
-static UINT NVMeDiskWrite(LPIOCONTROL Control);
-static UINT NVMeDiskGetInfo(LPDISKINFO Info);
-static UINT NVMeDiskSetAccess(LPDISKACCESS Access);
+static UINT NVMeStorageCommands(UINT Function, UINT Parameter);
+static UINT NVMeStorageRead(LPIOCONTROL Control);
+static UINT NVMeStorageWrite(LPIOCONTROL Control);
+static UINT NVMeStorageGetInfo(LPSTORAGEINFO Info);
+static UINT NVMeStorageSetAccess(LPSTORAGEACCESS Access);
 
 /************************************************************************/
 
 /**
- * @brief Initialize the per-device NVMe disk driver structure.
+ * @brief Initialize the per-device NVMe storage driver structure.
  * @param Device NVMe device.
  */
-void NVMeInitDiskDriver(LPNVME_DEVICE Device) {
+void NVMeInitStorageDriver(LPNVME_DEVICE Device) {
     SAFE_USE_VALID_ID(Device, KOID_PCIDEVICE) {
-        MemorySet(&Device->DiskDriver, 0, sizeof(Device->DiskDriver));
-        Device->DiskDriver.TypeID = KOID_DRIVER;
-        Device->DiskDriver.References = 1;
-        Device->DiskDriver.Type = DRIVER_TYPE_NVME_STORAGE;
-        Device->DiskDriver.VersionMajor = NVME_DISK_VER_MAJOR;
-        Device->DiskDriver.VersionMinor = NVME_DISK_VER_MINOR;
-        StringCopy(Device->DiskDriver.Designer, TEXT("Jango73"));
-        StringCopy(Device->DiskDriver.Manufacturer, TEXT("NVMe"));
-        StringCopy(Device->DiskDriver.Product, TEXT("NVMe Disk"));
-        Device->DiskDriver.Command = NVMeDiskCommands;
-        Device->DiskDriver.EnumDomainCount = 0;
+        MemorySet(&Device->StorageDriver, 0, sizeof(Device->StorageDriver));
+        Device->StorageDriver.TypeID = KOID_DRIVER;
+        Device->StorageDriver.References = 1;
+        Device->StorageDriver.Type = DRIVER_TYPE_NVME_STORAGE;
+        Device->StorageDriver.VersionMajor = NVME_STORAGE_VER_MAJOR;
+        Device->StorageDriver.VersionMinor = NVME_STORAGE_VER_MINOR;
+        StringCopy(Device->StorageDriver.Designer, TEXT("Jango73"));
+        StringCopy(Device->StorageDriver.Manufacturer, TEXT("NVMe"));
+        StringCopy(Device->StorageDriver.Product, TEXT("NVMe Storage"));
+        Device->StorageDriver.Command = NVMeStorageCommands;
+        Device->StorageDriver.EnumDomainCount = 0;
     }
 }
 
@@ -227,39 +227,39 @@ static BOOL NVMeWriteSectorsBuffered(
 /************************************************************************/
 
 /**
- * @brief Create a disk object for a namespace.
+ * @brief Create a storage object for a namespace.
  * @param Device NVMe device.
  * @param NamespaceId Namespace identifier.
  * @param NumSectors Namespace size in sectors.
- * @return Disk object or NULL on failure.
+ * @return Storage object or NULL on failure.
  */
-static LPNVME_DISK NVMeCreateDisk(LPNVME_DEVICE Device, U32 NamespaceId, U64 NumSectors, U32 BytesPerSector) {
+static LPNVME_STORAGE NVMeCreateStorage(LPNVME_DEVICE Device, U32 NamespaceId, U64 NumSectors, U32 BytesPerSector) {
     if (Device == NULL || NamespaceId == 0) {
         return NULL;
     }
 
-    LPNVME_DISK Disk = (LPNVME_DISK)CreateKernelObject(sizeof(NVME_DISK), KOID_DISK);
-    if (Disk == NULL) {
+    LPNVME_STORAGE Storage = (LPNVME_STORAGE)CreateKernelObject(sizeof(NVME_STORAGE), KOID_STORAGE);
+    if (Storage == NULL) {
         return NULL;
     }
 
-    Disk->Header.Driver = &Device->DiskDriver;
-    Disk->Controller = Device;
-    Disk->NamespaceId = NamespaceId;
-    Disk->NumSectors = NumSectors;
-    Disk->BytesPerSector = BytesPerSector;
-    Disk->Access = 0;
+    Storage->Header.Driver = &Device->StorageDriver;
+    Storage->Controller = Device;
+    Storage->NamespaceId = NamespaceId;
+    Storage->NumSectors = NumSectors;
+    Storage->BytesPerSector = BytesPerSector;
+    Storage->Access = 0;
 
-    DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, Device->Model, Device->Serial);
-    DiskIdEnsure((LPSTORAGE_UNIT)Disk);
+    StorageIdSetIdentity((LPSTORAGE_UNIT)Storage, NULL, Device->Model, Device->Serial);
+    StorageIdEnsure((LPSTORAGE_UNIT)Storage);
 
-    return Disk;
+    return Storage;
 }
 
 /************************************************************************/
 
 /**
- * @brief Register NVMe namespaces as disks and mount partitions.
+ * @brief Register NVMe namespaces as storage units and mount partitions.
  * @param Device NVMe device.
  * @return TRUE on success, FALSE on failure.
  */
@@ -301,9 +301,9 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
                 continue;
             }
 
-            LPNVME_DISK Disk = NVMeCreateDisk(Device, NamespaceId, NumSectors, BytesPerSector);
-            if (Disk == NULL) {
-                WARNING(TEXT("Disk allocation failed NSID=%u"), (U32)NamespaceId);
+            LPNVME_STORAGE Storage = NVMeCreateStorage(Device, NamespaceId, NumSectors, BytesPerSector);
+            if (Storage == NULL) {
+                WARNING(TEXT("Storage allocation failed NSID=%u"), (U32)NamespaceId);
                 continue;
             }
 
@@ -313,23 +313,23 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
 
             // Attach the generic transfer layer (sector cache + chunking).
             // The transfer limit mirrors the buffered transfer cap.
-            if (!DiskTransferLayerInit((LPSTORAGE_UNIT)Disk, (2 * N_4KB) / BytesPerSector, NULL)) {
+            if (!StorageTransferLayerInit((LPSTORAGE_UNIT)Storage, (2 * N_4KB) / BytesPerSector, NULL)) {
                 WARNING(TEXT("Unable to attach transfer layer NSID=%u"), (U32)NamespaceId);
-                ReleaseKernelObject(Disk);
+                ReleaseKernelObject(Storage);
                 continue;
             }
 
-            LPLIST DiskList = GetDiskList();
-            if (DiskList == NULL || !ListAddItem(DiskList, Disk)) {
-                ERROR(TEXT("Unable to register disk NSID=%u"), (U32)NamespaceId);
-                ReleaseKernelObject(Disk);
+            LPLIST StorageList = GetStorageList();
+            if (StorageList == NULL || !ListAddItem(StorageList, Storage)) {
+                ERROR(TEXT("Unable to register storage NSID=%u"), (U32)NamespaceId);
+                ReleaseKernelObject(Storage);
                 continue;
             }
 
             RegisteredAny = TRUE;
 
             if (FileSystemReady()) {
-                if (!MountDiskPartitions((LPSTORAGE_UNIT)Disk, NULL, 0)) {
+                if (!MountStoragePartitions((LPSTORAGE_UNIT)Storage, NULL, 0)) {
                     WARNING(TEXT("Partition mount failed NSID=%u"), (U32)NamespaceId);
                 }
             } else {
@@ -346,23 +346,23 @@ BOOL NVMeRegisterNamespaces(LPNVME_DEVICE Device) {
 /************************************************************************/
 
 /**
- * @brief Driver command handler for NVMe disk access.
+ * @brief Driver command handler for NVMe storage access.
  * @param Function Function code.
  * @param Parameter Function parameter.
  * @return DF_RETURN_* code.
  */
-static UINT NVMeDiskCommands(UINT Function, UINT Parameter) {
+static UINT NVMeStorageCommands(UINT Function, UINT Parameter) {
     switch (Function) {
-        case DF_DISK_RESET:
+        case DF_STORAGE_RESET:
             return DF_RETURN_SUCCESS;
-        case DF_DISK_READ:
-            return NVMeDiskRead((LPIOCONTROL)Parameter);
-        case DF_DISK_WRITE:
-            return NVMeDiskWrite((LPIOCONTROL)Parameter);
-        case DF_DISK_GETINFO:
-            return NVMeDiskGetInfo((LPDISKINFO)Parameter);
-        case DF_DISK_SETACCESS:
-            return NVMeDiskSetAccess((LPDISKACCESS)Parameter);
+        case DF_STORAGE_READ:
+            return NVMeStorageRead((LPIOCONTROL)Parameter);
+        case DF_STORAGE_WRITE:
+            return NVMeStorageWrite((LPIOCONTROL)Parameter);
+        case DF_STORAGE_GETINFO:
+            return NVMeStorageGetInfo((LPSTORAGEINFO)Parameter);
+        case DF_STORAGE_SETACCESS:
+            return NVMeStorageSetAccess((LPSTORAGEACCESS)Parameter);
     }
 
     return DF_RETURN_NOT_IMPLEMENTED;
@@ -371,32 +371,32 @@ static UINT NVMeDiskCommands(UINT Function, UINT Parameter) {
 /************************************************************************/
 
 /**
- * @brief Read sectors from an NVMe disk.
+ * @brief Read sectors from an NVMe storage.
  * @param Control IO control structure describing request.
  * @return DF_RETURN_SUCCESS on success, error code otherwise.
  */
-static UINT NVMeDiskRead(LPIOCONTROL Control) {
-    if (Control == NULL || Control->Disk == NULL || Control->Buffer == NULL) {
+static UINT NVMeStorageRead(LPIOCONTROL Control) {
+    if (Control == NULL || Control->Storage == NULL || Control->Buffer == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPNVME_DISK Disk = (LPNVME_DISK)Control->Disk;
-    SAFE_USE_VALID_ID((LPLISTNODE)Disk, KOID_DISK) {
-        if (Disk->Controller == NULL || Control->NumSectors == 0) {
+    LPNVME_STORAGE Storage = (LPNVME_STORAGE)Control->Storage;
+    SAFE_USE_VALID_ID((LPLISTNODE)Storage, KOID_STORAGE) {
+        if (Storage->Controller == NULL || Control->NumSectors == 0) {
             return DF_RETURN_BAD_PARAMETER;
         }
 
-        SAFE_USE_VALID_ID(Disk->Controller, KOID_PCIDEVICE) {
-            if (Disk->BytesPerSector == 0 || Control->NumSectors > (0xFFFFFFFF / Disk->BytesPerSector)) {
+        SAFE_USE_VALID_ID(Storage->Controller, KOID_PCIDEVICE) {
+            if (Storage->BytesPerSector == 0 || Control->NumSectors > (0xFFFFFFFF / Storage->BytesPerSector)) {
                 return DF_RETURN_BAD_PARAMETER;
             }
 
-            U32 TotalBytes = Control->NumSectors * Disk->BytesPerSector;
+            U32 TotalBytes = Control->NumSectors * Storage->BytesPerSector;
             if (Control->BufferSize < TotalBytes) {
                 return DF_RETURN_BAD_PARAMETER;
             }
 
-            U32 MaxSectors = (2 * N_4KB) / Disk->BytesPerSector;
+            U32 MaxSectors = (2 * N_4KB) / Storage->BytesPerSector;
             if (MaxSectors == 0) {
                 return DF_RETURN_BAD_PARAMETER;
             }
@@ -406,10 +406,16 @@ static UINT NVMeDiskRead(LPIOCONTROL Control) {
 
             while (Remaining > 0) {
                 U32 Chunk = Remaining > MaxSectors ? MaxSectors : Remaining;
-                U32 ChunkBytes = Chunk * Disk->BytesPerSector;
+                U32 ChunkBytes = Chunk * Storage->BytesPerSector;
 
                 if (!NVMeReadSectorsBuffered(
-                        Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, Out, ChunkBytes)) {
+                        Storage->Controller,
+                        Storage->NamespaceId,
+                        Lba,
+                        Chunk,
+                        Storage->BytesPerSector,
+                        Out,
+                        ChunkBytes)) {
                     WARNING(
                         TEXT("Read failed LBA=%x:%x sectors=%u"),
                         (U32)U64_High32(Lba),
@@ -433,36 +439,36 @@ static UINT NVMeDiskRead(LPIOCONTROL Control) {
 /************************************************************************/
 
 /**
- * @brief Write sectors to an NVMe disk.
+ * @brief Write sectors to an NVMe storage.
  * @param Control IO control structure describing request.
  * @return DF_RETURN_* code.
  */
-static UINT NVMeDiskWrite(LPIOCONTROL Control) {
-    if (Control == NULL || Control->Disk == NULL || Control->Buffer == NULL) {
+static UINT NVMeStorageWrite(LPIOCONTROL Control) {
+    if (Control == NULL || Control->Storage == NULL || Control->Buffer == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPNVME_DISK Disk = (LPNVME_DISK)Control->Disk;
-    SAFE_USE_VALID_ID((LPLISTNODE)Disk, KOID_DISK) {
-        if (Disk->Controller == NULL || Control->NumSectors == 0) {
+    LPNVME_STORAGE Storage = (LPNVME_STORAGE)Control->Storage;
+    SAFE_USE_VALID_ID((LPLISTNODE)Storage, KOID_STORAGE) {
+        if (Storage->Controller == NULL || Control->NumSectors == 0) {
             return DF_RETURN_BAD_PARAMETER;
         }
 
-        if (Disk->Access & DISK_ACCESS_READONLY) {
+        if (Storage->Access & STORAGE_ACCESS_READONLY) {
             return DF_RETURN_NO_PERMISSION;
         }
 
-        SAFE_USE_VALID_ID(Disk->Controller, KOID_PCIDEVICE) {
-            if (Disk->BytesPerSector == 0 || Control->NumSectors > (0xFFFFFFFF / Disk->BytesPerSector)) {
+        SAFE_USE_VALID_ID(Storage->Controller, KOID_PCIDEVICE) {
+            if (Storage->BytesPerSector == 0 || Control->NumSectors > (0xFFFFFFFF / Storage->BytesPerSector)) {
                 return DF_RETURN_BAD_PARAMETER;
             }
 
-            U32 TotalBytes = Control->NumSectors * Disk->BytesPerSector;
+            U32 TotalBytes = Control->NumSectors * Storage->BytesPerSector;
             if (Control->BufferSize < TotalBytes) {
                 return DF_RETURN_BAD_PARAMETER;
             }
 
-            U32 MaxSectors = (2 * N_4KB) / Disk->BytesPerSector;
+            U32 MaxSectors = (2 * N_4KB) / Storage->BytesPerSector;
             if (MaxSectors == 0) {
                 return DF_RETURN_BAD_PARAMETER;
             }
@@ -472,10 +478,16 @@ static UINT NVMeDiskWrite(LPIOCONTROL Control) {
 
             while (Remaining > 0) {
                 U32 Chunk = Remaining > MaxSectors ? MaxSectors : Remaining;
-                U32 ChunkBytes = Chunk * Disk->BytesPerSector;
+                U32 ChunkBytes = Chunk * Storage->BytesPerSector;
 
                 if (!NVMeWriteSectorsBuffered(
-                        Disk->Controller, Disk->NamespaceId, Lba, Chunk, Disk->BytesPerSector, In, ChunkBytes)) {
+                        Storage->Controller,
+                        Storage->NamespaceId,
+                        Lba,
+                        Chunk,
+                        Storage->BytesPerSector,
+                        In,
+                        ChunkBytes)) {
                     WARNING(
                         TEXT("Write failed LBA=%x:%x sectors=%u"),
                         (U32)U64_High32(Lba),
@@ -499,22 +511,22 @@ static UINT NVMeDiskWrite(LPIOCONTROL Control) {
 /************************************************************************/
 
 /**
- * @brief Retrieve disk information for an NVMe namespace.
+ * @brief Retrieve storage information for an NVMe namespace.
  * @param Info Output structure to populate.
  * @return DF_RETURN_SUCCESS on success, DF_RETURN_BAD_PARAMETER otherwise.
  */
-static UINT NVMeDiskGetInfo(LPDISKINFO Info) {
-    if (Info == NULL || Info->Disk == NULL) {
+static UINT NVMeStorageGetInfo(LPSTORAGEINFO Info) {
+    if (Info == NULL || Info->Storage == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPNVME_DISK Disk = (LPNVME_DISK)Info->Disk;
-    SAFE_USE_VALID_ID((LPLISTNODE)Disk, KOID_DISK) {
+    LPNVME_STORAGE Storage = (LPNVME_STORAGE)Info->Storage;
+    SAFE_USE_VALID_ID((LPLISTNODE)Storage, KOID_STORAGE) {
         Info->Type = DRIVER_TYPE_NVME_STORAGE;
         Info->Removable = 0;
-        Info->BytesPerSector = Disk->BytesPerSector;
-        Info->NumSectors = Disk->NumSectors;
-        Info->Access = Disk->Access;
+        Info->BytesPerSector = Storage->BytesPerSector;
+        Info->NumSectors = Storage->NumSectors;
+        Info->Access = Storage->Access;
 
         return DF_RETURN_SUCCESS;
     }
@@ -525,18 +537,18 @@ static UINT NVMeDiskGetInfo(LPDISKINFO Info) {
 /************************************************************************/
 
 /**
- * @brief Set access parameters for an NVMe disk.
+ * @brief Set access parameters for an NVMe storage.
  * @param Access Access parameters to store.
  * @return DF_RETURN_SUCCESS on success, DF_RETURN_BAD_PARAMETER otherwise.
  */
-static UINT NVMeDiskSetAccess(LPDISKACCESS Access) {
-    if (Access == NULL || Access->Disk == NULL) {
+static UINT NVMeStorageSetAccess(LPSTORAGEACCESS Access) {
+    if (Access == NULL || Access->Storage == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    LPNVME_DISK Disk = (LPNVME_DISK)Access->Disk;
-    SAFE_USE_VALID_ID((LPLISTNODE)Disk, KOID_DISK) {
-        Disk->Access = Access->Access;
+    LPNVME_STORAGE Storage = (LPNVME_STORAGE)Access->Storage;
+    SAFE_USE_VALID_ID((LPLISTNODE)Storage, KOID_STORAGE) {
+        Storage->Access = Access->Access;
         return DF_RETURN_SUCCESS;
     }
 

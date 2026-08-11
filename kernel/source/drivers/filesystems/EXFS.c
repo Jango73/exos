@@ -26,7 +26,7 @@
 #include "core/Kernel.h"
 #include "drivers/filesystems/FileSystem-Common.h"
 #include "fs/File-System.h"
-#include "fs/DiskTransferLayer.h"
+#include "fs/Storage-Transfer-Layer.h"
 #include "log/Log.h"
 #include "utils/Path.h"
 
@@ -67,7 +67,7 @@ U8 Dummy[128] = { 1, 1 };
 
 typedef struct tag_EXFSFILESYSTEM {
     FILESYSTEM Header;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     EXFS_MBR Master;
     EXFS_SUPER Super;
     SECTOR PartitionStart;
@@ -89,10 +89,10 @@ typedef struct tag_EXFSFILE {
 
 /**
  * @brief Allocate and initialize a new EXFS file system object.
- * @param Disk Physical disk associated with the file system.
+ * @param Storage Physical storage associated with the file system.
  * @return Pointer to the created file system or NULL.
  */
-static LPEXFSFILESYSTEM NewEXFSFileSystem(LPSTORAGE_UNIT Disk) {
+static LPEXFSFILESYSTEM NewEXFSFileSystem(LPSTORAGE_UNIT Storage) {
     LPEXFSFILESYSTEM This;
 
     This = (LPEXFSFILESYSTEM)KernelHeapAlloc(sizeof(EXFS_FILE_SYSTEM));
@@ -105,8 +105,8 @@ static LPEXFSFILESYSTEM NewEXFSFileSystem(LPSTORAGE_UNIT Disk) {
     This->Header.Next = NULL;
     This->Header.Prev = NULL;
     This->Header.Driver = &EXFSDriver;
-    This->Header.StorageUnit = Disk;
-    This->Disk = Disk;
+    This->Header.StorageUnit = Storage;
+    This->Storage = Storage;
     This->PageBuffer = NULL;
     This->IOBuffer = NULL;
 
@@ -151,14 +151,14 @@ static LPEXFSFILE NewEXFSFile(LPEXFSFILESYSTEM FileSystem, LPEXFSFILELOC FileLoc
 /************************************************************************/
 
 /**
- * @brief Mount an EXFS partition found on a physical disk.
- * @param Disk Physical disk.
+ * @brief Mount an EXFS partition found on a physical storage.
+ * @param Storage Physical storage.
  * @param Partition Partition descriptor.
  * @param Base Base LBA offset.
  * @param PartIndex Partition index.
  * @return TRUE on success.
  */
-BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
+BOOL MountPartition_EXFS(LPSTORAGE_UNIT Storage, LPBOOT_PARTITION Partition, U32 Base, U32 PartIndex) {
     U8 Buffer1[SECTOR_SIZE * 2];
     U8 Buffer2[SECTOR_SIZE * 2];
     IOCONTROL Control;
@@ -171,14 +171,14 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     // Read the Master Boot Record
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = Base + Partition->LBA;
     Control.SectorHigh = 0;
     Control.NumSectors = 2;
     Control.Buffer = (LPVOID)Buffer1;
     Control.BufferSize = SECTOR_SIZE * 2;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -186,14 +186,14 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     // Read the Superblock
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = (Base + Partition->LBA) + 2;
     Control.SectorHigh = 0;
     Control.NumSectors = 2;
     Control.Buffer = (LPVOID)Buffer2;
     Control.BufferSize = SECTOR_SIZE * 2;
 
-    Result = DiskTransferLayerRead(&Control);
+    Result = StorageTransferLayerRead(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -224,10 +224,10 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
     //-------------------------------------
     // Create the file system object
 
-    FileSystem = NewEXFSFileSystem(Disk);
+    FileSystem = NewEXFSFileSystem(Storage);
     if (FileSystem == NULL) return FALSE;
 
-    GetDefaultFileSystemName(FileSystem->Header.Name, Disk, PartIndex);
+    GetDefaultFileSystemName(FileSystem->Header.Name, Storage, PartIndex);
 
     //-------------------------------------
     // Copy the Master Boot Sector and the Superblock
@@ -259,7 +259,7 @@ BOOL MountPartition_EXFS(LPSTORAGE_UNIT Disk, LPBOOT_PARTITION Partition, U32 Ba
 /***************************************************************************/
 
 /**
- * @brief Read a cluster from disk into a buffer.
+ * @brief Read a cluster from storage into a buffer.
  * @param FileSystem Target file system.
  * @param Cluster Cluster index to read.
  * @param Buffer Destination buffer.
@@ -271,14 +271,14 @@ static BOOL ReadCluster(LPEXFSFILESYSTEM FileSystem, CLUSTER Cluster, LPVOID Buf
     Sector = FileSystem->DataStart + (Cluster * FileSystem->Master.SectorsPerCluster);
 
     return PartitionTransferSectors(
-        FileSystem->Disk,
+        FileSystem->Storage,
         FileSystem->PartitionStart,
         FileSystem->PartitionSize,
         Sector,
         FileSystem->Master.SectorsPerCluster,
         Buffer,
         FileSystem->Master.SectorsPerCluster * SECTOR_SIZE,
-        DF_DISK_READ);
+        DF_STORAGE_READ);
 }
 
 /***************************************************************************/
@@ -299,14 +299,14 @@ static BOOL WriteCluster(LPEXFSFILESYSTEM FileSystem, CLUSTER Cluster,
     }
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = FileSystem->Disk;
+    Control.Storage = FileSystem->Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = FileSystem->Master.SectorsPerCluster;
     Control.Buffer = Buffer;
     Control.BufferSize = FileSystem->Master.SectorsPerCluster * SECTOR_SIZE;
 
-    Result = FileSystem->Disk->Driver->Command(DF_DISK_WRITE, (UINT)&Control);
+    Result = FileSystem->Storage->Driver->Command(DF_STORAGE_WRITE, (UINT)&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -452,26 +452,26 @@ Out_Error:
 /***************************************************************************/
 
 /**
- * @brief Write sectors to a physical disk.
- * @param Disk Target disk.
+ * @brief Write sectors to a physical storage.
+ * @param Storage Target storage.
  * @param Sector Starting sector.
  * @param NumSectors Number of sectors to write.
  * @param Buffer Source buffer.
  * @return TRUE on success.
  */
-static BOOL WriteSectors(LPSTORAGE_UNIT Disk, SECTOR Sector, U32 NumSectors, LPVOID Buffer) {
+static BOOL WriteSectors(LPSTORAGE_UNIT Storage, SECTOR Sector, U32 NumSectors, LPVOID Buffer) {
     IOCONTROL Control;
     U32 Result;
 
     Control.TypeID = KOID_IOCONTROL;
-    Control.Disk = Disk;
+    Control.Storage = Storage;
     Control.SectorLow = Sector;
     Control.SectorHigh = 0;
     Control.NumSectors = NumSectors;
     Control.Buffer = Buffer;
     Control.BufferSize = SECTOR_SIZE;
 
-    Result = DiskTransferLayerWrite(&Control);
+    Result = StorageTransferLayerWrite(&Control);
 
     if (Result != DF_RETURN_SUCCESS) return FALSE;
 
@@ -481,7 +481,7 @@ static BOOL WriteSectors(LPSTORAGE_UNIT Disk, SECTOR Sector, U32 NumSectors, LPV
 /***************************************************************************/
 
 /**
- * @brief Create a new EXFS partition on a disk.
+ * @brief Create a new EXFS partition on a storage.
  * @param Create Parameters for the partition.
  * @return Driver-specific error code.
  */
@@ -506,7 +506,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     if (Create == NULL) return DF_RETURN_BAD_PARAMETER;
     if (Create->Size != sizeof(PARTITION_CREATION)) return DF_RETURN_BAD_PARAMETER;
-    if (Create->Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    if (Create->Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
 
@@ -533,7 +533,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     ExosMbrFill(Master, (U16)Create->SectorsPerCluster);
 
-    if (WriteSectors(Create->Disk, CurrentSector, 2, Master) == FALSE) {
+    if (WriteSectors(Create->Storage, CurrentSector, 2, Master) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
@@ -562,7 +562,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     StringCopy(Super->VolumeName, Create->VolumeName);
 
-    if (WriteSectors(Create->Disk, CurrentSector, 2, Super) == FALSE) {
+    if (WriteSectors(Create->Storage, CurrentSector, 2, Super) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
@@ -585,7 +585,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
     Buffer3Long[0] = RootCluster + 1;
     Buffer3Long[1] = EXFS_CLUSTER_END;
 
-    if (WriteSectors(Create->Disk, CurrentSector, 1, Buffer3) == FALSE) {
+    if (WriteSectors(Create->Storage, CurrentSector, 1, Buffer3) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 
@@ -598,7 +598,7 @@ static U32 CreatePartition(LPPARTITION_CREATION Create) {
 
     FileRec->ClusterTable = EXFS_CLUSTER_END;
 
-    if (WriteSectors(Create->Disk, CurrentSector, 1, Buffer3) == FALSE) {
+    if (WriteSectors(Create->Storage, CurrentSector, 1, Buffer3) == FALSE) {
         return DF_RETURN_FS_CANT_WRITE_SECTOR;
     }
 

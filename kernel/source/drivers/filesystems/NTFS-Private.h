@@ -77,7 +77,7 @@ typedef struct tag_NTFS_PATH_LOOKUP_CACHE_ENTRY {
 
 typedef struct tag_NTFSFILESYSTEM {
     FILESYSTEM Header;
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     NTFS_MBR BootSector;
     SECTOR PartitionStart;
     U32 PartitionSize;
@@ -199,7 +199,7 @@ extern DRIVER DATA_SECTION NTFSDriver;
 
 BOOL NtfsIsSupportedSectorSize(U32 BytesPerSector);
 BOOL NtfsIsPowerOfTwo(U32 Value);
-U32 NtfsGetDiskBytesPerSector(LPSTORAGE_UNIT Disk);
+U32 NtfsGetStorageBytesPerSector(LPSTORAGE_UNIT Storage);
 U16 NtfsLoadU16(LPCVOID Address);
 U32 NtfsLoadU32(LPCVOID Address);
 U64 NtfsLoadU64(LPCVOID Address);
@@ -214,7 +214,7 @@ U64 NtfsU64ShiftRight(U64 Value, U32 Shift);
 U32 NtfsLog2(U32 Value);
 BOOL NtfsIsValidFileRecordIndex(LPNTFSFILESYSTEM FileSystem, U32 Index);
 BOOL NtfsReadBootSector(
-    LPSTORAGE_UNIT Disk, SECTOR BootSectorLba, LPVOID Buffer, U32 BufferSize, U32* BytesPerSectorOut);
+    LPSTORAGE_UNIT Storage, SECTOR BootSectorLba, LPVOID Buffer, U32 BufferSize, U32* BytesPerSectorOut);
 BOOL NtfsReadSectors(
     LPNTFSFILESYSTEM FileSystem, SECTOR Sector, U32 NumSectors, LPVOID Buffer, U32 BufferSize);
 BOOL NtfsComputeFileRecordSize(

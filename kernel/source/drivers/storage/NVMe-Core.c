@@ -288,7 +288,7 @@ static LPPCI_DEVICE NVMeAttach(LPPCI_DEVICE PciDevice) {
     Device->Next = NULL;
     Device->Prev = NULL;
     Device->References = 1;
-    NVMeInitDiskDriver(Device);
+    NVMeInitStorageDriver(Device);
     Device->InterruptSlot = DEVICE_INTERRUPT_INVALID_SLOT;
     Device->MsixVector = 0;
     Device->MsixEnabled = FALSE;

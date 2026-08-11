@@ -33,7 +33,7 @@
 #include "system/System.h"
 #include "utils/BufferPool.h"
 #include "utils/Cache.h"
-#include "utils/DiskID.h"
+#include "utils/Storage-ID.h"
 
 /***************************************************************************/
 // Version
@@ -51,49 +51,49 @@
 
 /***************************************************************************/
 
-UINT ATADiskCommands(UINT, UINT);
+UINT ATAStorageCommands(UINT, UINT);
 
-DRIVER DATA_SECTION ATADiskDriver = { .TypeID = KOID_DRIVER,
-                                      .References = 1,
-                                      .OwnerProcess = &KernelProcess,
-                                      .Next = NULL,
-                                      .Prev = NULL,
-                                      .Type = DRIVER_TYPE_ATA_STORAGE,
-                                      .VersionMajor = VER_MAJOR,
-                                      .VersionMinor = VER_MINOR,
-                                      .Designer = "Jango73",
-                                      .Manufacturer = "IBM PC and compatibles",
-                                      .Product = "ATA Disk Controller",
-                                      .Alias = "ata",
-                                      .Flags = 0,
-                                      .Command = ATADiskCommands,
-                                      .EnumDomainCount = 1,
-                                      .EnumDomains = { ENUM_DOMAIN_ATA_DEVICE } };
+DRIVER DATA_SECTION ATAStorageDriver = { .TypeID = KOID_DRIVER,
+                                         .References = 1,
+                                         .OwnerProcess = &KernelProcess,
+                                         .Next = NULL,
+                                         .Prev = NULL,
+                                         .Type = DRIVER_TYPE_ATA_STORAGE,
+                                         .VersionMajor = VER_MAJOR,
+                                         .VersionMinor = VER_MINOR,
+                                         .Designer = "Jango73",
+                                         .Manufacturer = "IBM PC and compatibles",
+                                         .Product = "ATA Storage Controller",
+                                         .Alias = "ata",
+                                         .Flags = 0,
+                                         .Command = ATAStorageCommands,
+                                         .EnumDomainCount = 1,
+                                         .EnumDomains = { ENUM_DOMAIN_ATA_DEVICE } };
 
 /***************************************************************************/
 
 /**
- * @brief Retrieves the ATA disk driver descriptor.
- * @return Pointer to the ATA disk driver.
+ * @brief Retrieves the ATA storage driver descriptor.
+ * @return Pointer to the ATA storage driver.
  */
-LPDRIVER ATADiskGetDriver(void) {
-    return &ATADiskDriver;
+LPDRIVER ATAStorageGetDriver(void) {
+    return &ATAStorageDriver;
 }
 
 /***************************************************************************/
 
-// ATA physical disk, derives from STORAGE_UNIT
+// ATA physical storage, derives from STORAGE_UNIT
 
-typedef struct tag_ATADISK {
+typedef struct tag_ATASTORAGE {
     STORAGE_UNIT Header;
-    DISK_GEOMETRY Geometry;
+    STORAGE_GEOMETRY Geometry;
     U32 Access;  // Access parameters
     U32 IOPort;  // 0x01F0 or 0x0170
     U32 IRQ;     // 0x0E
     U32 Drive;   // 0 or 1
     CACHE SectorCache;
     BUFFER_POOL SectorBufferPool;
-} ATA_DISK, *LPATADISK;
+} ATA_STORAGE, *LPATASTORAGE;
 
 /***************************************************************************/
 
@@ -143,20 +143,20 @@ static void ATACacheRelease(LPVOID Data, BOOL Dirty, LPVOID Context) {
 
 /***************************************************************************/
 
-static LPATADISK NewATADisk(void) {
-    LPATADISK This;
+static LPATASTORAGE NewATAStorage(void) {
+    LPATASTORAGE This;
 
-    This = (LPATADISK)KernelHeapAlloc(sizeof(ATA_DISK));
+    This = (LPATASTORAGE)KernelHeapAlloc(sizeof(ATA_STORAGE));
 
     if (This == NULL) return NULL;
 
-    MemorySet(This, 0, sizeof(ATA_DISK));
+    MemorySet(This, 0, sizeof(ATA_STORAGE));
 
-    This->Header.TypeID = KOID_DISK;
+    This->Header.TypeID = KOID_STORAGE;
     This->Header.References = 1;
     This->Header.Next = NULL;
     This->Header.Prev = NULL;
-    This->Header.Driver = &ATADiskDriver;
+    This->Header.Driver = &ATAStorageDriver;
     This->Access = 0;
 
     return This;
@@ -226,12 +226,12 @@ void ATADecodeIdentifyString(LPSTR Output, UINT OutputSize, U16* Words, UINT Wor
 /***************************************************************************/
 
 static BOOL InitializeATA(void) {
-    LPATADISK Disk;
+    LPATASTORAGE Storage;
     LPATADRIVEID ATAID;
     U8 Buffer[SECTOR_SIZE];
     U32 Port;
     U32 Drive;
-    U32 DisksFound = 0;
+    U32 StoragesFound = 0;
 
     DEBUG(TEXT("Enter"));
 
@@ -279,67 +279,71 @@ static BOOL InitializeATA(void) {
             if (ATAID->PhysicalCylinders != 0 && ATAID->PhysicalHeads != 0 && ATAID->PhysicalSectors != 0) {
                 DEBUG(TEXT("port: %x, drive: %x"), (U32)RealPort, (U32)Drive);
 
-                Disk = NewATADisk();
-                if (Disk == NULL) continue;
+                Storage = NewATAStorage();
+                if (Storage == NULL) continue;
 
-                Disk->Geometry.Cylinders = ATAID->PhysicalCylinders;
-                Disk->Geometry.Heads = ATAID->PhysicalHeads;
-                Disk->Geometry.SectorsPerTrack = ATAID->PhysicalSectors;
-                Disk->Geometry.BytesPerSector = SECTOR_SIZE;
-                Disk->IOPort = RealPort;
-                Disk->IRQ = IRQ_ATA;
-                Disk->Drive = Drive;
+                Storage->Geometry.Cylinders = ATAID->PhysicalCylinders;
+                Storage->Geometry.Heads = ATAID->PhysicalHeads;
+                Storage->Geometry.SectorsPerTrack = ATAID->PhysicalSectors;
+                Storage->Geometry.BytesPerSector = SECTOR_SIZE;
+                Storage->IOPort = RealPort;
+                Storage->IRQ = IRQ_ATA;
+                Storage->Drive = Drive;
 
-                STR Serial[DISK_ID_SERIAL_MAX_SIZE];
-                STR Model[DISK_ID_MODEL_MAX_SIZE];
+                STR Serial[STORAGE_ID_SERIAL_MAX_SIZE];
+                STR Model[STORAGE_ID_MODEL_MAX_SIZE];
                 U16* Words = (U16*)Buffer;
 
                 ATADecodeIdentifyString(Serial, sizeof(Serial), Words, 10, 10);
                 ATADecodeIdentifyString(Model, sizeof(Model), Words, 27, 20);
 
-                DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, Model, Serial);
-                DiskIdEnsure((LPSTORAGE_UNIT)Disk);
+                StorageIdSetIdentity((LPSTORAGE_UNIT)Storage, NULL, Model, Serial);
+                StorageIdEnsure((LPSTORAGE_UNIT)Storage);
 
                 if (!BufferPoolInit(
-                        &Disk->SectorBufferPool,
+                        &Storage->SectorBufferPool,
                         (UINT)sizeof(SECTOR_BUFFER),
                         ATA_SECTOR_BUFFER_OBJECTS_PER_SLAB,
                         ATA_SECTOR_BUFFER_INITIAL_SLABS,
                         ATA_POOL_ALLOC_FLAGS,
                         TEXT("AtaSectorBuffer"))) {
-                    KernelHeapFree(Disk);
+                    KernelHeapFree(Storage);
                     continue;
                 }
 
-                if (!BufferPoolReserve(&Disk->SectorBufferPool, ATA_SECTOR_BUFFER_MIN_FREE)) {
-                    BufferPoolDeinit(&Disk->SectorBufferPool);
-                    KernelHeapFree(Disk);
+                if (!BufferPoolReserve(&Storage->SectorBufferPool, ATA_SECTOR_BUFFER_MIN_FREE)) {
+                    BufferPoolDeinit(&Storage->SectorBufferPool);
+                    KernelHeapFree(Storage);
                     continue;
                 }
 
-                CacheInit(&Disk->SectorCache, NUM_BUFFERS);
+                CacheInit(&Storage->SectorCache, NUM_BUFFERS);
 
-                if (Disk->SectorCache.Entries == NULL) {
-                    BufferPoolDeinit(&Disk->SectorBufferPool);
-                    KernelHeapFree(Disk);
+                if (Storage->SectorCache.Entries == NULL) {
+                    BufferPoolDeinit(&Storage->SectorBufferPool);
+                    KernelHeapFree(Storage);
                     continue;
                 }
 
                 CacheSetWritePolicy(
-                    &Disk->SectorCache, CACHE_WRITE_POLICY_READ_ONLY, NULL, ATACacheRelease, &Disk->SectorBufferPool);
+                    &Storage->SectorCache,
+                    CACHE_WRITE_POLICY_READ_ONLY,
+                    NULL,
+                    ATACacheRelease,
+                    &Storage->SectorBufferPool);
 
-                ListAddItem(GetDiskList(), Disk);
-                DisksFound++;
+                ListAddItem(GetStorageList(), Storage);
+                StoragesFound++;
             }
         }
     }
 
-    // Only enable IRQ if we found at least one disk
-    if (DisksFound > 0) {
+    // Only enable IRQ if we found at least one storage
+    if (StoragesFound > 0) {
         EnableInterrupt(IRQ_ATA);
-        DEBUG(TEXT("Found %d disk(s), IRQ enabled"), DisksFound);
+        DEBUG(TEXT("Found %d storage(s), IRQ enabled"), StoragesFound);
     } else {
-        DEBUG(TEXT("No disks found, IRQ remains disabled"));
+        DEBUG(TEXT("No storage units found, IRQ remains disabled"));
     }
 
     DEBUG(TEXT("Exit"));
@@ -448,7 +452,7 @@ Out:
 /***************************************************************************/
 
 static U32 Read(LPIOCONTROL Control) {
-    LPATADISK Disk;
+    LPATASTORAGE Storage;
     BLOCKPARAMS Params;
     U32 Current;
 
@@ -458,26 +462,26 @@ static U32 Read(LPIOCONTROL Control) {
     if (Control == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPATADISK)Control->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPATASTORAGE)Control->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
 
-    CacheCleanup(&Disk->SectorCache, GetSystemTime());
+    CacheCleanup(&Storage->SectorCache, GetSystemTime());
 
     for (Current = 0; Current < Control->NumSectors; Current++) {
         SECTOR_CACHE_CONTEXT Context = { Control->SectorLow + Current, 0 };
-        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Disk->SectorCache, SectorCacheMatcher, &Context);
+        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Storage->SectorCache, SectorCacheMatcher, &Context);
 
         if (Buffer == NULL) {
-            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&Disk->SectorBufferPool);
+            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&Storage->SectorBufferPool);
 
             if (Buffer == NULL) return DF_RETURN_UNEXPECTED;
 
@@ -486,15 +490,15 @@ static U32 Read(LPIOCONTROL Control) {
             Buffer->Dirty = 0;
 
             //-------------------------------------
-            // We must now do a physical disk access
+            // We must now do a physical storage access
 
-            DisableInterrupt(Disk->IRQ);
+            DisableInterrupt(Storage->IRQ);
 
-            SectorToBlockParams(&(Disk->Geometry), Context.SectorLow, &Params);
+            SectorToBlockParams(&(Storage->Geometry), Context.SectorLow, &Params);
 
             ATADriveOut(
-                Disk->IOPort,
-                Disk->Drive,
+                Storage->IOPort,
+                Storage->Drive,
                 HD_COMMAND_READ,
                 Buffer->Data,
                 Params.Cylinder,
@@ -502,10 +506,10 @@ static U32 Read(LPIOCONTROL Control) {
                 Params.Sector,
                 1);
 
-            EnableInterrupt(Disk->IRQ);
+            EnableInterrupt(Storage->IRQ);
 
-            if (!CacheAdd(&Disk->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
-                BufferPoolRelease(&Disk->SectorBufferPool, Buffer);
+            if (!CacheAdd(&Storage->SectorCache, Buffer, STORAGE_CACHE_TTL_MS)) {
+                BufferPoolRelease(&Storage->SectorBufferPool, Buffer);
                 return DF_RETURN_UNEXPECTED;
             }
         }
@@ -519,7 +523,7 @@ static U32 Read(LPIOCONTROL Control) {
 /***************************************************************************/
 
 static U32 Write(LPIOCONTROL Control) {
-    LPATADISK Disk;
+    LPATASTORAGE Storage;
     BLOCKPARAMS Params;
     U32 Current;
 
@@ -529,32 +533,32 @@ static U32 Write(LPIOCONTROL Control) {
     if (Control == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPATADISK)Control->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPATASTORAGE)Control->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check access permissions
 
-    if (Disk->Access & DISK_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
+    if (Storage->Access & STORAGE_ACCESS_READONLY) return DF_RETURN_NO_PERMISSION;
 
-    CacheCleanup(&Disk->SectorCache, GetSystemTime());
+    CacheCleanup(&Storage->SectorCache, GetSystemTime());
 
     for (Current = 0; Current < Control->NumSectors; Current++) {
         SECTOR_CACHE_CONTEXT Context = { Control->SectorLow + Current, 0 };
-        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Disk->SectorCache, SectorCacheMatcher, &Context);
+        LPSECTORBUFFER Buffer = (LPSECTORBUFFER)CacheFind(&Storage->SectorCache, SectorCacheMatcher, &Context);
         BOOL AddedToCache = FALSE;
 
         if (Buffer == NULL) {
-            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&Disk->SectorBufferPool);
+            Buffer = (LPSECTORBUFFER)BufferPoolAcquire(&Storage->SectorBufferPool);
 
             if (Buffer == NULL) return DF_RETURN_UNEXPECTED;
 
@@ -568,22 +572,29 @@ static U32 Write(LPIOCONTROL Control) {
         Buffer->Dirty = 1;
 
         //-------------------------------------
-        // Write to physical disk
+        // Write to physical storage
 
-        DisableInterrupt(Disk->IRQ);
+        DisableInterrupt(Storage->IRQ);
 
-        SectorToBlockParams(&(Disk->Geometry), Context.SectorLow, &Params);
+        SectorToBlockParams(&(Storage->Geometry), Context.SectorLow, &Params);
 
         ATADriveOut(
-            Disk->IOPort, Disk->Drive, HD_COMMAND_WRITE, Buffer->Data, Params.Cylinder, Params.Head, Params.Sector, 1);
+            Storage->IOPort,
+            Storage->Drive,
+            HD_COMMAND_WRITE,
+            Buffer->Data,
+            Params.Cylinder,
+            Params.Head,
+            Params.Sector,
+            1);
 
-        EnableInterrupt(Disk->IRQ);
+        EnableInterrupt(Storage->IRQ);
 
         Buffer->Dirty = 0;
 
         if (AddedToCache) {
-            if (!CacheAdd(&Disk->SectorCache, Buffer, DISK_CACHE_TTL_MS)) {
-                BufferPoolRelease(&Disk->SectorBufferPool, Buffer);
+            if (!CacheAdd(&Storage->SectorCache, Buffer, STORAGE_CACHE_TTL_MS)) {
+                BufferPoolRelease(&Storage->SectorBufferPool, Buffer);
                 return DF_RETURN_UNEXPECTED;
             }
         }
@@ -594,56 +605,57 @@ static U32 Write(LPIOCONTROL Control) {
 
 /***************************************************************************/
 
-static U32 GetInfo(LPDISKINFO Info) {
-    LPATADISK Disk;
+static U32 GetInfo(LPSTORAGEINFO Info) {
+    LPATASTORAGE Storage;
 
     if (Info == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPATADISK)Info->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPATASTORAGE)Info->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
 
     Info->Type = DRIVER_TYPE_ATA_STORAGE;
     Info->Removable = 0;
-    Info->BytesPerSector = Disk->Geometry.BytesPerSector;
-    Info->NumSectors = U64_FromU32(Disk->Geometry.Cylinders * Disk->Geometry.Heads * Disk->Geometry.SectorsPerTrack);
-    Info->Access = Disk->Access;
+    Info->BytesPerSector = Storage->Geometry.BytesPerSector;
+    Info->NumSectors =
+        U64_FromU32(Storage->Geometry.Cylinders * Storage->Geometry.Heads * Storage->Geometry.SectorsPerTrack);
+    Info->Access = Storage->Access;
 
     return DF_RETURN_SUCCESS;
 }
 
 /***************************************************************************/
 
-static U32 SetAccess(LPDISKACCESS Access) {
-    LPATADISK Disk;
+static U32 SetAccess(LPSTORAGEACCESS Access) {
+    LPATASTORAGE Storage;
 
     if (Access == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
-    // Get the physical disk to which operation applies
+    // Get the physical storage to which operation applies
 
-    Disk = (LPATADISK)Access->Disk;
-    if (Disk == NULL) return DF_RETURN_BAD_PARAMETER;
+    Storage = (LPATASTORAGE)Access->Storage;
+    if (Storage == NULL) return DF_RETURN_BAD_PARAMETER;
 
     //-------------------------------------
     // Check validity of parameters
 
-    if (Disk->Header.TypeID != KOID_DISK) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
-    if (Disk->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->Header.TypeID != KOID_STORAGE) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IOPort == 0) return DF_RETURN_BAD_PARAMETER;
+    if (Storage->IRQ == 0) return DF_RETURN_BAD_PARAMETER;
 
-    Disk->Access = Access->Access;
+    Storage->Access = Access->Access;
 
     return DF_RETURN_SUCCESS;
 }
@@ -697,19 +709,19 @@ static U32 ATA_EnumNext(LPDRIVER_ENUM_NEXT Next) {
         return DF_RETURN_NOT_IMPLEMENTED;
     }
 
-    LPLIST DiskList = GetDiskList();
-    if (DiskList == NULL) {
+    LPLIST StorageList = GetStorageList();
+    if (StorageList == NULL) {
         return DF_RETURN_NO_MORE;
     }
 
     UINT MatchIndex = 0;
-    for (LPLISTNODE Node = DiskList->First; Node; Node = Node->Next) {
-        LPATADISK Disk = (LPATADISK)Node;
-        SAFE_USE_VALID(Disk) {
-            if (Disk->Header.TypeID != KOID_DISK) {
+    for (LPLISTNODE Node = StorageList->First; Node; Node = Node->Next) {
+        LPATASTORAGE Storage = (LPATASTORAGE)Node;
+        SAFE_USE_VALID(Storage) {
+            if (Storage->Header.TypeID != KOID_STORAGE) {
                 continue;
             }
-            if (Disk->Header.Driver != &ATADiskDriver) {
+            if (Storage->Header.Driver != &ATAStorageDriver) {
                 continue;
             }
 
@@ -717,12 +729,12 @@ static U32 ATA_EnumNext(LPDRIVER_ENUM_NEXT Next) {
                 DRIVER_ENUM_ATA_DEVICE Data;
                 MemorySet(&Data, 0, sizeof(Data));
 
-                Data.IOPort = Disk->IOPort;
-                Data.Drive = Disk->Drive;
-                Data.IRQ = Disk->IRQ;
-                Data.Cylinders = Disk->Geometry.Cylinders;
-                Data.Heads = Disk->Geometry.Heads;
-                Data.SectorsPerTrack = Disk->Geometry.SectorsPerTrack;
+                Data.IOPort = Storage->IOPort;
+                Data.Drive = Storage->Drive;
+                Data.IRQ = Storage->IRQ;
+                Data.Cylinders = Storage->Geometry.Cylinders;
+                Data.Heads = Storage->Geometry.Heads;
+                Data.SectorsPerTrack = Storage->Geometry.SectorsPerTrack;
 
                 MemorySet(Next->Item, 0, sizeof(DRIVER_ENUM_ITEM));
                 Next->Item->Header.Size = sizeof(DRIVER_ENUM_ITEM);
@@ -773,38 +785,38 @@ static U32 ATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
 
 /***************************************************************************/
 
-UINT ATADiskCommands(UINT Function, UINT Parameter) {
+UINT ATAStorageCommands(UINT Function, UINT Parameter) {
     switch (Function) {
         case DF_LOAD:
-            if ((ATADiskDriver.Flags & DRIVER_FLAG_READY) != 0) {
+            if ((ATAStorageDriver.Flags & DRIVER_FLAG_READY) != 0) {
                 return DF_RETURN_SUCCESS;
             }
 
             if (InitializeATA()) {
-                ATADiskDriver.Flags |= DRIVER_FLAG_READY;
+                ATAStorageDriver.Flags |= DRIVER_FLAG_READY;
                 return DF_RETURN_SUCCESS;
             }
 
             return DF_RETURN_UNEXPECTED;
         case DF_UNLOAD:
-            if ((ATADiskDriver.Flags & DRIVER_FLAG_READY) == 0) {
+            if ((ATAStorageDriver.Flags & DRIVER_FLAG_READY) == 0) {
                 return DF_RETURN_SUCCESS;
             }
 
-            ATADiskDriver.Flags &= ~DRIVER_FLAG_READY;
+            ATAStorageDriver.Flags &= ~DRIVER_FLAG_READY;
             return DF_RETURN_SUCCESS;
         case DF_GET_VERSION:
             return MAKE_VERSION(VER_MAJOR, VER_MINOR);
-        case DF_DISK_RESET:
+        case DF_STORAGE_RESET:
             return DF_RETURN_NOT_IMPLEMENTED;
-        case DF_DISK_READ:
+        case DF_STORAGE_READ:
             return Read((LPIOCONTROL)Parameter);
-        case DF_DISK_WRITE:
+        case DF_STORAGE_WRITE:
             return Write((LPIOCONTROL)Parameter);
-        case DF_DISK_GETINFO:
-            return GetInfo((LPDISKINFO)Parameter);
-        case DF_DISK_SETACCESS:
-            return SetAccess((LPDISKACCESS)Parameter);
+        case DF_STORAGE_GETINFO:
+            return GetInfo((LPSTORAGEINFO)Parameter);
+        case DF_STORAGE_SETACCESS:
+            return SetAccess((LPSTORAGEACCESS)Parameter);
         case DF_ENUM_NEXT:
             return ATA_EnumNext((LPDRIVER_ENUM_NEXT)(LPVOID)Parameter);
         case DF_ENUM_PRETTY:

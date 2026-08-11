@@ -18,12 +18,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-    Disk
+    Storage
 
 \************************************************************************/
 
-#ifndef DISK_H_INCLUDED
-#define DISK_H_INCLUDED
+#ifndef STORAGE_H_INCLUDED
+#define STORAGE_H_INCLUDED
 
 /***************************************************************************/
 
@@ -37,13 +37,13 @@
 
 /***************************************************************************/
 
-// Functions supplied by a disk driver
+// Functions supplied by a storage driver
 
-#define DF_DISK_RESET (DF_FIRST_FUNCTION + 0)
-#define DF_DISK_READ (DF_FIRST_FUNCTION + 1)
-#define DF_DISK_WRITE (DF_FIRST_FUNCTION + 2)
-#define DF_DISK_GETINFO (DF_FIRST_FUNCTION + 3)
-#define DF_DISK_SETACCESS (DF_FIRST_FUNCTION + 4)
+#define DF_STORAGE_RESET (DF_FIRST_FUNCTION + 0)
+#define DF_STORAGE_READ (DF_FIRST_FUNCTION + 1)
+#define DF_STORAGE_WRITE (DF_FIRST_FUNCTION + 2)
+#define DF_STORAGE_GETINFO (DF_FIRST_FUNCTION + 3)
+#define DF_STORAGE_SETACCESS (DF_FIRST_FUNCTION + 4)
 
 /***************************************************************************/
 
@@ -55,42 +55,42 @@ typedef U32 CLUSTER;
 #define SECTOR_SIZE 512
 
 /***************************************************************************/
-// Stable disk identity sizes. The ID follows the Linux /dev/disk/by-id model
+// Stable storage identity sizes. The ID follows the Linux /dev/disk/by-id model
 // (vendor_model_serial) and is independent of enumeration order.
 
-#define DISK_ID_VENDOR_MAX_SIZE 17
-#define DISK_ID_MODEL_MAX_SIZE 41
-#define DISK_ID_SERIAL_MAX_SIZE 41
-#define DISK_ID_MAX_SIZE 128
+#define STORAGE_ID_VENDOR_MAX_SIZE 17
+#define STORAGE_ID_MODEL_MAX_SIZE 41
+#define STORAGE_ID_SERIAL_MAX_SIZE 41
+#define STORAGE_ID_MAX_SIZE 128
 
 /***************************************************************************/
 
-typedef struct tag_DISKGEOMETRY {
+typedef struct tag_STORAGEGEOMETRY {
     U32 Cylinders;
     U32 Heads;
     U32 SectorsPerTrack;
     U32 BytesPerSector;
-} DISK_GEOMETRY, *LPDISKGEOMETRY;
+} STORAGE_GEOMETRY, *LPSTORAGEGEOMETRY;
 
 /***************************************************************************/
 
-typedef struct tag_DISK_TRANSFER_UNIT DISK_TRANSFER_UNIT, *LPDISK_TRANSFER_UNIT;
+typedef struct tag_STORAGE_TRANSFER_UNIT STORAGE_TRANSFER_UNIT, *LPSTORAGE_TRANSFER_UNIT;
 
 typedef struct tag_STORAGE_UNIT {
     LISTNODE_FIELDS
     LPDRIVER Driver;
-    LPDISK_TRANSFER_UNIT DiskTransfer;    // Disk transfer layer state, owned by DiskTransferLayer
-    STR Vendor[DISK_ID_VENDOR_MAX_SIZE];  // Hardware vendor string (empty when unavailable)
-    STR Model[DISK_ID_MODEL_MAX_SIZE];    // Hardware model string
-    STR Serial[DISK_ID_SERIAL_MAX_SIZE];  // Hardware serial string
-    STR StorageId[DISK_ID_MAX_SIZE];      // Stable ID (vendor_model_serial), see utils/DiskID
+    LPSTORAGE_TRANSFER_UNIT StorageTransfer;    // Storage transfer layer state, owned by StorageTransferLayer
+    STR Vendor[STORAGE_ID_VENDOR_MAX_SIZE];  // Hardware vendor string (empty when unavailable)
+    STR Model[STORAGE_ID_MODEL_MAX_SIZE];    // Hardware model string
+    STR Serial[STORAGE_ID_SERIAL_MAX_SIZE];  // Hardware serial string
+    STR StorageId[STORAGE_ID_MAX_SIZE];      // Stable ID (vendor_model_serial), see utils/StorageID
 } STORAGE_UNIT, *LPSTORAGE_UNIT;
 
 /***************************************************************************/
 
 typedef struct tag_IOCONTROL {
     LISTNODE_FIELDS
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     U32 SectorLow;
     U32 SectorHigh;
     U32 NumSectors;
@@ -100,40 +100,40 @@ typedef struct tag_IOCONTROL {
 
 /***************************************************************************/
 
-typedef struct tag_DISKINFO {
+typedef struct tag_STORAGEINFO {
     LISTNODE_FIELDS
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     U32 Type;
     U32 Removable;
     U32 BytesPerSector;
     U64 NumSectors;
     U32 Access;
-} DISK_INFO, *LPDISKINFO;
+} STORAGE_INFO, *LPSTORAGEINFO;
 
 /***************************************************************************/
 
-typedef struct tag_DISKACCESS {
+typedef struct tag_STORAGEACCESS {
     LISTNODE_FIELDS
-    LPSTORAGE_UNIT Disk;
+    LPSTORAGE_UNIT Storage;
     U32 Access;
-} DISK_ACCESS, *LPDISKACCESS;
+} STORAGE_ACCESS, *LPSTORAGEACCESS;
 
 /***************************************************************************/
 
-#define DISK_ACCESS_DISABLE 0x0001
-#define DISK_ACCESS_READONLY 0x0002
+#define STORAGE_ACCESS_DISABLE 0x0001
+#define STORAGE_ACCESS_READONLY 0x0002
 
 /***************************************************************************/
 
 // Common constants
 
-#define MAX_DISK 4
+#define MAX_STORAGE 4
 #define TIMEOUT 10000
 #define NUM_BUFFERS 32
-#define DISK_CACHE_TTL_MS (5 * 60 * 1000)
+#define STORAGE_CACHE_TTL_MS (5 * 60 * 1000)
 
 /***************************************************************************/
-// Disk sector buffer
+// Storage sector buffer
 
 typedef struct tag_SECTORBUFFER {
     U32 SectorLow;
@@ -153,7 +153,7 @@ typedef struct tag_BLOCKPARAMS {
 /***************************************************************************/
 // Function prototypes
 
-void SectorToBlockParams(LPDISKGEOMETRY Geometry, U32 Sector, LPBLOCKPARAMS Block);
+void SectorToBlockParams(LPSTORAGEGEOMETRY Geometry, U32 Sector, LPBLOCKPARAMS Block);
 
 /***************************************************************************/
 

@@ -83,7 +83,7 @@ BOOL ExposeRegisterDefaultScriptHostObjects(LPSCRIPT_CONTEXT Context) {
     }
 
     if (!ExposeRegisterDefaultHostSymbol(
-            Context, TEXT("storage"), SCRIPT_HOST_SYMBOL_ARRAY, GetDiskList(), &StorageArrayDescriptor)) {
+            Context, TEXT("storage"), SCRIPT_HOST_SYMBOL_ARRAY, GetStorageList(), &StorageArrayDescriptor)) {
         return FALSE;
     }
 
