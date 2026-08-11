@@ -27,6 +27,11 @@
 # DeviceInterruptSlots=32
 # Enable or disable login sequence (1=enable, 0=disable)
 # DoLogin=1
+# Enable symmetric multiprocessing (1=enable, 0=keep the single CPU path)
+# SMP=1
+# Restrict usable CPUs to the given Local APIC ID bitmask (bit N = APIC ID N, e.g. 0xF for APIC IDs 0,1,2,3).
+# Empty/unset means all detected CPUs. The BSP is always usable.
+# EnabledCPUs=0xF
 
 [Session]
 # Inactivity timeout before session lock (in seconds)

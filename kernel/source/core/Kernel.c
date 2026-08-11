@@ -35,6 +35,7 @@
 #include "memory/Buddy-Allocator.h"
 #include "process/Process.h"
 #include "process/Task.h"
+#include "smp/SMP.h"
 #include "system/Clock.h"
 #include "system/SerialPort.h"
 #include "text/Lang.h"
@@ -1104,6 +1105,9 @@ void InitializeKernel(void) {
 
     UseConfiguration();
     DEBUG(TEXT("Configuration applied"));
+
+    InitializeSMP();
+    DEBUG(TEXT("SMP discovery complete"));
 
     //-------------------------------------
     // Run auto tests
