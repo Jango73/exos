@@ -2348,6 +2348,18 @@ TCP provides reliable connection-oriented communication using a state machine-ba
 - Duplicate ACK detection with fast retransmit and fast recovery
 - Reno-style congestion baseline (slow start and congestion avoidance)
 - Checksum validation with IPv4 pseudo-header
+- Nagle algorithm: sub-MSS writes are coalesced while unacknowledged data is in
+  flight, flushed on full segment or once all outstanding data is acknowledged;
+  disabled through the `TCP_NODELAY` socket option
+- Delayed ACK: in-order data is acknowledged after `TCP.DelayedAckTimeout`
+  (default 200 ms), every second received data segment triggers a prompt ACK,
+  and ACKs piggyback on outgoing data and window updates; duplicate,
+  out-of-order and zero-window segments are acknowledged immediately
+- Keep-alive: optional probes configured through `TCP.KeepAliveIdle`,
+  `TCP.KeepAliveInterval` and `TCP.KeepAliveProbes` (defaults 7200000 ms,
+  75000 ms, 8), sent as an ACK of the last received byte; the connection is
+  closed when all probes go unanswered; enabled through the `SO_KEEPALIVE`
+  socket option
 
 The buffer capacities default to 32768 bytes each when the configuration entries are absent.
 The retransmission tracker keeps one outstanding MSS-sized segment for fast retransmit.

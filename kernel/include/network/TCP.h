@@ -57,31 +57,31 @@
 /************************************************************************/
 // TCP States (using state machine framework)
 
-#define TCP_STATE_CLOSED        0
-#define TCP_STATE_LISTEN        1
-#define TCP_STATE_SYN_SENT      2
-#define TCP_STATE_SYN_RECEIVED  3
-#define TCP_STATE_ESTABLISHED   4
-#define TCP_STATE_FIN_WAIT_1    5
-#define TCP_STATE_FIN_WAIT_2    6
-#define TCP_STATE_CLOSE_WAIT    7
-#define TCP_STATE_CLOSING       8
-#define TCP_STATE_LAST_ACK      9
-#define TCP_STATE_TIME_WAIT     10
+#define TCP_STATE_CLOSED 0
+#define TCP_STATE_LISTEN 1
+#define TCP_STATE_SYN_SENT 2
+#define TCP_STATE_SYN_RECEIVED 3
+#define TCP_STATE_ESTABLISHED 4
+#define TCP_STATE_FIN_WAIT_1 5
+#define TCP_STATE_FIN_WAIT_2 6
+#define TCP_STATE_CLOSE_WAIT 7
+#define TCP_STATE_CLOSING 8
+#define TCP_STATE_LAST_ACK 9
+#define TCP_STATE_TIME_WAIT 10
 
 /************************************************************************/
 // TCP Events (using state machine framework)
 
-#define TCP_EVENT_CONNECT       0
-#define TCP_EVENT_LISTEN        1
-#define TCP_EVENT_CLOSE         2
-#define TCP_EVENT_RCV_SYN       3
-#define TCP_EVENT_RCV_ACK       4
-#define TCP_EVENT_RCV_FIN       5
-#define TCP_EVENT_RCV_RST       6
-#define TCP_EVENT_RCV_DATA      7
-#define TCP_EVENT_SEND_DATA     8
-#define TCP_EVENT_TIMEOUT       9
+#define TCP_EVENT_CONNECT 0
+#define TCP_EVENT_LISTEN 1
+#define TCP_EVENT_CLOSE 2
+#define TCP_EVENT_RCV_SYN 3
+#define TCP_EVENT_RCV_ACK 4
+#define TCP_EVENT_RCV_FIN 5
+#define TCP_EVENT_RCV_RST 6
+#define TCP_EVENT_RCV_DATA 7
+#define TCP_EVENT_SEND_DATA 8
+#define TCP_EVENT_TIMEOUT 9
 
 /************************************************************************/
 
@@ -89,15 +89,15 @@
 // TCP Header Structure
 
 typedef struct tag_TCP_HEADER {
-    U16 SourcePort;         // Source port (big-endian)
-    U16 DestinationPort;    // Destination port (big-endian)
-    U32 SequenceNumber;     // Sequence number (big-endian)
-    U32 AckNumber;          // Acknowledgment number (big-endian)
-    U8  DataOffset;         // Data offset (4 bits) + Reserved (4 bits)
-    U8  Flags;              // CWR, ECE, URG, ACK, PSH, RST, SYN, FIN flags
-    U16 WindowSize;         // Window size (big-endian)
-    U16 Checksum;           // Checksum (big-endian)
-    U16 UrgentPointer;      // Urgent pointer (big-endian)
+    U16 SourcePort;       // Source port (big-endian)
+    U16 DestinationPort;  // Destination port (big-endian)
+    U32 SequenceNumber;   // Sequence number (big-endian)
+    U32 AckNumber;        // Acknowledgment number (big-endian)
+    U8 DataOffset;        // Data offset (4 bits) + Reserved (4 bits)
+    U8 Flags;             // CWR, ECE, URG, ACK, PSH, RST, SYN, FIN flags
+    U16 WindowSize;       // Window size (big-endian)
+    U16 Checksum;         // Checksum (big-endian)
+    U16 UrgentPointer;    // Urgent pointer (big-endian)
 } TCP_HEADER, *LPTCP_HEADER;
 
 /************************************************************************/
@@ -107,20 +107,20 @@ typedef struct tag_TCP_CONNECTION {
     LISTNODE_FIELDS
 
     // Connection identification
-    LPDEVICE Device;        // Network device for this connection
-    U32 LocalIP;            // Local IP address (network byte order)
-    U16 LocalPort;          // Local port (network byte order)
-    U32 RemoteIP;           // Remote IP address (network byte order)
-    U16 RemotePort;         // Remote port (network byte order)
+    LPDEVICE Device;  // Network device for this connection
+    U32 LocalIP;      // Local IP address (network byte order)
+    U16 LocalPort;    // Local port (network byte order)
+    U32 RemoteIP;     // Remote IP address (network byte order)
+    U16 RemotePort;   // Remote port (network byte order)
 
     // Sequence numbers
-    U32 SendNext;           // Next sequence number to send
-    U32 SendUnacked;        // Oldest unacknowledged sequence number
-    U32 RecvNext;           // Next expected sequence number
+    U32 SendNext;     // Next sequence number to send
+    U32 SendUnacked;  // Oldest unacknowledged sequence number
+    U32 RecvNext;     // Next expected sequence number
 
     // Window management
-    U16 SendWindow;         // Send window size
-    U16 RecvWindow;         // Receive window size
+    U16 SendWindow;               // Send window size
+    U16 RecvWindow;               // Receive window size
     HYSTERESIS WindowHysteresis;  // Hysteresis for window updates
     U16 LastAdvertisedWindow;     // Last window size sent to the peer
 
@@ -161,6 +161,20 @@ typedef struct tag_TCP_CONNECTION {
     // Congestion control
     U32 CongestionWindow;
     U32 SlowStartThreshold;
+
+    // Performance optimizations
+    BOOL NagleEnabled;           // Nagle algorithm enabled (TRUE by default)
+    U32 DelayedAckTimeout;       // Delayed ACK timeout (ms)
+    U32 DelayedAckTimer;         // Deadline for the pending delayed ACK (ms)
+    U32 DelayedAckSegmentCount;  // Segments awaiting a delayed ACK
+    BOOL DelayedAckPending;      // A delayed ACK is scheduled
+    BOOL KeepAliveEnabled;       // Keep-alive probes enabled
+    U32 KeepAliveIdle;           // Idle time before the first probe (ms)
+    U32 KeepAliveInterval;       // Delay between unanswered probes (ms)
+    U32 KeepAliveProbes;         // Maximum unanswered probes before close
+    U32 KeepAliveNextProbe;      // Deadline for the next probe (ms)
+    U32 KeepAliveProbeCount;     // Probes sent without any response
+    U32 KeepAliveLastActivity;   // Last activity timestamp (ms)
 
     // Notification context for this connection
     LPNOTIFICATION_CONTEXT NotificationContext;
@@ -216,6 +230,12 @@ void TCP_Update(void);
 // Set notification context for a connection
 void TCP_SetNotificationContext(LPTCP_CONNECTION Connection, LPNOTIFICATION_CONTEXT Context);
 
+// Enable or disable the Nagle algorithm for a connection
+void TCP_SetNagleEnabled(LPTCP_CONNECTION Connection, BOOL Enabled);
+
+// Enable or disable keep-alive probes for a connection
+void TCP_SetKeepAliveEnabled(LPTCP_CONNECTION Connection, BOOL Enabled);
+
 // Register callback for TCP events
 U32 TCP_RegisterCallback(LPTCP_CONNECTION Connection, U32 Event, NOTIFICATION_CALLBACK Callback, LPVOID UserData);
 
@@ -240,4 +260,4 @@ int TCP_ValidateChecksum(TCP_HEADER* Header, const U8* Payload, U32 PayloadLengt
 
 #pragma pack(pop)
 
-#endif // TCP_H_INCLUDED
+#endif  // TCP_H_INCLUDED

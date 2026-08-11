@@ -28,7 +28,6 @@
 
 ### Network
 - [ ] Create a NetworkHeapAlloc/Free and dedicated memory region for the network heap (AllocRegion).
-- [ ] Optimize/evolve the network stack
 - [ ] Verify downloaded file integrity: netget / HTTP_DownloadToFile only checks that the byte count matches Content-Length; no content checksum/hash is computed. The network smoke test compares only the file size (`file-size-compare`), not the bytes. Add a hash (for example CRC) exposed by the HTTP server and verified at the end of the download.
 
 ## Medium priority

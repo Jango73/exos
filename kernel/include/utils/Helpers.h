@@ -52,6 +52,10 @@
 #define CONFIG_TCP_EPHEMERAL_START "TCP.EphemeralPortStart"
 #define CONFIG_TCP_SEND_BUFFER_SIZE "TCP.SendBufferSize"
 #define CONFIG_TCP_RECEIVE_BUFFER_SIZE "TCP.ReceiveBufferSize"
+#define CONFIG_TCP_DELAYED_ACK_TIMEOUT "TCP.DelayedAckTimeout"
+#define CONFIG_TCP_KEEPALIVE_IDLE "TCP.KeepAliveIdle"
+#define CONFIG_TCP_KEEPALIVE_INTERVAL "TCP.KeepAliveInterval"
+#define CONFIG_TCP_KEEPALIVE_PROBES "TCP.KeepAliveProbes"
 #define CONFIG_TASK_MINIMUM_TASK_STACK_SIZE "Task.MinimumTaskStackSize"
 #define CONFIG_TASK_MINIMUM_SYSTEM_STACK_SIZE "Task.MinimumSystemStackSize"
 #define CONFIG_TASK_MESSAGE_QUEUE_MAX_MESSAGES "Task.MessageQueueMaxMessages"
@@ -84,6 +88,10 @@
 #define TCP_MAX_RETRANSMITS 5                     // TCP maximum retransmits fallback
 #define TCP_SEND_BUFFER_SIZE N_32KB               // TCP send buffer size fallback
 #define TCP_RECV_BUFFER_SIZE N_32KB               // TCP receive buffer size fallback
+#define TCP_DELAYED_ACK_TIMEOUT 200               // TCP delayed ACK timeout fallback (ms)
+#define TCP_KEEPALIVE_IDLE 7200000                // TCP keep-alive idle fallback before first probe (ms)
+#define TCP_KEEPALIVE_INTERVAL 75000              // TCP keep-alive probe interval fallback (ms)
+#define TCP_KEEPALIVE_PROBES 8                    // TCP keep-alive unanswered probes before close fallback
 
 /***************************************************************************/
 

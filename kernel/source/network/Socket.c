@@ -41,6 +41,8 @@
 /************************************************************************/
 // Global socket management
 
+static void Socket_ApplyTCPOptions(LPSOCKET Socket);
+
 typedef struct tag_SOCKET_UDP_DATAGRAM_HEADER {
     SOCKET_ADDRESS_INET SourceAddress;
     U32 PayloadLength;
@@ -624,6 +626,8 @@ U32 SocketListen(SOCKET_HANDLE SocketHandle, U32 Backlog) {
             return SOCKET_ERROR_INVALID;
         }
 
+        Socket_ApplyTCPOptions(Socket);
+
         // Start listening
         if (TCP_Listen(Socket->TCPConnection) != 0) {
             ERROR(TEXT("Failed to start TCP listening"));
@@ -810,6 +814,8 @@ U32 SocketConnect(SOCKET_HANDLE SocketHandle, LPSOCKET_ADDRESS Address, U32 Addr
             ERROR(TEXT("Failed to create TCP connection"));
             return SOCKET_ERROR_INVALID;
         }
+
+        Socket_ApplyTCPOptions(Socket);
 
         // Register for TCP connection events
         if (TCP_RegisterCallback(
@@ -1331,28 +1337,65 @@ U32 SocketGetOption(SOCKET_HANDLE SocketHandle, U32 Level, U32 OptionName, LPVOI
     }
 
     SAFE_USE_VALID_ID(Socket, KOID_SOCKET) {
-        if (Level != SOL_SOCKET) {
+        if (Level == SOL_SOCKET) {
+            switch (OptionName) {
+                case SO_REUSEADDR: {
+                    if (*OptionLength < sizeof(U32)) {
+                        ERROR(TEXT("Option buffer too small for SO_REUSEADDR"));
+                        return SOCKET_ERROR_INVALID;
+                    }
+                    *(U32*)OptionValue = Socket->ReuseAddress ? 1 : 0;
+                    *OptionLength = sizeof(U32);
+                    return SOCKET_ERROR_NONE;
+                }
+                case SO_KEEPALIVE: {
+                    if (*OptionLength < sizeof(U32)) {
+                        ERROR(TEXT("Option buffer too small for SO_KEEPALIVE"));
+                        return SOCKET_ERROR_INVALID;
+                    }
+                    *(U32*)OptionValue = Socket->KeepAlive ? 1 : 0;
+                    *OptionLength = sizeof(U32);
+                    return SOCKET_ERROR_NONE;
+                }
+                default:
+                    ERROR(TEXT("Unsupported socket option %u"), OptionName);
+                    return SOCKET_ERROR_INVALID;
+            }
+        } else if (Level == IPPROTO_TCP) {
+            switch (OptionName) {
+                case TCP_NODELAY: {
+                    if (*OptionLength < sizeof(U32)) {
+                        ERROR(TEXT("Option buffer too small for TCP_NODELAY"));
+                        return SOCKET_ERROR_INVALID;
+                    }
+                    *(U32*)OptionValue = Socket->NoDelay ? 1 : 0;
+                    *OptionLength = sizeof(U32);
+                    return SOCKET_ERROR_NONE;
+                }
+                default:
+                    ERROR(TEXT("Unsupported TCP option %u"), OptionName);
+                    return SOCKET_ERROR_INVALID;
+            }
+        } else {
             ERROR(TEXT("Unsupported option level %u"), Level);
             return SOCKET_ERROR_INVALID;
-        }
-
-        switch (OptionName) {
-            case SO_REUSEADDR: {
-                if (*OptionLength < sizeof(U32)) {
-                    ERROR(TEXT("Option buffer too small for SO_REUSEADDR"));
-                    return SOCKET_ERROR_INVALID;
-                }
-                *(U32*)OptionValue = Socket->ReuseAddress ? 1 : 0;
-                *OptionLength = sizeof(U32);
-                return SOCKET_ERROR_NONE;
-            }
-            default:
-                ERROR(TEXT("Unsupported socket option %u"), OptionName);
-                return SOCKET_ERROR_INVALID;
         }
     }
 
     return SOCKET_ERROR_INVALID;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Propagates socket-level TCP options to the underlying TCP connection.
+ * @param Socket Socket instance holding the TCP connection.
+ */
+static void Socket_ApplyTCPOptions(LPSOCKET Socket) {
+    SAFE_USE_VALID_ID(Socket->TCPConnection, KOID_TCP) {
+        TCP_SetNagleEnabled(Socket->TCPConnection, !Socket->NoDelay);
+        TCP_SetKeepAliveEnabled(Socket->TCPConnection, Socket->KeepAlive);
+    }
 }
 
 /************************************************************************/
@@ -1392,6 +1435,15 @@ U32 SocketSetOption(SOCKET_HANDLE SocketHandle, U32 Level, U32 OptionName, LPCVO
                     Socket->ReuseAddress = (*(const U32*)OptionValue != 0);
                     return SOCKET_ERROR_NONE;
                 }
+                case SO_KEEPALIVE: {
+                    if (OptionLength != sizeof(U32)) {
+                        ERROR(TEXT("Invalid option length for SO_KEEPALIVE"));
+                        return SOCKET_ERROR_INVALID;
+                    }
+                    Socket->KeepAlive = (*(const U32*)OptionValue != 0);
+                    Socket_ApplyTCPOptions(Socket);
+                    return SOCKET_ERROR_NONE;
+                }
                 case SO_RCVTIMEO: {
                     if (OptionLength != sizeof(U32)) {
                         ERROR(TEXT("Invalid option length for SO_RCVTIMEO"));
@@ -1403,6 +1455,21 @@ U32 SocketSetOption(SOCKET_HANDLE SocketHandle, U32 Level, U32 OptionName, LPCVO
                 }
                 default:
                     ERROR(TEXT("Unsupported socket option %u"), OptionName);
+                    return SOCKET_ERROR_INVALID;
+            }
+        } else if (Level == IPPROTO_TCP) {
+            switch (OptionName) {
+                case TCP_NODELAY: {
+                    if (OptionLength != sizeof(U32)) {
+                        ERROR(TEXT("Invalid option length for TCP_NODELAY"));
+                        return SOCKET_ERROR_INVALID;
+                    }
+                    Socket->NoDelay = (*(const U32*)OptionValue != 0);
+                    Socket_ApplyTCPOptions(Socket);
+                    return SOCKET_ERROR_NONE;
+                }
+                default:
+                    ERROR(TEXT("Unsupported TCP option %u"), OptionName);
                     return SOCKET_ERROR_INVALID;
             }
         } else {

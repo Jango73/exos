@@ -39,10 +39,21 @@
   - Limits:
     - Retransmission tracking is single outstanding segment (MSS-sized chunk), not a full SACK/scoreboard implementation
     - Congestion window is applied at send chunk level and does not implement byte-precise flight scheduling queueing
-- [ ] Performance optimizations
-  - Nagle algorithm implementation
-  - Delayed ACK support
-  - Keep-alive mechanism
+- [X] Performance optimizations
+  - [X] Nagle algorithm implementation
+    - Coalesce sub-MSS writes while unacknowledged data is in flight
+    - Flush on full segment or when all outstanding data is acknowledged
+    - Disable through `TCP_NODELAY` socket option (IPPROTO_TCP level)
+  - [X] Delayed ACK support
+    - ACK delayed up to `TCP.DelayedAckTimeout` (default 200 ms)
+    - Prompt ACK every second received data segment
+    - Piggyback on outgoing data and window update ACKs
+    - Immediate ACK for duplicate, out-of-order and zero-window segments
+  - [X] Keep-alive mechanism
+    - Idle, interval and probe count configurable (`TCP.KeepAliveIdle`, `TCP.KeepAliveInterval`, `TCP.KeepAliveProbes`)
+    - Probe sent as ACK of the last received byte (no sequence space consumed)
+    - Connection closed after all probes go unanswered
+    - Enabled through `SO_KEEPALIVE` socket option
 - [ ] Advanced connection handling
   - Simultaneous open support
   - Half-close connections
