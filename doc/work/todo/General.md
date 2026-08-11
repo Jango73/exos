@@ -11,7 +11,7 @@
 
 ### Multicore
 
-- [ ] Implement Symmetric-Multiprocessing.md
+- [ ] Execute Symmetric-Multiprocessing.md : in-progress plan `doc/work/in-progress/Symmetric-Multiprocessing.md`
 
 ### I18n
 
