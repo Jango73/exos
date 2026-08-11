@@ -169,6 +169,8 @@ typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_PROPERTY)(
     LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, struct tag_SCRIPT_VALUE* OutValue);
 typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_ELEMENT)(
     LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, struct tag_SCRIPT_VALUE* OutValue);
+typedef SCRIPT_ERROR (*SCRIPT_HOST_GET_STRING_ELEMENT)(
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Key, struct tag_SCRIPT_VALUE* OutValue);
 typedef void (*SCRIPT_HOST_RELEASE_HANDLE)(LPVOID Context, SCRIPT_HOST_HANDLE Handle);
 
 typedef struct tag_SCRIPT_HOST_DESCRIPTOR {
@@ -176,6 +178,7 @@ typedef struct tag_SCRIPT_HOST_DESCRIPTOR {
     SCRIPT_HOST_GET_ELEMENT GetElement;
     SCRIPT_HOST_RELEASE_HANDLE ReleaseHandle;
     LPVOID Context;
+    SCRIPT_HOST_GET_STRING_ELEMENT GetStringElement;
 } SCRIPT_HOST_DESCRIPTOR, *LPSCRIPT_HOST_DESCRIPTOR;
 
 typedef struct tag_SCRIPT_VALUE {
@@ -415,8 +418,12 @@ SCRIPT_ERROR ScriptGetObjectProperty(LPSCRIPT_OBJECT Object, LPCSTR Name, LPSCRI
 
 // Host object registration
 BOOL ScriptRegisterHostSymbol(
-    LPSCRIPT_CONTEXT Context, LPCSTR Name, SCRIPT_HOST_SYMBOL_KIND Kind, SCRIPT_HOST_HANDLE Handle,
-    const SCRIPT_HOST_DESCRIPTOR* Descriptor, LPVOID ContextPointer);
+    LPSCRIPT_CONTEXT Context,
+    LPCSTR Name,
+    SCRIPT_HOST_SYMBOL_KIND Kind,
+    SCRIPT_HOST_HANDLE Handle,
+    const SCRIPT_HOST_DESCRIPTOR* Descriptor,
+    LPVOID ContextPointer);
 void ScriptUnregisterHostSymbol(LPSCRIPT_CONTEXT Context, LPCSTR Name);
 void ScriptClearHostSymbols(LPSCRIPT_CONTEXT Context);
 void ScriptValueInit(SCRIPT_VALUE* Value);

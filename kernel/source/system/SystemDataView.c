@@ -93,6 +93,8 @@ typedef struct tag_SYSTEM_DATA_VIEW_PCI_INFO {
     U8 Func;
     U16 VendorID;
     U16 DeviceID;
+    U16 Command;
+    U16 Status;
     U8 BaseClass;
     U8 SubClass;
     U8 ProgIF;
@@ -101,6 +103,9 @@ typedef struct tag_SYSTEM_DATA_VIEW_PCI_INFO {
     U8 IRQLine;
     U8 IRQLegacyPin;
     U32 BAR[6];
+    U8 CapabilityPointer;
+    U8 CapabilityCount;
+    U8 CapabilityId[PCI_MAX_CAPABILITIES];
 } SYSTEM_DATA_VIEW_PCI_INFO, *LPSYSTEM_DATA_VIEW_PCI_INFO;
 
 typedef BOOL (*SYSTEM_DATA_VIEW_PCI_VISITOR)(
@@ -1511,6 +1516,8 @@ static BOOL SystemDataViewPciReadInfo(U8 Bus, U8 Device, U8 Function, LPSYSTEM_D
     Info->Func = Function;
     Info->VendorID = VendorId;
     Info->DeviceID = PCI_Read16(Bus, Device, Function, PCI_CFG_DEVICE_ID);
+    Info->Command = PCI_Read16(Bus, Device, Function, PCI_CFG_COMMAND);
+    Info->Status = PCI_Read16(Bus, Device, Function, PCI_CFG_STATUS);
     Info->BaseClass = PCI_Read8(Bus, Device, Function, PCI_CFG_BASECLASS);
     Info->SubClass = PCI_Read8(Bus, Device, Function, PCI_CFG_SUBCLASS);
     Info->ProgIF = PCI_Read8(Bus, Device, Function, PCI_CFG_PROG_IF);
@@ -1518,9 +1525,16 @@ static BOOL SystemDataViewPciReadInfo(U8 Bus, U8 Device, U8 Function, LPSYSTEM_D
     Info->HeaderType = PCI_Read8(Bus, Device, Function, PCI_CFG_HEADER_TYPE);
     Info->IRQLine = PCI_Read8(Bus, Device, Function, PCI_CFG_IRQ_LINE);
     Info->IRQLegacyPin = PCI_Read8(Bus, Device, Function, PCI_CFG_IRQ_PIN);
+    Info->CapabilityPointer = PCI_Read8(Bus, Device, Function, PCI_CFG_CAP_PTR);
 
     for (UINT Index = 0; Index < 6; Index++) {
         Info->BAR[Index] = PCI_Read32(Bus, Device, Function, (U16)(PCI_CFG_BAR0 + Index * 4));
+    }
+
+    U8 CapabilityOffset[PCI_MAX_CAPABILITIES];
+    Info->CapabilityCount = PCI_ScanCapabilities(Bus, Device, Function, CapabilityOffset, PCI_MAX_CAPABILITIES);
+    for (UINT CapIndex = 0; CapIndex < (UINT)Info->CapabilityCount; CapIndex++) {
+        Info->CapabilityId[CapIndex] = PCI_Read8(Bus, Device, Function, (U16)CapabilityOffset[CapIndex]);
     }
 
     return TRUE;
@@ -1586,6 +1600,141 @@ static void SystemDataViewPciEnumerate(
 /************************************************************************/
 
 /**
+ * @brief Return a short name for a known PCI capability ID.
+ *
+ * @param CapabilityId PCI capability identifier.
+ * @return Capability name or "?" when unknown.
+ */
+static LPCSTR SystemDataViewPciCapabilityName(U8 CapabilityId) {
+    switch (CapabilityId) {
+        case PCI_CAP_ID_PM:
+            return TEXT("PM");
+        case PCI_CAP_ID_AGP:
+            return TEXT("AGP");
+        case PCI_CAP_ID_VPD:
+            return TEXT("VPD");
+        case PCI_CAP_ID_MSI:
+            return TEXT("MSI");
+        case PCI_CAP_ID_PCIX:
+            return TEXT("PCI-X");
+        case PCI_CAP_ID_HT:
+            return TEXT("HyperTransport");
+        case PCI_CAP_ID_VENDOR:
+            return TEXT("VendorSpecific");
+        case PCI_CAP_ID_DEBUGPORT:
+            return TEXT("DebugPort");
+        case PCI_CAP_ID_HOTPLUG:
+            return TEXT("HotPlug");
+        case PCI_CAP_ID_PCIe:
+            return TEXT("PCIe");
+        case PCI_CAP_ID_MSIX:
+            return TEXT("MSI-X");
+        case PCI_CAP_ID_SATA:
+            return TEXT("SATA");
+        case PCI_CAP_ID_AF:
+            return TEXT("AdvancedFeatures");
+        case PCI_CAP_ID_EA:
+            return TEXT("EnhancedAllocation");
+        case PCI_CAP_ID_FPB:
+            return TEXT("FlatteningPortalBridge");
+        default:
+            return TEXT("?");
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Write one PCI BAR line with its decoded type.
+ *
+ * @param Context Output context.
+ * @param BarIndex BAR index.
+ * @param BarValue Raw BAR register value.
+ * @param BarHighValue Upper 32 bits when the BAR is 64-bit.
+ * @param Is64Bit Whether the BAR is a 64-bit memory BAR.
+ * @param IsIo Whether the BAR is an IO BAR.
+ */
+static void SystemDataViewPciWriteBar(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, UINT BarIndex, U32 BarValue, U32 BarHighValue, BOOL Is64Bit, BOOL IsIo) {
+    STR Label[12];
+    LPCSTR TypeName = TEXT("M32");
+
+    if (IsIo) {
+        TypeName = TEXT("IO ");
+    } else if (Is64Bit) {
+        TypeName = TEXT("M64");
+    }
+
+    StringPrintFormat(Label, TEXT("BAR%u"), (U32)BarIndex);
+    if (Is64Bit) {
+        SystemDataViewWriteFormat(
+            Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("%s %x:%x\n"), TypeName, BarValue, BarHighValue);
+    } else {
+        SystemDataViewWriteFormat(Context, SYSTEM_DATA_VIEW_VALUE_COLUMN, Label, TEXT("%s %x\n"), TypeName, BarValue);
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Write all PCI BARs with 32-bit vs 64-bit detection.
+ *
+ * @param Context Output context.
+ * @param Bar Array of raw BAR register values.
+ */
+static void SystemDataViewPciWriteBars(LPSYSTEM_DATA_VIEW_CONTEXT Context, const U32* Bar) {
+    for (UINT Index = 0; Index < 6; Index++) {
+        U32 BarValue = Bar[Index];
+        BOOL IsIo = PCI_BAR_IS_IO(BarValue);
+        BOOL Is64Bit = (!IsIo && (BarValue & 0x6U) == 0x4U);
+
+        if (Is64Bit) {
+            U32 BarHighValue = (Index + 1 < 6) ? Bar[Index + 1] : 0;
+            SystemDataViewPciWriteBar(Context, Index, BarValue, BarHighValue, TRUE, FALSE);
+            if (Index + 1 < 6) {
+                Index++;
+            }
+        } else {
+            SystemDataViewPciWriteBar(Context, Index, BarValue, 0, FALSE, IsIo);
+        }
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Write the capability pointer and the scanned capability list.
+ *
+ * @param Context Output context.
+ * @param Info PCI function info.
+ */
+static void SystemDataViewPciWriteCapabilities(
+    LPSYSTEM_DATA_VIEW_CONTEXT Context, const SYSTEM_DATA_VIEW_PCI_INFO* Info) {
+    STR Label[16];
+
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Capabilities"),
+        TEXT("Ptr=%x Count=%u\n"),
+        (U32)Info->CapabilityPointer,
+        (U32)Info->CapabilityCount);
+
+    for (UINT Index = 0; Index < (UINT)Info->CapabilityCount; Index++) {
+        StringPrintFormat(Label, TEXT("Cap %u"), (U32)Index);
+        SystemDataViewWriteFormat(
+            Context,
+            SYSTEM_DATA_VIEW_VALUE_COLUMN,
+            Label,
+            TEXT("%x (%s)\n"),
+            (U32)Info->CapabilityId[Index],
+            SystemDataViewPciCapabilityName(Info->CapabilityId[Index]));
+    }
+}
+
+/************************************************************************/
+
+/**
  * @brief PCI list visitor for the System Data View.
  *
  * @param Context Output context.
@@ -1617,6 +1766,22 @@ static BOOL SystemDataViewPciListVisitor(
         (U32)Info->ProgIF,
         (U32)Info->VendorID,
         (U32)Info->DeviceID);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("Command/Status"),
+        TEXT("%x / %x\n"),
+        (U32)Info->Command,
+        (U32)Info->Status);
+    SystemDataViewWriteFormat(
+        Context,
+        SYSTEM_DATA_VIEW_VALUE_COLUMN,
+        TEXT("IRQ Line/Pin"),
+        TEXT("%u / %u\n"),
+        (U32)Info->IRQLine,
+        (U32)Info->IRQLegacyPin);
+    SystemDataViewPciWriteBars(Context, Info->BAR);
+    SystemDataViewPciWriteCapabilities(Context, Info);
 
     return TRUE;
 }

@@ -55,6 +55,15 @@ typedef U32 CLUSTER;
 #define SECTOR_SIZE 512
 
 /***************************************************************************/
+// Stable disk identity sizes. The ID follows the Linux /dev/disk/by-id model
+// (vendor_model_serial) and is independent of enumeration order.
+
+#define DISK_ID_VENDOR_MAX_SIZE 17
+#define DISK_ID_MODEL_MAX_SIZE 41
+#define DISK_ID_SERIAL_MAX_SIZE 41
+#define DISK_ID_MAX_SIZE 128
+
+/***************************************************************************/
 
 typedef struct tag_DISKGEOMETRY {
     U32 Cylinders;
@@ -70,7 +79,11 @@ typedef struct tag_DISK_TRANSFER_UNIT DISK_TRANSFER_UNIT, *LPDISK_TRANSFER_UNIT;
 typedef struct tag_STORAGE_UNIT {
     LISTNODE_FIELDS
     LPDRIVER Driver;
-    LPDISK_TRANSFER_UNIT DiskTransfer;  // Disk transfer layer state, owned by DiskTransferLayer
+    LPDISK_TRANSFER_UNIT DiskTransfer;    // Disk transfer layer state, owned by DiskTransferLayer
+    STR Vendor[DISK_ID_VENDOR_MAX_SIZE];  // Hardware vendor string (empty when unavailable)
+    STR Model[DISK_ID_MODEL_MAX_SIZE];    // Hardware model string
+    STR Serial[DISK_ID_SERIAL_MAX_SIZE];  // Hardware serial string
+    STR StorageId[DISK_ID_MAX_SIZE];      // Stable ID (vendor_model_serial), see utils/DiskID
 } STORAGE_UNIT, *LPSTORAGE_UNIT;
 
 /***************************************************************************/

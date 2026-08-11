@@ -28,6 +28,7 @@
 #include "system/Clock.h"
 #include "core/Kernel.h"
 #include "log/Log.h"
+#include "utils/DiskID.h"
 #include "utils/Helpers.h"
 
 /***************************************************************************/
@@ -514,6 +515,13 @@ static U32 RAMDiskInitialize(void) {
             CONFIG_RAMDISK_MAX_SECTORS_PER_TRANSFER)) {
         return DF_RETURN_UNEXPECTED;
     }
+
+    //-------------------------------------
+    // Build the stable ID before registration so the synthetic ID index
+    // (driver alias + same-type disk count) is deterministic.
+
+    DiskIdSetIdentity((LPSTORAGE_UNIT)Disk, NULL, NULL, NULL);
+    DiskIdEnsure((LPSTORAGE_UNIT)Disk);
 
     //-------------------------------------
 

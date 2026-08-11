@@ -34,6 +34,7 @@
 #include "sync/Deferred-Work.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
+#include "utils/DiskID.h"
 #include "utils/Helpers.h"
 
 /************************************************************************/
@@ -491,6 +492,10 @@ static BOOL USBStorageStartDevice(
         USBStorageFreeDevice(Device);
         return FALSE;
     }
+
+    // Build the stable ID before registration so the synthetic index stays
+    // deterministic when the hardware does not provide a serial number.
+    DiskIdEnsure((LPSTORAGE_UNIT)Device);
 
     LPLIST DiskList = GetDiskList();
     if (DiskList == NULL || ListAddItem(DiskList, Device) == FALSE) {

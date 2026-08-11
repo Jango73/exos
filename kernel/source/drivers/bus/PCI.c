@@ -72,22 +72,21 @@ static U32 DATA_SECTION PciDriverCount = 0;
 
 static UINT PCIDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION PCIDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INIT,
-    .VersionMajor = PCI_VER_MAJOR,
-    .VersionMinor = PCI_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "PCI-SIG",
-    .Product = "PCI",
-    .Alias = "pci",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = PCIDriverCommands,
-    .EnumDomainCount = 1,
-    .EnumDomains = {ENUM_DOMAIN_PCI_DEVICE}};
+DRIVER DATA_SECTION PCIDriver = { .TypeID = KOID_DRIVER,
+                                  .References = 1,
+                                  .Next = NULL,
+                                  .Prev = NULL,
+                                  .Type = DRIVER_TYPE_INIT,
+                                  .VersionMajor = PCI_VER_MAJOR,
+                                  .VersionMinor = PCI_VER_MINOR,
+                                  .Designer = "Jango73",
+                                  .Manufacturer = "PCI-SIG",
+                                  .Product = "PCI",
+                                  .Alias = "pci",
+                                  .Flags = DRIVER_FLAG_CRITICAL,
+                                  .Command = PCIDriverCommands,
+                                  .EnumDomainCount = 1,
+                                  .EnumDomains = { ENUM_DOMAIN_PCI_DEVICE } };
 
 /***************************************************************************/
 
@@ -355,6 +354,47 @@ U32 PCI_GetBARSize(U8 Bus, U8 Device, U8 Function, U8 BarIndex) {
 /***************************************************************************/
 
 /**
+ * @brief Scans the capability list of a function.
+ *
+ * Walks the linked list of capabilities if present and fills OffsetArray with
+ * the config-space offset of each capability found.
+ *
+ * @param Bus          Bus number.
+ * @param Device       Device number.
+ * @param Function     Function number.
+ * @param OffsetArray  Output array of capability offsets.
+ * @param MaxCount     Capacity of OffsetArray.
+ * @return Number of capabilities found (0 when no capability list).
+ */
+
+U8 PCI_ScanCapabilities(U8 Bus, U8 Device, U8 Function, U8* OffsetArray, U8 MaxCount) {
+    U8 Count = 0;
+    U16 Status;
+    U8 Pointer;
+
+    if (OffsetArray == NULL || MaxCount == 0) {
+        return 0;
+    }
+
+    Status = PCI_Read16(Bus, Device, Function, PCI_CFG_STATUS);
+    if ((Status & 0x10U) == 0) return 0; /* no cap list */
+
+    Pointer = PCI_Read8(Bus, Device, Function, PCI_CFG_CAP_PTR) & 0xFCU;
+
+    /* Sanity iteration bound */
+    for (U32 Index = 0; Index < 48 && Pointer >= 0x40 && Count < (U32)MaxCount; Index++) {
+        U8 Next = PCI_Read8(Bus, Device, Function, (U16)(Pointer + 1)) & 0xFCU;
+        OffsetArray[Count] = Pointer;
+        Count++;
+        if (Next == 0 || Next == Pointer) break;
+        Pointer = Next;
+    }
+    return Count;
+}
+
+/***************************************************************************/
+
+/**
  * @brief Searches the capability list for a specific capability ID.
  *
  * Traverses the linked list of capabilities if present.
@@ -367,18 +407,12 @@ U32 PCI_GetBARSize(U8 Bus, U8 Device, U8 Function, U8 BarIndex) {
  */
 
 U8 PCI_FindCapability(U8 Bus, U8 Device, U8 Function, U8 CapabilityId) {
-    U16 Status = PCI_Read16(Bus, Device, Function, PCI_CFG_STATUS);
-    if ((Status & 0x10U) == 0) return 0; /* no cap list */
+    U8 Offsets[PCI_MAX_CAPABILITIES];
+    U8 Count = PCI_ScanCapabilities(Bus, Device, Function, Offsets, PCI_MAX_CAPABILITIES);
 
-    U8 Pointer = PCI_Read8(Bus, Device, Function, PCI_CFG_CAP_PTR) & 0xFCU;
-
-    /* Sanity iteration bound */
-    for (U32 Index = 0; Index < 48 && Pointer >= 0x40; Index++) {
-        U8 Id = PCI_Read8(Bus, Device, Function, (U16)(Pointer + 0));
-        U8 Next = PCI_Read8(Bus, Device, Function, (U16)(Pointer + 1)) & 0xFCU;
-        if (Id == CapabilityId) return Pointer;
-        if (Next == 0 || Next == Pointer) break;
-        Pointer = Next;
+    for (U8 Index = 0; Index < Count; Index++) {
+        U8 Id = PCI_Read8(Bus, Device, Function, (U16)Offsets[Index]);
+        if (Id == CapabilityId) return Offsets[Index];
     }
     return 0;
 }
@@ -479,7 +513,8 @@ void PCI_ScanBus(void) {
                 U32 DriverIndex;
 
                 PciFillFunctionInfo((U8)Bus, (U8)Device, (U8)Function, &PciInfo);
-                DEBUG(TEXT("Found %x:%x.%u VID=%x DID=%x IRQ=%u"),
+                DEBUG(
+                    TEXT("Found %x:%x.%u VID=%x DID=%x IRQ=%u"),
                     (INT)Bus,
                     (INT)Device,
                     (INT)Function,
@@ -503,8 +538,12 @@ void PCI_ScanBus(void) {
 
                         if (PciInternalMatch(DriverMatch, &PciInfo)) {
                             if (PciDriver->Command) {
-                                DEBUG(TEXT("%s matches %x:%x.%u"), PciDriver->Product, (INT)Bus,
-                                    (INT)Device, (INT)Function);
+                                DEBUG(
+                                    TEXT("%s matches %x:%x.%u"),
+                                    PciDriver->Product,
+                                    (INT)Bus,
+                                    (INT)Device,
+                                    (INT)Function);
 
                                 U32 Result = PciDriver->Command(DF_PROBE, (UINT)(LPVOID)&PciInfo);
                                 if (Result == DF_RETURN_SUCCESS) {
@@ -515,10 +554,17 @@ void PCI_ScanBus(void) {
                                         LPPCI_DEVICE NewDev = PciDriver->Attach(&PciDevice);
 
                                         if (NewDev) {
-                                            DEBUG(TEXT("Adding device %p (ID=%x) to list"), (LINEAR)NewDev, (INT)(NewDev->TypeID));
+                                            DEBUG(
+                                                TEXT("Adding device %p (ID=%x) to list"),
+                                                (LINEAR)NewDev,
+                                                (INT)(NewDev->TypeID));
                                             ListAddItem(GetPCIDeviceList(), NewDev);
-                                            DEBUG(TEXT("Attached %s to %x:%x.%u"), PciDriver->Product,
-                                                (INT)Bus, (INT)Device, (INT)Function);
+                                            DEBUG(
+                                                TEXT("Attached %s to %x:%x.%u"),
+                                                PciDriver->Product,
+                                                (INT)Bus,
+                                                (INT)Device,
+                                                (INT)Function);
 
                                             goto NextFunction;
                                         }
@@ -703,8 +749,7 @@ static U32 PCI_EnumNext(LPDRIVER_ENUM_NEXT Next) {
     if (Next == NULL || Next->Query == NULL || Next->Item == NULL) {
         return DF_RETURN_BAD_PARAMETER;
     }
-    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) ||
-        Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
+    if (Next->Query->Header.Size < sizeof(DRIVER_ENUM_QUERY) || Next->Item->Header.Size < sizeof(DRIVER_ENUM_ITEM)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
@@ -763,23 +808,23 @@ static U32 PCI_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
-    if (Pretty->Item->Domain != ENUM_DOMAIN_PCI_DEVICE ||
-        Pretty->Item->DataSize < sizeof(DRIVER_ENUM_PCI_DEVICE)) {
+    if (Pretty->Item->Domain != ENUM_DOMAIN_PCI_DEVICE || Pretty->Item->DataSize < sizeof(DRIVER_ENUM_PCI_DEVICE)) {
         return DF_RETURN_BAD_PARAMETER;
     }
 
     const DRIVER_ENUM_PCI_DEVICE* Data = (const DRIVER_ENUM_PCI_DEVICE*)Pretty->Item->Data;
-    StringPrintFormat(Pretty->Buffer,
-                      TEXT("PCI %x:%x.%u VID=%x DID=%x Class=%x Sub=%x ProgIF=%x Rev=%x"),
-                      (U32)Data->Bus,
-                      (U32)Data->Dev,
-                      (U32)Data->Func,
-                      (U32)Data->VendorID,
-                      (U32)Data->DeviceID,
-                      (U32)Data->BaseClass,
-                      (U32)Data->SubClass,
-                      (U32)Data->ProgIF,
-                      (U32)Data->Revision);
+    StringPrintFormat(
+        Pretty->Buffer,
+        TEXT("PCI %x:%x.%u VID=%x DID=%x Class=%x Sub=%x ProgIF=%x Rev=%x"),
+        (U32)Data->Bus,
+        (U32)Data->Dev,
+        (U32)Data->Func,
+        (U32)Data->VendorID,
+        (U32)Data->DeviceID,
+        (U32)Data->BaseClass,
+        (U32)Data->SubClass,
+        (U32)Data->ProgIF,
+        (U32)Data->Revision);
 
     return DF_RETURN_SUCCESS;
 }

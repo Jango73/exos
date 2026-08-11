@@ -145,8 +145,11 @@ struct sockaddr_in {
 
 // Socket option constants
 #define SOL_SOCKET 1
+#define IPPROTO_TCP 6
 #define SO_REUSEADDR 2
+#define SO_KEEPALIVE 9
 #define SO_RCVTIMEO 20
+#define TCP_NODELAY 1
 
 /************************************************************************/
 // Byte order inline functions

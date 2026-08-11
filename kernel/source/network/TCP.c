@@ -78,12 +78,33 @@ static UINT TCP_GetConfiguredBufferSize(LPCSTR configKey, U32 fallback, U32 maxL
 }
 
 /************************************************************************/
+// Helper to read U32 values from configuration with fallback
+static U32 TCP_GetConfiguredU32(LPCSTR configKey, U32 fallback) {
+    LPCSTR configValue = GetConfigurationValue(configKey);
+
+    if (STRING_EMPTY(configValue) == FALSE) {
+        U32 parsedValue = StringToU32(configValue);
+        if (parsedValue > 0) {
+            return parsedValue;
+        }
+
+        WARNING(TEXT("%s has invalid value '%s', using fallback"), configKey, configValue);
+    }
+
+    return fallback;
+}
+
+/************************************************************************/
 // Global TCP state
 
 typedef struct tag_TCP_GLOBAL_STATE {
     U16 NextEphemeralPort;
     UINT SendBufferSize;
     UINT ReceiveBufferSize;
+    U32 DelayedAckTimeout;
+    U32 KeepAliveIdle;
+    U32 KeepAliveInterval;
+    U32 KeepAliveProbes;
 } TCP_GLOBAL_STATE, *LPTCP_GLOBAL_STATE;
 
 TCP_GLOBAL_STATE DATA_SECTION GlobalTCP;
@@ -140,6 +161,13 @@ static void TCP_StartTrackedRetransmission(
 static BOOL TCP_RetransmitTrackedSegment(LPTCP_CONNECTION Conn, BOOL FastRetransmit);
 static void TCP_HandleAcknowledgement(LPTCP_CONNECTION Conn, LPTCP_PACKET_EVENT Event);
 static U32 TCP_GetAllowedSendBytes(LPTCP_CONNECTION Conn);
+
+// Forward declarations of performance optimization helpers
+static void TCP_ClearDelayedAck(LPTCP_CONNECTION Conn);
+static void TCP_ScheduleDelayedAck(LPTCP_CONNECTION Conn);
+static U32 TCP_FlushSendBuffer(LPTCP_CONNECTION Conn);
+static BOOL TCP_SendKeepAliveProbe(LPTCP_CONNECTION Conn);
+static void TCP_CheckKeepAlive(LPTCP_CONNECTION Conn, U32 Now);
 
 // State definitions
 static SM_STATE_DEFINITION TCP_States[] = { { TCP_STATE_CLOSED, TCP_OnEnterClosed, NULL, NULL },
@@ -556,6 +584,9 @@ static void TCP_HandleAcknowledgement(LPTCP_CONNECTION Conn, LPTCP_PACKET_EVENT 
             TCP_ClearRetransmissionState(Conn);
             TCP_OnCongestionNewAck(Conn);
         }
+
+        // ACK progress may unlock Nagle-buffered data
+        TCP_FlushSendBuffer(Conn);
     }
 }
 
@@ -582,6 +613,185 @@ static U32 TCP_GetAllowedSendBytes(LPTCP_CONNECTION Conn) {
     }
 
     return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Clears the pending delayed ACK state for a connection.
+ * @param Conn Target TCP connection.
+ */
+static void TCP_ClearDelayedAck(LPTCP_CONNECTION Conn) {
+    Conn->DelayedAckPending = FALSE;
+    Conn->DelayedAckSegmentCount = 0;
+    Conn->DelayedAckTimer = 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Schedules a delayed ACK, or sends it immediately every second segment.
+ * @param Conn Target TCP connection.
+ */
+static void TCP_ScheduleDelayedAck(LPTCP_CONNECTION Conn) {
+    if (Conn->DelayedAckPending) {
+        // Second data segment received while the ACK is still pending: send it promptly
+        Conn->DelayedAckSegmentCount++;
+        if (Conn->DelayedAckSegmentCount >= 2) {
+            if (TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0) < 0) {
+                Conn->DelayedAckTimer = GetSystemTime() + Conn->DelayedAckTimeout;
+            }
+        }
+        return;
+    }
+
+    Conn->DelayedAckPending = TRUE;
+    Conn->DelayedAckSegmentCount = 1;
+    Conn->DelayedAckTimer = GetSystemTime() + Conn->DelayedAckTimeout;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Sends the Nagle-buffered data, respecting congestion control.
+ * @param Conn Target TCP connection.
+ * @return Number of bytes flushed to the wire.
+ */
+static U32 TCP_FlushSendBuffer(LPTCP_CONNECTION Conn) {
+    SAFE_USE_VALID_ID(Conn, KOID_TCP) {
+        U32 TotalSent = 0;
+
+        while (Conn->SendBufferUsed > 0) {
+            U32 Allowed = TCP_GetAllowedSendBytes(Conn);
+            if (Allowed == 0) {
+                break;
+            }
+
+            BOOL HasUnacked = (Conn->SendUnacked != Conn->SendNext);
+            BOOL FullSegment = (Conn->SendBufferUsed >= TCP_MAX_RETRANSMIT_PAYLOAD);
+
+            // Nagle rule: only send sub-MSS data once all outstanding data is acknowledged
+            if (Conn->NagleEnabled && HasUnacked && !FullSegment) {
+                break;
+            }
+
+            U32 ChunkSize =
+                (Conn->SendBufferUsed > TCP_MAX_RETRANSMIT_PAYLOAD) ? TCP_MAX_RETRANSMIT_PAYLOAD : Conn->SendBufferUsed;
+            if (ChunkSize > Allowed) {
+                ChunkSize = Allowed;
+            }
+            if (ChunkSize == 0) {
+                break;
+            }
+
+            I32 SendResult = TCP_SendPacket(Conn, TCP_FLAG_PSH | TCP_FLAG_ACK, Conn->SendBuffer, ChunkSize);
+            if (SendResult < 0) {
+                break;
+            }
+
+            if (ChunkSize < Conn->SendBufferUsed) {
+                MemoryMove(Conn->SendBuffer, Conn->SendBuffer + ChunkSize, Conn->SendBufferUsed - ChunkSize);
+            }
+            Conn->SendBufferUsed -= ChunkSize;
+            TotalSent += ChunkSize;
+        }
+
+        return TotalSent;
+    }
+
+    return 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Resets the keep-alive activity tracking on any inbound segment.
+ * @param Conn Target TCP connection.
+ * @param Now Current system time.
+ */
+static void TCP_ResetKeepAliveActivity(LPTCP_CONNECTION Conn, U32 Now) {
+    if (!Conn->KeepAliveEnabled) {
+        return;
+    }
+
+    Conn->KeepAliveLastActivity = Now;
+    Conn->KeepAliveProbeCount = 0;
+    Conn->KeepAliveNextProbe = 0;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Sends a keep-alive probe (ACK of the last received byte).
+ * @param Conn Target TCP connection.
+ * @return TRUE if the probe was transmitted.
+ */
+static BOOL TCP_SendKeepAliveProbe(LPTCP_CONNECTION Conn) {
+    U32 ProbeSequence = Conn->RecvNext - 1;
+    U32 PreviousSendNext = Conn->SendNext;
+
+    Conn->SendNext = ProbeSequence;
+    I32 SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
+    Conn->SendNext = PreviousSendNext;
+
+    return (SendResult >= 0);
+}
+
+/************************************************************************/
+
+/**
+ * @brief Drives keep-alive probing for a connection.
+ * @param Conn Target TCP connection.
+ * @param Now Current system time.
+ */
+static void TCP_CheckKeepAlive(LPTCP_CONNECTION Conn, U32 Now) {
+    if (!Conn->KeepAliveEnabled) {
+        return;
+    }
+
+    if (Conn->KeepAliveProbeCount == 0) {
+        // Idle phase: wait for the idle timeout before the first probe
+        if (Conn->KeepAliveNextProbe == 0) {
+            Conn->KeepAliveNextProbe = Conn->KeepAliveLastActivity + Conn->KeepAliveIdle;
+        }
+        if (Now < Conn->KeepAliveNextProbe) {
+            return;
+        }
+
+        if (TCP_SendKeepAliveProbe(Conn) == FALSE) {
+            return;
+        }
+
+        Conn->KeepAliveProbeCount = 1;
+        Conn->KeepAliveNextProbe = Now + Conn->KeepAliveInterval;
+        return;
+    }
+
+    if (Now < Conn->KeepAliveNextProbe) {
+        return;
+    }
+
+    if (Conn->KeepAliveProbeCount >= Conn->KeepAliveProbes) {
+        // No response after all probes: the connection is considered dead
+        DEBUG(TEXT("[TCP_CheckKeepAlive] keep-alive timeout for connection %p"), (LPVOID)Conn);
+        Conn->KeepAliveEnabled = FALSE;
+        TCP_ClearRetransmissionState(Conn);
+        Conn->DuplicateAckCount = 0;
+
+        SAFE_USE(Conn->NotificationContext) {
+            Notification_Send(Conn->NotificationContext, NOTIF_EVENT_TCP_FAILED, NULL, 0);
+        }
+
+        SM_ProcessEvent(&Conn->StateMachine, TCP_EVENT_RCV_RST, NULL);
+        return;
+    }
+
+    if (TCP_SendKeepAliveProbe(Conn) == FALSE) {
+        return;
+    }
+
+    Conn->KeepAliveProbeCount++;
+    Conn->KeepAliveNextProbe = Now + Conn->KeepAliveInterval;
 }
 
 /************************************************************************/
@@ -669,6 +879,11 @@ static int TCP_SendPacket(LPTCP_CONNECTION Conn, U8 Flags, const U8* Payload, U3
         Conn->SendNext += SequenceLength;
     }
 
+    // Any ACK-bearing packet satisfies a pending delayed ACK (piggyback)
+    if (Flags & TCP_FLAG_ACK) {
+        TCP_ClearDelayedAck(Conn);
+    }
+
     return SendResult;
 }
 
@@ -680,9 +895,11 @@ static void TCP_OnEnterClosed(STATE_MACHINE* SM) {
 
     // Clear all timers and counters to prevent zombie retransmissions
     TCP_ClearRetransmissionState(Conn);
+    TCP_ClearDelayedAck(Conn);
     Conn->DuplicateAckCount = 0;
     Conn->TimeWaitTimer = 0;
     Conn->InFastRecovery = FALSE;
+    Conn->KeepAliveEnabled = FALSE;
 
     // Note: We don't need to unregister from global IPv4 notifications
     // as the callback will check the connection state
@@ -907,10 +1124,16 @@ static void TCP_ActionProcessData(STATE_MACHINE* SM, LPVOID EventData) {
         Conn->RecvNext = AckTarget;
     }
 
-    int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
-    if (SendResult < 0) {
-        ERROR(TEXT("Failed to send ACK packet"));
-        SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
+    if (BytesAccepted > 0) {
+        // In-order data accepted: acknowledge with the delayed ACK policy
+        TCP_ScheduleDelayedAck(Conn);
+    } else {
+        // No data accepted: acknowledge immediately to keep the sender informed
+        int SendResult = TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
+        if (SendResult < 0) {
+            ERROR(TEXT("Failed to send ACK packet"));
+            SM_ProcessEvent(SM, TCP_EVENT_RCV_RST, NULL);
+        }
     }
 }
 
@@ -1217,6 +1440,10 @@ void TCP_Initialize(void) {
         TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_SEND_BUFFER_SIZE), TCP_SEND_BUFFER_SIZE, TCP_SEND_BUFFER_SIZE);
     GlobalTCP.ReceiveBufferSize =
         TCP_GetConfiguredBufferSize(TEXT(CONFIG_TCP_RECEIVE_BUFFER_SIZE), TCP_RECV_BUFFER_SIZE, TCP_RECV_BUFFER_SIZE);
+    GlobalTCP.DelayedAckTimeout = TCP_GetConfiguredU32(TEXT(CONFIG_TCP_DELAYED_ACK_TIMEOUT), TCP_DELAYED_ACK_TIMEOUT);
+    GlobalTCP.KeepAliveIdle = TCP_GetConfiguredU32(TEXT(CONFIG_TCP_KEEPALIVE_IDLE), TCP_KEEPALIVE_IDLE);
+    GlobalTCP.KeepAliveInterval = TCP_GetConfiguredU32(TEXT(CONFIG_TCP_KEEPALIVE_INTERVAL), TCP_KEEPALIVE_INTERVAL);
+    GlobalTCP.KeepAliveProbes = TCP_GetConfiguredU32(TEXT(CONFIG_TCP_KEEPALIVE_PROBES), TCP_KEEPALIVE_PROBES);
 
 
     // TCP protocol handler will be registered later when devices are initialized
@@ -1273,6 +1500,20 @@ LPTCP_CONNECTION TCP_CreateConnection(LPDEVICE Device, U32 LocalIP, U16 LocalPor
     Conn->FastRecoverySequence = 0;
     Conn->CongestionWindow = TCP_CONGESTION_INITIAL_WINDOW;
     Conn->SlowStartThreshold = TCP_CONGESTION_INITIAL_SSTHRESH;
+
+    // Performance optimizations defaults
+    Conn->NagleEnabled = TRUE;
+    Conn->DelayedAckTimeout = GlobalTCP.DelayedAckTimeout;
+    Conn->DelayedAckPending = FALSE;
+    Conn->DelayedAckTimer = 0;
+    Conn->DelayedAckSegmentCount = 0;
+    Conn->KeepAliveEnabled = FALSE;
+    Conn->KeepAliveIdle = GlobalTCP.KeepAliveIdle;
+    Conn->KeepAliveInterval = GlobalTCP.KeepAliveInterval;
+    Conn->KeepAliveProbes = GlobalTCP.KeepAliveProbes;
+    Conn->KeepAliveNextProbe = 0;
+    Conn->KeepAliveProbeCount = 0;
+    Conn->KeepAliveLastActivity = GetSystemTime();
 
     // Initialize sliding window with hysteresis
     TCP_InitSlidingWindow(Conn);
@@ -1375,6 +1616,32 @@ int TCP_Send(LPTCP_CONNECTION Connection, const U8* Data, U32 Length) {
         if (MaxChunk == 0) {
             MaxChunk = TCP_MAX_RETRANSMIT_PAYLOAD;
         }
+
+        BOOL HasUnacked = (Connection->SendUnacked != Connection->SendNext);
+        BOOL FullSegment = (Length >= TCP_MAX_RETRANSMIT_PAYLOAD);
+
+        // Nagle algorithm: coalesce sub-MSS writes while data is in flight
+        if (Connection->NagleEnabled && HasUnacked && !FullSegment) {
+            UINT Space = Connection->SendBufferCapacity - Connection->SendBufferUsed;
+
+            if (Space == 0) {
+                return 0;
+            }
+
+            U32 CopyLength = (Length > (U32)Space) ? (U32)Space : Length;
+            MemoryCopy(Connection->SendBuffer + Connection->SendBufferUsed, Data, CopyLength);
+            Connection->SendBufferUsed += CopyLength;
+
+            // Flush immediately once the buffered data fills a full segment
+            if (Connection->SendBufferUsed >= TCP_MAX_RETRANSMIT_PAYLOAD) {
+                TCP_FlushSendBuffer(Connection);
+            }
+
+            return (I32)CopyLength;
+        }
+
+        // Flush any previously Nagle-buffered data first
+        TCP_FlushSendBuffer(Connection);
 
         const U8* CurrentData = Data;
         U32 Remaining = Length;
@@ -1516,6 +1783,9 @@ static void TCP_OnIPv4PacketInternal(const U8* Payload, U32 PayloadLength, U32 S
         return;
     }
 
+    // Any inbound segment counts as keep-alive activity
+    TCP_ResetKeepAliveActivity(Conn, GetSystemTime());
+
     // Create event data
     TCP_PACKET_EVENT Event;
     Event.Header = Header;
@@ -1600,6 +1870,16 @@ void TCP_Update(void) {
             }
         }
 
+        // Delayed ACK timeout: flush the pending acknowledgment
+        if (Conn->DelayedAckPending && Conn->DelayedAckTimer > 0 && CurrentTime >= Conn->DelayedAckTimer) {
+            TCP_SendPacket(Conn, TCP_FLAG_ACK, NULL, 0);
+        }
+
+        // Keep-alive probing (established connections only)
+        if (CurrentState == TCP_STATE_ESTABLISHED) {
+            TCP_CheckKeepAlive(Conn, CurrentTime);
+        }
+
         // Update state machine
         SM_Update(&Conn->StateMachine);
 
@@ -1612,6 +1892,33 @@ void TCP_Update(void) {
 void TCP_SetNotificationContext(LPTCP_CONNECTION Connection, LPNOTIFICATION_CONTEXT Context) {
     SAFE_USE_VALID_ID(Connection, KOID_TCP) {
         Connection->NotificationContext = Context;
+    }
+}
+
+/************************************************************************/
+
+void TCP_SetNagleEnabled(LPTCP_CONNECTION Connection, BOOL Enabled) {
+    SAFE_USE_VALID_ID(Connection, KOID_TCP) {
+        Connection->NagleEnabled = Enabled;
+
+        // Releasing Nagle unlocks any buffered sub-MSS data immediately
+        if (Enabled == FALSE) {
+            TCP_FlushSendBuffer(Connection);
+        }
+    }
+}
+
+/************************************************************************/
+
+void TCP_SetKeepAliveEnabled(LPTCP_CONNECTION Connection, BOOL Enabled) {
+    SAFE_USE_VALID_ID(Connection, KOID_TCP) {
+        Connection->KeepAliveEnabled = Enabled;
+
+        if (Enabled) {
+            Connection->KeepAliveLastActivity = GetSystemTime();
+            Connection->KeepAliveProbeCount = 0;
+            Connection->KeepAliveNextProbe = 0;
+        }
     }
 }
 

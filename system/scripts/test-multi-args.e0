@@ -1,5 +1,5 @@
 word = "alpha";
 left = 8;
 right = 9;
-is_ok = 10 > 3;
-return smokeTestMultiArgs(word, left + right, right + 14, is_ok);
+isOk = 10 > 3;
+return smokeTestMultiArgs(word, left + right, right + 14, isOk);

@@ -27,6 +27,7 @@
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "process/Task.h"
+#include "utils/DiskID.h"
 
 /************************************************************************/
 
@@ -39,11 +40,8 @@
  * @param DirectionIn TRUE for READ(10), FALSE for WRITE(10).
  * @return TRUE on success.
  */
-static BOOL USBStorageBuildReadWrite10(U8* CommandBlock,
-                                       UINT CommandBlockLength,
-                                       UINT LogicalBlockAddress,
-                                       UINT TransferBlocks,
-                                       BOOL DirectionIn) {
+static BOOL USBStorageBuildReadWrite10(
+    U8* CommandBlock, UINT CommandBlockLength, UINT LogicalBlockAddress, UINT TransferBlocks, BOOL DirectionIn) {
     if (CommandBlock == NULL || CommandBlockLength < USB_SCSI_READ_WRITE_10_COMMAND_BLOCK_LENGTH) {
         return FALSE;
     }
@@ -71,11 +69,8 @@ static BOOL USBStorageBuildReadWrite10(U8* CommandBlock,
  * @param Buffer Data buffer.
  * @return TRUE on success.
  */
-static BOOL USBStorageTransferBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
-                                     UINT LogicalBlockAddress,
-                                     UINT TransferBlocks,
-                                     BOOL DirectionIn,
-                                     LPVOID Buffer) {
+static BOOL USBStorageTransferBlocks(
+    LPUSB_MASS_STORAGE_DEVICE Device, UINT LogicalBlockAddress, UINT TransferBlocks, BOOL DirectionIn, LPVOID Buffer) {
     U8 CommandBlock[USB_SCSI_READ_WRITE_10_COMMAND_BLOCK_LENGTH];
     UINT Length = 0;
 
@@ -92,11 +87,8 @@ static BOOL USBStorageTransferBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
         return FALSE;
     }
 
-    if (!USBStorageBuildReadWrite10(CommandBlock,
-                                    sizeof(CommandBlock),
-                                    LogicalBlockAddress,
-                                    TransferBlocks,
-                                    DirectionIn)) {
+    if (!USBStorageBuildReadWrite10(
+            CommandBlock, sizeof(CommandBlock), LogicalBlockAddress, TransferBlocks, DirectionIn)) {
         return FALSE;
     }
 
@@ -127,9 +119,8 @@ static void USBStorageUpdateEntryGeometry(LPUSB_MASS_STORAGE_DEVICE Device) {
  * @param LogResult TRUE to emit a warning line with decoded sense values.
  * @return TRUE on success.
  */
-BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
-                                LPUSB_STORAGE_SENSE_DATA SenseDataOut,
-                                BOOL LogResult) {
+BOOL USBStorageRequestSenseData(
+    LPUSB_MASS_STORAGE_DEVICE Device, LPUSB_STORAGE_SENSE_DATA SenseDataOut, BOOL LogResult) {
     U8 CommandBlock[6];
     U8 SenseData[18];
 
@@ -142,14 +133,14 @@ BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
     CommandBlock[0] = USB_SCSI_REQUEST_SENSE;
     CommandBlock[4] = (U8)sizeof(SenseData);
 
-    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock),
-                              sizeof(SenseData), TRUE, SenseData)) {
+    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock), sizeof(SenseData), TRUE, SenseData)) {
         WARNING(TEXT("Request sense failed"));
-        DEBUG(TEXT("LastOp=%x Stage=%u LastCSW=%x Residue=%u"),
-              (U32)Device->LastScsiOpCode,
-              (U32)Device->LastBotStage,
-              (U32)Device->LastCswStatus,
-              Device->LastCswResidue);
+        DEBUG(
+            TEXT("LastOp=%x Stage=%u LastCSW=%x Residue=%u"),
+            (U32)Device->LastScsiOpCode,
+            (U32)Device->LastBotStage,
+            (U32)Device->LastCswStatus,
+            Device->LastCswResidue);
         return FALSE;
     }
 
@@ -159,11 +150,12 @@ BOOL USBStorageRequestSenseData(LPUSB_MASS_STORAGE_DEVICE Device,
     SenseDataOut->AdditionalSenseCodeQualifier = SenseData[13];
 
     if (LogResult) {
-        WARNING(TEXT("Sense=%x ASC=%x ASCQ=%x LastOp=%x"),
-                (U32)SenseDataOut->SenseKey,
-                (U32)SenseDataOut->AdditionalSenseCode,
-                (U32)SenseDataOut->AdditionalSenseCodeQualifier,
-                (U32)Device->LastScsiOpCode);
+        WARNING(
+            TEXT("Sense=%x ASC=%x ASCQ=%x LastOp=%x"),
+            (U32)SenseDataOut->SenseKey,
+            (U32)SenseDataOut->AdditionalSenseCode,
+            (U32)SenseDataOut->AdditionalSenseCodeQualifier,
+            (U32)Device->LastScsiOpCode);
     }
 
     return TRUE;
@@ -186,8 +178,7 @@ BOOL USBStorageInquiry(LPUSB_MASS_STORAGE_DEVICE Device) {
     CommandBlock[0] = USB_SCSI_INQUIRY;
     CommandBlock[4] = (U8)sizeof(InquiryData);
 
-    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock),
-                              sizeof(InquiryData), TRUE, InquiryData)) {
+    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock), sizeof(InquiryData), TRUE, InquiryData)) {
         return FALSE;
     }
 
@@ -195,6 +186,8 @@ BOOL USBStorageInquiry(LPUSB_MASS_STORAGE_DEVICE Device) {
     MemorySet(Product, 0, sizeof(Product));
     MemoryCopy(Vendor, &InquiryData[8], 8);
     MemoryCopy(Product, &InquiryData[16], 16);
+
+    DiskIdSetIdentity((LPSTORAGE_UNIT)Device, Vendor, Product, NULL);
 
     DEBUG(TEXT("Vendor=%s Product=%s"), Vendor, Product);
     return TRUE;
@@ -262,8 +255,7 @@ BOOL USBStorageReadCapacity(LPUSB_MASS_STORAGE_DEVICE Device) {
     MemorySet(CommandBlock, 0, sizeof(CommandBlock));
     CommandBlock[0] = USB_SCSI_READ_CAPACITY_10;
 
-    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock),
-                              sizeof(CapacityData), TRUE, CapacityData)) {
+    if (!USBStorageBotCommand(Device, CommandBlock, sizeof(CommandBlock), sizeof(CapacityData), TRUE, CapacityData)) {
         return FALSE;
     }
 
@@ -326,10 +318,11 @@ BOOL USBStorageReinitializeDevice(LPUSB_MASS_STORAGE_DEVICE Device) {
 
         if (SenseData.SenseKey != USB_SCSI_SENSE_KEY_NOT_READY &&
             SenseData.SenseKey != USB_SCSI_SENSE_KEY_UNIT_ATTENTION) {
-            DEBUG(TEXT("Sense=%x ASC=%x ASCQ=%x"),
-                  (U32)SenseData.SenseKey,
-                  (U32)SenseData.AdditionalSenseCode,
-                  (U32)SenseData.AdditionalSenseCodeQualifier);
+            DEBUG(
+                TEXT("Sense=%x ASC=%x ASCQ=%x"),
+                (U32)SenseData.SenseKey,
+                (U32)SenseData.AdditionalSenseCode,
+                (U32)SenseData.AdditionalSenseCodeQualifier);
             break;
         }
 
@@ -373,14 +366,12 @@ BOOL USBStorageRecoverCommandFailure(LPUSB_MASS_STORAGE_DEVICE Device, U8 Failed
     }
 
     if (SenseData.SenseKey == USB_SCSI_SENSE_KEY_UNIT_ATTENTION) {
-        WARNING(TEXT("Media state changed Op=%x"),
-                (U32)FailedOperation);
+        WARNING(TEXT("Media state changed Op=%x"), (U32)FailedOperation);
         return USBStorageReinitializeDevice(Device);
     }
 
     if (SenseData.SenseKey == USB_SCSI_SENSE_KEY_NOT_READY) {
-        WARNING(TEXT("Device not ready Op=%x"),
-                (U32)FailedOperation);
+        WARNING(TEXT("Device not ready Op=%x"), (U32)FailedOperation);
         return USBStorageReinitializeDevice(Device);
     }
 
@@ -397,10 +388,8 @@ BOOL USBStorageRecoverCommandFailure(LPUSB_MASS_STORAGE_DEVICE Device, U8 Failed
  * @param Output Output buffer.
  * @return TRUE on success.
  */
-BOOL USBStorageReadBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
-                          UINT LogicalBlockAddress,
-                          UINT TransferBlocks,
-                          LPVOID Output) {
+BOOL USBStorageReadBlocks(
+    LPUSB_MASS_STORAGE_DEVICE Device, UINT LogicalBlockAddress, UINT TransferBlocks, LPVOID Output) {
     return USBStorageTransferBlocks(Device, LogicalBlockAddress, TransferBlocks, TRUE, Output);
 }
 
@@ -414,10 +403,8 @@ BOOL USBStorageReadBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
  * @param Input Input buffer.
  * @return TRUE on success.
  */
-BOOL USBStorageWriteBlocks(LPUSB_MASS_STORAGE_DEVICE Device,
-                           UINT LogicalBlockAddress,
-                           UINT TransferBlocks,
-                           LPCVOID Input) {
+BOOL USBStorageWriteBlocks(
+    LPUSB_MASS_STORAGE_DEVICE Device, UINT LogicalBlockAddress, UINT TransferBlocks, LPCVOID Input) {
     return USBStorageTransferBlocks(Device, LogicalBlockAddress, TransferBlocks, FALSE, (LPVOID)Input);
 }
 

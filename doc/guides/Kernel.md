@@ -347,6 +347,16 @@ User login and session unlock flows apply a short cooldown after failures and a 
 
 Child process creation inherits the parent session (`Process->Session`) and stable owner identifier (`Process->UserID`), preserving identity continuity across spawned processes even when the live session pointer is absent (`kernel/source/process/Process.c`, `kernel/source/user/UserSession.c`).
 
+##### Boot login and recovery
+
+An administrator session is obtained only through a successful login: `HandleUserLoginProcess` runs at boot when `General.DoLogin` is enabled, prompts for credentials, and creates the session (`kernel/source/shell/Shell-Main.c`, `kernel/source/shell/Shell-Commands-Users.c`). Administrator privilege resolution (`ProcessAccessIsAdministratorProcess`, `utils/ProcessAccess`) requires either a kernel process or an account with `EXOS_PRIVILEGE_ADMIN` resolved through a session `UserID`.
+
+`General.DoLogin=0` skips the login prompt but does NOT grant administrator access: without a session the effective user identifier is empty, so the `ADMIN|KERNEL` exposure gates and admin-level syscall checks reject the caller. The smoke-test harness sets `DoLogin=0` and therefore runs without administrator privileges.
+
+The recovery path for a missing or unreadable user database is bootstrap re-creation: when `LoadUserDatabase()` fails, the account list is empty and the boot flow prompts to create the first administrator account, which then overwrites the database through `SaveUserDatabase()` (`kernel/source/user/Account.c`). This path triggers on deletion or detectable corruption, not on silent tampering.
+
+Known boundary: `users.database` carries no integrity protection. A modification that keeps the file loadable (privilege bit flip, password hash replacement) is not detected and loads silently, granting the attacker whatever the edited account allows. Physical access to the disk bypasses all software-level barriers.
+
 ##### Process and object targeting policy
 
 Same-user process targeting policy and caller privilege resolution are centralized in `utils/ProcessAccess`: a process may target itself, processes owned by the same effective user, or any process when the caller resolves to administrator or kernel privilege.
@@ -1261,7 +1271,15 @@ Kernel-level wrappers `ShutdownKernel()` and `RebootKernel()` drive shell comman
 ```
 
 **AHCI interrupt policy**: the SATA driver registers the controller with the shared `DeviceInterruptRegister` infrastructure and installs dedicated top and bottom halves so IRQ 11 traffic can be routed through a private slot when the hardware gets its own vector (MSI/MSI-X or a non-shared INTx line). Commands complete synchronously, therefore all AHCI per-port interrupt masks (`PORT.ie`) and the global `GHC.IE` bit are cleared in shipping builds so the shared IRQ 11 line stays quiet for the `E1000` NIC.
-Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+ Disk drivers expose `BytesPerSector` through `DF_DISK_GETINFO` (`DISK_INFO.BytesPerSector`). Partition probing in `FileSystem.c` consumes this value and accepts 512-byte and 4096-byte sectors when reading MBR/GPT and signature data.
+
+**Stable disk IDs**: each `STORAGE_UNIT` carries a stable ID (`StorageId`) unique per disk and independent of enumeration order and driver type, following the Linux `/dev/disk/by-id` model. The identity is captured at enumeration time by each storage driver through `utils/DiskID` (`kernel/source/utils/DiskID.c`):
+- ATA/SATA: serial + model from IDENTIFY DEVICE (decoded through `ATADecodeIdentifyString`, reused by the AHCI path after a real IDENTIFY command).
+- NVMe: serial + model from Identify Controller.
+- USB: vendor + product from SCSI INQUIRY (the only path that populates the `vendor` part; ATA/SATA, NVMe and the RAMDisk pass `NULL` for it).
+- RAMDisk and disks without any hardware identity: a deterministic synthetic ID (`<driver alias>_<count>`) built from the number of already-registered disks of the same driver type, stable across reboots.
+
+`DiskIdSetIdentity` sanitizes each part (allowed `A-Z a-z 0-9 _ - .`; other characters become `_`, trailing `_` are trimmed) and preserves the original case. `DiskIdEnsure` composes the ID as `vendor_model_serial` (empty parts skipped) or falls back to the synthetic ID; `DiskIdGet` returns it and `DiskIdFindById` looks up a disk by ID in `Kernel.Disk`. For example the boot RAMDisk yields `ramdisk_0` and a QEMU ATA disk yields `QEMU_HARDDISK_QM00013`. The ID, vendor, model and serial are exposed to the script engine as `storage[i].id/vendor/model/serial`; the script-side lookup `storage.byId["<id>"]` maps to `DiskIdFindById` through a string-key host element callback, with index access `storage[i]` kept as a fallback.
 
 ## Storage and Filesystems
 
@@ -2330,6 +2348,18 @@ TCP provides reliable connection-oriented communication using a state machine-ba
 - Duplicate ACK detection with fast retransmit and fast recovery
 - Reno-style congestion baseline (slow start and congestion avoidance)
 - Checksum validation with IPv4 pseudo-header
+- Nagle algorithm: sub-MSS writes are coalesced while unacknowledged data is in
+  flight, flushed on full segment or once all outstanding data is acknowledged;
+  disabled through the `TCP_NODELAY` socket option
+- Delayed ACK: in-order data is acknowledged after `TCP.DelayedAckTimeout`
+  (default 200 ms), every second received data segment triggers a prompt ACK,
+  and ACKs piggyback on outgoing data and window updates; duplicate,
+  out-of-order and zero-window segments are acknowledged immediately
+- Keep-alive: optional probes configured through `TCP.KeepAliveIdle`,
+  `TCP.KeepAliveInterval` and `TCP.KeepAliveProbes` (defaults 7200000 ms,
+  75000 ms, 8), sent as an ACK of the last received byte; the connection is
+  closed when all probes go unanswered; enabled through the `SO_KEEPALIVE`
+  socket option
 
 The buffer capacities default to 32768 bytes each when the configuration entries are absent.
 The retransmission tracker keeps one outstanding MSS-sized segment for fast retransmit.

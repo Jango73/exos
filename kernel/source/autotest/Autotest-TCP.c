@@ -27,6 +27,7 @@
 #include "log/Log.h"
 #include "memory/Memory.h"
 #include "network/TCP.h"
+#include "network/Socket.h"
 #include "text/CoreString.h"
 
 /************************************************************************/
@@ -52,13 +53,13 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
     Header.DestinationPort = Htons(8080);
     Header.SequenceNumber = Htonl(0x12345678);
     Header.AckNumber = Htonl(0x87654321);
-    Header.DataOffset = 0x50; // 5 words (20 bytes)
+    Header.DataOffset = 0x50;  // 5 words (20 bytes)
     Header.Flags = TCP_FLAG_SYN;
     Header.WindowSize = Htons(8192);
     Header.UrgentPointer = 0;
 
-    U32 SourceIP = 0xC0A80101; // 192.168.1.1
-    U32 DestinationIP = 0xC0A80102; // 192.168.1.2
+    U32 SourceIP = 0xC0A80101;       // 192.168.1.1
+    U32 DestinationIP = 0xC0A80102;  // 192.168.1.2
 
     U16 Checksum = TCP_CalculateChecksum(&Header, NULL, 0, SourceIP, DestinationIP);
     // Don't check specific value as it depends on implementation, just verify it's non-zero
@@ -90,7 +91,7 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
 
     // Test 4: Checksum validation (incorrect)
     Results->TestsRun++;
-    Header.Checksum = ChecksumWithPayload ^ 0xFFFF; // Corrupt checksum
+    Header.Checksum = ChecksumWithPayload ^ 0xFFFF;  // Corrupt checksum
     ValidationResult = TCP_ValidateChecksum(&Header, TestPayload, 4, SourceIP, DestinationIP);
     if (ValidationResult == 0) {
         Results->TestsPassed++;
@@ -112,6 +113,119 @@ void TestTCPChecksum(TEST_RESULTS* Results) {
 /************************************************************************/
 
 /**
+ * @brief Test TCP socket option handling for performance optimizations.
+ *
+ * Verifies the TCP_NODELAY (Nagle) and SO_KEEPALIVE options round-trip through
+ * SocketSetOption/SocketGetOption on a stream socket, and that invalid option
+ * levels are rejected.
+ *
+ * @param Results Pointer to TEST_RESULTS structure to be filled with test results
+ */
+void TestTCPSocketOptions(TEST_RESULTS* Results) {
+    Results->TestsRun = 0;
+    Results->TestsPassed = 0;
+
+    // Expected ERROR paths (invalid option level/name rejection) exercised by
+    // the tests must not fail the smoke test; they are wrapped in the autotest
+    // error scope.
+    DEBUG(TEXT("AUTOTEST_ERROR_SCOPE_BEGIN"));
+
+    SOCKET_HANDLE Socket = SocketCreate(SOCKET_AF_INET, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP);
+    if (Socket == (SOCKET_HANDLE)SOCKET_ERROR_INVALID) {
+        ERROR(TEXT("Failed to create TCP test socket"));
+        return;
+    }
+
+    U32 OptionValue = 1;
+    U32 OptionLength = sizeof(OptionValue);
+
+    // Default values: Nagle enabled (NoDelay FALSE), keep-alive disabled
+    Results->TestsRun++;
+    OptionValue = 1;
+    OptionLength = sizeof(OptionValue);
+    if (SocketGetOption(Socket, IPPROTO_TCP, TCP_NODELAY, &OptionValue, &OptionLength) == SOCKET_ERROR_NONE &&
+        OptionValue == 0) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("Default TCP_NODELAY value mismatch"));
+    }
+
+    Results->TestsRun++;
+    OptionValue = 1;
+    OptionLength = sizeof(OptionValue);
+    if (SocketGetOption(Socket, SOL_SOCKET, SO_KEEPALIVE, &OptionValue, &OptionLength) == SOCKET_ERROR_NONE &&
+        OptionValue == 0) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("Default SO_KEEPALIVE value mismatch"));
+    }
+
+    // TCP_NODELAY round-trip
+    Results->TestsRun++;
+    OptionValue = 1;
+    if (SocketSetOption(Socket, IPPROTO_TCP, TCP_NODELAY, &OptionValue, sizeof(OptionValue)) == SOCKET_ERROR_NONE) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("TCP_NODELAY set failed"));
+    }
+
+    Results->TestsRun++;
+    OptionValue = 0;
+    OptionLength = sizeof(OptionValue);
+    if (SocketGetOption(Socket, IPPROTO_TCP, TCP_NODELAY, &OptionValue, &OptionLength) == SOCKET_ERROR_NONE &&
+        OptionValue == 1) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("TCP_NODELAY get after set failed"));
+    }
+
+    // SO_KEEPALIVE round-trip
+    Results->TestsRun++;
+    OptionValue = 1;
+    if (SocketSetOption(Socket, SOL_SOCKET, SO_KEEPALIVE, &OptionValue, sizeof(OptionValue)) == SOCKET_ERROR_NONE) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("SO_KEEPALIVE set failed"));
+    }
+
+    Results->TestsRun++;
+    OptionValue = 0;
+    OptionLength = sizeof(OptionValue);
+    if (SocketGetOption(Socket, SOL_SOCKET, SO_KEEPALIVE, &OptionValue, &OptionLength) == SOCKET_ERROR_NONE &&
+        OptionValue == 1) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("SO_KEEPALIVE get after set failed"));
+    }
+
+    // Invalid option level rejection
+    Results->TestsRun++;
+    OptionValue = 1;
+    if (SocketSetOption(Socket, 0x7FFF, SO_KEEPALIVE, &OptionValue, sizeof(OptionValue)) != SOCKET_ERROR_NONE) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("Invalid option level accepted"));
+    }
+
+    // Invalid option name rejection at valid level
+    Results->TestsRun++;
+    OptionValue = 1;
+    if (SocketSetOption(Socket, IPPROTO_TCP, 0x7FFF, &OptionValue, sizeof(OptionValue)) != SOCKET_ERROR_NONE) {
+        Results->TestsPassed++;
+    } else {
+        ERROR(TEXT("Invalid TCP option name accepted"));
+    }
+
+    SocketClose(Socket);
+
+    DEBUG(TEXT("AUTOTEST_ERROR_SCOPE_END"));
+
+    TEST(TEXT("TCP socket option tests passed %u/%u"), Results->TestsPassed, Results->TestsRun);
+}
+
+/************************************************************************/
+
+/**
  * @brief Main TCP test function that runs all TCP unit tests.
  *
  * This function coordinates all TCP unit tests and aggregates their results.
@@ -128,6 +242,11 @@ void TestTCP(TEST_RESULTS* Results) {
 
     // Run TCP checksum tests
     TestTCPChecksum(&SubResults);
+    Results->TestsRun += SubResults.TestsRun;
+    Results->TestsPassed += SubResults.TestsPassed;
+
+    // Run TCP socket option tests
+    TestTCPSocketOptions(&SubResults);
     Results->TestsRun += SubResults.TestsRun;
     Results->TestsPassed += SubResults.TestsPassed;
 }

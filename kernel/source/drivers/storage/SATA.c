@@ -29,12 +29,14 @@
 #include "core/Kernel.h"
 #include "drivers/bus/PCI.h"
 #include "drivers/interrupts/DeviceInterrupt.h"
+#include "drivers/storage/ATA.h"
 #include "fs/DiskTransferLayer.h"
 #include "log/Log.h"
 #include "log/Profile.h"
 #include "memory/Memory.h"
 #include "system/Clock.h"
 #include "utils/BufferPool.h"
+#include "utils/DiskID.h"
 
 /***************************************************************************/
 // Version
@@ -129,6 +131,7 @@ static void AHCIInterruptBottomHalf(LPDEVICE Device, LPVOID Context);
 static void AHCIInterruptPoll(LPDEVICE Device, LPVOID Context);
 static U32 SATA_EnumNext(LPDRIVER_ENUM_NEXT Next);
 static U32 SATA_EnumPretty(LPDRIVER_ENUM_PRETTY Pretty);
+static U32 AHCICommand(LPAHCI_PORT AHCIPort, U8 Command, U32 LBA, U16 SectorCount, LPVOID Buffer, BOOL IsWrite);
 
 static const DRIVER_MATCH AHCIMatches[] = {
     // Match any AHCI controller (Class 01h, Subclass 06h, Programming Interface 01h)
@@ -332,6 +335,41 @@ static BOOL AHCIPortReset(LPAHCI_HBA_PORT Port) {
 /***************************************************************************/
 
 /**
+ * @brief Identify a device on an AHCI port and build its stable ID.
+ *
+ * Issues the ATA IDENTIFY DEVICE command and stores the hardware serial and
+ * model strings on the storage unit. When identification fails, the storage
+ * unit receives a deterministic synthetic ID instead.
+ *
+ * @param AHCIPort Target port wrapper structure.
+ */
+static void AHCIIdeIdentifyDevice(LPAHCI_PORT AHCIPort) {
+    U8 Identify[SECTOR_SIZE];
+
+    if (AHCIPort == NULL) return;
+
+    if (AHCICommand(AHCIPort, ATA_CMD_IDENTIFY, 0, 1, Identify, FALSE) == DF_RETURN_SUCCESS) {
+        U16* Words = (U16*)Identify;
+        STR Serial[DISK_ID_SERIAL_MAX_SIZE];
+        STR Model[DISK_ID_MODEL_MAX_SIZE];
+
+        ATADecodeIdentifyString(Serial, sizeof(Serial), Words, 10, 10);
+        ATADecodeIdentifyString(Model, sizeof(Model), Words, 27, 20);
+
+        DiskIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, Model, Serial);
+
+        DEBUG(TEXT("IDENTIFY port=%u serial=%s model=%s"), AHCIPort->PortNumber, Serial, Model);
+    } else {
+        DEBUG(TEXT("IDENTIFY failed port=%u, using synthetic ID"), AHCIPort->PortNumber);
+        DiskIdSetIdentity((LPSTORAGE_UNIT)AHCIPort, NULL, NULL, NULL);
+    }
+
+    DiskIdEnsure((LPSTORAGE_UNIT)AHCIPort);
+}
+
+/***************************************************************************/
+
+/**
  * @brief Initialize an AHCI port and allocate per-port structures.
  *
  * Verifies presence, stops the port, allocates command list/FIS/command table,
@@ -447,8 +485,11 @@ static BOOL InitializeAHCIPort(LPAHCI_PORT AHCIPort, U32 PortNum) {
     // Start port
     StartPort(Port);
 
-    // Try to identify the device
-    // For now, assume it's a standard SATA disk
+    // Identify the device (stable ID + hardware strings). The stable ID is
+    // built before registration so the synthetic index stays deterministic.
+    AHCIIdeIdentifyDevice(AHCIPort);
+
+    // Geometry is kept as fixed CHS for now
     AHCIPort->Geometry.Cylinders = 1024;
     AHCIPort->Geometry.Heads = 16;
     AHCIPort->Geometry.SectorsPerTrack = 63;

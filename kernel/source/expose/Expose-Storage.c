@@ -24,6 +24,7 @@
 #include "expose/Exposed.h"
 
 #include "fs/Disk.h"
+#include "utils/DiskID.h"
 
 /************************************************************************/
 
@@ -35,12 +36,7 @@
  * @param OutValue Output holder for the property value
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR StorageGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR StorageGetProperty(LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -66,6 +62,11 @@ SCRIPT_ERROR StorageGetProperty(
         EXPOSE_BIND_STRING("driverManufacturer", Storage->Driver->Manufacturer);
         EXPOSE_BIND_STRING("driverProduct", Storage->Driver->Product);
 
+        EXPOSE_BIND_STRING("id", DiskIdGet(Storage));
+        EXPOSE_BIND_STRING("vendor", Storage->Vendor);
+        EXPOSE_BIND_STRING("model", Storage->Model);
+        EXPOSE_BIND_STRING("serial", Storage->Serial);
+
         return SCRIPT_ERROR_UNDEFINED_VAR;
     }
 
@@ -83,11 +84,7 @@ SCRIPT_ERROR StorageGetProperty(
  * @return SCRIPT_OK when the property exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
 SCRIPT_ERROR StorageArrayGetProperty(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    LPCSTR Property,
-    LPSCRIPT_VALUE OutValue) {
-
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Property, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_PROPERTY_GUARD();
@@ -98,6 +95,7 @@ SCRIPT_ERROR StorageArrayGetProperty(
     }
 
     EXPOSE_BIND_INTEGER("count", ListGetSize(StorageList));
+    EXPOSE_BIND_HOST_HANDLE("byId", StorageList, &StorageByIdDescriptor, NULL);
 
     return SCRIPT_ERROR_UNDEFINED_VAR;
 }
@@ -112,12 +110,7 @@ SCRIPT_ERROR StorageArrayGetProperty(
  * @param OutValue Output holder for the resulting storage handle
  * @return SCRIPT_OK when the storage object exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
  */
-SCRIPT_ERROR StorageArrayGetElement(
-    LPVOID Context,
-    SCRIPT_HOST_HANDLE Parent,
-    U32 Index,
-    LPSCRIPT_VALUE OutValue) {
-
+SCRIPT_ERROR StorageArrayGetElement(LPVOID Context, SCRIPT_HOST_HANDLE Parent, U32 Index, LPSCRIPT_VALUE OutValue) {
     UNUSED(Context);
 
     EXPOSE_ARRAY_GUARD();
@@ -142,18 +135,37 @@ SCRIPT_ERROR StorageArrayGetElement(
 
 /************************************************************************/
 
-const SCRIPT_HOST_DESCRIPTOR StorageDescriptor = {
-    StorageGetProperty,
-    NULL,
-    NULL,
-    NULL
-};
+/**
+ * @brief Retrieve a storage object from the exposed storage array by stable disk ID.
+ * @param Context Host callback context (unused for storage exposure)
+ * @param Parent Handle to the byId lookup container exposed by the kernel
+ * @param Key Stable disk ID requested by the script
+ * @param OutValue Output holder for the resulting storage handle
+ * @return SCRIPT_OK when the storage object exists, SCRIPT_ERROR_UNDEFINED_VAR otherwise
+ */
+SCRIPT_ERROR StorageByIdGetStringElement(
+    LPVOID Context, SCRIPT_HOST_HANDLE Parent, LPCSTR Key, LPSCRIPT_VALUE OutValue) {
+    UNUSED(Context);
+    UNUSED(Parent);
 
-const SCRIPT_HOST_DESCRIPTOR StorageArrayDescriptor = {
-    StorageArrayGetProperty,
-    StorageArrayGetElement,
-    NULL,
-    NULL
-};
+    if (OutValue == NULL || Key == NULL || Key[0] == STR_NULL) {
+        return SCRIPT_ERROR_UNDEFINED_VAR;
+    }
+
+    LPSTORAGE_UNIT Storage = DiskIdFindById(Key);
+    SAFE_USE_VALID_ID(Storage, KOID_DISK) {
+        EXPOSE_SET_HOST_HANDLE(Storage, &StorageDescriptor, NULL, FALSE);
+        return SCRIPT_OK;
+    }
+
+    return SCRIPT_ERROR_UNDEFINED_VAR;
+}
+
+/************************************************************************/
+
+const SCRIPT_HOST_DESCRIPTOR StorageDescriptor = { StorageGetProperty, NULL, NULL, NULL };
+const SCRIPT_HOST_DESCRIPTOR StorageByIdDescriptor = { NULL, NULL, NULL, NULL, StorageByIdGetStringElement };
+
+const SCRIPT_HOST_DESCRIPTOR StorageArrayDescriptor = { StorageArrayGetProperty, StorageArrayGetElement, NULL, NULL };
 
 /************************************************************************/

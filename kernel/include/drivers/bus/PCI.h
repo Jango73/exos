@@ -85,9 +85,23 @@
 #define PCI_HEADER_MULTI_FN 0x80
 
 // Capability list
+#define PCI_CAP_ID_PM 0x01
+#define PCI_CAP_ID_AGP 0x02
+#define PCI_CAP_ID_VPD 0x03
 #define PCI_CAP_ID_MSI 0x05
-#define PCI_CAP_ID_MSIX 0x11
+#define PCI_CAP_ID_PCIX 0x07
+#define PCI_CAP_ID_HT 0x08
+#define PCI_CAP_ID_VENDOR 0x09
+#define PCI_CAP_ID_DEBUGPORT 0x0A
+#define PCI_CAP_ID_HOTPLUG 0x0C
 #define PCI_CAP_ID_PCIe 0x10
+#define PCI_CAP_ID_MSIX 0x11
+#define PCI_CAP_ID_SATA 0x12
+#define PCI_CAP_ID_AF 0x13
+#define PCI_CAP_ID_EA 0x14
+#define PCI_CAP_ID_FPB 0x15
+
+#define PCI_MAX_CAPABILITIES 48
 
 // Base classes (subset)
 #define PCI_CLASS_NETWORK 0x02
@@ -186,6 +200,12 @@ U32 PCI_GetBARSize(U8 bus, U8 dev, U8 func, U8 barIndex);
 /* Capability traversal: returns offset of the first capability with given ID,
     or 0 if not found (0 is not a valid cap pointer when capabilities are present). */
 U8 PCI_FindCapability(U8 bus, U8 dev, U8 func, U8 capId);
+
+/* Capability traversal: scans the capability list of a function. OffsetArray is
+    filled with the config-space offset of each capability found (caller provides
+    storage for at least MaxCount entries) and the number of capabilities found is
+    returned (0 when the function has no capability list). */
+U8 PCI_ScanCapabilities(U8 bus, U8 dev, U8 func, U8* OffsetArray, U8 MaxCount);
 
 /***************************************************************************/
 
