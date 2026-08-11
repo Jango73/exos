@@ -37,22 +37,23 @@
 #define LOCAL_APIC_VER_MAJOR 1
 #define LOCAL_APIC_VER_MINOR 0
 
+#define LOCAL_APIC_IPI_POLL_LIMIT 100000  // Delivery status poll limit
+
 static UINT LocalAPICDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION LocalAPICDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INIT,
-    .VersionMajor = LOCAL_APIC_VER_MAJOR,
-    .VersionMinor = LOCAL_APIC_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Intel",
-    .Product = "LocalAPIC",
-    .Alias = "local_apic",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = LocalAPICDriverCommands};
+DRIVER DATA_SECTION LocalAPICDriver = { .TypeID = KOID_DRIVER,
+                                        .References = 1,
+                                        .Next = NULL,
+                                        .Prev = NULL,
+                                        .Type = DRIVER_TYPE_INIT,
+                                        .VersionMajor = LOCAL_APIC_VER_MAJOR,
+                                        .VersionMinor = LOCAL_APIC_VER_MINOR,
+                                        .Designer = "Jango73",
+                                        .Manufacturer = "Intel",
+                                        .Product = "LocalAPIC",
+                                        .Alias = "local_apic",
+                                        .Flags = DRIVER_FLAG_CRITICAL,
+                                        .Command = LocalAPICDriverCommands };
 
 /***************************************************************************/
 
@@ -75,7 +76,7 @@ typedef struct tag_CPUIDREGISTERS {
 
 /***************************************************************************/
 
-static LOCAL_APIC_CONFIG DATA_SECTION g_LocalApicConfig = {0};
+static LOCAL_APIC_CONFIG DATA_SECTION g_LocalApicConfig = { 0 };
 
 /***************************************************************************/
 
@@ -146,8 +147,11 @@ BOOL InitializeLocalAPIC(void) {
     g_LocalApicConfig.MaxLvtEntries = (U8)((VersionReg >> 16) & 0xFF) + 1;
     g_LocalApicConfig.ApicId = GetLocalAPICId();
 
-    DEBUG(TEXT("Local APIC initialized: ID=%u, Version=0x%02X, MaxLVT=%u"),
-              g_LocalApicConfig.ApicId, g_LocalApicConfig.Version, g_LocalApicConfig.MaxLvtEntries);
+    DEBUG(
+        TEXT("Local APIC initialized: ID=%u, Version=0x%02X, MaxLVT=%u"),
+        g_LocalApicConfig.ApicId,
+        g_LocalApicConfig.Version,
+        g_LocalApicConfig.MaxLvtEntries);
 
     return TRUE;
 }
@@ -189,7 +193,7 @@ BOOL EnableLocalAPIC(void) {
 
     // Read current APIC base MSR
     ApicBaseLow = ReadMSR(IA32_APIC_BASE_MSR);
-    ApicBaseHigh = 0; // We only handle 32-bit for now
+    ApicBaseHigh = 0;  // We only handle 32-bit for now
 
     // Set the enable bit
     ApicBaseLow |= IA32_APIC_BASE_ENABLE;
@@ -347,6 +351,81 @@ void SendLocalAPICEOI(void) {
 /************************************************************************/
 
 /**
+ * @brief Issue an Interrupt Command Register write and wait for delivery.
+ *
+ * Writes the high then the low ICR halves and polls the delivery status bit
+ * until the message has been accepted by the bus.
+ *
+ * @param IcrLow Low 32 bits of the ICR.
+ * @param IcrHigh High 32 bits of the ICR (destination field).
+ */
+static void SendIPI(U32 IcrLow, U32 IcrHigh) {
+    WriteLocalAPICRegister(LOCAL_APIC_ICR_HIGH, IcrHigh);
+    WriteLocalAPICRegister(LOCAL_APIC_ICR_LOW, IcrLow);
+
+    U32 Polls = 0;
+    while ((ReadLocalAPICRegister(LOCAL_APIC_ICR_LOW) & LOCAL_APIC_ICR_DELIVERY_STATUS) != 0) {
+        if (++Polls >= LOCAL_APIC_IPI_POLL_LIMIT) {
+            WARNING(TEXT("[SendIPI] ICR delivery status never cleared"));
+            break;
+        }
+    }
+}
+
+/************************************************************************/
+
+/**
+ * @brief Send an INIT Inter-Processor Interrupt to a target processor.
+ *
+ * Asserts a level-triggered INIT reset message to the target Local APIC ID.
+ *
+ * @param DestApicId Local APIC ID of the target processor.
+ * @return TRUE if the INIT was issued, FALSE otherwise.
+ */
+BOOL SendInitIPI(U8 DestApicId) {
+    if (g_LocalApicConfig.Present == FALSE) {
+        return FALSE;
+    }
+
+    U32 IcrHigh = ((U32)DestApicId) << 24;
+    U32 IcrLow = LOCAL_APIC_ICR_DELIVERY_INIT | LOCAL_APIC_ICR_LEVEL | LOCAL_APIC_ICR_TRIGGER;
+    SendIPI(IcrLow, IcrHigh);
+    DEBUG(TEXT("[SendInitIPI] INIT issued to APIC ID %u"), DestApicId);
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
+ * @brief Send a Startup Inter-Processor Interrupt (SIPI) to a target processor.
+ *
+ * Directs the target processor to begin executing at the trampoline physical
+ * address. The vector field holds the 4K-aligned page of the trampoline.
+ *
+ * @param DestApicId Local APIC ID of the target processor.
+ * @param TrampolineAddress Physical address of the AP trampoline (page aligned).
+ * @return TRUE if the SIPI was issued, FALSE otherwise.
+ */
+BOOL SendStartupIPI(U8 DestApicId, PHYSICAL TrampolineAddress) {
+    if (g_LocalApicConfig.Present == FALSE) {
+        return FALSE;
+    }
+
+    U8 Vector = (U8)((TrampolineAddress >> 12) & 0xFF);
+    U32 IcrHigh = ((U32)DestApicId) << 24;
+    U32 IcrLow = LOCAL_APIC_ICR_DELIVERY_SIPI | (U32)Vector;
+    SendIPI(IcrLow, IcrHigh);
+    DEBUG(
+        TEXT("[SendStartupIPI] SIPI issued to APIC ID %u, vector %x (address %p)"),
+        DestApicId,
+        Vector,
+        (LPVOID)TrampolineAddress);
+    return TRUE;
+}
+
+/************************************************************************/
+
+/**
  * @brief Set spurious interrupt vector.
  *
  * Configures the spurious interrupt vector and enables the Local APIC.
@@ -402,8 +481,12 @@ BOOL ConfigureLVTEntry(U32 LvtRegister, U8 Vector, U32 DeliveryMode, BOOL Masked
     }
 
     WriteLocalAPICRegister(LvtRegister, LvtValue);
-    DEBUG(TEXT("Configured LVT register 0x%03X: Vector=0x%02X, Mode=0x%03X, Masked=%s"),
-              LvtRegister, Vector, DeliveryMode, Masked ? TEXT("Yes") : TEXT("No"));
+    DEBUG(
+        TEXT("Configured LVT register 0x%03X: Vector=0x%02X, Mode=0x%03X, Masked=%s"),
+        LvtRegister,
+        Vector,
+        DeliveryMode,
+        Masked ? TEXT("Yes") : TEXT("No"));
     return TRUE;
 }
 

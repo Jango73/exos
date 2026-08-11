@@ -50,6 +50,7 @@ typedef struct tag_CPU_INFO {
     U32 Flags;       // ACPI MADT Local APIC flags
     BOOL Enabled;    // Selected as usable by the configuration
     BOOL IsBsp;      // TRUE for the bootstrap processor
+    U8 Status;       // CPU_STATUS: offline, booting, online
 } CPU_INFO, *LPCPU_INFO;
 
 /***************************************************************************/

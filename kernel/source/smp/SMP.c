@@ -22,6 +22,7 @@
 
 \************************************************************************/
 
+#include "smp/APStartup.h"
 #include "smp/LAPICTimer.h"
 #include "smp/SMP.h"
 
@@ -248,6 +249,11 @@ void InitializeSMP(void) {
             Cpu->ProcessorId,
             Cpu->IsBsp ? TEXT("BSP") : TEXT("AP"),
             Cpu->Enabled ? TEXT("") : TEXT(" (excluded by configuration)"));
+    }
+
+    // Bring up the application processors
+    if (G_SMPConfig.SmpEnabled != FALSE) {
+        StartupApplicationProcessors();
     }
 
     G_SMPConfig.Valid = TRUE;
