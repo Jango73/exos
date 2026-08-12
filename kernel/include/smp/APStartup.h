@@ -49,6 +49,7 @@ typedef struct tag_AP_PARAMETER_BLOCK {
     U32 IdtLimit;   // IDT limit
     U32 Status;     // CPU_STATUS value, updated by the AP
     U32 ApicId;     // Local APIC ID of the target AP
+    UINT CpuArea;   // Linear address of the per-CPU record (GS base on x86-64)
 } AP_PARAMETER_BLOCK, *LPAP_PARAMETER_BLOCK;
 
 /***************************************************************************/

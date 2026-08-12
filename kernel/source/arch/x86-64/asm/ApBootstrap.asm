@@ -45,6 +45,7 @@ AP_GdtLimit  equ 0x28
 AP_IdtLimit  equ 0x2C
 AP_Status    equ 0x30
 AP_ApicId    equ 0x34
+AP_CpuArea   equ 0x38
 
 ;-------------------------------------------------------------------------
 
@@ -209,8 +210,17 @@ LongModeEntry :
     mov     ds, ax
     mov     es, ax
     mov     fs, ax
-    mov     gs, ax
     mov     ss, ax
+
+    ; Point GS at the per-CPU record: null selector, base from the MSR.
+    ; CurrentCPU() reads the record self pointer through %gs:0.
+    xor     ax, ax
+    mov     gs, ax
+    mov     ecx, 0xC0000101          ; IA32_GS_BASE_MSR
+    mov     rax, qword [LOW_MEMORY_PAGE_4 + AP_PARAMETER_BLOCK_OFFSET + AP_CpuArea]
+    mov     rdx, rax
+    shr     rdx, 32
+    wrmsr
 
     ; Set the per-AP kernel stack
     mov     rsp, qword [LOW_MEMORY_PAGE_4 + AP_PARAMETER_BLOCK_OFFSET + AP_StackTop]

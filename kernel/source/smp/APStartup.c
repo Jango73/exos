@@ -57,11 +57,46 @@ static LINEAR G_APStacks[SMP_MAX_CPUS] = { 0 };
  * @param Param Pointer to the AP parameter block
  *
  * Runs with interrupts masked on the per-AP stack provided by the trampoline.
- * Signals online, then parks until further work is scheduled.
+ * Resolves its per-CPU record (GS-based on x86-64, array lookup on x86-32),
+ * marks it online and parks until further work is scheduled.
  */
 void APEntryPoint(LPAP_PARAMETER_BLOCK Param) {
+    LPCPU Cpu = CurrentCPU();
+    LPCPU ExpectedCpu = PerCPUGet(Param->ApicId);
+    LPLOCAL_APIC_CONFIG LocalApicConfig = NULL;
+
+    if (Cpu == NULL) {
+        Cpu = ExpectedCpu;
+    }
+
+    if (Cpu == NULL) {
+        ERROR(TEXT("[APEntryPoint] APIC ID %u : no per-CPU record available"), Param->ApicId);
+        for (;;) {
+            __asm__ __volatile__("hlt" : : : "memory");
+        }
+    }
+
+    Cpu->Self = Cpu;
+    Cpu->ApicId = Param->ApicId;
+    Cpu->Status = CPU_STATUS_ONLINE;
+    Cpu->LocalApicBase = GetLocalAPICBaseAddress();
+    LocalApicConfig = GetLocalAPICConfig();
+    if (LocalApicConfig != NULL) {
+        Cpu->LocalApicMap = LocalApicConfig->MappedAddress;
+    }
+    Cpu->Tss = (LPVOID)Kernel_x86_32.TSS;
+    Cpu->StackBase = Param->StackTop - AP_STACK_SIZE;
+    Cpu->StackTop = Param->StackTop;
+    SetCpuOnline(Param->ApicId, TRUE);
     Param->Status = CPU_STATUS_ONLINE;
-    DEBUG(TEXT("[APEntryPoint] APIC ID %u is online"), Param->ApicId);
+
+    DEBUG(
+        TEXT("[APEntryPoint] APIC ID %u online : CurrentCPU=%p PerCPUGet=%p CurrentTask=%p"),
+        Param->ApicId,
+        (LPVOID)Cpu,
+        (LPVOID)ExpectedCpu,
+        (LPVOID)Cpu->CurrentTask);
+
     for (;;) {
         __asm__ __volatile__("hlt" : : : "memory");
     }
@@ -80,7 +115,7 @@ void StartupApplicationProcessors(void) {
     if (Config->SmpEnabled == FALSE) return;
 
     for (U32 Index = 0; Index < Config->CpuCount; Index++) {
-        LPCPU_INFO Cpu = &Config->CpuList[Index];
+        LPCPU Cpu = &Config->CpuList[Index];
         if (Cpu->IsBsp != FALSE || Cpu->Enabled == FALSE) continue;
 
         LINEAR StackBase =
@@ -102,6 +137,8 @@ void StartupApplicationProcessors(void) {
         Param->IdtLimit = IDT_SIZE - 1;
         Param->Status = CPU_STATUS_BOOTING;
         Param->ApicId = Cpu->ApicId;
+        Param->CpuArea = (UINT)Cpu;
+        Cpu->Self = Cpu;  // Resolves the GS-based CurrentCPU() on x86-64
         Cpu->Status = CPU_STATUS_BOOTING;
 
         ApBootstrapPrepare();

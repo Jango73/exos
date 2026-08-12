@@ -32,6 +32,7 @@
 #include "process/Process-Arena.h"
 #include "process/Schedule.h"
 #include "process/Stack.h"
+#include "smp/SMP.h"
 #include "system/Interrupt.h"
 #include "system/SYSCall.h"
 #include "system/System.h"
@@ -498,12 +499,36 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
 /***************************************************************************/
 
 /**
+ * @brief Point the per-CPU GS base at a CPU record.
+ * @param CpuAddress Linear address of the per-CPU record
+ *
+ * Loads a null GS selector and writes IA32_GS_BASE_MSR so that CurrentCPU()
+ * can read the record self pointer through %gs:0. Must run with interrupts
+ * masked. The GS selector stays null for every task, so the base MSR remains
+ * authoritative for %gs accesses in both kernel and user mode.
+ */
+void SetPerCPUAreaBase(LINEAR CpuAddress) {
+    U64 Address = (U64)CpuAddress;
+    U16 NullSelector = SELECTOR_NULL;
+
+    SetGS(NullSelector);
+    WriteMSR64(IA32_GS_BASE_MSR, (U32)(Address & 0xFFFFFFFF), (U32)(Address >> 32));
+}
+
+/***************************************************************************/
+
+/**
  * @brief Prepare architectural state ahead of a context switch.
  * @param CurrentTask Task that is currently running (may be NULL).
  * @param NextTask Task that will become active.
  */
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask) {
     SAFE_USE(NextTask) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL) {
+            Cpu->Statistics.ContextSwitchCount++;
+        }
+
         FINE_DEBUG(
             TEXT("CurrentTask = %p (%s), NextTask = %p (%s)"),
             CurrentTask,
@@ -537,12 +562,11 @@ void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTa
         // SetDS(NextTask->Arch.Context.Registers.DS);
         // SetES(NextTask->Arch.Context.Registers.ES);
         SetFS(NextTask->Arch.Context.Registers.FS);
-        SetGS(NextTask->Arch.Context.Registers.GS);
+        SetPerCPUAreaBase((LINEAR)CurrentCPU());
         WriteMSR64(
             IA32_FS_BASE_MSR,
             (U32)(((U64)NextTask->Arch.UserTlsBase) & 0xFFFFFFFF),
             (U32)(((U64)NextTask->Arch.UserTlsBase) >> 32));
-        WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
 
         RestoreFPU(&(NextTask->Arch.Context.FPURegisters));
     }
@@ -573,7 +597,7 @@ BOOL TaskSetUserTlsAnchor(struct tag_TASK* Task, LINEAR Anchor) {
                 IA32_FS_BASE_MSR,
                 (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
                 (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
-            WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
+            SetPerCPUAreaBase((LINEAR)CurrentCPU());
         }
         return TRUE;
     }
@@ -598,7 +622,7 @@ void RestoreCurrentTaskUserTlsBase(void) {
             IA32_FS_BASE_MSR,
             (U32)(((U64)Task->Arch.UserTlsBase) & 0xFFFFFFFF),
             (U32)(((U64)Task->Arch.UserTlsBase) >> 32));
-        WriteMSR64(IA32_GS_BASE_MSR, 0, 0);
+        SetPerCPUAreaBase((LINEAR)CurrentCPU());
     }
 }
 

@@ -63,12 +63,11 @@
 #define SELECTOR_INDEX_SHIFT 3u
 
 #define SELECTOR_INDEX(sel) ((U16)(sel) >> SELECTOR_INDEX_SHIFT)
-#define SELECTOR_RPL(sel) ((U16)(sel) & SELECTOR_RPL_MASK)
+#define SELECTOR_RPL(sel) ((U16)(sel)&SELECTOR_RPL_MASK)
 #define SELECTOR_TI(sel) ((((U16)(sel)) >> SELECTOR_TI_SHIFT) & SELECTOR_TI_MASK)
 
 #define MAKE_SELECTOR(index, ti, rpl) \
-    ((U16)((((U16)(index)) << SELECTOR_INDEX_SHIFT) | ((((U16)(ti)) & SELECTOR_TI_MASK) << SELECTOR_TI_SHIFT) | \
-            (((U16)(rpl)) & SELECTOR_RPL_MASK)))
+    ((U16)((((U16)(index)) << SELECTOR_INDEX_SHIFT) | ((((U16)(ti)) & SELECTOR_TI_MASK) << SELECTOR_TI_SHIFT) | (((U16)(rpl)) & SELECTOR_RPL_MASK)))
 #define MAKE_GDT_SELECTOR(index, rpl) MAKE_SELECTOR((index), SELECTOR_TABLE_GDT, (rpl))
 #define MAKE_LDT_SELECTOR(index, rpl) MAKE_SELECTOR((index), SELECTOR_TABLE_LDT, (rpl))
 
@@ -89,21 +88,21 @@
 #define RFLAGS_TF 0x0000000000000100
 #define RFLAGS_IF 0x0000000000000200
 #define RFLAGS_DF 0x0000000000000400
-#define RFLAGS_NT 0x0000000000004000        // Nested task
+#define RFLAGS_NT 0x0000000000004000  // Nested task
 
 
 /************************************************************************/
 // Model Specific Registers
 
-#define IA32_EFER_MSR 0xC0000080            // Extended Feature Enable Register 
+#define IA32_EFER_MSR 0xC0000080  // Extended Feature Enable Register
 #define IA32_STAR_MSR 0xC0000081
 #define IA32_LSTAR_MSR 0xC0000082
 #define IA32_FMASK_MSR 0xC0000084
 #define IA32_FS_BASE_MSR 0xC0000100
 #define IA32_GS_BASE_MSR 0xC0000101
 
-#define IA32_EFER_SCE 0x1                   // SYSCALL enable
-#define IA32_EFER_LME 0x100                 // IA-32e mode operation
+#define IA32_EFER_SCE 0x1    // SYSCALL enable
+#define IA32_EFER_LME 0x100  // IA-32e mode operation
 
 /************************************************************************/
 // PIC and IRQ helpers
@@ -176,25 +175,25 @@ void DebugLogSyscallFrame(LINEAR SaveArea, UINT FunctionId);
 // Low memory pages reserved by VBR
 
 #ifndef LOW_MEMORY_PAGE_1
-#define LOW_MEMORY_PAGE_1 0x1000
+    #define LOW_MEMORY_PAGE_1 0x1000
 #endif
 #ifndef LOW_MEMORY_PAGE_2
-#define LOW_MEMORY_PAGE_2 0x2000
+    #define LOW_MEMORY_PAGE_2 0x2000
 #endif
 #ifndef LOW_MEMORY_PAGE_3
-#define LOW_MEMORY_PAGE_3 0x3000
+    #define LOW_MEMORY_PAGE_3 0x3000
 #endif
 #ifndef LOW_MEMORY_PAGE_4
-#define LOW_MEMORY_PAGE_4 0x4000
+    #define LOW_MEMORY_PAGE_4 0x4000
 #endif
 #ifndef LOW_MEMORY_PAGE_5
-#define LOW_MEMORY_PAGE_5 0x5000
+    #define LOW_MEMORY_PAGE_5 0x5000
 #endif
 #ifndef LOW_MEMORY_PAGE_6
-#define LOW_MEMORY_PAGE_6 0x6000
+    #define LOW_MEMORY_PAGE_6 0x6000
 #endif
 #ifndef LOW_MEMORY_PAGE_7
-#define LOW_MEMORY_PAGE_7 0x7000
+    #define LOW_MEMORY_PAGE_7 0x7000
 #endif
 
 /***************************************************************************/
@@ -271,26 +270,22 @@ typedef struct tag_X86_64_SYSTEM_SEGMENT_DESCRIPTOR {
 // IDT entry layout for 64-bit mode (16 bytes)
 
 typedef struct tag_GATE_DESCRIPTOR {
-    U16 Offset_00_15;                   // Bits 0-15 of handler address
+    U16 Offset_00_15;  // Bits 0-15 of handler address
     U16 Selector;
-    U16 InterruptStackTable : 3;        // IST # to use for this gate
+    U16 InterruptStackTable : 3;  // IST # to use for this gate
     U16 Reserved_0 : 5;
-    U16 Type : 4;                       // Type of gate (int, trap, ...)
+    U16 Type : 4;  // Type of gate (int, trap, ...)
     U16 Reserved_1 : 1;
-    U16 Privilege : 2;                  // Privilege level
-    U16 Present : 1;                    // Is this entry valid?
-    U16 Offset_16_31;                   // Bits 16-31 of handler address
-    U32 Offset_32_63;                   // Bits 32-63 of handler address
+    U16 Privilege : 2;  // Privilege level
+    U16 Present : 1;    // Is this entry valid?
+    U16 Offset_16_31;   // Bits 16-31 of handler address
+    U32 Offset_32_63;   // Bits 32-63 of handler address
     U32 Reserved_2;
 } GATE_DESCRIPTOR, *LPGATE_DESCRIPTOR;
 
 void SetGateDescriptorOffset(LPGATE_DESCRIPTOR Descriptor, LINEAR Handler);
 void InitializeGateDescriptor(
-    LPGATE_DESCRIPTOR Descriptor,
-    LINEAR Handler,
-    U16 Type,
-    U16 Privilege,
-    U8 InterruptStackTable);
+    LPGATE_DESCRIPTOR Descriptor, LINEAR Handler, U16 Type, U16 Privilege, U8 InterruptStackTable);
 
 /************************************************************************/
 
@@ -364,86 +359,82 @@ typedef struct tag_KERNEL_DATA_X86_64 {
 /************************************************************************/
 // Context switching
 
-#define SetupStackForKernelMode(Task, StackTop, UserESP)                                        \
-    do {                                                                                        \
-        LINEAR _RequiredBytes = (LINEAR)(sizeof(U64) * 5);                                      \
-        (StackTop) -= _RequiredBytes;                                                           \
-        ((U64*)(StackTop))[4] = (U64)((Task)->Arch.Context.Registers.SS);                       \
-        ((U64*)(StackTop))[3] = (U64)(UserESP);                                                 \
-        ((U64*)(StackTop))[2] = (Task)->Arch.Context.Registers.RFlags;                          \
-        ((U64*)(StackTop))[1] = (U64)((Task)->Arch.Context.Registers.CS);                       \
-        ((U64*)(StackTop))[0] = (U64)((Task)->Arch.Context.Registers.RIP);                      \
+#define SetupStackForKernelMode(Task, StackTop, UserESP)                   \
+    do {                                                                   \
+        LINEAR _RequiredBytes = (LINEAR)(sizeof(U64) * 5);                 \
+        (StackTop) -= _RequiredBytes;                                      \
+        ((U64*)(StackTop))[4] = (U64)((Task)->Arch.Context.Registers.SS);  \
+        ((U64*)(StackTop))[3] = (U64)(UserESP);                            \
+        ((U64*)(StackTop))[2] = (Task)->Arch.Context.Registers.RFlags;     \
+        ((U64*)(StackTop))[1] = (U64)((Task)->Arch.Context.Registers.CS);  \
+        ((U64*)(StackTop))[0] = (U64)((Task)->Arch.Context.Registers.RIP); \
     } while (0)
 
-#define SetupStackForUserMode(Task, StackTop, UserESP) \
-        SetupStackForKernelMode(Task, StackTop, UserESP)
+#define SetupStackForUserMode(Task, StackTop, UserESP) SetupStackForKernelMode(Task, StackTop, UserESP)
 
-#define SwitchToNextTask_2(prev, next, next_cr3)                        \
-    do {                                                                \
-        U64 __target_cr3 = (next_cr3);                                  \
-        __asm__ __volatile__(                                           \
-            "push %%rbp\n\t"                                            \
-            "push %%rax\n\t"                                            \
-            "push %%rbx\n\t"                                            \
-            "push %%rcx\n\t"                                            \
-            "push %%rdx\n\t"                                            \
-            "push %%rsi\n\t"                                            \
-            "push %%rdi\n\t"                                            \
-            "push %%r8\n\t"                                             \
-            "push %%r9\n\t"                                             \
-            "push %%r10\n\t"                                            \
-            "push %%r11\n\t"                                            \
-            "push %%r12\n\t"                                            \
-            "push %%r13\n\t"                                            \
-            "push %%r14\n\t"                                            \
-            "push %%r15\n\t"                                            \
-            "movq %%rsp, %0\n\t"                                        \
-            "mov %2, %%cr3\n\t"                                         \
-            "movq %3, %%rsp\n\t"                                        \
-            "leaq 1f(%%rip), %%rax\n\t"                                 \
-            "movq %%rax, %1\n\t"                                        \
-            "movq %5, %%rdi\n\t"                                        \
-            "movq %6, %%rsi\n\t"                                        \
-            "call SwitchToNextTask_3\n\t"                               \
-            "1:\n\t"                                                    \
-            "pop %%r15\n\t"                                             \
-            "pop %%r14\n\t"                                             \
-            "pop %%r13\n\t"                                             \
-            "pop %%r12\n\t"                                             \
-            "pop %%r11\n\t"                                             \
-            "pop %%r10\n\t"                                             \
-            "pop %%r9\n\t"                                              \
-            "pop %%r8\n\t"                                              \
-            "pop %%rdi\n\t"                                             \
-            "pop %%rsi\n\t"                                             \
-            "pop %%rdx\n\t"                                             \
-            "pop %%rcx\n\t"                                             \
-            "pop %%rbx\n\t"                                             \
-            "pop %%rax\n\t"                                             \
-            "pop %%rbp\n\t"                                             \
-            : "=m"((prev)->Arch.Context.Registers.RSP),                 \
-              "=m"((prev)->Arch.Context.Registers.RIP)                  \
-            : "r"(__target_cr3),                                        \
-              "m"((next)->Arch.Context.Registers.RSP),                  \
-              "m"((next)->Arch.Context.Registers.RIP),                  \
-              "r"(prev),                                                \
-              "r"(next)                                                 \
-            : "rax", "rbx", "rsi", "rdi", "memory");                    \
+#define SwitchToNextTask_2(prev, next, next_cr3)                                                 \
+    do {                                                                                         \
+        U64 __target_cr3 = (next_cr3);                                                           \
+        __asm__ __volatile__(                                                                    \
+            "push %%rbp\n\t"                                                                     \
+            "push %%rax\n\t"                                                                     \
+            "push %%rbx\n\t"                                                                     \
+            "push %%rcx\n\t"                                                                     \
+            "push %%rdx\n\t"                                                                     \
+            "push %%rsi\n\t"                                                                     \
+            "push %%rdi\n\t"                                                                     \
+            "push %%r8\n\t"                                                                      \
+            "push %%r9\n\t"                                                                      \
+            "push %%r10\n\t"                                                                     \
+            "push %%r11\n\t"                                                                     \
+            "push %%r12\n\t"                                                                     \
+            "push %%r13\n\t"                                                                     \
+            "push %%r14\n\t"                                                                     \
+            "push %%r15\n\t"                                                                     \
+            "movq %%rsp, %0\n\t"                                                                 \
+            "mov %2, %%cr3\n\t"                                                                  \
+            "movq %3, %%rsp\n\t"                                                                 \
+            "leaq 1f(%%rip), %%rax\n\t"                                                          \
+            "movq %%rax, %1\n\t"                                                                 \
+            "movq %5, %%rdi\n\t"                                                                 \
+            "movq %6, %%rsi\n\t"                                                                 \
+            "call SwitchToNextTask_3\n\t"                                                        \
+            "1:\n\t"                                                                             \
+            "pop %%r15\n\t"                                                                      \
+            "pop %%r14\n\t"                                                                      \
+            "pop %%r13\n\t"                                                                      \
+            "pop %%r12\n\t"                                                                      \
+            "pop %%r11\n\t"                                                                      \
+            "pop %%r10\n\t"                                                                      \
+            "pop %%r9\n\t"                                                                       \
+            "pop %%r8\n\t"                                                                       \
+            "pop %%rdi\n\t"                                                                      \
+            "pop %%rsi\n\t"                                                                      \
+            "pop %%rdx\n\t"                                                                      \
+            "pop %%rcx\n\t"                                                                      \
+            "pop %%rbx\n\t"                                                                      \
+            "pop %%rax\n\t"                                                                      \
+            "pop %%rbp\n\t"                                                                      \
+            : "=m"((prev)->Arch.Context.Registers.RSP), "=m"((prev)->Arch.Context.Registers.RIP) \
+            : "r"(__target_cr3),                                                                 \
+              "m"((next)->Arch.Context.Registers.RSP),                                           \
+              "m"((next)->Arch.Context.Registers.RIP),                                           \
+              "r"(prev),                                                                         \
+              "r"(next)                                                                          \
+            : "rax", "rbx", "rsi", "rdi", "memory");                                             \
     } while (0)
 
-#define JumpToReadyTask(Task, StackTop)                                 \
-    do {                                                                \
-        __asm__ __volatile__(                                           \
-            "finit\n\t"                                                 \
-            "mov %0, %%rsi\n\t"                                         \
-            "mov %1, %%rdi\n\t"                                         \
-            "mov %2, %%rsp\n\t"                                         \
-            "iretq"                                                     \
-            :                                                           \
-            : "m"((Task)->Arch.Context.Registers.RAX),                  \
-              "m"((Task)->Arch.Context.Registers.RBX),                  \
-              "m"(StackTop)                                             \
-            : "rdi", "rsi", "memory");                                  \
+#define JumpToReadyTask(Task, StackTop)                                                                       \
+    do {                                                                                                      \
+        __asm__ __volatile__(                                                                                 \
+            "finit\n\t"                                                                                       \
+            "mov %0, %%rsi\n\t"                                                                               \
+            "mov %1, %%rdi\n\t"                                                                               \
+            "mov %2, %%rsp\n\t"                                                                               \
+            "iretq"                                                                                           \
+            :                                                                                                 \
+            : "m"((Task)->Arch.Context.Registers.RAX), "m"((Task)->Arch.Context.Registers.RBX), "m"(StackTop) \
+            : "rdi", "rsi", "memory");                                                                        \
     } while (0)
 
 /************************************************************************/
@@ -488,39 +479,37 @@ typedef struct tag_KERNEL_DATA_X86_64 {
 #define DisableInterrupts() __asm__ __volatile__("cli" : : : "memory")
 #define EnableInterrupts() __asm__ __volatile__("sti" : : : "memory")
 
-#define SaveFlags(Flags)                                                                                \
-    do {                                                                                                \
-        UINT Value;                                                                                     \
-                                                                                                        \
-        __asm__ __volatile__(                                                                           \
-            "pushfq\n\t"                                                                                \
-            "pop %0"                                                                                    \
-            : "=r"(Value)                                                                               \
-            :                                                                                           \
-            : "memory");                                                                               \
-                                                                                                        \
-        *(Flags) = Value;                                                                               \
+#define SaveFlags(Flags)      \
+    do {                      \
+        UINT Value;           \
+                              \
+        __asm__ __volatile__( \
+            "pushfq\n\t"      \
+            "pop %0"          \
+            : "=r"(Value)     \
+            :                 \
+            : "memory");      \
+                              \
+        *(Flags) = Value;     \
     } while (0)
 
-#define RestoreFlags(Flags)                                                                             \
-    do {                                                                                                \
-        U64 Value = (U64)(*(Flags));                                                                    \
-                                                                                                        \
-        __asm__ __volatile__(                                                                           \
-            "push %0\n\t"                                                                              \
-            "popfq"                                                                                    \
-            :                                                                                           \
-            : "r"(Value)                                                                               \
-            : "memory", "cc");                                                                         \
+#define RestoreFlags(Flags)          \
+    do {                             \
+        U64 Value = (U64)(*(Flags)); \
+                                     \
+        __asm__ __volatile__(        \
+            "push %0\n\t"            \
+            "popfq"                  \
+            :                        \
+            : "r"(Value)             \
+            : "memory", "cc");       \
     } while (0)
 
 /***************************************************************************/
 // Inline helpers
 
-static inline U32 LoadInterruptDescriptorTable(PHYSICAL Base, U32 Limit)
-{
-    struct PACKED
-    {
+static inline U32 LoadInterruptDescriptorTable(PHYSICAL Base, U32 Limit) {
+    struct PACKED {
         U16 Limit;
         PHYSICAL Base;
     } Descriptor;
@@ -543,8 +532,7 @@ static inline U32 LoadInterruptDescriptorTable(PHYSICAL Base, U32 Limit)
     return (U32)Base;
 }
 
-static inline U32 LoadInitialTaskRegister(U32 TaskRegister)
-{
+static inline U32 LoadInitialTaskRegister(U32 TaskRegister) {
     U16 Selector = (U16)TaskRegister;
     U64 Flags;
 
@@ -571,14 +559,12 @@ static inline U32 LoadInitialTaskRegister(U32 TaskRegister)
     return (U32)Flags;
 }
 
-static inline U32 LoadPageDirectory(PHYSICAL Base)
-{
+static inline U32 LoadPageDirectory(PHYSICAL Base) {
     PHYSICAL Current;
 
     __asm__ __volatile__("mov %%cr3, %0" : "=r"(Current));
 
-    if (Current != Base)
-    {
+    if (Current != Base) {
         __asm__ __volatile__("mov %0, %%cr3" : : "r"(Base) : "memory");
     }
 
@@ -600,6 +586,7 @@ void InitializeGlobalDescriptorTable(LPSEGMENT_DESCRIPTOR Table);
 void InitializeTaskSegments(void);
 void SetSystemSegmentDescriptorLimit(LPX86_64_SYSTEM_SEGMENT_DESCRIPTOR Descriptor, U32 Limit);
 void SetSystemSegmentDescriptorBase(LPX86_64_SYSTEM_SEGMENT_DESCRIPTOR Descriptor, U64 Base);
+void SetPerCPUAreaBase(LINEAR CpuAddress);
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask);
 
 /************************************************************************/

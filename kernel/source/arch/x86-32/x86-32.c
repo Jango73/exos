@@ -33,6 +33,7 @@
 #include "process/Schedule.h"
 #include "process/Stack.h"
 #include "process/Task.h"
+#include "smp/SMP.h"
 #include "system/Interrupt.h"
 #include "system/SYSCall.h"
 #include "system/System.h"
@@ -687,6 +688,11 @@ BOOL SetupTask(struct tag_TASK* Task, struct tag_PROCESS* Process, struct tag_TA
  */
 void PrepareNextTaskSwitch(struct tag_TASK* CurrentTask, struct tag_TASK* NextTask) {
     SAFE_USE(NextTask) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL) {
+            Cpu->Statistics.ContextSwitchCount++;
+        }
+
         LINEAR NextSysStackTop = NextTask->Arch.SystemStack.Base + NextTask->Arch.SystemStack.Size;
 
         Kernel_x86_32.TSS->SS0 = SELECTOR_KERNEL_DATA;

@@ -43,6 +43,7 @@ AP_GdtLimit  equ 0x14
 AP_IdtLimit  equ 0x18
 AP_Status    equ 0x1C
 AP_ApicId    equ 0x20
+AP_CpuArea   equ 0x24
 
 ;-------------------------------------------------------------------------
 
