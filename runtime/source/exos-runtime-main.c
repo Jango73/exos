@@ -109,29 +109,41 @@ void debug(const char* format, ...) {
 /************************************************************************/
 
 #ifndef __KERNEL__
-void exit(int ErrorCode) { __exit__(ErrorCode); }
+void exit(int ErrorCode) {
+    __exit__(ErrorCode);
+}
 #endif
 
 /************************************************************************/
 
 #ifdef __KERNEL__
-void* malloc(size_t s) { return KernelHeapAlloc(s); }
+void* malloc(size_t s) {
+    return KernelHeapAlloc(s);
+}
 #else
-void* malloc(size_t s) { return HeapAlloc((UINT)s); }
+void* malloc(size_t s) {
+    return HeapAlloc((UINT)s);
+}
 #endif
 
 /************************************************************************/
 
 #ifdef __KERNEL__
-void free(void* p) { KernelHeapFree(p); }
+void free(void* p) {
+    KernelHeapFree(p);
+}
 #else
-void free(void* p) { HeapFree(p); }
+void free(void* p) {
+    HeapFree(p);
+}
 #endif
 
 /************************************************************************/
 
 #ifdef __KERNEL__
-void* realloc(void* ptr, size_t size) { return KernelHeapRealloc(ptr, size); }
+void* realloc(void* ptr, size_t size) {
+    return KernelHeapRealloc(ptr, size);
+}
 #else
 void* realloc(void* ptr, size_t size) {
     HEAP_REALLOC_INFO info;
@@ -250,7 +262,9 @@ int fprintf(FILE* fp, const char* fmt, ...) {
 /************************************************************************/
 
 #ifndef __KERNEL__
-int peekch(void) { return exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0)); }
+int peekch(void) {
+    return exoscall(SYSCALL_ConsolePeekKey, EXOS_PARAM(0));
+}
 #endif
 
 /************************************************************************/
@@ -288,7 +302,9 @@ int getkey(void) {
 /************************************************************************/
 
 #ifndef __KERNEL__
-unsigned getkeymodifiers(void) { return (unsigned)GetKeyModifiers(); }
+unsigned getkeymodifiers(void) {
+    return (unsigned)GetKeyModifiers();
+}
 #endif
 
 /************************************************************************/
@@ -303,15 +319,16 @@ int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_li
     TaskInfo.Header.Size = sizeof(TASK_INFO);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
     TaskInfo.Header.Flags = 0;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-function-type"
     TaskInfo.Func = (TASKFUNC)start_address;
-#pragma GCC diagnostic pop
+    #pragma GCC diagnostic pop
     TaskInfo.Parameter = (LPVOID)arg_list;
     TaskInfo.StackSize = (U32)stack_size;
     TaskInfo.Priority = TASK_PRIORITY_MEDIUM;
     TaskInfo.Flags = 0;
     TaskInfo.Task = 0;
+    TaskInfo.CpuId = CPU_AFFINITY_ANY;
 
     Result = (UINT)exoscall(SYSCALL_CreateTask, EXOS_PARAM(&TaskInfo));
     if (Result != DF_RETURN_SUCCESS || TaskInfo.Task == NULL) {
@@ -324,12 +341,15 @@ int _beginthread(void (*start_address)(void*), unsigned stack_size, void* arg_li
 
 /************************************************************************/
 
-void _endthread(void) {}
+void _endthread(void) {
+}
 
 /************************************************************************/
 
 #ifndef __KERNEL__
-void sleep(unsigned ms) { exoscall(SYSCALL_Sleep, EXOS_PARAM(ms)); }
+void sleep(unsigned ms) {
+    exoscall(SYSCALL_Sleep, EXOS_PARAM(ms));
+}
 #endif
 
 /************************************************************************/
@@ -619,7 +639,9 @@ static inline SOCKET_HANDLE SocketDescriptorToHandle(int SocketDescriptor) {
 
 /************************************************************************/
 
-int socket(int domain, int type, int protocol) { return (int)SocketCreate((U16)domain, (U16)type, (U16)protocol); }
+int socket(int domain, int type, int protocol) {
+    return (int)SocketCreate((U16)domain, (U16)type, (U16)protocol);
+}
 
 /************************************************************************/
 
@@ -638,7 +660,9 @@ int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
 
 /************************************************************************/
 
-int listen(int sockfd, int backlog) { return (int)SocketListen(SocketDescriptorToHandle(sockfd), (U32)backlog); }
+int listen(int sockfd, int backlog) {
+    return (int)SocketListen(SocketDescriptorToHandle(sockfd), (U32)backlog);
+}
 
 /************************************************************************/
 
@@ -720,7 +744,9 @@ size_t recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* s
 
 /************************************************************************/
 
-int shutdown(int sockfd, int how) { return (int)SocketShutdown(SocketDescriptorToHandle(sockfd), (U32)how); }
+int shutdown(int sockfd, int how) {
+    return (int)SocketShutdown(SocketDescriptorToHandle(sockfd), (U32)how);
+}
 
 /************************************************************************/
 

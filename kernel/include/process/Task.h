@@ -83,6 +83,7 @@ typedef struct tag_TASK_SCHEDULER_STATE {
     UINT TimeSlice;   // Absolute time-slice expiry deadline (INFINITY when not armed)
     BOOL Suspended;
     BOOL InitDone;  // TRUE once the task has been started by the scheduler (JumpToReadyTask ran)
+    U32 CpuId;      // CPU affinity: CPU_AFFINITY_ANY or a usable CPU index
 } TASK_SCHEDULER_STATE, *LPTASK_SCHEDULER_STATE;
 
 typedef struct tag_EXECUTABLE_MODULE_BINDING EXECUTABLE_MODULE_BINDING, *LPEXECUTABLE_MODULE_BINDING;
@@ -143,7 +144,7 @@ struct tag_TASK {
     U32 HeldMutexClassDepth;                                 // Number of held lock classes tracked for diagnostics
     U32 HeldMutexClasses[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];  // Held lock class stack
     LPMUTEX HeldMutexes[TASK_MUTEX_CLASS_STACK_MAX_DEPTH];   // Held mutex stack
-    MESSAGE_QUEUE MessageQueue;                               // Message queue for this task
+    MESSAGE_QUEUE MessageQueue;                              // Message queue for this task
     LPVOID WindowDispatchWindow;                             // Current window in nested window dispatch
     LPVOID WindowDispatchClass;                              // Current class in nested window dispatch
     WINDOWFUNC WindowDispatchFunction;                       // Current function in nested window dispatch

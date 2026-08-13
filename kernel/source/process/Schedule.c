@@ -23,6 +23,7 @@
 \************************************************************************/
 
 #include "Base.h"
+#include "smp/SMP.h"
 #include "system/Clock.h"
 #include "core/ID.h"
 #include "core/Kernel.h"
@@ -39,13 +40,11 @@
 
 /***************************************************************************/
 
-typedef struct tag_TASKLIST {
-    volatile U32 Freeze;
-    volatile U32 SchedulerTime;
+typedef struct tag_TASK_RUN_QUEUE {
     volatile UINT NumTasks;
     volatile UINT CurrentIndex;  // Index of current task instead of pointer
     LPTASK Tasks[NUM_TASKS];
-} TASK_LIST, *LPTASKLIST;
+} TASK_RUN_QUEUE, *LPTASK_RUN_QUEUE;
 
 /***************************************************************************/
 
@@ -59,9 +58,20 @@ typedef struct tag_SCHEDULER_TICK_SLOT {
 
 /***************************************************************************/
 
-static TASK_LIST DATA_SECTION TaskList = {
-    .Freeze = 0, .SchedulerTime = 0, .NumTasks = 0, .CurrentIndex = 0, .Tasks = { NULL }
-};
+// Per-CPU run queues and the global orphan queue (ANY-affinity tasks that no
+// CPU owns yet). RunQueues[0] is the bootstrap/default queue: before SMP
+// discovery it is the only queue (monoprocessor BSP), and it stays the
+// fallback when the current CPU record or its queue is not reachable.
+static TASK_RUN_QUEUE DATA_SECTION RunQueues[SMP_MAX_CPUS];
+static TASK_RUN_QUEUE DATA_SECTION OrphanRunQueue;
+
+// Pre-SMP freeze fallback and per-CPU access gate. Before InitializeSMP runs
+// the per-CPU accessors are not reachable (x86-32 lookup table and x86-64 GS
+// base are only populated by InitializeBspCpuAnchor), so scheduling runs on
+// the shared counters and RunQueues[0].
+static volatile U32 DATA_SECTION PreSMPFreezeCount = 0;
+static volatile BOOL DATA_SECTION PerCpuAccessReady = FALSE;
+
 static SCHEDULER_TICK_SLOT DATA_SECTION SchedulerTickSlots[SCHEDULER_TICK_MAX_CALLBACKS];
 
 /***************************************************************************/
@@ -113,16 +123,148 @@ static void RunSchedulerTickCallbacks(void) {
 /***************************************************************************/
 
 /**
+ * @brief Mark the per-CPU scheduler access path as ready.
+ *
+ * Called by InitializeSMP as soon as the BSP per-CPU record is reachable
+ * (x86-64 GS base and x86-32 lookup table). Until then FreezeScheduler and the
+ * run queue helpers fall back to the shared pre-SMP state.
+ */
+void SchedulerSetPerCpuReady(void) {
+    PerCpuAccessReady = TRUE;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Retrieve the run queue bound to a CPU index.
+ * @param CpuIndex Usable CPU index (see SMP discovery).
+ * @return Pointer to the CPU run queue, NULL when the index is out of range.
+ */
+LPTASK_RUN_QUEUE SchedulerGetRunQueue(UINT CpuIndex) {
+    if (CpuIndex >= SMP_MAX_CPUS) {
+        return NULL;
+    }
+
+    return &RunQueues[CpuIndex];
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Retrieve the run queue of the currently executing CPU.
+ *
+ * Before the per-CPU access path is ready (early boot), or when the current
+ * CPU record is not reachable, the bootstrap queue RunQueues[0] is returned.
+ *
+ * @return Pointer to the current CPU run queue.
+ */
+static LPTASK_RUN_QUEUE GetCurrentRunQueue(void) {
+    if (PerCpuAccessReady != FALSE) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL && Cpu->RunQueue != NULL) {
+            return Cpu->RunQueue;
+        }
+    }
+
+    return &RunQueues[0];
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Test whether a task is present in a run queue.
+ * @param Queue Target run queue.
+ * @param Task Task to look for.
+ * @return TRUE when the task is present.
+ */
+static BOOL RunQueueContainsTask(LPTASK_RUN_QUEUE Queue, LPTASK Task) {
+    if (Queue == NULL || Task == NULL) {
+        return FALSE;
+    }
+
+    for (UINT Index = 0; Index < Queue->NumTasks; Index++) {
+        if (Queue->Tasks[Index] == Task) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Retrieve the CPU record that owns a run queue.
+ * @param Queue Target run queue.
+ * @return Owner CPU record, NULL for the orphan queue or unknown queues.
+ */
+static LPCPU GetQueueOwnerCpu(LPTASK_RUN_QUEUE Queue) {
+    if (Queue == NULL || Queue == &OrphanRunQueue) {
+        return NULL;
+    }
+
+    for (UINT Index = 0; Index < GetUsableCpuCount(); Index++) {
+        LPCPU Cpu = GetCPUInfoByIndex(Index);
+        if (Cpu != NULL && Cpu->RunQueue == Queue) {
+            return Cpu;
+        }
+    }
+
+    return NULL;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Move orphan tasks into a CPU run queue.
+ *
+ * Orphan tasks are ANY-affinity tasks not owned by any CPU yet. Until per-CPU
+ * ticks exist (Step 7) the BSP is the only scheduling CPU, so it absorbs all
+ * orphans; the pull is also the migration primitive for later steps.
+ *
+ * @param TargetQueue CPU run queue receiving the orphan tasks.
+ */
+static void PullOrphanTasks(LPTASK_RUN_QUEUE TargetQueue) {
+    if (TargetQueue == NULL || TargetQueue == &OrphanRunQueue) {
+        return;
+    }
+
+    while (TargetQueue->NumTasks < NUM_TASKS && OrphanRunQueue.NumTasks > 0) {
+        LPTASK Task = OrphanRunQueue.Tasks[0];
+
+        for (UINT ShiftIndex = 0; ShiftIndex < OrphanRunQueue.NumTasks - 1; ShiftIndex++) {
+            OrphanRunQueue.Tasks[ShiftIndex] = OrphanRunQueue.Tasks[ShiftIndex + 1];
+        }
+        OrphanRunQueue.NumTasks--;
+        OrphanRunQueue.Tasks[OrphanRunQueue.NumTasks] = NULL;
+
+        if (TargetQueue->NumTasks == 0) {
+            TargetQueue->CurrentIndex = 0;
+        }
+        TargetQueue->Tasks[TargetQueue->NumTasks] = Task;
+        TargetQueue->NumTasks++;
+    }
+}
+
+/***************************************************************************/
+
+/**
  * @brief Wakes up tasks whose sleep time has expired.
  *
  * Centralized function to check and wake sleeping tasks. Should be called
  * periodically by the scheduler or timer interrupt.
+ *
+ * @param Queue Run queue to scan.
  */
-static void WakeUpExpiredTasks(void) {
+static void WakeUpExpiredTasks(LPTASK_RUN_QUEUE Queue) {
     UINT CurrentTime = GetSystemTime();
 
-    for (UINT Index = 0; Index < TaskList.NumTasks; Index++) {
-        LPTASK Task = TaskList.Tasks[Index];
+    if (Queue == NULL) {
+        return;
+    }
+
+    for (UINT Index = 0; Index < Queue->NumTasks; Index++) {
+        LPTASK Task = Queue->Tasks[Index];
         TASK_SCHEDULER_STATE State;
 
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
@@ -138,22 +280,27 @@ static void WakeUpExpiredTasks(void) {
 /***************************************************************************/
 
 /**
- * @brief Removes dead tasks from the scheduler queue during context switches.
+ * @brief Removes dead tasks from a run queue during context switches.
  *
  * Called when switching TO a task that is not dead. Removes all dead tasks
  * from the queue to prevent them from being scheduled again. This is done
  * during context switches to avoid silent CurrentIndex adjustments.
  *
+ * @param Queue Run queue to clean.
  * @param ExceptTask Task pointer we're switching to (don't remove it)
  * @return New index of ExceptTask after removals
  */
-static UINT RemoveDeadTasksFromQueue(LPTASK ExceptTask) {
+static UINT RemoveDeadTasksFromQueue(LPTASK_RUN_QUEUE Queue, LPTASK ExceptTask) {
     UINT NewExceptIndex = INFINITY;
     TASK_SCHEDULER_STATE State;
 
+    if (Queue == NULL) {
+        return INFINITY;
+    }
+
     // Search backwards to handle array compaction safely
-    for (I32 Index = (I32)(TaskList.NumTasks - 1); Index >= 0; Index--) {
-        LPTASK Task = TaskList.Tasks[Index];
+    for (I32 Index = (I32)(Queue->NumTasks - 1); Index >= 0; Index--) {
+        LPTASK Task = Queue->Tasks[Index];
 
         if (Task == ExceptTask) continue;
         if (ScheduleGetTaskState(Task, &State) == FALSE) continue;
@@ -162,18 +309,18 @@ static UINT RemoveDeadTasksFromQueue(LPTASK ExceptTask) {
             FINE_DEBUG(TEXT("Removing dead task %s at index %d"), Task->Name, Index);
 
             // Shift remaining tasks down
-            for (UINT ShiftIndex = (UINT)Index; ShiftIndex < TaskList.NumTasks - 1; ShiftIndex++) {
-                TaskList.Tasks[ShiftIndex] = TaskList.Tasks[ShiftIndex + 1];
+            for (UINT ShiftIndex = (UINT)Index; ShiftIndex < Queue->NumTasks - 1; ShiftIndex++) {
+                Queue->Tasks[ShiftIndex] = Queue->Tasks[ShiftIndex + 1];
             }
 
-            TaskList.NumTasks--;
-            TaskList.Tasks[TaskList.NumTasks] = NULL;  // Clear last slot
+            Queue->NumTasks--;
+            Queue->Tasks[Queue->NumTasks] = NULL;  // Clear last slot
         }
     }
 
     // Find new index of ExceptTask
-    for (UINT Index = 0; Index < TaskList.NumTasks; Index++) {
-        if (TaskList.Tasks[Index] == ExceptTask) {
+    for (UINT Index = 0; Index < Queue->NumTasks; Index++) {
+        if (Queue->Tasks[Index] == ExceptTask) {
             NewExceptIndex = Index;
             break;
         }
@@ -189,13 +336,18 @@ static UINT RemoveDeadTasksFromQueue(LPTASK ExceptTask) {
  *
  * Also wakes up any sleeping tasks whose wake-up time has expired.
  *
+ * @param Queue Run queue to inspect.
  * @return Number of runnable tasks
  */
-static UINT CountRunnableTasks(void) {
+static UINT CountRunnableTasks(LPTASK_RUN_QUEUE Queue) {
     UINT RunnableCount = 0;
 
-    for (UINT Index = 0; Index < TaskList.NumTasks; Index++) {
-        LPTASK Task = TaskList.Tasks[Index];
+    if (Queue == NULL) {
+        return 0;
+    }
+
+    for (UINT Index = 0; Index < Queue->NumTasks; Index++) {
+        LPTASK Task = Queue->Tasks[Index];
         TASK_SCHEDULER_STATE State;
         PROCESS_SCHEDULER_STATE ProcessState;
 
@@ -216,16 +368,21 @@ static UINT CountRunnableTasks(void) {
 /**
  * @brief Finds the next runnable task starting from a given index.
  *
- * Performs round-robin search through the task list, skipping dead and sleeping tasks.
- * Returns the index of the next runnable task.
+ * Performs round-robin search through the run queue, skipping dead and
+ * sleeping tasks. Returns the index of the next runnable task.
  *
+ * @param Queue Run queue to search.
  * @param StartIndex Index to start searching from
  * @return Index of next runnable task, or INFINITY if none found
  */
-UINT FindNextRunnableTask(UINT StartIndex) {
-    for (UINT Attempts = 0; Attempts < TaskList.NumTasks; Attempts++) {
-        UINT Index = (StartIndex + Attempts) % TaskList.NumTasks;
-        LPTASK Task = TaskList.Tasks[Index];
+static UINT FindNextRunnableTask(LPTASK_RUN_QUEUE Queue, UINT StartIndex) {
+    if (Queue == NULL || Queue->NumTasks == 0) {
+        return INFINITY;
+    }
+
+    for (UINT Attempts = 0; Attempts < Queue->NumTasks; Attempts++) {
+        UINT Index = (StartIndex + Attempts) % Queue->NumTasks;
+        LPTASK Task = Queue->Tasks[Index];
         TASK_SCHEDULER_STATE State;
         PROCESS_SCHEDULER_STATE ProcessState;
 
@@ -263,8 +420,26 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
 
     // Check validity of parameters
     SAFE_USE_VALID_ID(NewTask, KOID_TASK) {
+        LPTASK_RUN_QUEUE TargetQueue = NULL;
+
+        // Route the task to the queue matching its CPU affinity. ANY-affinity
+        // tasks go to the global orphan queue (the next tick pulls them into
+        // the scheduling CPU); pinned tasks go to their chosen CPU queue.
+        // Before the per-CPU access path is ready, everything lands in the
+        // bootstrap queue RunQueues[0].
+        U32 Affinity = NewTask->SchedulerState.CpuId;
+
+        if (Affinity == CPU_AFFINITY_ANY || PerCpuAccessReady == FALSE) {
+            TargetQueue = (PerCpuAccessReady != FALSE) ? &OrphanRunQueue : &RunQueues[0];
+        } else if (Affinity < GetUsableCpuCount()) {
+            TargetQueue = &RunQueues[Affinity];
+        } else {
+            ERROR(TEXT("Invalid CPU affinity %u, routing to CPU 0"), Affinity);
+            TargetQueue = &RunQueues[0];
+        }
+
         // Check if task queue is full
-        if (TaskList.NumTasks >= NUM_TASKS) {
+        if (TargetQueue->NumTasks >= NUM_TASKS) {
             ERROR(TEXT("Cannot add task %p, too many tasks"), NewTask);
             UnfreezeScheduler();
 
@@ -273,8 +448,8 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
         }
 
         // Check if task already in task queue
-        for (UINT Index = 0; Index < TaskList.NumTasks; Index++) {
-            if (TaskList.Tasks[Index] == NewTask) {
+        for (UINT Index = 0; Index < TargetQueue->NumTasks; Index++) {
+            if (TargetQueue->Tasks[Index] == NewTask) {
                 UnfreezeScheduler();
 
                 TRACED_EPILOGUE("AddTaskToQueue");
@@ -285,17 +460,24 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
         // Add task to queue
         FINE_DEBUG(TEXT("Adding %p"), NewTask);
 
-        TaskList.Tasks[TaskList.NumTasks] = NewTask;
+        TargetQueue->Tasks[TargetQueue->NumTasks] = NewTask;
 
         // Set time-slice deadline for this task
         SetTaskTimeSlice(NewTask, ComputeTaskQuantumTime(NewTask->Priority));
 
         // If this is the first task, make it current
-        if (TaskList.NumTasks == 0) {
-            TaskList.CurrentIndex = 0;
+        if (TargetQueue->NumTasks == 0) {
+            TargetQueue->CurrentIndex = 0;
         }
 
-        TaskList.NumTasks++;
+        TargetQueue->NumTasks++;
+
+        // Request a reschedule when the task was enqueued on a remote CPU queue.
+        // IPI delivery that honors this request is implemented in Step 6.
+        LPCPU OwnerCpu = GetQueueOwnerCpu(TargetQueue);
+        if (OwnerCpu != NULL && OwnerCpu != CurrentCPU() && OwnerCpu->ReschedulePending == FALSE) {
+            OwnerCpu->ReschedulePending = TRUE;
+        }
 
         UnfreezeScheduler();
 
@@ -311,10 +493,54 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
 /***************************************************************************/
 
 /**
- * @brief Removes a task from the scheduler's execution queue.
+ * @brief Removes a task from one run queue, compacting the array.
  *
- * Searches for the task in the queue and removes it, compacting the array.
- * Adjusts the current task index appropriately to maintain scheduling order.
+ * @param Queue Run queue to remove the task from.
+ * @param OldTask Task to remove.
+ * @return TRUE when the task was removed, FALSE when not present.
+ */
+static BOOL RemoveTaskFromRunQueue(LPTASK_RUN_QUEUE Queue, LPTASK OldTask) {
+    for (UINT Index = 0; Index < Queue->NumTasks; Index++) {
+        if (Queue->Tasks[Index] == OldTask) {
+            // If removing current task, adjust current index
+            if (Index == Queue->CurrentIndex) {
+                // Find next runnable task or wrap around
+                if (Queue->NumTasks > 1) {
+                    Queue->CurrentIndex = FindNextRunnableTask(Queue, (Index + 1) % Queue->NumTasks);
+
+                    if (Queue->CurrentIndex >= Queue->NumTasks - 1) {
+                        Queue->CurrentIndex = 0;  // Wrap to beginning
+                    }
+                } else {
+                    Queue->CurrentIndex = 0;
+                }
+            } else if (Index < Queue->CurrentIndex) {
+                Queue->CurrentIndex--;  // Adjust index after removal
+            }
+
+            // Shift remaining tasks
+            for (UINT ShiftIndex = Index; ShiftIndex < Queue->NumTasks - 1; ShiftIndex++) {
+                Queue->Tasks[ShiftIndex] = Queue->Tasks[ShiftIndex + 1];
+            }
+
+            Queue->NumTasks--;
+            Queue->Tasks[Queue->NumTasks] = NULL;  // Clear last slot
+
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/***************************************************************************/
+
+/**
+ * @brief Removes a task from the scheduler's execution queues.
+ *
+ * Searches every per-CPU run queue and the orphan queue for the task and
+ * removes it from whichever holds it, compacting the array. Adjusts the
+ * current task index appropriately to maintain scheduling order.
  *
  * @param OldTask Pointer to task to remove from scheduler queue
  * @return TRUE if task removed successfully, FALSE if not found
@@ -322,45 +548,26 @@ BOOL AddTaskToQueue(LPTASK NewTask) {
 BOOL RemoveTaskFromQueue(LPTASK OldTask) {
     TRACED_FUNCTION;
 
+    if (OldTask == NULL) {
+        return FALSE;
+    }
+
     FreezeScheduler();
 
-    for (UINT Index = 0; Index < TaskList.NumTasks; Index++) {
-        if (TaskList.Tasks[Index] == OldTask) {
-            // If removing current task, adjust current index
-            if (Index == TaskList.CurrentIndex) {
-                // Find next runnable task or wrap around
-                if (TaskList.NumTasks > 1) {
-                    TaskList.CurrentIndex = FindNextRunnableTask((Index + 1) % TaskList.NumTasks);
+    BOOL Removed = FALSE;
 
-                    if (TaskList.CurrentIndex >= TaskList.NumTasks - 1) {
-                        TaskList.CurrentIndex = 0;  // Wrap to beginning
-                    }
-                } else {
-                    TaskList.CurrentIndex = 0;
-                }
-            } else if (Index < TaskList.CurrentIndex) {
-                TaskList.CurrentIndex--;  // Adjust index after removal
-            }
+    for (UINT CpuIndex = 0; CpuIndex < SMP_MAX_CPUS && Removed == FALSE; CpuIndex++) {
+        Removed = RemoveTaskFromRunQueue(&RunQueues[CpuIndex], OldTask);
+    }
 
-            // Shift remaining tasks
-            for (UINT ShiftIndex = Index; ShiftIndex < TaskList.NumTasks - 1; ShiftIndex++) {
-                TaskList.Tasks[ShiftIndex] = TaskList.Tasks[ShiftIndex + 1];
-            }
-
-            TaskList.NumTasks--;
-            TaskList.Tasks[TaskList.NumTasks] = NULL;  // Clear last slot
-
-            UnfreezeScheduler();
-
-            TRACED_EPILOGUE("RemoveTaskFromQueue");
-            return TRUE;
-        }
+    if (Removed == FALSE) {
+        Removed = RemoveTaskFromRunQueue(&OrphanRunQueue, OldTask);
     }
 
     UnfreezeScheduler();
 
     TRACED_EPILOGUE("RemoveTaskFromQueue");
-    return FALSE;
+    return Removed;
 }
 
 /***************************************************************************/
@@ -383,15 +590,28 @@ LPPROCESS GetCurrentProcess(void) {
 /**
  * @brief Returns the currently executing task.
  *
+ * Uses the per-CPU current task pointer when available, falling back to the
+ * current run queue when the per-CPU access path is not ready (early boot).
+ *
  * @return Pointer to current task, or NULL if no tasks are scheduled
  */
 LPTASK GetCurrentTask(void) {
+    // Fast path: the running task is recorded per CPU and updated on every
+    // context switch.
+    if (PerCpuAccessReady != FALSE) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL && Cpu->CurrentTask != NULL) {
+            return Cpu->CurrentTask;
+        }
+    }
+
     LPTASK Task = NULL;
 
     FreezeScheduler();
-    if (TaskList.NumTasks == 0 || TaskList.CurrentIndex >= TaskList.NumTasks) {
+    LPTASK_RUN_QUEUE Queue = GetCurrentRunQueue();
+    if (Queue->NumTasks == 0 || Queue->CurrentIndex >= Queue->NumTasks) {
     } else {
-        Task = TaskList.Tasks[TaskList.CurrentIndex];
+        Task = Queue->Tasks[Queue->CurrentIndex];
     }
     UnfreezeScheduler();
 
@@ -401,10 +621,28 @@ LPTASK GetCurrentTask(void) {
 /***************************************************************************/
 
 /**
+ * @brief Retrieve the scheduler freeze counter of the current CPU.
+ * @return Current freeze count (0 means the scheduler is not frozen).
+ */
+static U32 GetCurrentSchedulerFreezeCount(void) {
+    if (PerCpuAccessReady != FALSE) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL) {
+            return Cpu->SchedulerFreeze;
+        }
+    }
+
+    return PreSMPFreezeCount;
+}
+
+/***************************************************************************/
+
+/**
  * @brief Temporarily disables task switching.
  *
  * Increments the freeze counter to prevent the scheduler from switching tasks.
  * Used for atomic operations that must not be interrupted by task switches.
+ * Before the per-CPU access path is ready the shared pre-SMP counter is used.
  *
  * @return Always TRUE
  */
@@ -412,7 +650,18 @@ BOOL FreezeScheduler(void) {
     U32 Flags;
     SaveFlags(&Flags);
     DisableInterrupts();
-    TaskList.Freeze++;
+
+    if (PerCpuAccessReady != FALSE) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL) {
+            Cpu->SchedulerFreeze++;
+        } else {
+            PreSMPFreezeCount++;
+        }
+    } else {
+        PreSMPFreezeCount++;
+    }
+
     RestoreFlags(&Flags);
     return TRUE;
 }
@@ -431,7 +680,16 @@ BOOL UnfreezeScheduler(void) {
     U32 Flags;
     SaveFlags(&Flags);
     DisableInterrupts();
-    if (TaskList.Freeze) TaskList.Freeze--;
+
+    if (PerCpuAccessReady != FALSE) {
+        LPCPU Cpu = CurrentCPU();
+        if (Cpu != NULL) {
+            if (Cpu->SchedulerFreeze != 0) Cpu->SchedulerFreeze--;
+        }
+    } else if (PreSMPFreezeCount != 0) {
+        PreSMPFreezeCount--;
+    }
+
     RestoreFlags(&Flags);
     return TRUE;
 }
@@ -448,7 +706,7 @@ BOOL IsSchedulerFrozen(void) {
 
     SaveFlags(&Flags);
     DisableInterrupts();
-    Frozen = (TaskList.Freeze != 0);
+    Frozen = (GetCurrentSchedulerFreezeCount() != 0);
     RestoreFlags(&Flags);
 
     return Frozen;
@@ -655,37 +913,26 @@ void Scheduler(void) {
     FINE_DEBUG(TEXT("Enter : IF = %x"), Flags & 0x200);
     UNUSED(Flags);
 
+    LPTASK_RUN_QUEUE Queue = GetCurrentRunQueue();
+
     // If scheduler is frozen, don't switch (atomic read - safe in interrupt context)
-    if (TaskList.Freeze) {
-        FINE_DEBUG(TEXT("TaskList frozen: Returning NULL"));
+    if (GetCurrentSchedulerFreezeCount() != 0) {
+        FINE_DEBUG(TEXT("Scheduler frozen: Returning NULL"));
         return;
     }
 
-    TaskList.SchedulerTime += 10;
     RunSchedulerTickCallbacks();
 
-    // Check for stack overflow - kill dangerous tasks immediately
-    /*
-    if (!CheckStack()) {
-        LPTASK DangerousTask = GetCurrentTask();
-
-        if (DangerousTask) {
-
-            ERROR(TEXT("Killing task due to overflow : %X"), DangerousTask);
-
-            // Mark task as dead - will be removed during next context switch
-            DangerousTask->SchedulerState.Status = TASK_STATUS_DEAD;
-        }
-    }
-    */
+    // Absorb ANY-affinity tasks parked in the orphan queue
+    PullOrphanTasks(Queue);
 
     // No tasks to schedule
-    if (TaskList.NumTasks == 0) {
+    if (Queue->NumTasks == 0) {
         return;
     }
 
     // Check if current task quantum has expired
-    LPTASK CurrentTask = (TaskList.CurrentIndex < TaskList.NumTasks) ? TaskList.Tasks[TaskList.CurrentIndex] : NULL;
+    LPTASK CurrentTask = (Queue->CurrentIndex < Queue->NumTasks) ? Queue->Tasks[Queue->CurrentIndex] : NULL;
     BOOL HasCurrentTaskSnapshot = FALSE;
     BOOL QuantumExpired = FALSE;
 
@@ -695,10 +942,10 @@ void Scheduler(void) {
     }
 
     // Wake up expired sleeping tasks first
-    WakeUpExpiredTasks();
+    WakeUpExpiredTasks(Queue);
 
     // Update sleeping tasks status
-    UINT RunnableCount = CountRunnableTasks();
+    UINT RunnableCount = CountRunnableTasks(Queue);
 
     // No runnable tasks - system idle
     if (RunnableCount == 0) {
@@ -718,7 +965,7 @@ void Scheduler(void) {
     }
 
     // Time to switch - find next runnable task
-    UINT NextIndex = FindNextRunnableTask((TaskList.CurrentIndex + 1) % TaskList.NumTasks);
+    UINT NextIndex = FindNextRunnableTask(Queue, (Queue->CurrentIndex + 1) % Queue->NumTasks);
 
     if (NextIndex == INFINITY) {
         // No runnable task found despite a positive runnable count; keep the
@@ -726,7 +973,7 @@ void Scheduler(void) {
         return;
     }
 
-    if (TaskList.CurrentIndex == NextIndex) {
+    if (Queue->CurrentIndex == NextIndex) {
         // The current task is the only runnable task. Give it the CPU again:
         // promote a just-woken task back to RUNNING and re-arm its time slice
         // so sleep/wait loops can observe the status change and exit.
@@ -744,21 +991,21 @@ void Scheduler(void) {
         return;
     }
 
-    if (TaskList.CurrentIndex != NextIndex) {
+    if (Queue->CurrentIndex != NextIndex) {
         // Get task pointers BEFORE any queue manipulation
-        LPTASK CurrentTask = (TaskList.CurrentIndex < TaskList.NumTasks) ? TaskList.Tasks[TaskList.CurrentIndex] : NULL;
-        LPTASK NextTask = TaskList.Tasks[NextIndex];
+        LPTASK CurrentTask = (Queue->CurrentIndex < Queue->NumTasks) ? Queue->Tasks[Queue->CurrentIndex] : NULL;
+        LPTASK NextTask = Queue->Tasks[NextIndex];
 
         FINE_DEBUG(
             TEXT("Switch between task index %u (%s @ %s) and %u (%s @ %s)"),
-            TaskList.CurrentIndex,
+            Queue->CurrentIndex,
             CurrentTask ? CurrentTask->Name : TEXT("NULL"),
             CurrentTask ? CurrentTask->OwnerProcess->FileName : TEXT("NULL"),
             NextIndex,
             NextTask->Name,
             NextTask->OwnerProcess->FileName);
 
-        if (NextIndex >= TaskList.NumTasks) {
+        if (NextIndex >= Queue->NumTasks) {
             // Should not happen if RunnableCount > 0, but safety check
             FINE_DEBUG(TEXT("No next task found"));
 
@@ -772,7 +1019,7 @@ void Scheduler(void) {
         }
 
         if (NextTaskState.Status != TASK_STATUS_DEAD) {
-            NextIndex = RemoveDeadTasksFromQueue(NextTask);
+            NextIndex = RemoveDeadTasksFromQueue(Queue, NextTask);
 
             if (NextIndex == INFINITY) {
                 // NextTask was somehow removed - this should not happen
@@ -781,8 +1028,15 @@ void Scheduler(void) {
             }
         }
 
-        TaskList.CurrentIndex = NextIndex;
-        TaskList.SchedulerTime = 0;
+        Queue->CurrentIndex = NextIndex;
+
+        // Record the task that owns the CPU until the next switch
+        if (PerCpuAccessReady != FALSE) {
+            LPCPU Cpu = CurrentCPU();
+            if (Cpu != NULL) {
+                Cpu->CurrentTask = NextTask;
+            }
+        }
 
         // The outgoing task leaves the CPU: demote it back to READY so that at
         // most one task is RUNNING at any time. Tasks that are sleeping or

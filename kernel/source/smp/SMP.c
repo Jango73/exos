@@ -260,6 +260,11 @@ static void FinalizeMonoProcessorMode(void) {
     G_SMPConfig.CpuCount = 1;
     G_SMPConfig.CpuIndexByApicId[0] = 0;
     G_SMPConfig.OnlineMask |= (1 << 0);
+    G_SMPConfig.CpuList[0].RunQueue = SchedulerGetRunQueue(0);
+
+    // The monoprocessor configuration is complete: enable the per-CPU
+    // scheduler access path (CurrentCPU() now resolves on this architecture).
+    SchedulerSetPerCpuReady();
 }
 
 /***************************************************************************/
@@ -318,12 +323,20 @@ static void InitializeBspCpuRecord(void) {
         BspCpu->LocalApicMap = LocalApicConfig->MappedAddress;
     }
     BspCpu->Tss = (LPVOID)Kernel_x86_32.TSS;
-    BspCpu->CurrentTask = GetCurrentTask();
     BspCpu->StackTop = KernelStartup.StackTop;
+    BspCpu->RunQueue = SchedulerGetRunQueue(G_SMPConfig.BspIndex);
+    BspCpu->SchedulerFreeze = 0;
+    BspCpu->ReschedulePending = FALSE;
     G_SMPConfig.OnlineMask |= (1 << G_SMPConfig.BspApicId);
 #if defined(__EXOS_ARCH_X86_64__)
     SetPerCPUAreaBase((LINEAR)BspCpu);
 #endif
+
+    // The BSP per-CPU record is complete: enable the per-CPU scheduler path so
+    // the current-task lookup below resolves through this CPU record.
+    SchedulerSetPerCpuReady();
+
+    BspCpu->CurrentTask = GetCurrentTask();
 
     DEBUG(
         TEXT("[InitializeSMP] BSP CPU=%p APIC ID %u CurrentTask=%p"),

@@ -51,9 +51,9 @@ PROCESS DATA_SECTION KernelProcess = {
     .Status = PROCESS_STATUS_ALIVE,                              // Status
     .Flags = PROCESS_CREATE_TERMINATE_CHILD_PROCESSES_ON_DEATH,  // Flags
     .ControlFlags = 0,                                           // Process control flags
-    .SchedulerState = {.Paused = FALSE},
+    .SchedulerState = { .Paused = FALSE },
     .PageDirectory = 0,  // Page directory
-    .MemoryRegionList = {.Head = NULL, .Tail = NULL, .Count = 0},
+    .MemoryRegionList = { .Head = NULL, .Tail = NULL, .Count = 0 },
     .HeapBase = 0,  // Heap base
     .HeapSize = 0,  // Heap size
     .TaskCount = 0  // Task count (will be incremented by KernelCreateTask)
@@ -66,20 +66,19 @@ PROCESS DATA_SECTION KernelProcess = {
 
 static UINT KernelProcessDriverCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION KernelProcessDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_INIT,
-    .VersionMajor = KERNEL_PROCESS_VER_MAJOR,
-    .VersionMinor = KERNEL_PROCESS_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "N/A",
-    .Product = "KernelProcess",
-    .Alias = "kernel_process",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = KernelProcessDriverCommands};
+DRIVER DATA_SECTION KernelProcessDriver = { .TypeID = KOID_DRIVER,
+                                            .References = 1,
+                                            .Next = NULL,
+                                            .Prev = NULL,
+                                            .Type = DRIVER_TYPE_INIT,
+                                            .VersionMajor = KERNEL_PROCESS_VER_MAJOR,
+                                            .VersionMinor = KERNEL_PROCESS_VER_MINOR,
+                                            .Designer = "Jango73",
+                                            .Manufacturer = "N/A",
+                                            .Product = "KernelProcess",
+                                            .Alias = "kernel_process",
+                                            .Flags = DRIVER_FLAG_CRITICAL,
+                                            .Command = KernelProcessDriverCommands };
 
 /***************************************************************************/
 
@@ -158,6 +157,7 @@ void InitializeKernelProcess(void) {
     TaskInfo.Header.Size = sizeof(TASK_INFO);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
     TaskInfo.Header.Flags = 0;
+    TaskInfo.CpuId = CPU_AFFINITY_ANY;
     TaskInfo.Func = (TASKFUNC)InitializeKernel;
     TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
     TaskInfo.Priority = TASK_PRIORITY_LOWEST;
@@ -542,6 +542,7 @@ BOOL CreateProcess(LPPROCESS_INFO Info) {
     TaskInfo.Header.Size = sizeof(TASK_INFO);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
     TaskInfo.Header.Flags = 0;
+    TaskInfo.CpuId = CPU_AFFINITY_ANY;
 
     StringCopy(TaskInfo.Name, TEXT("UserMain"));
 

@@ -32,6 +32,7 @@
 #include "process/Schedule.h"
 #include "process/Stack.h"
 #include "process/Task-Messaging.h"
+#include "smp/SMP.h"
 #include "system/Clock.h"
 #include "text/CoreString.h"
 #include "utils/BusyWait.h"
@@ -216,6 +217,7 @@ LPTASK NewTask(void) {
     This->SchedulerState.TimeSlice = INFINITY;
     This->SchedulerState.Suspended = FALSE;
     This->SchedulerState.InitDone = FALSE;
+    This->SchedulerState.CpuId = CPU_AFFINITY_ANY;
     This->WaitingMutex = NULL;
     This->WaitingSince = 0;
     This->HeldMutexClassDepth = 0;
@@ -524,6 +526,15 @@ LPTASK KernelCreateTask(LPPROCESS Process, LPTASK_INFO Info) {
 
     // Save flags for scheduler
     Task->Flags = Info->Flags;
+
+    // Mirror the requested CPU affinity into the scheduler state. An invalid
+    // index (before SMP discovery, or beyond the usable CPU set) is clamped to
+    // ANY so the task is never routed to a dead CPU.
+    if (Info->CpuId != CPU_AFFINITY_ANY && Info->CpuId >= GetUsableCpuCount()) {
+        WARNING(TEXT("[KernelCreateTask] Invalid CPU affinity %u for task %s, using ANY"), Info->CpuId, Task->Name);
+        Info->CpuId = CPU_AFFINITY_ANY;
+    }
+    Task->SchedulerState.CpuId = Info->CpuId;
 
     LPLIST TaskList = GetTaskList();
     ListAddItem(TaskList, Task);
@@ -889,6 +900,7 @@ BOOL GetTaskSchedulerState(LPTASK Task, LPTASK_SCHEDULER_STATE State) {
         State->TimeSlice = Task->SchedulerState.TimeSlice;
         State->Suspended = Task->SchedulerState.Suspended;
         State->InitDone = Task->SchedulerState.InitDone;
+        State->CpuId = Task->SchedulerState.CpuId;
         return TRUE;
     }
 
@@ -1150,6 +1162,7 @@ void DumpTask(LPTASK Task) {
     VERBOSE(TEXT("WakeUpTime      : %u"), (U32)Task->SchedulerState.WakeUpTime);
     VERBOSE(TEXT("TimeSlice       : %u"), (U32)Task->SchedulerState.TimeSlice);
     VERBOSE(TEXT("InitDone        : %s"), Task->SchedulerState.InitDone ? TEXT("yes") : TEXT("no"));
+    VERBOSE(TEXT("CpuId           : %u"), Task->SchedulerState.CpuId);
     UINT PendingMessages = MessageQueueBufferGetCount(&(Task->MessageQueue.MessageBuffer));
 
     VERBOSE(TEXT("Queued messages : %u"), PendingMessages);

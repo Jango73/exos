@@ -195,6 +195,7 @@ BOOL DeferredWorkQueueInitialize(LPDEFERRED_WORK_QUEUE Queue, LPDEFERRED_WORK_QU
     MemorySet(&TaskInfo, 0, sizeof(TaskInfo));
     TaskInfo.Header.Size = sizeof(TASK_INFO);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
+    TaskInfo.CpuId = CPU_AFFINITY_ANY;
     TaskInfo.Func = Config->TaskCallback;
     TaskInfo.Parameter = Queue;
     TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
@@ -225,7 +226,9 @@ void DeferredWorkQueueShutdown(LPDEFERRED_WORK_QUEUE Queue) {
 
     Queue->DispatcherStarted = FALSE;
     Queue->PollingMode = FALSE;
-    SAFE_USE(Queue->DeferredEvent) { ResetKernelEvent(Queue->DeferredEvent); }
+    SAFE_USE(Queue->DeferredEvent) {
+        ResetKernelEvent(Queue->DeferredEvent);
+    }
 }
 
 /************************************************************************/
@@ -375,7 +378,9 @@ void DeferredWorkQueueSignal(LPDEFERRED_WORK_QUEUE Queue, U32 SlotID) {
     Item->PendingCount++;
     RestoreFlags(&Flags);
 
-    SAFE_USE(Queue->DeferredEvent) { SignalKernelEvent(Queue->DeferredEvent); }
+    SAFE_USE(Queue->DeferredEvent) {
+        SignalKernelEvent(Queue->DeferredEvent);
+    }
 }
 
 /************************************************************************/
@@ -438,7 +443,9 @@ void DeferredWorkQueueProcessPendingWork(LPDEFERRED_WORK_QUEUE Queue) {
     }
 
     if (!PendingLeft) {
-        SAFE_USE(Queue->DeferredEvent) { ResetKernelEvent(Queue->DeferredEvent); }
+        SAFE_USE(Queue->DeferredEvent) {
+            ResetKernelEvent(Queue->DeferredEvent);
+        }
     }
 
     RestoreFlags(&Flags);

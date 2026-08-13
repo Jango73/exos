@@ -1158,6 +1158,7 @@ void InitializeKernel(void) {
         TaskInfo.Header.Size = sizeof(TASK_INFO);
         TaskInfo.Header.Version = EXOS_ABI_VERSION;
         TaskInfo.Header.Flags = 0;
+        TaskInfo.CpuId = CPU_AFFINITY_ANY;
         TaskInfo.Func = KernelMonitor;
         TaskInfo.Parameter = NULL;
         TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;

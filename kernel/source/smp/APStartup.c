@@ -87,6 +87,16 @@ void APEntryPoint(LPAP_PARAMETER_BLOCK Param) {
     Cpu->Tss = (LPVOID)Kernel_x86_32.TSS;
     Cpu->StackBase = Param->StackTop - AP_STACK_SIZE;
     Cpu->StackTop = Param->StackTop;
+    Cpu->CurrentTask = NULL;
+    Cpu->SchedulerFreeze = 0;
+    Cpu->ReschedulePending = FALSE;
+    {
+        LPSMP_CONFIG Config = GetSMPConfig();
+        U32 CpuIndex = Config->CpuIndexByApicId[Param->ApicId];
+        if (CpuIndex < SMP_MAX_CPUS) {
+            Cpu->RunQueue = SchedulerGetRunQueue(CpuIndex);
+        }
+    }
     SetCpuOnline(Param->ApicId, TRUE);
     Param->Status = CPU_STATUS_ONLINE;
 

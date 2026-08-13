@@ -59,22 +59,25 @@ typedef struct tag_CPU_STATISTICS {
 typedef struct tag_CPU CPU, *LPCPU;
 
 struct tag_CPU {
-    LPCPU Self;                    // Self pointer, read through %gs:0 on x86-64
-    U8 ApicId;                     // Local APIC ID
-    U8 ProcessorId;                // ACPI processor ID
-    U8 Status;                     // CPU_STATUS: offline, booting, online
-    U32 Flags;                     // ACPI MADT Local APIC flags
-    BOOL Enabled;                  // Selected as usable by the configuration
-    BOOL IsBsp;                    // TRUE for the bootstrap processor
-    U32 CpuFlags;                  // Per-CPU runtime flags
-    LINEAR StackBase;              // Per-CPU kernel stack base
-    LINEAR StackTop;               // Per-CPU kernel stack top
-    LPVOID Tss;                    // Per-CPU task state segment
-    LPTASK CurrentTask;            // Task currently running on this CPU
-    U32 LocalApicBase;             // Physical Local APIC base address
-    LINEAR LocalApicMap;           // Virtual address where the Local APIC is mapped
-    LAPICTIMER_CONFIG LAPICTimer;  // Per-CPU Local APIC timer state
-    CPU_STATISTICS Statistics;     // Per-CPU counters
+    LPCPU Self;                       // Self pointer, read through %gs:0 on x86-64
+    U8 ApicId;                        // Local APIC ID
+    U8 ProcessorId;                   // ACPI processor ID
+    U8 Status;                        // CPU_STATUS: offline, booting, online
+    U32 Flags;                        // ACPI MADT Local APIC flags
+    BOOL Enabled;                     // Selected as usable by the configuration
+    BOOL IsBsp;                       // TRUE for the bootstrap processor
+    U32 CpuFlags;                     // Per-CPU runtime flags
+    LINEAR StackBase;                 // Per-CPU kernel stack base
+    LINEAR StackTop;                  // Per-CPU kernel stack top
+    LPVOID Tss;                       // Per-CPU task state segment
+    LPTASK CurrentTask;               // Task currently running on this CPU
+    LPTASK_RUN_QUEUE RunQueue;        // Per-CPU run queue
+    volatile U32 SchedulerFreeze;     // Per-CPU scheduler freeze counter
+    volatile BOOL ReschedulePending;  // Reschedule requested for this CPU (IPI delivery is Step 6)
+    U32 LocalApicBase;                // Physical Local APIC base address
+    LINEAR LocalApicMap;              // Virtual address where the Local APIC is mapped
+    LAPICTIMER_CONFIG LAPICTimer;     // Per-CPU Local APIC timer state
+    CPU_STATISTICS Statistics;        // Per-CPU counters
 };
 
 /***************************************************************************/

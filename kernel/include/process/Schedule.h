@@ -32,6 +32,7 @@
 typedef struct tag_TASK TASK, *LPTASK;
 typedef struct tag_PROCESS PROCESS, *LPPROCESS;
 typedef struct tag_WAIT_INFO WAIT_INFO, *LPWAIT_INFO;
+typedef struct tag_TASK_RUN_QUEUE TASK_RUN_QUEUE, *LPTASK_RUN_QUEUE;
 typedef void (*SCHEDULER_TICK_CALLBACK)(LPVOID Context);
 
 /***************************************************************************/
@@ -52,6 +53,12 @@ LPTASK GetCurrentTask(void);
 
 // Returns the currently running process
 LPPROCESS GetCurrentProcess(void);
+
+// Returns the run queue bound to a CPU index (see CPU.RunQueue)
+LPTASK_RUN_QUEUE SchedulerGetRunQueue(UINT CpuIndex);
+
+// Marks the per-CPU scheduler access path as ready (boot-time gate)
+void SchedulerSetPerCpuReady(void);
 
 // Freezes the scheduler
 BOOL FreezeScheduler(void);

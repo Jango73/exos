@@ -502,6 +502,10 @@ typedef struct PACKED tag_CONSOLE_MODE_INFO {
     U32 CharHeight;
 } CONSOLE_MODE_INFO, *LPCONSOLE_MODE_INFO;
 
+// Task CPU affinity: CPU_AFFINITY_ANY lets any CPU run the task, otherwise the
+// value is the usable CPU index exposed by SMP discovery (CPU 0 is the BSP).
+#define CPU_AFFINITY_ANY 0xFF
+
 typedef struct PACKED tag_TASK_INFO {
     ABI_HEADER Header;
     TASKFUNC Func;
@@ -512,6 +516,7 @@ typedef struct PACKED tag_TASK_INFO {
     SECURITY_ATTRIBUTES Security;
     STR Name[MAX_USER_NAME];
     HANDLE Task;
+    U32 CpuId;
 } TASK_INFO, *LPTASK_INFO;
 
 typedef struct PACKED tag_MESSAGE_INFO {

@@ -154,6 +154,7 @@ BOOL DesktopEnsureDispatcherTask(LPDESKTOP Desktop) {
     TaskInfo.Header.Size = sizeof(TaskInfo);
     TaskInfo.Header.Version = EXOS_ABI_VERSION;
     TaskInfo.Header.Flags = 0;
+    TaskInfo.CpuId = CPU_AFFINITY_ANY;
     TaskInfo.Func = DesktopDispatcherTask;
     TaskInfo.Parameter = Desktop;
     TaskInfo.StackSize = TASK_MINIMUM_TASK_STACK_SIZE;
