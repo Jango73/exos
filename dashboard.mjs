@@ -4,6 +4,14 @@ import { spawn, exec } from 'child_process';
 import blessed from 'blessed';
 import { Tail } from 'tail';
 import kill from 'kill-port';
+import {
+    resolveCwdPromptFlag,
+    withGnomeTerminalWorkdir,
+    resolveSpawnCwd,
+    promptForWorkingDirectory,
+    normalizeKeySpec,
+    formatKeyLabel
+} from './dashboard-ext.mjs';
 
 // Added: spawn fallback when script file is missing in scriptsDir
 function spawnWithScriptsDirFallback(scriptsDir, scriptFile, spawnImpl) {
@@ -23,8 +31,14 @@ function spawnWithScriptsDirFallback(scriptsDir, scriptFile, spawnImpl) {
  *   "keyBindings": { "<key>": "<script file>", ... },
  *   "commands": [
  *     "<script file>",
- *     { "label": "<display label>", "script": "<script file>", "key": "<optional key>" },
+ *     { "label": "<display label>", "script": "<script file>", "key": "<optional key>", "promptCwd": false },
  *     ...
+ *   ],
+ *   "commandSets": [
+ *     { "name": "<set name>", "commands": [
+ *       { "label": "<display label>", "script": "<script file>", "key": "<optional key>", "promptCwd": true },
+ *       ...
+ *     ] }
  *   ],
  *   "settings": { ... },
  *   "events": {
@@ -50,6 +64,16 @@ function spawnWithScriptsDirFallback(scriptsDir, scriptFile, spawnImpl) {
  * - Actions available in both places: killProcess, closeTCPPorts, closeUDPPorts.
  * - For backward compatibility, legacy top-level keys `onDashboardStart` and
  *   `beforeStartProcess` (object map) are accepted and normalized into `events`.
+ * - Per-command working directory prompt: set `promptCwd: true` (aliases
+ *   accepted: `cwdPrompt`, `askCwd`, `cwdRequired`) on a command entry.
+ *   When the entry is activated (list selection or key shortcut), a folder
+ *   selector modal opens first; the chosen directory is used as `cwd` for
+ *   the spawned process. Cancelling aborts the launch.
+ * - Key shortcuts use whole words joined with "+": "control+b", "shift+a",
+ *   "alt+c", "function+f1", "control+shift+s", "escape", "f5".
+ *   Words accepted: control/ctrl, shift, alt/meta, function/fn (F-keys only).
+ *   Raw blessed names ("C-b", "S-a", "M-c") still work. Invalid specs bind
+ *   nothing (the entry stays selectable from the list).
  */
 
 /*
@@ -301,33 +325,39 @@ function resolveBindingScript(binding) {
 function normalizeSidebarEntries() {
     const entries = [];
 
-    for (const [keyName, binding] of Object.entries(config.keyBindings ?? {})) {
+    for (const [bindingKey, binding] of Object.entries(config.keyBindings ?? {})) {
         const displayLabel = resolveBindingLabel(binding);
         const script = resolveBindingScript(binding);
-        const normalizedKey = String(keyName || '').trim();
-        const keyText = normalizedKey === '' ? '' : normalizedKey.toUpperCase();
-        const content = displayLabel !== '' ? displayLabel : normalizedKey;
+        const rawKey = String(bindingKey || '').trim();
+        const keyName = normalizeKeySpec(rawKey);
+        const keyText = formatKeyLabel(rawKey);
+        const content = displayLabel !== '' ? displayLabel : rawKey;
         entries.push({
             text: keyText !== '' ? `${keyText} - ${content}` : content,
+            label: displayLabel !== '' ? displayLabel : rawKey,
             script,
-            keyName: normalizedKey,
-            selectable: script !== ''
+            keyName,
+            selectable: script !== '',
+            promptCwd: resolveCwdPromptFlag(binding)
         });
     }
 
     for (const command of (Array.isArray(config.commands) ? config.commands : [])) {
         const displayLabel = resolveBindingLabel(command);
         const script = resolveBindingScript(command);
-        const keyName = (typeof command === 'object' && command && typeof command.key === 'string')
+        const rawKey = (typeof command === 'object' && command && typeof command.key === 'string')
             ? command.key.trim()
             : '';
-        const keyText = keyName === '' ? '' : keyName.toUpperCase();
+        const keyName = normalizeKeySpec(rawKey);
+        const keyText = formatKeyLabel(rawKey);
         const fallbackLabel = script !== '' ? script : '(no command)';
         entries.push({
             text: keyText !== '' ? `${keyText} - ${displayLabel || fallbackLabel}` : `${displayLabel || fallbackLabel}`,
+            label: displayLabel || fallbackLabel,
             script,
             keyName,
-            selectable: script !== ''
+            selectable: script !== '',
+            promptCwd: resolveCwdPromptFlag(command)
         });
     }
 
@@ -388,18 +418,21 @@ function normalizeSidebarEntriesFromSet(commandSet) {
         const displayLabel = resolveBindingLabel(command);
         const script = resolveBindingScript(command);
 
-        const keyName = (typeof command === 'object' && command && typeof command.key === 'string')
+        const rawKey = (typeof command === 'object' && command && typeof command.key === 'string')
             ? command.key.trim()
             : '';
 
-        const keyText = keyName === '' ? '' : keyName.toUpperCase();
+        const keyName = normalizeKeySpec(rawKey);
+        const keyText = formatKeyLabel(rawKey);
         const fallbackLabel = script !== '' ? script : '(no command)';
 
         entries.push({
             text: keyText !== '' ? `${keyText} - ${displayLabel || fallbackLabel}` : `${displayLabel || fallbackLabel}`,
+            label: displayLabel || fallbackLabel,
             script,
             keyName,
-            selectable: script !== ''
+            selectable: script !== '',
+            promptCwd: resolveCwdPromptFlag(command)
         });
     }
 
@@ -824,10 +857,45 @@ const focusables = [
 let focusIndex = 0;
 
 screen.key('tab', () => {
+    if (typeof cwdSelectorOpen !== 'undefined' && cwdSelectorOpen) return;
     focusIndex = (focusIndex + 1) % focusables.length;
     focusables[focusIndex].focus();
     screen.render(); // Keep immediate render for UI interactions
 });
+
+// ---------------------------------------------------------------------------
+// Working directory selector (folder browser modal, see ./dashboard-ext.mjs)
+// Activated per command via `promptCwd: true` in dashboard.json
+// (aliases: `cwdPrompt`, `askCwd`, `cwdRequired`).
+// ---------------------------------------------------------------------------
+
+let cwdSelectorOpen = false;
+
+async function launchSidebarEntry(entry) {
+    if (!entry || !entry.selectable || entry.script === '') return;
+    if (entry.promptCwd === true && !cwdSelectorOpen) {
+        cwdSelectorOpen = true;
+        try {
+            const chosen = await promptForWorkingDirectory(screen, {
+                title: entry.label || entry.script,
+                initialDir: process.cwd(),
+                theme: dashboardTheme,
+                scheduleRender,
+                fallbackFocus: list
+            });
+            if (!chosen) {
+                output.log('[dash] Working directory selection cancelled.');
+                scheduleRender();
+                return;
+            }
+            await runScriptFile(entry.script, { cwd: chosen });
+        } finally {
+            cwdSelectorOpen = false;
+        }
+        return;
+    }
+    await runScriptFile(entry.script);
+}
 
 const registeredKeys = new Set();
 for (const entry of sidebarEntries) {
@@ -836,11 +904,15 @@ for (const entry of sidebarEntries) {
     }
     registeredKeys.add(entry.keyName);
     screen.key(entry.keyName, () => {
-        runScriptFile(entry.script);
+        launchSidebarEntry(entry).catch((err) => {
+            output.log(`Error: ${err?.message || err}`);
+            scheduleRender();
+        });
     });
 }
 
 screen.key(['q', 'C-c'], () => {
+    if (cwdSelectorOpen) return; // modal handles its own keys (Escape = cancel)
     if (current) {
         current.kill();
     }
@@ -849,23 +921,25 @@ screen.key(['q', 'C-c'], () => {
 });
 
 screen.key('C-r', () => {
+    if (cwdSelectorOpen) return;
     if (!lastCommand) {
         screen.render(); // Keep immediate render for UI feedback
         return;
     }
 
     if (lastCommand.kind === 'script') {
-        runScript(lastCommand.value).catch(err => {
+        runScript(lastCommand.value, { cwd: lastCommand.cwd }).catch(err => {
             output.log(`Error: ${err.message}`);
             scheduleRender();
         });
     } else {
-        runCustomCommand(lastCommand.value);
+        runCustomCommand(lastCommand.value, { cwd: lastCommand.cwd });
     }
 });
 
 // Keyboard shortcut to stop the current process
 screen.key('C-s', () => {
+    if (cwdSelectorOpen) return;
     stopCurrentProcess();
 });
 
@@ -877,7 +951,10 @@ focusables.forEach(el => {
 list.on('select', (_, index) => {
     const entry = sidebarEntries[index];
     if (entry?.selectable && entry.script !== '') {
-        runScriptFile(entry.script);
+        launchSidebarEntry(entry).catch((err) => {
+            output.log(`Error: ${err?.message || err}`);
+            scheduleRender();
+        });
     }
 });
 
@@ -964,7 +1041,7 @@ function stopCurrentProcess() {
     }
 }
 
-function runCustomCommand(command) {
+function runCustomCommand(command, options = {}) {
     const trimmed = (command || '').trim();
     if (!trimmed) return;
 
@@ -973,12 +1050,17 @@ function runCustomCommand(command) {
         output.log('Previous process killed.');
     }
 
+    const spawnCwd = resolveSpawnCwd(options.cwd);
+    if (spawnCwd) {
+        output.log(`[dash] cwd: ${spawnCwd}`);
+    }
+
     const args = trimmed.split(' ');
     const cmd = args.shift();
 
-    current = spawn(cmd, args, { shell: true });
+    current = spawn(cmd, args, { shell: true, ...(spawnCwd ? { cwd: spawnCwd } : {}) });
     setOutputLabel(trimmed);
-    lastCommand = { kind: 'custom', value: trimmed };
+    lastCommand = { kind: 'custom', value: trimmed, cwd: spawnCwd };
 
     current.stdout.on('data', data => {
         output.log(data.toString());
@@ -1044,7 +1126,7 @@ async function waitForExit(pid, timeoutMs) {
     return !isAlive(pid);
 }
 
-// Linux: lecture /proc/*/cmdline (robuste, no ps/pgrep)
+// Linux: read /proc/*/cmdline (robust, no ps/pgrep)
 // Windows: tasklist CSV
 function readCmdline(pid) {
     try {
@@ -1087,7 +1169,7 @@ async function getPidsByName(name) {
         const pid = parseInt(d, 10);
         if (pid === selfPid) continue;
         const cmd = readCmdline(pid).toLowerCase();
-        // Si cmdline vide, certains démons: on peut fallback sur exe
+        // If cmdline is empty, some daemons: could fall back to exe
         if (!cmd) continue;
         if (cmd.includes(needle)) results.add(pid);
     }
@@ -1099,7 +1181,7 @@ async function killPid(pid) {
     try { process.kill(pid, 'SIGTERM'); } catch (e) {
         if (e && e.code === 'ESRCH') return { ok: true, method: 'already-dead' };
         if (e && e.code === 'EPERM') return { ok: false, method: 'SIGTERM', error: 'EPERM' };
-        // autre erreur -> on forcera quand même
+        // other error -> force kill anyway
     }
     const graceful = await waitForExit(pid, 1500);
     if (graceful) return { ok: true, method: 'SIGTERM' };
@@ -1124,7 +1206,7 @@ async function killProcesses(params) {
     const selfPid = process.pid;
 
     for (const target of params) {
-        // PID direct
+        // Direct PID
         if (/^\d+$/.test(String(target))) {
             const pid = parseInt(String(target), 10);
             if (pid === selfPid) { continue; }
@@ -1135,7 +1217,7 @@ async function killProcesses(params) {
             continue;
         }
 
-        // Nom / motif substring (cmdline)
+        // Name / substring pattern (cmdline)
         const name = String(target).trim();
         const pids = await getPidsByName(name);
 
@@ -1187,7 +1269,7 @@ async function executeStartupActions() {
     const actions = config.events?.onDashboardStart;
     await executeActions(actions, 'startup actions');
 }
-async function runScript(name) {
+async function runScript(name, options = {}) {
     if (current) {
         current.kill();
         current = null;
@@ -1196,8 +1278,12 @@ async function runScript(name) {
     output.log(`--------------------------------------------------`);
 
     await executeBeforeActions(name);
-    current = spawn('npm', ['run', name], { shell: true });
-    lastCommand = { kind: 'script', value: name };
+    const spawnCwd = resolveSpawnCwd(options.cwd);
+    if (spawnCwd) {
+        output.log(`[dash] cwd: ${spawnCwd}`);
+    }
+    current = spawn('npm', ['run', name], { shell: true, ...(spawnCwd ? { cwd: spawnCwd } : {}) });
+    lastCommand = { kind: 'script', value: name, cwd: spawnCwd };
 
     setOutputLabel(name);
 
@@ -1218,7 +1304,7 @@ async function runScript(name) {
     });
 }
 
-async function runScriptFile(scriptFile) {
+async function runScriptFile(scriptFile, options = {}) {
     if (current) {
         current.kill();
         current = null;
@@ -1229,16 +1315,23 @@ async function runScriptFile(scriptFile) {
     output.log(`--------------------------------------------------`);
     output.log(`[dash] Running: ${scriptPath}`);
 
+    const spawnCwd = resolveSpawnCwd(options.cwd);
+    if (spawnCwd) {
+        output.log(`[dash] cwd: ${spawnCwd}`);
+    }
+
     await executeBeforeActions(path.basename(scriptFile, path.extname(scriptFile)));
 
+    const spawnOptions = { shell: true, ...(spawnCwd ? { cwd: spawnCwd } : {}) };
     // If the script file doesn't exist in scriptsDir, treat it as a shell command
     if (!fs.existsSync(scriptPath)) {
-        current = spawn(scriptFile, { shell: true });
-        lastCommand = { kind: 'custom', value: scriptFile };
+        const effectiveCommand = withGnomeTerminalWorkdir(scriptFile, spawnCwd);
+        current = spawn(effectiveCommand, spawnOptions);
+        lastCommand = { kind: 'custom', value: effectiveCommand, cwd: spawnCwd };
         setOutputLabel(scriptFile);
     } else {
-        current = spawn(scriptPath, { shell: true });
-        lastCommand = { kind: 'custom', value: scriptPath };
+        current = spawn(scriptPath, spawnOptions);
+        lastCommand = { kind: 'custom', value: scriptPath, cwd: spawnCwd };
         setOutputLabel(path.basename(scriptPath));
     }
 
