@@ -42,19 +42,136 @@
 
 /***************************************************************************/
 
-MUTEX KernelMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&LogMutex, .Prev = NULL, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_KERNEL, .DebugName = TEXT("KernelMutex"), .Lock = 0};
-MUTEX LogMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&MemoryMutex, .Prev = (LPLISTNODE)&KernelMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_LOG, .DebugName = TEXT("LogMutex"), .Lock = 0};
-MUTEX MemoryMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&ScheduleMutex, .Prev = (LPLISTNODE)&LogMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_MEMORY, .DebugName = TEXT("MemoryMutex"), .Lock = 0};
-MUTEX ScheduleMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&DesktopMutex, .Prev = (LPLISTNODE)&MemoryMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_SCHEDULE, .DebugName = TEXT("ScheduleMutex"), .Lock = 0};
-MUTEX DesktopMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&ProcessMutex, .Prev = (LPLISTNODE)&ScheduleMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_DESKTOP, .DebugName = TEXT("DesktopMutex"), .Lock = 0};
-MUTEX ProcessMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&TaskMutex, .Prev = (LPLISTNODE)&DesktopMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_PROCESS, .DebugName = TEXT("ProcessMutex"), .Lock = 0};
-MUTEX TaskMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&FileSystemMutex, .Prev = (LPLISTNODE)&ProcessMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_TASK, .DebugName = TEXT("TaskMutex"), .Lock = 0};
-MUTEX FileSystemMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&FileMutex, .Prev = (LPLISTNODE)&TaskMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_FILESYSTEM, .DebugName = TEXT("FileSystemMutex"), .Lock = 0};
-MUTEX FileMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&ConsoleStateMutex, .Prev = (LPLISTNODE)&FileSystemMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_FILE, .DebugName = TEXT("FileMutex"), .Lock = 0};
-MUTEX ConsoleStateMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&ConsoleRenderMutex, .Prev = (LPLISTNODE)&FileMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_CONSOLE_STATE, .DebugName = TEXT("ConsoleStateMutex"), .Lock = 0};
-MUTEX ConsoleRenderMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&UserAccountMutex, .Prev = (LPLISTNODE)&ConsoleStateMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_CONSOLE_RENDER, .DebugName = TEXT("ConsoleRenderMutex"), .Lock = 0};
-MUTEX UserAccountMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = (LPLISTNODE)&SessionMutex, .Prev = (LPLISTNODE)&ConsoleRenderMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_USER_ACCOUNT, .DebugName = TEXT("UserAccountMutex"), .Lock = 0};
-MUTEX SessionMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = NULL, .Prev = (LPLISTNODE)&UserAccountMutex, .Owner = NULL, .Process = NULL, .Task = NULL, .DebugClass = MUTEX_CLASS_SESSION, .DebugName = TEXT("SessionMutex"), .Lock = 0};
+MUTEX KernelMutex = { .TypeID = KOID_MUTEX,
+                      .References = 1,
+                      .Next = (LPLISTNODE)&LogMutex,
+                      .Prev = NULL,
+                      .Owner = NULL,
+                      .Process = NULL,
+                      .Task = NULL,
+                      .DebugClass = MUTEX_CLASS_KERNEL,
+                      .DebugName = TEXT("KernelMutex"),
+                      .Lock = 0 };
+MUTEX LogMutex = { .TypeID = KOID_MUTEX,
+                   .References = 1,
+                   .Next = (LPLISTNODE)&MemoryMutex,
+                   .Prev = (LPLISTNODE)&KernelMutex,
+                   .Owner = NULL,
+                   .Process = NULL,
+                   .Task = NULL,
+                   .DebugClass = MUTEX_CLASS_LOG,
+                   .DebugName = TEXT("LogMutex"),
+                   .Lock = 0 };
+MUTEX MemoryMutex = { .TypeID = KOID_MUTEX,
+                      .References = 1,
+                      .Next = (LPLISTNODE)&ScheduleMutex,
+                      .Prev = (LPLISTNODE)&LogMutex,
+                      .Owner = NULL,
+                      .Process = NULL,
+                      .Task = NULL,
+                      .DebugClass = MUTEX_CLASS_MEMORY,
+                      .DebugName = TEXT("MemoryMutex"),
+                      .Lock = 0 };
+MUTEX ScheduleMutex = { .TypeID = KOID_MUTEX,
+                        .References = 1,
+                        .Next = (LPLISTNODE)&DesktopMutex,
+                        .Prev = (LPLISTNODE)&MemoryMutex,
+                        .Owner = NULL,
+                        .Process = NULL,
+                        .Task = NULL,
+                        .DebugClass = MUTEX_CLASS_SCHEDULE,
+                        .DebugName = TEXT("ScheduleMutex"),
+                        .Lock = 0 };
+MUTEX DesktopMutex = { .TypeID = KOID_MUTEX,
+                       .References = 1,
+                       .Next = (LPLISTNODE)&ProcessMutex,
+                       .Prev = (LPLISTNODE)&ScheduleMutex,
+                       .Owner = NULL,
+                       .Process = NULL,
+                       .Task = NULL,
+                       .DebugClass = MUTEX_CLASS_DESKTOP,
+                       .DebugName = TEXT("DesktopMutex"),
+                       .Lock = 0 };
+MUTEX ProcessMutex = { .TypeID = KOID_MUTEX,
+                       .References = 1,
+                       .Next = (LPLISTNODE)&TaskMutex,
+                       .Prev = (LPLISTNODE)&DesktopMutex,
+                       .Owner = NULL,
+                       .Process = NULL,
+                       .Task = NULL,
+                       .DebugClass = MUTEX_CLASS_PROCESS,
+                       .DebugName = TEXT("ProcessMutex"),
+                       .Lock = 0 };
+MUTEX TaskMutex = { .TypeID = KOID_MUTEX,
+                    .References = 1,
+                    .Next = (LPLISTNODE)&FileSystemMutex,
+                    .Prev = (LPLISTNODE)&ProcessMutex,
+                    .Owner = NULL,
+                    .Process = NULL,
+                    .Task = NULL,
+                    .DebugClass = MUTEX_CLASS_TASK,
+                    .DebugName = TEXT("TaskMutex"),
+                    .Lock = 0 };
+MUTEX FileSystemMutex = { .TypeID = KOID_MUTEX,
+                          .References = 1,
+                          .Next = (LPLISTNODE)&FileMutex,
+                          .Prev = (LPLISTNODE)&TaskMutex,
+                          .Owner = NULL,
+                          .Process = NULL,
+                          .Task = NULL,
+                          .DebugClass = MUTEX_CLASS_FILESYSTEM,
+                          .DebugName = TEXT("FileSystemMutex"),
+                          .Lock = 0 };
+MUTEX FileMutex = { .TypeID = KOID_MUTEX,
+                    .References = 1,
+                    .Next = (LPLISTNODE)&ConsoleStateMutex,
+                    .Prev = (LPLISTNODE)&FileSystemMutex,
+                    .Owner = NULL,
+                    .Process = NULL,
+                    .Task = NULL,
+                    .DebugClass = MUTEX_CLASS_FILE,
+                    .DebugName = TEXT("FileMutex"),
+                    .Lock = 0 };
+MUTEX ConsoleStateMutex = { .TypeID = KOID_MUTEX,
+                            .References = 1,
+                            .Next = (LPLISTNODE)&ConsoleRenderMutex,
+                            .Prev = (LPLISTNODE)&FileMutex,
+                            .Owner = NULL,
+                            .Process = NULL,
+                            .Task = NULL,
+                            .DebugClass = MUTEX_CLASS_CONSOLE_STATE,
+                            .DebugName = TEXT("ConsoleStateMutex"),
+                            .Lock = 0 };
+MUTEX ConsoleRenderMutex = { .TypeID = KOID_MUTEX,
+                             .References = 1,
+                             .Next = (LPLISTNODE)&UserAccountMutex,
+                             .Prev = (LPLISTNODE)&ConsoleStateMutex,
+                             .Owner = NULL,
+                             .Process = NULL,
+                             .Task = NULL,
+                             .DebugClass = MUTEX_CLASS_CONSOLE_RENDER,
+                             .DebugName = TEXT("ConsoleRenderMutex"),
+                             .Lock = 0 };
+MUTEX UserAccountMutex = { .TypeID = KOID_MUTEX,
+                           .References = 1,
+                           .Next = (LPLISTNODE)&SessionMutex,
+                           .Prev = (LPLISTNODE)&ConsoleRenderMutex,
+                           .Owner = NULL,
+                           .Process = NULL,
+                           .Task = NULL,
+                           .DebugClass = MUTEX_CLASS_USER_ACCOUNT,
+                           .DebugName = TEXT("UserAccountMutex"),
+                           .Lock = 0 };
+MUTEX SessionMutex = { .TypeID = KOID_MUTEX,
+                       .References = 1,
+                       .Next = NULL,
+                       .Prev = (LPLISTNODE)&UserAccountMutex,
+                       .Owner = NULL,
+                       .Process = NULL,
+                       .Task = NULL,
+                       .DebugClass = MUTEX_CLASS_SESSION,
+                       .DebugName = TEXT("SessionMutex"),
+                       .Lock = 0 };
 
 /***************************************************************************/
 
@@ -66,26 +183,46 @@ MUTEX SessionMutex = {.TypeID = KOID_MUTEX, .References = 1, .Next = NULL, .Prev
  */
 LPCSTR GetMutexClassName(U32 DebugClass) {
     switch (DebugClass) {
-        case MUTEX_CLASS_NONE: return TEXT("None");
-        case MUTEX_CLASS_KERNEL: return TEXT("Kernel");
-        case MUTEX_CLASS_LOG: return TEXT("Log");
-        case MUTEX_CLASS_MEMORY: return TEXT("Memory");
-        case MUTEX_CLASS_SCHEDULE: return TEXT("Schedule");
-        case MUTEX_CLASS_PROCESS: return TEXT("Process");
-        case MUTEX_CLASS_PROCESS_HEAP: return TEXT("ProcessHeap");
-        case MUTEX_CLASS_PROCESS_MESSAGE_QUEUE: return TEXT("ProcessMessageQueue");
-        case MUTEX_CLASS_TASK: return TEXT("Task");
-        case MUTEX_CLASS_TASK_MESSAGE_QUEUE: return TEXT("TaskMessageQueue");
-        case MUTEX_CLASS_DESKTOP: return TEXT("Desktop");
-        case MUTEX_CLASS_DESKTOP_TIMER: return TEXT("DesktopTimer");
-        case MUTEX_CLASS_WINDOW: return TEXT("Window");
-        case MUTEX_CLASS_GRAPHICS_CONTEXT: return TEXT("GraphicsContext");
-        case MUTEX_CLASS_FILESYSTEM: return TEXT("FileSystem");
-        case MUTEX_CLASS_FILE: return TEXT("File");
-        case MUTEX_CLASS_CONSOLE_STATE: return TEXT("ConsoleState");
-        case MUTEX_CLASS_CONSOLE_RENDER: return TEXT("ConsoleRender");
-        case MUTEX_CLASS_USER_ACCOUNT: return TEXT("UserAccount");
-        case MUTEX_CLASS_SESSION: return TEXT("Session");
+        case MUTEX_CLASS_NONE:
+            return TEXT("None");
+        case MUTEX_CLASS_KERNEL:
+            return TEXT("Kernel");
+        case MUTEX_CLASS_LOG:
+            return TEXT("Log");
+        case MUTEX_CLASS_MEMORY:
+            return TEXT("Memory");
+        case MUTEX_CLASS_SCHEDULE:
+            return TEXT("Schedule");
+        case MUTEX_CLASS_PROCESS:
+            return TEXT("Process");
+        case MUTEX_CLASS_PROCESS_HEAP:
+            return TEXT("ProcessHeap");
+        case MUTEX_CLASS_PROCESS_MESSAGE_QUEUE:
+            return TEXT("ProcessMessageQueue");
+        case MUTEX_CLASS_TASK:
+            return TEXT("Task");
+        case MUTEX_CLASS_TASK_MESSAGE_QUEUE:
+            return TEXT("TaskMessageQueue");
+        case MUTEX_CLASS_DESKTOP:
+            return TEXT("Desktop");
+        case MUTEX_CLASS_DESKTOP_TIMER:
+            return TEXT("DesktopTimer");
+        case MUTEX_CLASS_WINDOW:
+            return TEXT("Window");
+        case MUTEX_CLASS_GRAPHICS_CONTEXT:
+            return TEXT("GraphicsContext");
+        case MUTEX_CLASS_FILESYSTEM:
+            return TEXT("FileSystem");
+        case MUTEX_CLASS_FILE:
+            return TEXT("File");
+        case MUTEX_CLASS_CONSOLE_STATE:
+            return TEXT("ConsoleState");
+        case MUTEX_CLASS_CONSOLE_RENDER:
+            return TEXT("ConsoleRender");
+        case MUTEX_CLASS_USER_ACCOUNT:
+            return TEXT("UserAccount");
+        case MUTEX_CLASS_SESSION:
+            return TEXT("Session");
     }
 
     return TEXT("Unknown");
@@ -229,6 +366,14 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
         LPLIST TaskList = GetTaskList();
         SAFE_USE_ID_2(TaskList->First, TaskList->First->Next, KOID_TASK) {
             Task = GetCurrentTask();
+            DEBUG(
+                TEXT("[HANG-DEBUG] LockMutex SAFE_USE_ID_2 ok Task=%p Mutex->Task=%p Mutex->Lock=%u TaskList->First=%p "
+                     "First->Next=%p"),
+                Task,
+                Mutex->Task,
+                Mutex->Lock,
+                TaskList->First,
+                TaskList->First->Next);
 
             if (Task != NULL && Task->TypeID == KOID_TASK) {
                 Process = Task->OwnerProcess;
@@ -240,6 +385,11 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                     } else {
                         //-------------------------------------
                         // Wait for mutex to be unlocked by its owner task
+
+                        DEBUG(
+                            TEXT("[HANG-DEBUG] LockMutex entering wait loop Mutex->Task=%p current=%p"),
+                            Mutex->Task,
+                            Task);
 
                         UINT StartWaitTime = GetSystemTime();
                         UINT LastDebugTime = StartWaitTime;
@@ -260,14 +410,16 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                             }
                         }
 
-                        ThresholdLatchInit(&ReentrantErrorLatch,
-                                           TEXT("Mutex reentrant wait error"),
-                                           MUTEX_REENTRANT_ERROR_TIMEOUT_MS,
-                                           StartWaitTime);
-                        ThresholdLatchInit(&ReentrantForceUnlockLatch,
-                                           TEXT("Mutex reentrant force unlock"),
-                                           MUTEX_REENTRANT_FORCE_UNLOCK_TIMEOUT_MS,
-                                           StartWaitTime);
+                        ThresholdLatchInit(
+                            &ReentrantErrorLatch,
+                            TEXT("Mutex reentrant wait error"),
+                            MUTEX_REENTRANT_ERROR_TIMEOUT_MS,
+                            StartWaitTime);
+                        ThresholdLatchInit(
+                            &ReentrantForceUnlockLatch,
+                            TEXT("Mutex reentrant force unlock"),
+                            MUTEX_REENTRANT_FORCE_UNLOCK_TIMEOUT_MS,
+                            StartWaitTime);
 
                         FOREVER {
                             //-------------------------------------
@@ -292,11 +444,13 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                             // Apply caller timeout for non-infinite waits
 
                             if (TimeOut != INFINITY) {
-                                if (HasOperationTimedOut(StartWaitTime, WaitLoopCount, WaitLoopLimit, TimeOut) != FALSE) {
+                                if (HasOperationTimedOut(StartWaitTime, WaitLoopCount, WaitLoopLimit, TimeOut) !=
+                                    FALSE) {
                                     if (UseDeadlockMonitor != FALSE && WaitStateActive != FALSE) {
                                         DeadlockMonitorOnWaitCancel(Task, Mutex);
                                     }
-                                    WARNING(TEXT("Timeout while waiting mutex=%p owner_task=%p waiter_task=%p timeout=%u"),
+                                    WARNING(
+                                        TEXT("Timeout while waiting mutex=%p owner_task=%p waiter_task=%p timeout=%u"),
                                         Mutex,
                                         Mutex->Task,
                                         Task,
@@ -312,21 +466,25 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
                             if (Mutex->Lock > 1) {
                                 UINT Now = GetSystemTime();
                                 if (ThresholdLatchCheck(&ReentrantErrorLatch, Now)) {
-                                    ERROR(TEXT("Reentrant mutex hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
-                                          Mutex,
-                                          Mutex->Task,
-                                          Task,
-                                          Mutex->Lock,
-                                          (U32)(Now - StartWaitTime));
+                                    ERROR(
+                                        TEXT("Reentrant mutex hold timeout mutex=%p owner_task=%p waiter_task=%p "
+                                             "lock=%u elapsed=%u ms"),
+                                        Mutex,
+                                        Mutex->Task,
+                                        Task,
+                                        Mutex->Lock,
+                                        (U32)(Now - StartWaitTime));
                                 }
 
                                 if (ThresholdLatchCheck(&ReentrantForceUnlockLatch, Now)) {
-                                    ERROR(TEXT("Force unlock after reentrant hold timeout mutex=%p owner_task=%p waiter_task=%p lock=%u elapsed=%u ms"),
-                                          Mutex,
-                                          Mutex->Task,
-                                          Task,
-                                          Mutex->Lock,
-                                          (U32)(Now - StartWaitTime));
+                                    ERROR(
+                                        TEXT("Force unlock after reentrant hold timeout mutex=%p owner_task=%p "
+                                             "waiter_task=%p lock=%u elapsed=%u ms"),
+                                        Mutex,
+                                        Mutex->Task,
+                                        Task,
+                                        Mutex->Lock,
+                                        (U32)(Now - StartWaitTime));
                                     Mutex->Lock = 0;
                                     Mutex->DebugOwnerCaller = 0;
                                     Mutex->Process = NULL;
@@ -340,10 +498,14 @@ UINT LockMutex(LPMUTEX Mutex, UINT TimeOut) {
 
                             UINT CurrentTime = GetSystemTime();
                             if (CurrentTime - LastDebugTime >= 2000) {
-                                DEBUG(TEXT("Task %p (%s) waiting for mutex %p owned by task %p (%s) for %u ms"),
-                                      Task, Task->Name,
-                                      Mutex, Mutex->Task, Mutex->Task->Name,
-                                      (U32)(CurrentTime - StartWaitTime));
+                                DEBUG(
+                                    TEXT("Task %p (%s) waiting for mutex %p owned by task %p (%s) for %u ms"),
+                                    Task,
+                                    Task->Name,
+                                    Mutex,
+                                    Mutex->Task,
+                                    Mutex->Task->Name,
+                                    (U32)(CurrentTime - StartWaitTime));
                                 LastDebugTime = CurrentTime;
                             }
 

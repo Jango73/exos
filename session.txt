@@ -1,0 +1,108 @@
+==================================================================
+SESSION STATE — Step 5 (Scheduler/Task Affinity) investigation
+Branch: dev/smp   (HEAD = 565eeae7 "SMP step 5: WIP", 16 files committed)
+Committed baseline: aa39166 "SMP step 4: per-CPU structures and accessors"
+Build machine: new (builds/logs from the previous machine are GONE; rebuilt clean on this one).
+==================================================================
+
+GOAL
+  Complete Step 5 of doc/work/in-progress/Symmetric-Multiprocessing.md
+  (per-CPU run queues + orphan queue + task CpuId affinity + scheduler freeze).
+  Commit as "Step 5: scheduler/task affinity", update roadmap State Summary, STOP.
+
+CURRENT STATUS: BLOCKED on x86-64. x86-32 is green with Step 5.
+
+BUILD / TEST STATUS (clean builds, 1-CPU, default 128 MB QEMU RAM)
+  - x86-32 + Step 5:  CLEAN BOOT. 829 log lines. SMP=OFF, usable=1, BSP CPU
+    initialized (CurrentTask=DFFFFA2C), KernelMonitor + Shell tasks created,
+    "Entering idle loop". No faults. Scheduler works in monoprocessor.
+  - x86-64 + Step 5: HANG at GrowDescriptorSlab (Memory-Descriptors.c:47), log
+    stops at line 17 `[GrowDescriptorSlab] GrowDescriptorSlab phys=0x48D000 ...`.
+    Reproduceable. No fault logged.
+  - x86-64 + Step 4 only (git checkout aa39166, rebuilt): boots FULLY
+    (230/230 tests pass, interrupts enabled at T10, all 27 drivers loaded),
+    then GP fault at T20 in Die: PrepareNextTaskSwitch -> CurrentCPU() with
+    GS=0x0 returns garbage pointer -> mov 0x70(%rax) GP fault.
+    (CurrentCPU was introduced by Step 4 via `git log -S`.)
+  => Step 5 is the regression that hangs x86-64 early; Step 4 (without Step 5)
+     already has a separate T20 GP fault. x86-64 is NOT usable at HEAD either way.
+
+STEP 5 CHANGES (committed in WIP, 16 files)
+  Core: kernel/source/process/Schedule.c (full rewrite: RunQueues[32],
+        OrphanRunQueue, PreSMPFreezeCount, PerCpuAccessReady, GetCurrentTask/
+        GetCurrentRunQueue/FreezeScheduler/UnfreezeScheduler with per-CPU + pre-SMP
+        fallback, AddTaskToQueue affinity routing, Scheduler() queue-aware).
+  SMP wiring: SMP.c (FinalizeMonoProcessorMode + InitializeBspCpuRecord set
+        RunQueue, freeze=0, call SchedulerSetPerCpuReady()) ; APStartup.c
+        (AP entry sets RunQueue via GetSMPConfig()->CpuIndexByApicId, guarded).
+  ABI: User.h (CPU_AFFINITY_ANY + U32 CpuId in packed TASK_INFO) ;
+        Task.h (U32 CpuId in TASK_SCHEDULER_STATE).
+  Consumers set TaskInfo.CpuId = CPU_AFFINITY_ANY everywhere a TASK_INFO is
+  built: Process.c (InitKernelProcess, CreateProcess), Deferred-Work-Queue.c,
+  Desktop-Timer.c, Desktop-Dispatcher.c, Keyboard-PS2/Keyboard-USB.c,
+        Task.c (GetTaskSchedulerState/DumpTask), exos-runtime-main.c.
+  Kernel.c: 1 line added (InitializeSMP call already present).
+  NOTE: Keyboard-PS2/Keyboard-USB/Process/Deferred-Work diffs are mostly
+  clang-format reformatting (DATA_SECTION initializers + SAFE_USE one-liners)
+  per the "modified files must be clang-formatted" rule — semantically only the
+  CpuId additions.
+
+INVESTIGATION FINDINGS (this session)
+  - PerCpuAccessReady is set ONLY in SMP.c:267 (FinalizeMonoProcessorMode) and
+    SMP.c:337 (InitializeBspCpuRecord). Both run AFTER LoadAllDrivers/
+    InitializeKernel drivers load. So at GrowDescriptorSlab time (driver[2]
+    load, T0) PerCpuAccessReady == FALSE -> GetCurrentTask takes the pre-SMP
+    fallback (RunQueues[0], no CurrentCPU/GS read). => The x86-64 GS=0 fault
+    (T20) and the GrowDescriptorSlab hang are NOT the same root cause.
+  - The GrowDescriptorSlab hang (Step 5 only) is between the `phys=` DEBUG
+    log and the missing `FindFreeRegion` DEBUG log => inside
+    AllocKernelRegion -> AllocRegionForProcess, almost certainly at/around
+    LockMutex(MUTEX_MEMORY, INFINITY) (Mutex.c:244..) OR ValidatePhysicalTargetRange.
+    LockMutex sleeps in a FOREVER loop (`IdleCPU(); DisableInterrupts();`) gated on
+    Mutex->Task being released by its owner; at T0 GetSystemTime does not advance
+    (interrupts/timer not enabled until EnableInterrupts at T10) => a held-but-not-
+    released MUTEX_MEMORY would hang forever. Need a backtrace to confirm location.
+  - On the PREVIOUS machine the Step-5 first-free page was 0x7FC3000 (top of
+    128 MB RAM); on THIS machine it is 0x48D000 (low). The addresses differ per
+    machine, so the hang is NOT simply a last-page/top-of-RAM edge case — it
+    reproduces at different physical pages, pointing to a logic/ordering defect
+    in how Step 5 interacts with the memory driver init, not raw layout.
+  - Step 4 (no Step 5) does NOT hang at GrowDescriptorSlab on either machine;
+    Step 5 alone triggers it. So it is genuinely causally linked to the Step 5
+    changes. The 34 KB RunQueues[32] .data growth is insufficient to explain a
+    low-page (0x48D000) vs top-page (0x7FC3000) flip; the defect is logical.
+
+DECISION PENDING (from user): investigate both x86-64 issues first.
+
+NEXT STEPS (blocked on user continuing the session)
+  1. Get a real backtrace of the Step-5 x86-64 hang (QEMU -s -S + gdb attach,
+     or add a temporary DEBUG breadcrumb) to pin the exact blocking line in
+     AllocKernelRegion/LockMutex. (run.sh:542 RunGdbQemu already emits -s -S.)
+  2. Reproduce/confirm the Step-4 T20 GP fault root cause (per-CPU GS handling
+     during syscall context switches) — separate from Step 5.
+  3. Fix the Step-5 GrowDescriptorSlab hang (primary blocker) so x86-64 boots
+     far enough to compare against Step 4.
+  4. Then re-evaluate x86-64 T20 GP fault (Step 4 regression) — may need a
+     separate fix or fall under Step 6/7 GS setup.
+  5. Once x86-64 boots green with Step 5: run 4-CPU SMP test (temp-edit
+     run.sh lines ~512/472 `-smp cpus=4`, REVERT after), then re-verify x86-32.
+  6. Update doc/work/in-progress/Symmetric-Multiprocessing.md State Summary
+     (mark Step 5 done, 6-11 pending). Finalize commit message
+     "Step 5: scheduler/task affinity" and present for squash-merge.
+
+COMMANDS USED THIS SESSION (run sequentially as required; build lock enforced)
+  ./scripts/linux/build/build --arch x86-32 --fs ext2 --debug --clean
+  ./scripts/linux/build/build --arch x86-64 --fs ext2 --debug --clean
+  timeout 25 ./scripts/linux/run/run --arch x86-32 --debug
+  timeout 25 ./scripts/linux/run/run --arch x86-64 --debug
+  (git checkout aa39166 ... then git checkout dev/smp to compare Step4 vs Step5)
+
+KEY FILES
+  kernel/source/process/Schedule.c   (core Step 5 rewrite)
+  kernel/source/sync/Mutex.c:205..373 (LockMutex sleep loop; not modified by Step5)
+  kernel/source/memory/Memory-Descriptors.c:47 (GrowDescriptorSlab)
+  kernel/source/arch/x86-64/x86-64-Memory.c:1230..1651 (FindFreeRegion/AllocRegion)
+  kernel/source/smp/SMP.c:267,337 (SchedulerSetPerCpuReady call sites)
+  kernel/source/smp/APStartup.c (AP entry CpuIndexByApicId fix)
+  doc/work/in-progress/Symmetric-Multiprocessing.md (roadmap / State Summary)
+==================================================================

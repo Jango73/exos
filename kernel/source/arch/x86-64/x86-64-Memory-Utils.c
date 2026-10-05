@@ -89,7 +89,9 @@ U64 MakePageTableEntryValue(
  * @param Flags Pre-built flag mask.
  * @return Encoded paging entry value.
  */
-U64 MakePageEntryRaw(PHYSICAL Physical, U64 Flags) { return ((U64)Physical & PAGE_MASK) | (Flags & 0xFFFu); }
+U64 MakePageEntryRaw(PHYSICAL Physical, U64 Flags) {
+    return ((U64)Physical & PAGE_MASK) | (Flags & 0xFFFu);
+}
 
 /************************************************************************/
 /**
@@ -109,7 +111,9 @@ void WritePageDirectoryEntryValue(LPPAGE_DIRECTORY Directory, UINT Index, U64 Va
  * @param Index Entry index within the table.
  * @param Value Encoded PTE value.
  */
-void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) { ((volatile U64*)Table)[Index] = Value; }
+void WritePageTableEntryValue(LPPAGE_TABLE Table, UINT Index, U64 Value) {
+    ((volatile U64*)Table)[Index] = Value;
+}
 
 /************************************************************************/
 /**
@@ -134,7 +138,9 @@ U64 ReadPageDirectoryEntryValue(const LPPAGE_DIRECTORY Directory, UINT Index) {
  * @param Index Entry index.
  * @return Encoded PTE value.
  */
-U64 ReadPageTableEntryValue(const LPPAGE_TABLE Table, UINT Index) { return ((volatile const U64*)Table)[Index]; }
+U64 ReadPageTableEntryValue(const LPPAGE_TABLE Table, UINT Index) {
+    return ((volatile const U64*)Table)[Index];
+}
 
 /************************************************************************/
 /**
@@ -207,21 +213,27 @@ void ClearPageDirectoryEntry(LPPAGE_DIRECTORY Directory, UINT Index) {
  * @param Table Page table pointer.
  * @param Index Entry index.
  */
-void ClearPageTableEntry(LPPAGE_TABLE Table, UINT Index) { WritePageTableEntryValue(Table, Index, (U64)0); }
+void ClearPageTableEntry(LPPAGE_TABLE Table, UINT Index) {
+    WritePageTableEntryValue(Table, Index, (U64)0);
+}
 
 /************************************************************************/
 /**
  * @brief Return the first non-canonical linear address.
  * @return Maximum linear address plus one.
  */
-U64 GetMaxLinearAddressPlusOne(void) { return (U64)1 << 48; }
+U64 GetMaxLinearAddressPlusOne(void) {
+    return (U64)1 << 48;
+}
 
 /************************************************************************/
 /**
  * @brief Return the first non-addressable physical address.
  * @return Maximum physical address plus one.
  */
-U64 GetMaxPhysicalAddressPlusOne(void) { return (U64)1 << 52; }
+U64 GetMaxPhysicalAddressPlusOne(void) {
+    return (U64)1 << 52;
+}
 
 /************************************************************************/
 /**
@@ -250,23 +262,38 @@ UINT ComputePagesUntilAlignment(LINEAR Base, U64 SpanSize) {
 // Map or remap a single virtual page by directly editing its PTE via the self-map.
 
 void MapOnePage(
-    LINEAR Linear, PHYSICAL Physical, U32 ReadWrite, U32 Privilege, U32 WriteThrough, U32 CacheDisabled, U32 Global,
+    LINEAR Linear,
+    PHYSICAL Physical,
+    U32 ReadWrite,
+    U32 Privilege,
+    U32 WriteThrough,
+    U32 CacheDisabled,
+    U32 Global,
     U32 Fixed) {
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage ENTER Linear=%p Physical=%p"), (LPVOID)Linear, (LPVOID)Physical);
     LPPAGE_DIRECTORY Directory = GetCurrentPageDirectoryVA();
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage Directory=%p"), Directory);
     UINT dir = GetDirectoryEntry(Linear);
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage dir=%u"), dir);
 
     if (!PageDirectoryEntryIsPresent(Directory, dir)) {
         ConsolePanic(TEXT("[MapOnePage] PDE not present for VA %p (dir=%d)"), Linear, dir);
     }
 
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage PDE present, before GetPageTableVAFor"));
     LPPAGE_TABLE Table = GetPageTableVAFor(Linear);
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage Table=%p"), Table);
     UINT tab = GetTableEntry(Linear);
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage tab=%u"), tab);
 
     WritePageTableEntryValue(
-        Table, tab,
+        Table,
+        tab,
         MakePageTableEntryValue(Physical, ReadWrite, Privilege, WriteThrough, CacheDisabled, Global, Fixed));
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage after WritePageTableEntryValue"));
 
     InvalidatePage(Linear);
+    DEBUG(TEXT("[HANG-DEBUG] MapOnePage exit"));
 }
 
 /************************************************************************/
@@ -291,6 +318,7 @@ static inline void UnmapOnePage(LINEAR Linear) {
  * @return Linear address mapping or 0 on failure.
  */
 LINEAR MapTemporaryPhysicalPage1(PHYSICAL Physical) {
+    DEBUG(TEXT("[HANG-DEBUG] MapTemporaryPhysicalPage1 ENTER Physical=%p"), (LPVOID)Physical);
     InitializeTemporaryLinearSlots();
 
     if (G_TempLinear1 == 0) {
@@ -298,11 +326,21 @@ LINEAR MapTemporaryPhysicalPage1(PHYSICAL Physical) {
         return NULL;
     }
 
+    DEBUG(TEXT("[HANG-DEBUG] MapTemporaryPhysicalPage1 G_TempLinear1=%p"), (LPVOID)G_TempLinear1);
+
     G_TempPhysical1 = Physical;
 
+    DEBUG(TEXT("[HANG-DEBUG] MapTemporaryPhysicalPage1 before MapOnePage"));
     MapOnePage(
-        G_TempLinear1, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear1,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
+    DEBUG(TEXT("[HANG-DEBUG] MapTemporaryPhysicalPage1 after MapOnePage"));
 
     // Ensure the CPU stops using the previous translation before callers touch the
     // new physical page through the shared temporary slot.
@@ -330,8 +368,14 @@ LINEAR MapTemporaryPhysicalPage2(PHYSICAL Physical) {
     G_TempPhysical2 = Physical;
 
     MapOnePage(
-        G_TempLinear2, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear2,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     // Ensure the CPU stops using the previous translation before callers touch the
     // new physical page through the shared temporary slot.
@@ -359,8 +403,14 @@ LINEAR MapTemporaryPhysicalPage3(PHYSICAL Physical) {
     G_TempPhysical3 = Physical;
 
     MapOnePage(
-        G_TempLinear3, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear3,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     // Ensure the CPU stops using the previous translation before callers touch the
     // new physical page through the shared temporary slot.
@@ -388,8 +438,14 @@ LINEAR MapTemporaryPhysicalPage4(PHYSICAL Physical) {
     G_TempPhysical4 = Physical;
 
     MapOnePage(
-        G_TempLinear4, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear4,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     FlushTLB();
 
@@ -415,8 +471,14 @@ LINEAR MapTemporaryPhysicalPage5(PHYSICAL Physical) {
     G_TempPhysical5 = Physical;
 
     MapOnePage(
-        G_TempLinear5, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear5,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     FlushTLB();
 
@@ -442,8 +504,14 @@ LINEAR MapTemporaryPhysicalPage6(PHYSICAL Physical) {
     G_TempPhysical6 = Physical;
 
     MapOnePage(
-        G_TempLinear6, Physical,
-        /*RW*/ 1, PAGE_PRIVILEGE_KERNEL, /*WT*/ 0, /*UC*/ 0, /*Global*/ 0, /*Fixed*/ 1);
+        G_TempLinear6,
+        Physical,
+        /*RW*/ 1,
+        PAGE_PRIVILEGE_KERNEL,
+        /*WT*/ 0,
+        /*UC*/ 0,
+        /*Global*/ 0,
+        /*Fixed*/ 1);
 
     FlushTLB();
 
@@ -502,10 +570,12 @@ LINEAR AllocPageTable(LINEAR Base) {
         MemorySet(NewDirectory, 0, PAGE_SIZE);
 
         WritePageDirectoryEntryValue(
-            PdptLinear, PdptIndex,
+            PdptLinear,
+            PdptIndex,
             MakePageDirectoryEntryValue(
                 DirectoryPhysical,
-                /*ReadWrite*/ 1, PAGE_PRIVILEGE(Base),
+                /*ReadWrite*/ 1,
+                PAGE_PRIVILEGE(Base),
                 /*WriteThrough*/ 0,
                 /*CacheDisabled*/ 0,
                 /*Global*/ 0,
@@ -535,7 +605,8 @@ LINEAR AllocPageTable(LINEAR Base) {
     U32 Privilege = PAGE_PRIVILEGE(Base);
     U64 DirectoryEntryValue = MakePageDirectoryEntryValue(
         PMA_Table,
-        /*ReadWrite*/ 1, Privilege,
+        /*ReadWrite*/ 1,
+        Privilege,
         /*WriteThrough*/ 0,
         /*CacheDisabled*/ 0,
         /*Global*/ 0,
@@ -647,13 +718,32 @@ PHYSICAL MapLinearToPhysical(LINEAR Address) {
     UINT DirIndex = MemoryPageIteratorGetDirectoryIndex(&Iterator);
     UINT TabIndex = MemoryPageIteratorGetTableIndex(&Iterator);
 
+    DEBUG(
+        TEXT("[HANG-DEBUG] MapLinearToPhysical ENTER Address=%p Pml4Idx=%u PdptIdx=%u DirIdx=%u TabIdx=%u"),
+        (LPVOID)Address,
+        Pml4Index,
+        PdptIndex,
+        DirIndex,
+        TabIndex);
+
     LPPML4 Pml4 = GetCurrentPml4VA();
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical Pml4=%p"), Pml4);
     U64 Pml4EntryValue = ReadPageDirectoryEntryValue((LPPAGE_DIRECTORY)Pml4, Pml4Index);
+    DEBUG(
+        TEXT("[HANG-DEBUG] MapLinearToPhysical Pml4Entry=%p present=%u"),
+        (LPVOID)Pml4EntryValue,
+        (Pml4EntryValue & PAGE_FLAG_PRESENT) != 0);
     if ((Pml4EntryValue & PAGE_FLAG_PRESENT) == 0) return 0;
 
     PHYSICAL PdptPhysical = (PHYSICAL)(Pml4EntryValue & PAGE_MASK);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical PdptPhysical=%p"), (LPVOID)PdptPhysical);
     LPPAGE_DIRECTORY PdptLinear = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage1(PdptPhysical);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical PdptLinear=%p"), PdptLinear);
     U64 PdptEntryValue = ReadPageDirectoryEntryValue(PdptLinear, PdptIndex);
+    DEBUG(
+        TEXT("[HANG-DEBUG] MapLinearToPhysical PdptEntry=%p present=%u"),
+        (LPVOID)PdptEntryValue,
+        (PdptEntryValue & PAGE_FLAG_PRESENT) != 0);
     if ((PdptEntryValue & PAGE_FLAG_PRESENT) == 0) return 0;
 
     if ((PdptEntryValue & PAGE_FLAG_PAGE_SIZE) != 0) {
@@ -662,8 +752,14 @@ PHYSICAL MapLinearToPhysical(LINEAR Address) {
     }
 
     PHYSICAL DirectoryPhysical = (PHYSICAL)(PdptEntryValue & PAGE_MASK);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical DirectoryPhysical=%p"), (LPVOID)DirectoryPhysical);
     LPPAGE_DIRECTORY DirectoryLinear = (LPPAGE_DIRECTORY)MapTemporaryPhysicalPage2(DirectoryPhysical);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical DirectoryLinear=%p"), DirectoryLinear);
     U64 DirectoryEntryValue = ReadPageDirectoryEntryValue(DirectoryLinear, DirIndex);
+    DEBUG(
+        TEXT("[HANG-DEBUG] MapLinearToPhysical DirectoryEntry=%p present=%u"),
+        (LPVOID)DirectoryEntryValue,
+        (DirectoryEntryValue & PAGE_FLAG_PRESENT) != 0);
     if ((DirectoryEntryValue & PAGE_FLAG_PRESENT) == 0) return 0;
 
     if ((DirectoryEntryValue & PAGE_FLAG_PAGE_SIZE) != 0) {
@@ -672,9 +768,11 @@ PHYSICAL MapLinearToPhysical(LINEAR Address) {
     }
 
     LPPAGE_TABLE Table = MemoryPageIteratorGetTable(&Iterator);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical Table=%p TabIndex=%u"), Table, TabIndex);
     if (!PageTableEntryIsPresent(Table, TabIndex)) return 0;
 
     PHYSICAL PagePhysical = PageTableEntryGetPhysical(Table, TabIndex);
+    DEBUG(TEXT("[HANG-DEBUG] MapLinearToPhysical PagePhysical=%p"), (LPVOID)PagePhysical);
     if (PagePhysical == 0) return 0;
 
     return (PHYSICAL)(PagePhysical | (Address & (PAGE_SIZE - 1)));
@@ -688,13 +786,18 @@ PHYSICAL MapLinearToPhysical(LINEAR Address) {
  * @return TRUE if the address resolves to a present page table entry.
  */
 BOOL IsValidMemory(LINEAR Address) {
+    DEBUG(TEXT("[HANG-DEBUG] IsValidMemory ENTER Address=%p"), (LPVOID)Address);
     LINEAR Canonical = CanonicalizeLinearAddress(Address);
 
     if (Canonical != Address) {
+        DEBUG(TEXT("[HANG-DEBUG] IsValidMemory non-canonical return FALSE"));
         return FALSE;
     }
 
-    return (BOOL)MapLinearToPhysical(Canonical) != 0;
+    DEBUG(TEXT("[HANG-DEBUG] IsValidMemory before MapLinearToPhysical"));
+    PHYSICAL Phys = (BOOL)MapLinearToPhysical(Canonical);
+    DEBUG(TEXT("[HANG-DEBUG] IsValidMemory after MapLinearToPhysical Phys=%p"), (LPVOID)Phys);
+    return Phys != 0;
 }
 
 /************************************************************************/

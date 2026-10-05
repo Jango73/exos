@@ -33,20 +33,19 @@
 
 static UINT MemoryManagerCommands(UINT Function, UINT Parameter);
 
-DRIVER DATA_SECTION MemoryManagerDriver = {
-    .TypeID = KOID_DRIVER,
-    .References = 1,
-    .Next = NULL,
-    .Prev = NULL,
-    .Type = DRIVER_TYPE_MEMORY,
-    .VersionMajor = MEMORY_MANAGER_VER_MAJOR,
-    .VersionMinor = MEMORY_MANAGER_VER_MINOR,
-    .Designer = "Jango73",
-    .Manufacturer = "Intel",
-    .Product = "MemoryManager",
-    .Alias = "memory_manager",
-    .Flags = DRIVER_FLAG_CRITICAL,
-    .Command = MemoryManagerCommands};
+DRIVER DATA_SECTION MemoryManagerDriver = { .TypeID = KOID_DRIVER,
+                                            .References = 1,
+                                            .Next = NULL,
+                                            .Prev = NULL,
+                                            .Type = DRIVER_TYPE_MEMORY,
+                                            .VersionMajor = MEMORY_MANAGER_VER_MAJOR,
+                                            .VersionMinor = MEMORY_MANAGER_VER_MINOR,
+                                            .Designer = "Jango73",
+                                            .Manufacturer = "Intel",
+                                            .Product = "MemoryManager",
+                                            .Alias = "memory_manager",
+                                            .Flags = DRIVER_FLAG_CRITICAL,
+                                            .Command = MemoryManagerCommands };
 
 /************************************************************************/
 
@@ -56,7 +55,9 @@ DRIVER DATA_SECTION MemoryManagerDriver = {
  * @brief Retrieves the memory manager driver descriptor.
  * @return Pointer to the memory manager driver.
  */
-LPDRIVER MemoryManagerGetDriver(void) { return &MemoryManagerDriver; }
+LPDRIVER MemoryManagerGetDriver(void) {
+    return &MemoryManagerDriver;
+}
 
 /************************************************************************/
 
@@ -238,10 +239,12 @@ BOOL EnsureSharedLowTable(PHYSICAL* TablePhysical, PHYSICAL PhysicalBase, BOOL P
 #endif
 
         WritePageTableEntryValue(
-            Table, Index,
+            Table,
+            Index,
             MakePageTableEntryValue(
                 EntryPhysical,
-                /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+                /*ReadWrite*/ 1,
+                PAGE_PRIVILEGE_KERNEL,
                 /*WriteThrough*/ 0,
                 /*CacheDisabled*/ 0,
                 /*Global*/ 0,
@@ -258,7 +261,9 @@ BOOL EnsureSharedLowTable(PHYSICAL* TablePhysical, PHYSICAL PhysicalBase, BOOL P
  * @brief Clear a REGION_SETUP structure to its default state.
  * @param Region Structure to reset.
  */
-void ResetRegionSetup(REGION_SETUP* Region) { MemorySet(Region, 0, sizeof(REGION_SETUP)); }
+void ResetRegionSetup(REGION_SETUP* Region) {
+    MemorySet(Region, 0, sizeof(REGION_SETUP));
+}
 
 /************************************************************************/
 
@@ -334,22 +339,30 @@ BOOL AllocateTableAndPopulate(REGION_SETUP* Region, PAGE_TABLE_SETUP* Table, LPP
 #endif
 
                 WritePageTableEntryValue(
-                    TableVA, Index,
+                    TableVA,
+                    Index,
                     MakePageTableEntryValue(
-                        Physical, Table->ReadWrite, Table->Privilege,
+                        Physical,
+                        Table->ReadWrite,
+                        Table->Privilege,
                         /*WriteThrough*/ 0,
-                        /*CacheDisabled*/ 0, Table->Global,
+                        /*CacheDisabled*/ 0,
+                        Table->Global,
                         /*Fixed*/ 1));
             }
             break;
 
         case PAGE_TABLE_POPULATE_SINGLE_ENTRY:
             WritePageTableEntryValue(
-                TableVA, Table->Data.Single.TableIndex,
+                TableVA,
+                Table->Data.Single.TableIndex,
                 MakePageTableEntryValue(
-                    Table->Data.Single.Physical, Table->Data.Single.ReadWrite, Table->Data.Single.Privilege,
+                    Table->Data.Single.Physical,
+                    Table->Data.Single.ReadWrite,
+                    Table->Data.Single.Privilege,
                     /*WriteThrough*/ 0,
-                    /*CacheDisabled*/ 0, Table->Data.Single.Global,
+                    /*CacheDisabled*/ 0,
+                    Table->Data.Single.Global,
                     /*Fixed*/ 1));
             break;
 
@@ -359,11 +372,15 @@ BOOL AllocateTableAndPopulate(REGION_SETUP* Region, PAGE_TABLE_SETUP* Table, LPP
     }
 
     WritePageDirectoryEntryValue(
-        Directory, Table->DirectoryIndex,
+        Directory,
+        Table->DirectoryIndex,
         MakePageDirectoryEntryValue(
-            Table->Physical, Table->ReadWrite, Table->Privilege,
+            Table->Physical,
+            Table->ReadWrite,
+            Table->Privilege,
             /*WriteThrough*/ 0,
-            /*CacheDisabled*/ 0, Table->Global,
+            /*CacheDisabled*/ 0,
+            Table->Global,
             /*Fixed*/ 1));
 
     return TRUE;
@@ -391,7 +408,9 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
     }
 
     if (EnsureSharedLowTable(
-            &LowRegionSharedTables.IdentityTablePhysical, ((PHYSICAL)PAGE_TABLE_NUM_ENTRIES << PAGE_SIZE_MUL), FALSE,
+            &LowRegionSharedTables.IdentityTablePhysical,
+            ((PHYSICAL)PAGE_TABLE_NUM_ENTRIES << PAGE_SIZE_MUL),
+            FALSE,
             TEXT("low identity")) == FALSE) {
         return FALSE;
     }
@@ -431,30 +450,38 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
     MemorySet(Directory, 0, PAGE_SIZE);
 
     WritePageDirectoryEntryValue(
-        Pdpt, Region->PdptIndex,
+        Pdpt,
+        Region->PdptIndex,
         MakePageDirectoryEntryValue(
-            Region->DirectoryPhysical, Region->ReadWrite, Region->Privilege,
+            Region->DirectoryPhysical,
+            Region->ReadWrite,
+            Region->Privilege,
             /*WriteThrough*/ 0,
-            /*CacheDisabled*/ 0, Region->Global,
+            /*CacheDisabled*/ 0,
+            Region->Global,
             /*Fixed*/ 1));
 
     UINT LowDirectoryIndex = GetDirectoryEntry(0);
 
     WritePageDirectoryEntryValue(
-        Directory, LowDirectoryIndex,
+        Directory,
+        LowDirectoryIndex,
         MakePageDirectoryEntryValue(
             LowRegionSharedTables.BiosTablePhysical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_KERNEL,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
             /*Fixed*/ 1));
 
     WritePageDirectoryEntryValue(
-        Directory, LowDirectoryIndex + 1u,
+        Directory,
+        LowDirectoryIndex + 1u,
         MakePageDirectoryEntryValue(
             LowRegionSharedTables.IdentityTablePhysical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_KERNEL,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
@@ -492,7 +519,9 @@ BOOL SetupLowRegion(REGION_SETUP* Region, UINT UserSeedTables) {
         for (UINT Index = 0; Index < UserSeedTables; Index++) {
             if (Region->TableCount >= TableCapacity) {
                 ERROR(
-                    TEXT("User seed table overflow index=%u count=%u capacity=%u"), Index, Region->TableCount,
+                    TEXT("User seed table overflow index=%u count=%u capacity=%u"),
+                    Index,
+                    Region->TableCount,
                     TableCapacity);
                 return FALSE;
             }
@@ -589,11 +618,15 @@ BOOL SetupKernelRegion(REGION_SETUP* Region, UINT TableCountRequired) {
     MemorySet(Directory, 0, PAGE_SIZE);
 
     WritePageDirectoryEntryValue(
-        Pdpt, Region->PdptIndex,
+        Pdpt,
+        Region->PdptIndex,
         MakePageDirectoryEntryValue(
-            Region->DirectoryPhysical, Region->ReadWrite, Region->Privilege,
+            Region->DirectoryPhysical,
+            Region->ReadWrite,
+            Region->Privilege,
             /*WriteThrough*/ 0,
-            /*CacheDisabled*/ 0, Region->Global,
+            /*CacheDisabled*/ 0,
+            Region->Global,
             /*Fixed*/ 1));
 
     UINT DirectoryIndex = GetDirectoryEntry((U64)VMA_KERNEL);
@@ -665,11 +698,15 @@ BOOL SetupHighUserRegion(REGION_SETUP* Region, PHYSICAL TaskRunnerPhysical, UINT
     MemorySet(Directory, 0, PAGE_SIZE);
 
     WritePageDirectoryEntryValue(
-        Pdpt, TaskRunnerPdptIndex,
+        Pdpt,
+        TaskRunnerPdptIndex,
         MakePageDirectoryEntryValue(
-            Region->DirectoryPhysical, Region->ReadWrite, Region->Privilege,
+            Region->DirectoryPhysical,
+            Region->ReadWrite,
+            Region->Privilege,
             /*WriteThrough*/ 0,
-            /*CacheDisabled*/ 0, Region->Global,
+            /*CacheDisabled*/ 0,
+            Region->Global,
             /*Fixed*/ 1));
 
     PAGE_TABLE_SETUP* Table = &Region->Tables[Region->TableCount];
@@ -771,40 +808,48 @@ PHYSICAL AllocPageDirectory(void) {
     MemorySet(Pml4, 0, PAGE_SIZE);
 
     WritePageDirectoryEntryValue(
-        Pml4, LowPml4Index,
+        Pml4,
+        LowPml4Index,
         MakePageDirectoryEntryValue(
             LowRegion.PdptPhysical,
-            /*ReadWrite*/ 1, LowRegion.Privilege,
+            /*ReadWrite*/ 1,
+            LowRegion.Privilege,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
             /*Fixed*/ 1));
 
     WritePageDirectoryEntryValue(
-        Pml4, KernelPml4Index,
+        Pml4,
+        KernelPml4Index,
         MakePageDirectoryEntryValue(
             KernelRegion.PdptPhysical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_KERNEL,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
             /*Fixed*/ 1));
 
     WritePageDirectoryEntryValue(
-        Pml4, TaskRunnerPml4Index,
+        Pml4,
+        TaskRunnerPml4Index,
         MakePageDirectoryEntryValue(
             HighUserRegion.PdptPhysical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_USER,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_USER,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
             /*Fixed*/ 1));
 
     WritePageDirectoryEntryValue(
-        Pml4, PML4_RECURSIVE_SLOT,
+        Pml4,
+        PML4_RECURSIVE_SLOT,
         MakePageDirectoryEntryValue(
             Pml4Physical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_KERNEL,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
@@ -887,10 +932,12 @@ PHYSICAL AllocUserPageDirectory(void) {
     }
 
     WritePageDirectoryEntryValue(
-        Pml4, LowPml4Index,
+        Pml4,
+        LowPml4Index,
         MakePageDirectoryEntryValue(
             LowRegion.PdptPhysical,
-            /*ReadWrite*/ 1, LowRegion.Privilege,
+            /*ReadWrite*/ 1,
+            LowRegion.Privilege,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
@@ -966,7 +1013,8 @@ PHYSICAL AllocUserPageDirectory(void) {
 
     U64 TaskRunnerEntryValue = MakePageDirectoryEntryValue(
         HighUserRegion.PdptPhysical,
-        /*ReadWrite*/ 1, PAGE_PRIVILEGE_USER,
+        /*ReadWrite*/ 1,
+        PAGE_PRIVILEGE_USER,
         /*WriteThrough*/ 0,
         /*CacheDisabled*/ 0,
         /*Global*/ 0,
@@ -975,10 +1023,12 @@ PHYSICAL AllocUserPageDirectory(void) {
     WritePageDirectoryEntryValue(Pml4, TaskRunnerPml4Index, TaskRunnerEntryValue);
 
     WritePageDirectoryEntryValue(
-        Pml4, PML4_RECURSIVE_SLOT,
+        Pml4,
+        PML4_RECURSIVE_SLOT,
         MakePageDirectoryEntryValue(
             Pml4Physical,
-            /*ReadWrite*/ 1, PAGE_PRIVILEGE_KERNEL,
+            /*ReadWrite*/ 1,
+            PAGE_PRIVILEGE_KERNEL,
             /*WriteThrough*/ 0,
             /*CacheDisabled*/ 0,
             /*Global*/ 0,
@@ -1084,13 +1134,21 @@ void InitializeMemoryManager(void) {
         BOOL FoundMetadataRange = FALSE;
 
         FoundMetadataRange = FindAvailableMemoryRangeInWindow(
-            (PHYSICAL)LOW_MEMORY_THREE_QUARTER, (PHYSICAL)RESERVED_LOW_MEMORY, KernelStartup.KernelPhysicalBase,
-            LoaderReservedEnd, BuddyMetadataSizeAligned, &BuddyMetadataPhysical);
+            (PHYSICAL)LOW_MEMORY_THREE_QUARTER,
+            (PHYSICAL)RESERVED_LOW_MEMORY,
+            KernelStartup.KernelPhysicalBase,
+            LoaderReservedEnd,
+            BuddyMetadataSizeAligned,
+            &BuddyMetadataPhysical);
 
         if (FoundMetadataRange == FALSE) {
             FoundMetadataRange = FindAvailableMemoryRangeInWindow(
-                (PHYSICAL)N_1MB, (PHYSICAL)LOW_MEMORY_HALF, KernelStartup.KernelPhysicalBase, LoaderReservedEnd,
-                BuddyMetadataSizeAligned, &BuddyMetadataPhysical);
+                (PHYSICAL)N_1MB,
+                (PHYSICAL)LOW_MEMORY_HALF,
+                KernelStartup.KernelPhysicalBase,
+                LoaderReservedEnd,
+                BuddyMetadataSizeAligned,
+                &BuddyMetadataPhysical);
         }
 
         if (FoundMetadataRange != FALSE) {
@@ -1132,8 +1190,10 @@ void InitializeMemoryManager(void) {
 
     if (BuddyInitialize((LINEAR)BuddyMetadataPhysical, BuddyMetadataSizeAligned, KernelStartup.PageCount) == FALSE) {
         ERROR(
-            TEXT("BuddyInitialize failed (PA=%p size=%u pages=%u)"), (LPVOID)(LINEAR)BuddyMetadataPhysical,
-            BuddyMetadataSizeAligned, KernelStartup.PageCount);
+            TEXT("BuddyInitialize failed (PA=%p size=%u pages=%u)"),
+            (LPVOID)(LINEAR)BuddyMetadataPhysical,
+            BuddyMetadataSizeAligned,
+            KernelStartup.PageCount);
         ConsolePanic(TEXT("Could not initialize physical memory allocator"));
         DO_THE_SLEEPING_BEAUTY;
     }
@@ -1229,16 +1289,28 @@ static BOOL DoesRegionOverlapTrackedAllocation(LPPROCESS TrackingProcess, LINEAR
 
 LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT Size) {
     LINEAR Base = N_4MB;
+    DEBUG(
+        TEXT("[HANG-DEBUG] FindFreeRegion ENTER StartBase=%p Size=%u TrackingProcess=%p"),
+        (LPVOID)StartBase,
+        Size,
+        TrackingProcess);
 
     if (StartBase != 0) {
+        DEBUG(TEXT("[HANG-DEBUG] FindFreeRegion before CanonicalizeLinearAddress"));
         LINEAR CanonStart = CanonicalizeLinearAddress(StartBase);
+        DEBUG(TEXT("[HANG-DEBUG] FindFreeRegion after CanonicalizeLinearAddress CanonStart=%p"), (LPVOID)CanonStart);
         if (CanonStart >= Base) {
             Base = CanonStart;
         }
     }
 
+    DEBUG(TEXT("[HANG-DEBUG] FindFreeRegion before GetCurrentMemoryRegionList"));
     LPMEMORY_REGION_LIST List =
         (TrackingProcess != NULL) ? GetProcessMemoryRegionList(TrackingProcess) : GetCurrentMemoryRegionList();
+    DEBUG(
+        TEXT("[HANG-DEBUG] FindFreeRegion after GetCurrentMemoryRegionList List=%p Count=%u"),
+        List,
+        (List != NULL) ? List->Count : 0);
 
     DEBUG(TEXT("FindFreeRegion(start=%p size=%u list=%u)"), (LPVOID)StartBase, Size, (List != NULL) ? List->Count : 0);
 
@@ -1260,13 +1332,17 @@ LINEAR FindFreeRegion(LPPROCESS TrackingProcess, LINEAR StartBase, UINT Size) {
                     if (IsRegionFree(Base, Size) == TRUE) {
                         if (DoesRegionOverlapTrackedAllocation(TrackingProcess, Base, Size) == FALSE) {
                             DEBUG(
-                                TEXT("FindFreeRegion result=%p (start=%p size=%u)"), (LPVOID)Base, (LPVOID)StartBase,
+                                TEXT("FindFreeRegion result=%p (start=%p size=%u)"),
+                                (LPVOID)Base,
+                                (LPVOID)StartBase,
                                 Size);
                             return Base;
                         }
                         DEBUG(
-                            TEXT("FindFreeRegion skipped overlap at %p (start=%p size=%u)"), (LPVOID)Base,
-                            (LPVOID)StartBase, Size);
+                            TEXT("FindFreeRegion skipped overlap at %p (start=%p size=%u)"),
+                            (LPVOID)Base,
+                            (LPVOID)StartBase,
+                            Size);
                     }
                 }
             }
@@ -1356,7 +1432,10 @@ void FreeEmptyPageTables(void) {
                 LPPAGE_TABLE Table = (LPPAGE_TABLE)MapTemporaryPhysicalPage6(TablePhysical);
                 if (Table == NULL) {
                     ERROR(
-                        TEXT("Failed to map table PML4=%u PDPT=%u Dir=%u phys=%p"), Pml4Index, PdptIndex, DirIndex,
+                        TEXT("Failed to map table PML4=%u PDPT=%u Dir=%u phys=%p"),
+                        Pml4Index,
+                        PdptIndex,
+                        DirIndex,
                         (LPVOID)TablePhysical);
                     continue;
                 }
@@ -1453,17 +1532,27 @@ BOOL PopulateRegionPagesLegacy(
 
                 if (FixedFlag != 0u) {
                     WritePageTableEntryValue(
-                        Table, TabEntry,
+                        Table,
+                        TabEntry,
                         MakePageTableEntryValue(
-                            Physical, ReadWrite, Privilege, PteWriteThrough, PteCacheDisabled,
+                            Physical,
+                            ReadWrite,
+                            Privilege,
+                            PteWriteThrough,
+                            PteCacheDisabled,
                             /*Global*/ 0,
                             /*Fixed*/ 1));
                 } else {
                     SetPhysicalPageMark((UINT)(Physical >> PAGE_SIZE_MUL), 1);
                     WritePageTableEntryValue(
-                        Table, TabEntry,
+                        Table,
+                        TabEntry,
                         MakePageTableEntryValue(
-                            Physical, ReadWrite, Privilege, PteWriteThrough, PteCacheDisabled,
+                            Physical,
+                            ReadWrite,
+                            Privilege,
+                            PteWriteThrough,
+                            PteCacheDisabled,
                             /*Global*/ 0,
                             /*Fixed*/ 0));
                     if (BootstrapTrace) {
@@ -1484,9 +1573,14 @@ BOOL PopulateRegionPagesLegacy(
                 }
 
                 WritePageTableEntryValue(
-                    Table, TabEntry,
+                    Table,
+                    TabEntry,
                     MakePageTableEntryValue(
-                        Physical, ReadWrite, Privilege, PteWriteThrough, PteCacheDisabled,
+                        Physical,
+                        ReadWrite,
+                        Privilege,
+                        PteWriteThrough,
+                        PteCacheDisabled,
                         /*Global*/ 0,
                         /*Fixed*/ 0));
                 if (BootstrapTrace) {
@@ -1562,9 +1656,18 @@ LINEAR AllocRegionForProcess(
             return NULL;
         }
 
+        if (BootstrapTrace) {
+            DEBUG(
+                TEXT("[HANG-DEBUG] AllocRegionForProcess before ValidatePhysicalTargetRange Target=%p NumPages=%u"),
+                (LPVOID)Target,
+                NumPages);
+        }
         if (ValidatePhysicalTargetRange(Target, NumPages) == FALSE) {
             ERROR(TEXT("Target range cannot be addressed"));
             return NULL;
+        }
+        if (BootstrapTrace) {
+            DEBUG(TEXT("[HANG-DEBUG] AllocRegionForProcess after ValidatePhysicalTargetRange OK"));
         }
         /* NOTE: Do not reject pages already marked used here.
            Target may come from AllocPhysicalPage(), which marks the page in the allocator.
@@ -1575,8 +1678,17 @@ LINEAR AllocRegionForProcess(
     // descriptor tracking must be atomic across tasks. LockMutex is reentrant
     // for the owning task, so the recursive descriptor-slab growth that happens
     // inside RegionTrackAllocForProcess acquires the same mutex safely.
+    if (BootstrapTrace) {
+        DEBUG(TEXT("[HANG-DEBUG] before LockMutex Tag=%s"), Tag);
+    }
     LockMutex(MUTEX_MEMORY, INFINITY);
+    if (BootstrapTrace) {
+        DEBUG(TEXT("[HANG-DEBUG] after LockMutex"));
+    }
 
+    if (BootstrapTrace) {
+        DEBUG(TEXT("[HANG-DEBUG] before FindFreeRegion Base=%p Size=%u Target=%p"), (LPVOID)Base, Size, (LPVOID)Target);
+    }
     /* If the calling process requests that a linear address be mapped,
        see if the region is not already allocated. */
     if (Base != 0 && (Flags & ALLOC_PAGES_AT_OR_OVER) == 0) {
@@ -1596,6 +1708,9 @@ LINEAR AllocRegionForProcess(
 
         LINEAR NewBase = FindFreeRegion(TrackingProcess, Base, Size);
 
+        if (BootstrapTrace) {
+            DEBUG(TEXT("[HANG-DEBUG] after FindFreeRegion NewBase=%p"), (LPVOID)NewBase);
+        }
         if (NewBase == NULL) {
             UnlockMutex(MUTEX_MEMORY);
             return NULL;
@@ -1613,14 +1728,17 @@ LINEAR AllocRegionForProcess(
 
     if (FastPathUsed == FALSE) {
         if (BootstrapTrace) {
+            DEBUG(TEXT("[HANG-DEBUG] before PopulateRegionPagesLegacy"));
         }
         // Populate first so the page-table entries are present before any
-        // descriptor slab growth recurses into the region allocator.
+        // descriptor slab growth that recurses into the region allocator.
         if (PopulateRegionPagesLegacy(Base, Target, NumPages, Flags, Pointer, TEXT("AllocRegion")) == FALSE) {
             UnlockMutex(MUTEX_MEMORY);
             return NULL;
         }
-
+        if (BootstrapTrace) {
+            DEBUG(TEXT("[HANG-DEBUG] before RegionTrackAllocForProcess"));
+        }
         if (RegionTrackAllocForProcess(TrackingProcess, Pointer, Target, NumPages << PAGE_SIZE_MUL, Flags, Tag) ==
             FALSE) {
             G_RegionDescriptorBootstrap = TRUE;
@@ -1630,6 +1748,7 @@ LINEAR AllocRegionForProcess(
             return NULL;
         }
         if (BootstrapTrace) {
+            DEBUG(TEXT("[HANG-DEBUG] after RegionTrackAllocForProcess"));
         }
     }
 
@@ -1831,7 +1950,8 @@ BOOL CommitRegionRangeForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Si
         }
 
         WritePageTableEntryValue(
-            Table, TabEntry,
+            Table,
+            TabEntry,
             MakePageTableEntryValue(
                 Physical, ReadWrite, PAGE_PRIVILEGE(CurrentLinear), PteWriteThrough, PteCacheDisabled, 0, FixedFlag));
 
@@ -1905,7 +2025,9 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
                 ClearPageTableEntry(Table, TabEntry);
             } else {
                 DEBUG(
-                    TEXT("Missing mapping Dir=%u Tab=%u IsLarge=%u"), DirEntry, TabEntry,
+                    TEXT("Missing mapping Dir=%u Tab=%u IsLarge=%u"),
+                    DirEntry,
+                    TabEntry,
                     (UINT)(IsLargePage ? 1u : 0u));
             }
         } else if (IsLargePage == FALSE) {
@@ -1924,7 +2046,9 @@ BOOL FreeRegionForProcess(LPPROCESS TrackingProcess, LINEAR Base, UINT Size) {
 
 /************************************************************************/
 
-BOOL FreeRegion(LINEAR Base, UINT Size) { return FreeRegionForProcess(NULL, Base, Size); }
+BOOL FreeRegion(LINEAR Base, UINT Size) {
+    return FreeRegionForProcess(NULL, Base, Size);
+}
 
 /************************************************************************/
 
@@ -1985,7 +2109,9 @@ LINEAR MapFramebufferMemory(PHYSICAL PhysicalBase, UINT Size) {
     UINT AdjustedSize = ((Size + PageOffset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
     LINEAR AlignedResult = AllocRegion(
-        VMA_KERNEL, AlignedPhysicalBase, AdjustedSize,
+        VMA_KERNEL,
+        AlignedPhysicalBase,
+        AdjustedSize,
         ALLOC_PAGES_COMMIT | ALLOC_PAGES_READWRITE | ALLOC_PAGES_WC | ALLOC_PAGES_IO | ALLOC_PAGES_AT_OR_OVER,
         TEXT("Framebuffer"));
 

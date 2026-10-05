@@ -1042,12 +1042,16 @@ LPMEMORY_REGION_LIST GetProcessMemoryRegionList(LPPROCESS Process) {
  * @return Memory region list pointer or NULL when unavailable.
  */
 LPMEMORY_REGION_LIST GetCurrentMemoryRegionList(void) {
+    DEBUG(TEXT("[HANG-DEBUG] GetCurrentMemoryRegionList ENTER"));
     LPPROCESS Process = GetCurrentProcess();
+    DEBUG(TEXT("[HANG-DEBUG] GetCurrentMemoryRegionList after GetCurrentProcess Process=%p"), Process);
     if (Process == NULL) {
         Process = &KernelProcess;
     }
 
-    return GetProcessMemoryRegionList(Process);
+    LPMEMORY_REGION_LIST Result = GetProcessMemoryRegionList(Process);
+    DEBUG(TEXT("[HANG-DEBUG] GetCurrentMemoryRegionList after GetProcessMemoryRegionList Result=%p"), Result);
+    return Result;
 }
 
 /***************************************************************************/
