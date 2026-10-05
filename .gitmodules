@@ -1,3 +1,7 @@
 [submodule "third/tinygl"]
 	path = third/tinygl
 	url = https://github.com/Jango73/tinygl
+[submodule "dashboard"]
+	path = dashboard
+	url = https://github.com/Jango73/dashboard.git
+	branch = main

@@ -1,31 +1,10 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# Thin shim: the dashboard engine lives in dashboard/ (git submodule).
+# It runs with this folder as working directory, so the engine loads
+# the project dashboard.json from here.
 
-# Path to the dashboard script
-SCRIPT_FILE="dashboard.mjs"
+set -euo pipefail
 
-# Required dependencies
-DEPS=("blessed" "tail" "kill-port")
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Initialize npm project if missing
-if [ ! -f package.json ]; then
-    echo "[setup] Initializing npm project..."
-    npm init -y >/dev/null
-fi
-
-# Install missing dependencies
-for dep in "${DEPS[@]}"; do
-    if ! npm list "$dep" >/dev/null 2>&1; then
-        echo "[setup] Installing $dep..."
-        npm install "$dep"
-    fi
-done
-
-# Run the dashboard
-if [ ! -f "$SCRIPT_FILE" ]; then
-    echo "[error] Script '$SCRIPT_FILE' not found."
-    exit 1
-fi
-
-echo "[run] Starting dashboard..."
-exec node "$SCRIPT_FILE"
+exec "$ROOT_DIR/dashboard/dashboard.sh"
