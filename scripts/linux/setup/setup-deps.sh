@@ -28,6 +28,15 @@ APT_PACKAGES=(
     wget
     xxd
 )
+# Dashboard TUI runtime dependencies. Keep in sync with dashboard/package.json
+# (engine source of truth). Installed both in dashboard/ (engine resolution)
+# and in the repository root (dashboard.sh launcher preflight resolves from
+# the calling working directory).
+DASHBOARD_NPM_PACKAGES=(
+    "@opentui/core@^0.7.0"
+    "kill-port@^2.0.1"
+    "tail@^2.2.6"
+)
 
 ShowError()
 {
@@ -169,6 +178,33 @@ InstallNodePackages()
     RunOrFail \
         "npm failed to install the required global packages ('jscpd', 'rimraf'). Check your Node.js/npm installation and permissions." \
         sudo npm install -g jscpd rimraf
+}
+
+# ////////////////////////////////////////////////////////////////////////////
+InstallDashboardNodeDependencies()
+{
+    local ScriptDir=""
+    local RepoRoot=""
+
+    ScriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    RepoRoot="$(cd "${ScriptDir}/../../.." && pwd)"
+
+    if [ ! -f "$RepoRoot/dashboard/package.json" ]; then
+        ShowWarning "Dashboard engine not found at $RepoRoot/dashboard (submodule not initialized). Skipping dashboard Node.js dependencies."
+        ShowWarning "Run scripts/linux/setup/update-submodules.sh first, then re-run this script."
+        return 0
+    fi
+
+    echo "Installing dashboard engine Node.js dependencies..."
+    RunOrFail \
+        "npm failed to install dashboard engine dependencies. Check your Node.js/npm installation and network connection." \
+        npm install --prefix "$RepoRoot/dashboard"
+
+    echo "Installing dashboard runtime dependencies for the repository root..."
+    echo "NPM packages: ${DASHBOARD_NPM_PACKAGES[*]}"
+    RunOrFail \
+        "npm failed to install dashboard runtime dependencies. Check your Node.js/npm installation and network connection." \
+        npm install --prefix "$RepoRoot" "${DASHBOARD_NPM_PACKAGES[@]}"
 }
 
 # ////////////////////////////////////////////////////////////////////////////
@@ -370,6 +406,7 @@ main()
 
     InstallAptPackages
     InstallNodePackages
+    InstallDashboardNodeDependencies
     InstallToolchain
 }
 
